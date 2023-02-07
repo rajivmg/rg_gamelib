@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 
 # name of project
-project(rg_gfx)
+project(rg_gamelib)
 
 set(EXECUTABLE_NAME "rg_gamelib" CACHE STRING "Output executable name")
 
@@ -39,13 +39,13 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
-    add_executable(rg_gfx ${SRC_FILES})
-    target_link_libraries(rg_gfx SDL2main SDL2 vulkan-1)
-    set_target_properties(rg_gfx PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
+    add_executable(rg_gamelib ${SRC_FILES})
+    target_link_libraries(rg_gamelib SDL2main SDL2 vulkan-1)
+    set_target_properties(rg_gamelib PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
 
-    set_target_properties(rg_gfx PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
-    set_target_properties(rg_gfx PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
-    set_target_properties(rg_gfx PROPERTIES VS_STARTUP_PROJECT rg_gfx)
+    set_target_properties(rg_gamelib PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
+    set_target_properties(rg_gamelib PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
+    set_target_properties(rg_gamelib PROPERTIES VS_STARTUP_PROJECT rg_gamelib)
 
 elseif(APPLE)
 
@@ -64,8 +64,8 @@ elseif(APPLE)
     add_compile_definitions(RG_METAL)
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${3RD_PARTY_DIR}/inc/metal-cpp ${3RD_PARTY_DIR}/inc/metal-cpp-extensions)
 
-    add_executable(rg_gfx ${SRC_FILES} ${SHADER_SRC_FILES})
-    target_link_libraries(rg_gfx ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2})
+    add_executable(rg_gamelib ${SRC_FILES} ${SHADER_SRC_FILES})
+    target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2})
 
     set_source_files_properties(${SHADER_SRC_FILES} PROPERTIES LANGUAGE METAL)
 endif()
