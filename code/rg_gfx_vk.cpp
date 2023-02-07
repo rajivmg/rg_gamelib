@@ -4,7 +4,7 @@
 
 RG_BEGIN_NAMESPACE
 
-static Bool CreateWindowVK(GfxContext* ctx)
+static Bool CreateWindowVK(GfxCtx* ctx)
 {
     UInt windowWidth = 640;
     UInt windowHeight = 480;
@@ -19,7 +19,7 @@ static Bool CreateWindowVK(GfxContext* ctx)
     return false;
 }
 
-static void CreateInstanceVK(GfxContext* ctx)
+static void CreateInstanceVK(GfxCtx* ctx)
 {
     //layers
     char const* deviceLayers[] = { "VK_LAYER_KHRONOS_validation" };
@@ -116,7 +116,7 @@ VkBool32 VkDebugReportCallbackFuntionImpl(
     return true;
 }
 
-static void CreateDeviceVK(GfxContext* ctx)
+static void CreateDeviceVK(GfxCtx* ctx)
 {
     // Steps:
     // 1. Enumerate all physical devices to select suitable one
@@ -226,7 +226,7 @@ static void CreateDeviceVK(GfxContext* ctx)
     }
 }
 
-static void CreateSwapchainVK(GfxContext* ctx)
+static void CreateSwapchainVK(GfxCtx* ctx)
 {
     VkSurfaceCapabilitiesKHR surfaceProp;
     rgVK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx->vk.physicalDevice, ctx->vk.surface, &surfaceProp));
@@ -384,7 +384,7 @@ static void CreateSwapchainVK(GfxContext* ctx)
     }
 }
 
-void CreateCmdBufferVK(GfxContext* const ctx)
+void CreateCmdBufferVK(GfxCtx* const ctx)
 {
     // 1. Create cmd pool
     VkCommandPoolCreateInfo poolInfo = {};
@@ -406,7 +406,7 @@ void CreateCmdBufferVK(GfxContext* const ctx)
     rgVK_CHECK(vkAllocateCommandBuffers(ctx->vk.device, &allocateInfo, &ctx->vk.graphicsCmdBuffer));
 }
 
-void DestroyCmdBufferVK(GfxContext* const ctx)
+void DestroyCmdBufferVK(GfxCtx* const ctx)
 {
     VkCommandBuffer cmdBuffers[] = { ctx->vk.graphicsCmdBuffer };
     vkFreeCommandBuffers(ctx->vk.device, ctx->vk.graphicsCmdPool, rgARRAY_COUNT(cmdBuffers), cmdBuffers);

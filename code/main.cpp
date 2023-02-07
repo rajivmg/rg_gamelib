@@ -1,3 +1,6 @@
+#define RG_H_IMPLEMENTATION
+#include "rg.h"
+
 #include "rg_gfx.h"
 
 // TODO:
@@ -11,17 +14,17 @@ using namespace rg;
 // Important: make this a pointer, otherwise if a type with constructor is added to struct, the compiler will complain because it will try to call the constructor of anonymous structs
 rg::GfxCtx rg::g_GfxCtx;
 
-rg::Int rg::updateAndDraw(rg::GfxCtx* gtxCtx, rg::Double dt)
+rgInt rg::updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt)
 {
     printf("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
     
     return 0;
 }
 
-Int createSDLWindow(GfxCtx* ctx)
+rgInt createSDLWindow(GfxCtx* ctx)
 {
-    UInt windowWidth = 720;
-    UInt windowHeight = 720;
+    rgUInt windowWidth = 720;
+    rgUInt windowHeight = 720;
     Uint32 windowFlags = 0;
     
 #ifdef RG_VULKAN_RNDR
@@ -52,12 +55,12 @@ int main(int argc, char* argv[])
     }
     gfxInit();
     
-    Bool shouldQuit = false;
+    rgBool shouldQuit = false;
     SDL_Event event;
     
     Uint64 currentPerfCounter = SDL_GetPerformanceCounter();
     Uint64 previousPerfCounter = currentPerfCounter;
-    Double deltaTime = 0.0;
+    rgDouble deltaTime = 0.0;
     
     while(!shouldQuit)
     {

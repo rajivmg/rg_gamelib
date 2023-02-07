@@ -1,5 +1,5 @@
-#ifndef _RG_GFX_H_
-#define _RG_GFX_H_
+#ifndef __RG_GFX_H__
+#define __RG_GFX_H__
 
 #if defined(RG_VULKAN_RNDR)
 #include <vulkan/vulkan.h>
@@ -9,49 +9,9 @@
 #include <MetalKit/MetalKit.hpp>
 #endif
 
-#include <stdint.h>
-#include <SDL2/SDL.h>
-#include <tiny_imageformat/tinyimageformat.h>
-#include <vectormath/vectormath.hpp>
-
-#define RG_BEGIN_NAMESPACE namespace rg {
-#define RG_END_NAMESPACE }
+#include "rg.h"
 
 RG_BEGIN_NAMESPACE
-
-typedef int64_t     S64;
-typedef int32_t     S32;
-typedef int16_t     S16;
-typedef int8_t      S8;
-
-typedef uint64_t    U64;
-typedef uint32_t    U32;
-typedef uint16_t    U16;
-typedef uint8_t     U8;
-
-typedef float       R32;
-typedef double      R64;
-
-typedef intptr_t    IPtr;
-typedef uintptr_t   UPtr;
-
-typedef uint32_t    UInt;
-typedef int32_t     Int;
-typedef float       Float;
-typedef double      Double;
-typedef bool        Bool;
-
-#define rgKILOBYTE(x) 1024LL * (x)
-#define rgMEGABYTE(x) 1024LL * Kilobyte(x)
-#define rgGIGABYTE(x) 1024LL * Megabyte(x)
-#define rgARRAY_COUNT(a) (sizeof(a)/sizeof((a)[0]))
-#define rgOFFSET_OF(type, member) ((uintptr_t)&(((type *)0)->member))
-#define rgAssert(exp) SDL_assert(exp)
-#define rgMalloc(s) malloc((s))
-#define rgFree(p) free((p))
-
-void _LogImpl(char const *fmt, ...);
-#define rgLog(...) _LogImpl(__VA_ARGS__)
 
 #ifdef RG_VULKAN_RNDR
 #define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
@@ -63,8 +23,8 @@ struct GfxTexture2D;
 struct Texture
 {
 // -- data
-    UInt width;
-    UInt height;
+    rgUInt width;
+    rgUInt height;
     TinyImageFormat pixelFormat;
     GfxTexture2D* texture;
 #ifdef RG_METAL_RNDR
@@ -76,15 +36,15 @@ struct Texture
 struct TextureQuad
 {
     // -- data
-    R32 uvTopLeft[2];
-    R32 uvBottomRight[2];
+    rgFloat uvTopLeft[2];
+    rgFloat uvBottomRight[2];
     
     // -- func
-    TextureQuad(U32 xPx, U32 yPx, U32 widthPx, U32 heightPx, U32 refWidthPx, U32 refHeightPx);
-    TextureQuad(U32 xPx, U32 yPx, U32 widthPx, U32 heightPx, Texture* refTexture);
+    TextureQuad(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
+    TextureQuad(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture);
 };
 
-void immTexturedQuad2(Texture* texture, TextureQuad* quad, R32 x, R32 y, R32 orientationRad = 0.0f, R32 scaleX = 1.0f, R32 scaleY = 1.0f, R32 offsetX = 0.0f, R32 offsetY = 0.0f);
+void immTexturedQuad2(Texture* texture, TextureQuad* quad, rgFloat x, rgFloat y, rgFloat orientationRad = 0.0f, rgFloat scaleX = 1.0f, rgFloat scaleY = 1.0f, rgFloat offsetX = 0.0f, rgFloat offsetY = 0.0f);
 
 
 // --- Low-level Graphics Functions
@@ -106,7 +66,7 @@ enum GfxResourceUsage
 struct GfxBuffer
 {
     GfxMemoryUsage usageMode;
-    U32 capacity;
+    rgU32 capacity;
 #if defined(RG_METAL_RNDR)
     MTL::Buffer* mtlBuffer;
 #elif defined(RG_VULKAN_RNDR)
@@ -127,7 +87,7 @@ struct GfxColorAttachementDesc
 
 struct GfxRenderStateDesc
 {
-    static const UInt MAX_COLOR_ATTACHMENTS = 8;
+    static const rgUInt MAX_COLOR_ATTACHMENTS = 8;
  
     GfxColorAttachementDesc colorAttachments[MAX_COLOR_ATTACHMENTS];
     TinyImageFormat depthAttachementFormat;
@@ -218,19 +178,19 @@ extern rg::GfxCtx g_GfxCtx;
 
 struct ImmVertexFormat
 {
-    R32 position[3];
-    R32 color[4];
+    rgFloat position[3];
+    rgFloat color[4];
 };
 
-rg::Int updateAndDraw(rg::GfxCtx* gtxCtx, rg::Double dt);
+rgInt updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt);
 
 GfxCtx* gfxCtx();
 
-Int gfxInit();
-Int gfxDraw();
+rgInt gfxInit();
+rgInt gfxDraw();
 
-GfxBuffer* gfxNewBuffer(void* data, U32 length, GfxMemoryUsage usage);
-void gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, U32 length, U32 offset = 0);
+GfxBuffer* gfxNewBuffer(void* data, rgU32 length, GfxMemoryUsage usage);
+void gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offset = 0);
 void gfxDeleteBuffer(GfxBuffer* bufferResource);
 
 GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
