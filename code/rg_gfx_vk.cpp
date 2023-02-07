@@ -1,5 +1,5 @@
 #include "rg_gfx.h"
-#if defined(RG_VULKAN)
+#if defined(RG_VULKAN_RNDR)
 #include <SDL2/SDL_vulkan.h>
 
 RG_BEGIN_NAMESPACE

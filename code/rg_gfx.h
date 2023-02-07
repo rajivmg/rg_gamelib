@@ -1,9 +1,9 @@
 #ifndef _RG_GFX_H_
 #define _RG_GFX_H_
 
-#if defined(RG_VULKAN)
+#if defined(RG_VULKAN_RNDR)
 #include <vulkan/vulkan.h>
-#elif defined(RG_METAL)
+#elif defined(RG_METAL_RNDR)
 #include <Metal/Metal.hpp>
 #include <AppKit/AppKit.hpp>
 #include <MetalKit/MetalKit.hpp>
@@ -53,7 +53,7 @@ typedef bool        Bool;
 void _LogImpl(char const *fmt, ...);
 #define rgLog(...) _LogImpl(__VA_ARGS__)
 
-#ifdef RG_VULKAN
+#ifdef RG_VULKAN_RNDR
 #define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
 #endif
 
@@ -67,7 +67,7 @@ struct Texture
     UInt height;
     TinyImageFormat pixelFormat;
     GfxTexture2D* texture;
-#ifdef RG_METAL
+#ifdef RG_METAL_RNDR
     MTL::PixelFormat mtlPixelFormat;
     MTL::Texture* mtlTexture;
 #endif
@@ -107,9 +107,9 @@ struct GfxBuffer
 {
     GfxMemoryUsage usageMode;
     U32 capacity;
-#if defined(RG_METAL)
+#if defined(RG_METAL_RNDR)
     MTL::Buffer* mtlBuffer;
-#elif defined(RG_VULKAN)
+#elif defined(RG_VULKAN_RNDR)
 #endif
 };
 
@@ -145,17 +145,17 @@ struct GfxShaderDesc
 
 struct GfxGraphicsPSO
 {
-#if defined(RG_METAL)
+#if defined(RG_METAL_RNDR)
     MTL::RenderPipelineState* mtlPSO;
-#elif defined(RG_VULKAN)
+#elif defined(RG_VULKAN_RNDR)
 #endif
 };
 
 struct GfxTexture2D
 {
-#if defined(RG_METAL)
+#if defined(RG_METAL_RNDR)
     MTL::Texture* mtlTexture;
-#elif defined(RG_VULKAN)
+#elif defined(RG_VULKAN_RNDR)
 #endif
 };
 
@@ -169,7 +169,7 @@ struct GfxCtx
 
     union
     {
-#if defined(RG_METAL)
+#if defined(RG_METAL_RNDR)
         struct
         {
             void* layer; // type: id<CAMetalLayer>
@@ -186,7 +186,7 @@ struct GfxCtx
             
             GfxTexture2D* birdTexture;
         } mtl;
-#elif defined(RG_VULKAN)
+#elif defined(RG_VULKAN_RNDR)
         struct
         {
             VkInstance inst;

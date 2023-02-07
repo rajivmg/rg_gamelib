@@ -24,9 +24,9 @@ Int createSDLWindow(GfxCtx* ctx)
     UInt windowHeight = 720;
     Uint32 windowFlags = 0;
     
-#ifdef RG_VULKAN
+#ifdef RG_VULKAN_RNDR
     windowFlags |= SDL_WINDOW_VULKAN;
-#elif defined(RG_METAL)
+#elif defined(RG_METAL_RNDR)
     windowFlags |= SDL_WINDOW_ALWAYS_ON_TOP;
     windowFlags |= SDL_WINDOW_METAL;
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");

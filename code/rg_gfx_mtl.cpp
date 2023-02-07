@@ -1,4 +1,4 @@
-#if defined(RG_METAL)
+#if defined(RG_METAL_RNDR)
 #include "rg_gfx.h"
 #include "metal_utils.h"
 
