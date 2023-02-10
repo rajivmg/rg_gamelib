@@ -37,7 +37,7 @@ rgInt createSDLWindow(GfxCtx* ctx)
     
     if (SDL_Init(SDL_INIT_VIDEO) == 0)
     {
-        ctx->mainWindow = SDL_CreateWindow("Gfx",
+        ctx->mainWindow = SDL_CreateWindow("gamelib",
                                            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                            windowWidth, windowHeight, windowFlags);
         rgAssert(ctx->mainWindow != NULL);
@@ -53,8 +53,13 @@ int main(int argc, char* argv[])
     {
         return -1; // error;
     }
-    gfxInit();
-    
+
+    rgInt gfxInitResult = gfxInit();
+    if(gfxInitResult)
+    {
+        return gfxInitResult;
+    }
+
     rgBool shouldQuit = false;
     SDL_Event event;
     

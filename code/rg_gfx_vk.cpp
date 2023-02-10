@@ -1,9 +1,97 @@
-#include "rg_gfx.h"
 #if defined(RG_VULKAN_RNDR)
+#include "rg_gfx.h"
+
+#include "vk-bootstrap/VkBootstrap.cpp"
+#include "vk-bootstrap/VkBootstrap.h"
+#include "vk-bootstrap/VkBootstrapDispatch.h"
+
 #include <SDL2/SDL_vulkan.h>
 
 RG_BEGIN_NAMESPACE
 
+rgInt gfxInit()
+{
+    // -- create vk instance
+    vkb::InstanceBuilder instBuilder;
+    vkb::Result<vkb::Instance> vkbInstRes = instBuilder.set_app_name("gamelib")
+        .request_validation_layers()
+        .use_default_debug_messenger()
+        .build();
+
+    if(!vkbInstRes)
+    {
+        rgLogError("Could not create Vulkan Instance\nReason:%s", vkbInstRes.error().message().c_str());
+        return -1;
+    }
+    
+    vkb::Instance vkbInst = vkbInstRes.value();
+    gfxCtx()->vk.inst = vkbInst.instance;
+
+    // -- enumerate and select a physical device
+    rgAssert(SDL_Vulkan_CreateSurface(gfxCtx()->mainWindow, gfxCtx()->vk.inst, &(gfxCtx()->vk.surface)));
+    rgAssert(gfxCtx()->vk.surface);
+
+    vkb::PhysicalDeviceSelector phyDevSelector{ vkbInst };
+    vkb::Result<vkb::PhysicalDevice> phyDevRes = phyDevSelector.set_surface(gfxCtx()->vk.surface)
+        .set_minimum_version(3, 1)
+        .require_present(true)
+        .select();
+
+    if(!phyDevRes)
+    {
+        rgLogError("Could not select a physical Vulkan supported device\nReason:%s", phyDevRes.error().message().c_str());
+        return -1;
+    }
+
+    vkb::PhysicalDevice vkbPhyDevice = phyDevRes.value();
+    gfxCtx()->vk.physicalDevice = vkbPhyDevice.physical_device;
+    
+    // -- create logical device
+    vkb::DeviceBuilder devBuilder{ vkbPhyDevice };
+    vkb::Result<vkb::Device> devBuilderRes = devBuilder.build();
+
+    if(!devBuilderRes)
+    {
+        rgLogError("Could not create Vulkan device\nReason:%s", devBuilderRes.error().message().c_str());
+        return -1;
+    }
+
+    vkb::Device vkbDevice = devBuilderRes.value();
+    gfxCtx()->vk.device = vkbDevice.device;
+
+    // -- get graphics queue
+    vkb::Result<VkQueue> grQueRes = vkbDevice.get_queue(vkb::QueueType::graphics);
+    if(!grQueRes)
+    {
+        rgLogError("Could not get Vulkan graphics queue\nReason:%s", grQueRes.error().message().c_str());
+        return -1;
+    }
+
+    gfxCtx()->vk.graphicsQueue = grQueRes.value();
+
+    // -- create swapchain
+    vkb::SwapchainBuilder scBuilder{ vkbDevice };
+    vkb::Result<vkb::Swapchain> scBuilderRes = scBuilder.use_default_present_mode_selection()
+        .build();
+
+    if(!scBuilderRes)
+    {
+        rgLogError("Could not create Vulkan swapchain\nReason:%s", scBuilderRes.error().message().c_str());
+        return -1;
+    }
+
+    vkb::Swapchain vkbSwapchain = scBuilderRes.value();
+    gfxCtx()->vk.swapchain = vkbSwapchain.swapchain;
+
+    return 0;
+}
+
+rgInt gfxDraw()
+{
+    return 0;
+}
+
+#if 0
 static Bool CreateWindowVK(GfxCtx* ctx)
 {
     UInt windowWidth = 640;
@@ -469,6 +557,7 @@ Int runApp(GfxCtx* gfxCtx)
     
     return 0;
 }
+#endif
 
 RG_END_NAMESPACE
 #endif

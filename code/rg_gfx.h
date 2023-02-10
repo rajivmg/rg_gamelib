@@ -154,10 +154,10 @@ struct GfxCtx
         {
             VkInstance inst;
             VkPhysicalDevice physicalDevice;
-            UInt graphicsQueueIndex;
+            rgUInt graphicsQueueIndex;
 
             VkDevice device;
-            UInt deviceExtCount;
+            rgUInt deviceExtCount;
             char const** deviceExtNames;
             VkQueue graphicsQueue;
 

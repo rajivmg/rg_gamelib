@@ -69,6 +69,8 @@ typedef bool        rgBool;
 void _rgLogImpl(char const* fmt, ...);
 #define rgLog(...) _LogImpl(__VA_ARGS__)
 
+#define rgLogError(...) SDL_LogError(SDL_LOG_CATEGORY_TEST, __VA_ARGS__)
+
 /// ----- Implementation
 #ifdef RG_H_IMPLEMENTATION
 // TODO: Add filename and line number, try to remove the need of fmt
@@ -79,6 +81,5 @@ void _rgLogImpl(char const* fmt, ...)
     SDL_LogMessageV(SDL_LOG_CATEGORY_TEST, SDL_LOG_PRIORITY_ERROR, fmt, argList);
     va_end(argList);
 }
-
 #endif // RG_H_IMPLEMENTATION
 #endif // __RG_H__
