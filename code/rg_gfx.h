@@ -192,6 +192,7 @@ rgInt updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt);
 
 rgInt gfxInit();
 rgInt gfxDraw();
+void  gfxDstry();
 
 GfxBuffer* gfxNewBuffer(void* data, rgU32 length, GfxMemoryUsage usage);
 void gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offset = 0);

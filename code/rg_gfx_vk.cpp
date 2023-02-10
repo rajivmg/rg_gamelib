@@ -91,6 +91,11 @@ rgInt gfxDraw()
     return 0;
 }
 
+void gfxDstry()
+{
+
+}
+
 #if 0
 static Bool CreateWindowVK(GfxCtx* ctx)
 {
