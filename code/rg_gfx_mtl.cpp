@@ -54,7 +54,7 @@ struct SimpleVertexFormat
     simd::float4 color;
 };
 
-Int gfxInit()
+rgInt gfxInit()
 {
     GfxCtx* ctx = gfxCtx();
     rgAssert(ctx->mainWindow);
@@ -83,7 +83,7 @@ Int gfxInit()
         {{0.8f,  0.8f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}
     };
     
-    U32 triangleVerticesSize = sizeof(triangleVertices);
+    rgUInt triangleVerticesSize = sizeof(triangleVertices);
     
     gfxCtx()->mtl.immVertexBuffer = gfxNewBuffer(nullptr, triangleVerticesSize, GfxMemoryUsage_CPUToGPU);
     gfxUpdateBuffer(gfxCtx()->mtl.immVertexBuffer, triangleVertices, triangleVerticesSize);
@@ -93,7 +93,7 @@ Int gfxInit()
     return 0;
 }
 
-Int gfxDraw()
+rgInt gfxDraw()
 {
     NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
     // --- Autorelease pool BEGIN
@@ -106,7 +106,7 @@ Int gfxDraw()
         // create renderpass descriptor
         MTL::RenderPassDescriptor* renderPassDesc = MTL::RenderPassDescriptor::alloc()->init();
         MTL::RenderPassColorAttachmentDescriptor* colorAttachmentDesc = renderPassDesc->colorAttachments()->object(0);
-        colorAttachmentDesc->setClearColor(MTL::ClearColor::Make(0.1, 0.1, 0.1, 1.0));
+        colorAttachmentDesc->setClearColor(MTL::ClearColor::Make(0.5, 0.5, 0.5, 1.0));
         colorAttachmentDesc->setLoadAction(MTL::LoadActionClear);
         colorAttachmentDesc->setStoreAction(MTL::StoreActionStore);
         colorAttachmentDesc->setTexture(currentMetalDrawable->texture());
@@ -152,7 +152,7 @@ MTL::ResourceOptions toMTLResourceOptions(GfxMemoryUsage usage)
     return mode;
 }
 
-GfxBuffer* gfxNewBuffer(void* data, U32 length, GfxMemoryUsage usage)
+GfxBuffer* gfxNewBuffer(void* data, rgU32 length, GfxMemoryUsage usage)
 {
     MTL::ResourceOptions mode = toMTLResourceOptions(usage);
     
@@ -171,13 +171,13 @@ GfxBuffer* gfxNewBuffer(void* data, U32 length, GfxMemoryUsage usage)
     return resource;
 }
 
-void gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, U32 length, U32 offset)
+void gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offset)
 {
     rgAssert(dstBuffer);
     
     if(dstBuffer->usageMode == GfxMemoryUsage_CPUToGPU)
     {
-        memcpy((U8*)dstBuffer->mtlBuffer->contents() + offset, data, length);
+        memcpy((rgU8*)dstBuffer->mtlBuffer->contents() + offset, data, length);
     }
     else
     {
@@ -231,7 +231,7 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
     psoDesc->setFragmentFunction(fs);
     
     rgAssert(renderStateDesc != nullptr);
-    for(Int i = 0; i < GfxRenderStateDesc::MAX_COLOR_ATTACHMENTS; ++i)
+    for(rgInt i = 0; i < GfxRenderStateDesc::MAX_COLOR_ATTACHMENTS; ++i)
     {
         TinyImageFormat colorAttFormat = renderStateDesc->colorAttachments[i].pixelFormat;
         if(colorAttFormat != TinyImageFormat_UNDEFINED)
@@ -265,7 +265,7 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
 
 GfxTexture2D* gfxNewTexture2D(char const* filename, GfxResourceUsage usage)
 {
-    Int texWidth, texHeight, texChnl;
+    rgInt texWidth, texHeight, texChnl;
     unsigned char* texData = stbi_load(filename, &texWidth, &texHeight, &texChnl, 4);
     
     MTL::TextureDescriptor* texDesc = MTL::TextureDescriptor::alloc()->init();

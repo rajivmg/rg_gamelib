@@ -142,9 +142,9 @@ struct GfxCtx
             
             // -- immediate mode resources
             GfxBuffer* immVertexBuffer;
-            U32 immCurrentVertexCount;
+            rgUInt immCurrentVertexCount;
             GfxBuffer* immIndexBuffer;
-            U32 immCurrentIndexCount;
+            rgUInt immCurrentIndexCount;
             GfxGraphicsPSO* immPSO;
             
             GfxTexture2D* birdTexture;
