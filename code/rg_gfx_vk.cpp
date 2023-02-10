@@ -33,7 +33,7 @@ rgInt gfxInit()
 
     vkb::PhysicalDeviceSelector phyDevSelector{ vkbInst };
     vkb::Result<vkb::PhysicalDevice> phyDevRes = phyDevSelector.set_surface(gfxCtx()->vk.surface)
-        .set_minimum_version(3, 1)
+        .set_minimum_version(1, 1)
         .require_present(true)
         .select();
 
