@@ -5,10 +5,6 @@ RG_BEGIN_NAMESPACE
 
 // --- Low-level Graphics Functions
 
-GfxCtx* gfxCtx()
-{
-    return &g_GfxCtx;
-}
 
 // --- Game Graphics APIs
 

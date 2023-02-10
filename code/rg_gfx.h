@@ -27,10 +27,6 @@ struct Texture
     rgUInt height;
     TinyImageFormat pixelFormat;
     GfxTexture2D* texture;
-#ifdef RG_METAL_RNDR
-    MTL::PixelFormat mtlPixelFormat;
-    MTL::Texture* mtlTexture;
-#endif
 };
 
 struct TextureQuad
@@ -113,7 +109,9 @@ struct GfxGraphicsPSO
 
 struct GfxTexture2D
 {
-#if defined(RG_METAL_RNDR)
+#if defined(RG_SDL_RNDR)
+    SDL_Texture* sdlTexture;
+#elif defined(RG_METAL_RNDR)
     MTL::Texture* mtlTexture;
 #elif defined(RG_VULKAN_RNDR)
 #endif
@@ -124,12 +122,17 @@ struct GfxCtx
     struct // vars common to all type of contexts
     {
         SDL_Window* mainWindow;
-        SDL_Renderer* sdlRenderer;
+        //SDL_Renderer* sdlRenderer;
     };
 
     union
     {
-#if defined(RG_METAL_RNDR)
+#if defined(RG_SDL_RNDR)
+        struct SDLGfxCtx
+        {
+            SDL_Renderer* renderer;
+        } sdl;
+#elif defined(RG_METAL_RNDR)
         struct
         {
             void* layer; // type: id<CAMetalLayer>
@@ -137,7 +140,7 @@ struct GfxCtx
             MTL::Device *device;
             MTL::CommandQueue* commandQueue;
             
-            // -- immedia  te mode resources
+            // -- immediate mode resources
             GfxBuffer* immVertexBuffer;
             U32 immCurrentVertexCount;
             GfxBuffer* immIndexBuffer;
@@ -174,7 +177,9 @@ struct GfxCtx
 #endif
     };
 };
+
 extern rg::GfxCtx g_GfxCtx;
+inline GfxCtx* gfxCtx() { return &g_GfxCtx; }
 
 struct ImmVertexFormat
 {
@@ -182,9 +187,8 @@ struct ImmVertexFormat
     rgFloat color[4];
 };
 
-rgInt updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt);
 
-GfxCtx* gfxCtx();
+rgInt updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt);
 
 rgInt gfxInit();
 rgInt gfxDraw();
