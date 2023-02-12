@@ -1,11 +1,21 @@
 #ifdef RG_SDL_RNDR
 #include "rg_gfx.h"
 
+//dispatch_fn *cmd::draw::DISPATCH_FUNCTION = &rndr::Draw;
+//dispatch_fn *cmd::draw_indexed::DISPATCH_FUNCTION = &rndr::DrawIndexed;
+//dispatch_fn *cmd::copy_const_buffer::DISPATCH_FUNCTION = &rndr::CopyConstBuffer;
+//dispatch_fn *cmd::draw_debug_lines::DISPATCH_FUNCTION = &rndr::DrawDebugLines;
+
 RG_BEGIN_NAMESPACE
 
 static inline SDL_Renderer* sdlRndr()
 {
     return gfxCtx()->sdl.renderer;
+}
+
+void RenderTexturedQuad(void const* cmd)
+{
+
 }
 
 rgInt gfxInit()
@@ -35,6 +45,8 @@ rgInt gfxDraw()
 
     return 0;
 }
+
+rg::DispatchFnT* rg::RenderCmd_TexturedQuad::DISPATCH_FUNCTION = &rg::RenderTexturedQuad;
 
 RG_END_NAMESPACE
 #endif

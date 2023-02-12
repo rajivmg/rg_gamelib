@@ -187,37 +187,6 @@ struct ImmVertexFormat
     rgFloat color[4];
 };
 
-
-enum RenderCmdType
-{
-    RenderCmdType_ColoredQuad,
-    RenderCmdType_TexturedQuad
-};
-
-struct RenderCmdHeader
-{
-    RenderCmdType type;
-};
-
-struct RenderCmd_TexturedQuad
-{
-    RenderCmdHeader header;
-    Texture* texture;
-    TextureQuad* quad;
-    rgFloat x;
-    rgFloat y;
-    rgFloat orientationRad;
-    rgFloat scaleX;
-    rgFloat scaleY;
-    rgFloat offsetX;
-    rgFloat offsetY;
-};
-
-struct RenderGroup
-{
-
-};
-
 //-----------------------------------------------------------------------------
 // Render Commands
 //-----------------------------------------------------------------------------
@@ -344,6 +313,34 @@ enum class vert_format
     P1N1UV1
 };
 
+enum RenderCmdType
+{
+    RenderCmdType_ColoredQuad,
+    RenderCmdType_TexturedQuad
+};
+
+struct RenderCmdHeader
+{
+    RenderCmdType type;
+};
+
+struct RenderCmd_TexturedQuad
+{
+    RenderCmdHeader header;
+
+    Texture* texture;
+    TextureQuad* quad;
+    rgFloat x;
+    rgFloat y;
+    rgFloat orientationRad;
+    rgFloat scaleX;
+    rgFloat scaleY;
+    rgFloat offsetX;
+    rgFloat offsetY;
+
+    static DispatchFnT* DISPATCH_FUNCTION;
+};
+
 //struct vert_P1C1UV1
 //{
 //    vec3 Position;
@@ -366,6 +363,8 @@ enum class vert_format
 
 namespace cmd
 {
+
+
     //struct draw
     //{
     //    render_resource     VertexBuffer;
