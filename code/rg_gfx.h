@@ -188,6 +188,228 @@ struct ImmVertexFormat
 };
 
 
+enum RenderCmdType
+{
+    RenderCmdType_ColoredQuad,
+    RenderCmdType_TexturedQuad
+};
+
+struct RenderCmdHeader
+{
+    RenderCmdType type;
+};
+
+struct RenderCmd_TexturedQuad
+{
+    RenderCmdHeader header;
+    Texture* texture;
+    TextureQuad* quad;
+    rgFloat x;
+    rgFloat y;
+    rgFloat orientationRad;
+    rgFloat scaleX;
+    rgFloat scaleY;
+    rgFloat offsetX;
+    rgFloat offsetY;
+};
+
+struct RenderGroup
+{
+
+};
+
+//-----------------------------------------------------------------------------
+// Render Commands
+//-----------------------------------------------------------------------------
+typedef void (DispatchFnT)(void const* cmd);
+
+/*
+                                        sizeof(cmd_type)
+                                            |
++---------+sizeof(cmd_packet)+---------+    |
++-------------------------------------------v---------------------+
+|NextCmdPacket|DispatchFn|Cmd|AuxMemory|ActualCmd|Actual AuxMemory|
++--------------------------+------+---------^-------------^-------+
+                           |      |         |             |
+                           +----------------+             |
+                                  |                       |
+                                  +-----------------------+
+*/
+struct CmdPacket
+{
+    CmdPacket       *nextCmdPacket;
+    DispatchFnT     *dispatchFn;
+    void            *cmd;
+    void            *auxMemory;
+};
+
+// NOTE: As actual cmd is stored right after the end of the struct cmd_packet.
+// We subtract the sizeof(cmd_packet) from the address of the actual cmd to get
+// address of the parent cmd_packet.
+inline CmdPacket *getCmdPacket(void *cmd)
+{
+    return (CmdPacket*)((rgU8 *)cmd - sizeof(CmdPacket));
+}
+
+// TEMP
+typedef rgU32 RenderResource;
+
+struct RenderCmdList
+{
+    CmdPacket** packets;    /// List of packets
+    rgU32*      keys;       /// Keys of packets
+    rgU32       current;    /// Number of packets in the list
+    void*       buffer;     /// Memory buffer
+    rgU32       bufferSize; /// Size of memory buffer in bytes
+    rgU32       baseOffset; /// Number of bytes used in the memory buffer
+
+    // TODO: Move this to per RenderCmd
+    RenderResource ShaderProgram;
+
+    // TODO: Move these to a RenderCmd
+    Matrix4    *ViewMatrix;
+    Matrix4    *ProjMatrix; 
+
+    RenderCmdList(rgU32 _BufferSize, RenderResource _ShaderProgram, Matrix4 *_ViewMatrix, Matrix4 *_ProjMatrix);
+    ~RenderCmdList();
+
+    template <typename U>
+    rgU32 GetCmdPacketSize(rgU32 AuxMemorySize);
+
+    // Create a cmd_packet and initialise it's members.
+    template <typename U>
+    CmdPacket* CreateCmdPacket(rgU32 AuxMemorySize);
+
+    template <typename U>
+    U* AddCommand(rgU32 Key, rgU32 AuxMemorySize = 0);
+
+    template <typename U, typename V>
+    U *AppendCommand(V *Cmd, rgU32 AuxMemorySize = 0);
+
+    void *AllocateMemory(rgU32 MemorySize); // TODO: gfxBeginRenderCmdList() { allocCmdBuffer();  }
+    void Sort(); // TODO: gfxEndRenderCmdList() { sortCmdList(); }
+    void Submit(); // TODO: use gfxSubmitRenderCmdList()
+    void Flush();
+};
+
+template <typename U>
+inline rgU32 RenderCmdList::GetCmdPacketSize(rgU32 AuxMemorySize)
+{
+    return sizeof(cmd_packet) + sizeof(U) + AuxMemorySize;
+}
+
+template <typename U>
+inline CmdPacket* RenderCmdList::CreateCmdPacket(rgU32 AuxMemorySize)
+{
+    cmd_packet *Packet = (cmd_packet *)AllocateMemory(GetCmdPacketSize<U>(AuxMemorySize));
+    Packet->NextCmdPacket = nullptr;
+    Packet->DispatchFn = nullptr;
+    Packet->Cmd = (u8 *)Packet + sizeof(cmd_packet);
+    Packet->AuxMemory = AuxMemorySize > 0 ? (u8 *)Packet->Cmd + sizeof(U) : nullptr;
+
+    return Packet;
+}
+
+template <typename U>
+inline U* RenderCmdList::AddCommand(rgU32 Key, rgU32 AuxMemorySize)
+{
+    cmd_packet *Packet = CreateCmdPacket<U>(AuxMemorySize);
+
+    const u32 I = Current++;
+    Packets[I] = Packet;
+    Keys[I] = Key;
+
+    Packet->NextCmdPacket = nullptr;
+    Packet->DispatchFn = U::DISPATCH_FUNCTION;
+
+    return (U *)(Packet->Cmd);
+}
+
+template <typename U, typename V>
+inline U* RenderCmdList::AppendCommand(V* Cmd, rgU32 AuxMemorySize)
+{
+    cmd_packet *Packet = CreateCmdPacket<U>(AuxMemorySize);
+
+    GetCmdPacket(Cmd)->NextCmdPacket = Packet;
+    Packet->NextCmdPacket = nullptr;
+    Packet->DispatchFn = U::DISPATCH_FUNCTION;
+
+    return (U *)(Packet->Cmd);
+}
+
+enum class vert_format
+{
+    P1C1UV1,
+    P1C1,
+    P1N1UV1
+};
+
+//struct vert_P1C1UV1
+//{
+//    vec3 Position;
+//    vec2 UV;
+//    vec4 Color;
+//};
+//
+//struct vert_P1C1
+//{
+//    vec3 Position;
+//    vec4 Color;
+//};
+//
+//struct vert_P1N1UV1
+//{
+//    vec3 Position;
+//    vec3 Normal;
+//    vec2 UV;
+//};
+
+namespace cmd
+{
+    //struct draw
+    //{
+    //    render_resource     VertexBuffer;
+    //    vert_format         VertexFormat;
+    //    u32                 StartVertex;
+    //    u32                 VertexCount;
+    //    render_resource     Textures[8];
+
+    //    static dispatch_fn  *DISPATCH_FUNCTION;
+    //};
+    //static_assert(std::is_pod<draw>::value == true, "Must be a POD.");
+
+    //struct draw_indexed
+    //{
+    //    render_resource     VertexBuffer;
+    //    vert_format         VertexFormat;
+    //    render_resource     IndexBuffer;
+    //    u32                 IndexCount;
+    //    render_resource     Textures[8];
+
+    //    static dispatch_fn  *DISPATCH_FUNCTION;
+    //};
+
+    //struct copy_const_buffer
+    //{
+    //    render_resource ConstantBuffer;
+    //    void            *Data;
+    //    u32             Size;
+
+    //    static dispatch_fn  *DISPATCH_FUNCTION;
+    //};
+
+    //struct draw_debug_lines
+    //{
+    //    render_resource     VertexBuffer;
+    //    vert_format         VertexFormat;
+    //    u32                 StartVertex;
+    //    u32                 VertexCount;
+
+    //    static dispatch_fn  *DISPATCH_FUNCTION;
+    //};
+}
+//
+
 rgInt updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt);
 
 rgInt gfxInit();
