@@ -88,6 +88,8 @@ void RenderCmdList::Flush()
     baseOffset = 0;
 }
 
+DispatchFnT* RenderCmd_TexturedQuad::DISPATCH_FUNCTION = gfxHandleRenderCmdTexturedQuad;
+
 // --- Game Graphics APIs
 
 TextureQuad::TextureQuad(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)

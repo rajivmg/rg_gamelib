@@ -46,7 +46,10 @@ rgInt gfxDraw()
     return 0;
 }
 
-rg::DispatchFnT* rg::RenderCmd_TexturedQuad::DISPATCH_FUNCTION = &rg::RenderTexturedQuad;
+void gfxHandleRenderCmdTexturedQuad(void const* cmd)
+{
+
+}
 
 RG_END_NAMESPACE
 #endif

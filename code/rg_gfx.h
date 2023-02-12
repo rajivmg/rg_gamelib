@@ -341,6 +341,9 @@ struct RenderCmd_TexturedQuad
     static DispatchFnT* DISPATCH_FUNCTION;
 };
 
+// struct RenderCmd_NewTransientResource
+// struct RenderCmd_DeleteTransientResource
+
 //struct vert_P1C1UV1
 //{
 //    vec3 Position;
@@ -424,6 +427,8 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 
 GfxTexture2D* gfxNewTexture2D(char const* filename, GfxResourceUsage usage);
 void gfxDeleteTexture2D(GfxTexture2D* t2d);
+
+void gfxHandleRenderCmdTexturedQuad(void const* cmd);
 
 RG_END_NAMESPACE
 
