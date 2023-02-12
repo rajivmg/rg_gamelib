@@ -6,15 +6,16 @@
 RG_BEGIN_NAMESPACE
 
 // --- Low-level Graphics Functions
+
 //-----------------------------------------------------------------------------
 // Render Commands
 //-----------------------------------------------------------------------------
 
-RenderCmdList::RenderCmdList(rgU32 _BufferSize, RenderResource _ShaderProgram, Matrix4 *_ViewMatrix, Matrix4 *_ProjMatrix) :
+DispatchFnT* RenderCmd_TexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
+
+RenderCmdList::RenderCmdList(rgU32 _BufferSize, RenderResource _ShaderProgram) :
     bufferSize(_BufferSize),
     ShaderProgram(_ShaderProgram),
-    ViewMatrix(_ViewMatrix),
-    ProjMatrix(_ProjMatrix),
     baseOffset(0),
     current(0)
 {
@@ -87,8 +88,6 @@ void RenderCmdList::Flush()
     current = 0;
     baseOffset = 0;
 }
-
-DispatchFnT* RenderCmd_TexturedQuad::DISPATCH_FUNCTION = gfxHandleRenderCmdTexturedQuad;
 
 // --- Game Graphics APIs
 

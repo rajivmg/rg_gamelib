@@ -1,10 +1,10 @@
 #ifdef RG_SDL_RNDR
 #include "rg_gfx.h"
 
-//dispatch_fn *cmd::draw::DISPATCH_FUNCTION = &rndr::Draw;
-//dispatch_fn *cmd::draw_indexed::DISPATCH_FUNCTION = &rndr::DrawIndexed;
-//dispatch_fn *cmd::copy_const_buffer::DISPATCH_FUNCTION = &rndr::CopyConstBuffer;
-//dispatch_fn *cmd::draw_debug_lines::DISPATCH_FUNCTION = &rndr::DrawDebugLines;
+//dispatch_fn *cmd::draw::dispatchFn = &rndr::Draw;
+//dispatch_fn *cmd::draw_indexed::dispatchFn = &rndr::DrawIndexed;
+//dispatch_fn *cmd::copy_const_buffer::dispatchFn = &rndr::CopyConstBuffer;
+//dispatch_fn *cmd::draw_debug_lines::dispatchFn = &rndr::DrawDebugLines;
 
 RG_BEGIN_NAMESPACE
 
@@ -31,6 +31,8 @@ rgInt gfxInit()
     {
         rgAssert(!"SDL Renderer creation failed");
     }
+
+    rg::RenderCmdList gfxCtx = {};
 
     return 0;
 }

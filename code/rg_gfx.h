@@ -239,7 +239,7 @@ struct RenderCmdList
     Matrix4    *ViewMatrix;
     Matrix4    *ProjMatrix; 
 
-    RenderCmdList(rgU32 _BufferSize, RenderResource _ShaderProgram, Matrix4 *_ViewMatrix, Matrix4 *_ProjMatrix);
+    RenderCmdList(rgU32 _BufferSize, RenderResource _ShaderProgram);
     ~RenderCmdList();
 
     template <typename U>
@@ -264,17 +264,17 @@ struct RenderCmdList
 template <typename U>
 inline rgU32 RenderCmdList::GetCmdPacketSize(rgU32 AuxMemorySize)
 {
-    return sizeof(cmd_packet) + sizeof(U) + AuxMemorySize;
+    return sizeof(CmdPacket) + sizeof(U) + AuxMemorySize;
 }
 
 template <typename U>
 inline CmdPacket* RenderCmdList::CreateCmdPacket(rgU32 AuxMemorySize)
 {
-    cmd_packet *Packet = (cmd_packet *)AllocateMemory(GetCmdPacketSize<U>(AuxMemorySize));
-    Packet->NextCmdPacket = nullptr;
-    Packet->DispatchFn = nullptr;
-    Packet->Cmd = (u8 *)Packet + sizeof(cmd_packet);
-    Packet->AuxMemory = AuxMemorySize > 0 ? (u8 *)Packet->Cmd + sizeof(U) : nullptr;
+    CmdPacket *Packet = (CmdPacket *)AllocateMemory(GetCmdPacketSize<U>(AuxMemorySize));
+    Packet->nextCmdPacket = nullptr;
+    Packet->dispatchFn = nullptr;
+    Packet->cmd = (u8 *)Packet + sizeof(CmdPacket);
+    Packet->auxMemory = AuxMemorySize > 0 ? (u8 *)Packet->Cmd + sizeof(U) : nullptr;
 
     return Packet;
 }
@@ -289,7 +289,7 @@ inline U* RenderCmdList::AddCommand(rgU32 Key, rgU32 AuxMemorySize)
     Keys[I] = Key;
 
     Packet->NextCmdPacket = nullptr;
-    Packet->DispatchFn = U::DISPATCH_FUNCTION;
+    Packet->DispatchFn = U::dispatchFn;
 
     return (U *)(Packet->Cmd);
 }
@@ -301,7 +301,7 @@ inline U* RenderCmdList::AppendCommand(V* Cmd, rgU32 AuxMemorySize)
 
     GetCmdPacket(Cmd)->NextCmdPacket = Packet;
     Packet->NextCmdPacket = nullptr;
-    Packet->DispatchFn = U::DISPATCH_FUNCTION;
+    Packet->DispatchFn = U::dispatchFn;
 
     return (U *)(Packet->Cmd);
 }
@@ -338,7 +338,7 @@ struct RenderCmd_TexturedQuad
     rgFloat offsetX;
     rgFloat offsetY;
 
-    static DispatchFnT* DISPATCH_FUNCTION;
+    static DispatchFnT* dispatchFn;
 };
 
 // struct RenderCmd_NewTransientResource
@@ -376,7 +376,7 @@ namespace cmd
     //    u32                 VertexCount;
     //    render_resource     Textures[8];
 
-    //    static dispatch_fn  *DISPATCH_FUNCTION;
+    //    static dispatch_fn  *dispatchFn;
     //};
     //static_assert(std::is_pod<draw>::value == true, "Must be a POD.");
 
@@ -388,7 +388,7 @@ namespace cmd
     //    u32                 IndexCount;
     //    render_resource     Textures[8];
 
-    //    static dispatch_fn  *DISPATCH_FUNCTION;
+    //    static dispatch_fn  *dispatchFn;
     //};
 
     //struct copy_const_buffer
@@ -397,7 +397,7 @@ namespace cmd
     //    void            *Data;
     //    u32             Size;
 
-    //    static dispatch_fn  *DISPATCH_FUNCTION;
+    //    static dispatch_fn  *dispatchFn;
     //};
 
     //struct draw_debug_lines
@@ -407,7 +407,7 @@ namespace cmd
     //    u32                 StartVertex;
     //    u32                 VertexCount;
 
-    //    static dispatch_fn  *DISPATCH_FUNCTION;
+    //    static dispatch_fn  *dispatchFn;
     //};
 }
 //
@@ -427,6 +427,12 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 
 GfxTexture2D* gfxNewTexture2D(char const* filename, GfxResourceUsage usage);
 void gfxDeleteTexture2D(GfxTexture2D* t2d);
+
+RenderCmdList* gfxNewRenderCmdList();
+void gfxBeginRenderCmdList(RenderCmdList* cmdList, char const* nametag);
+void gfxEndRenderCmdList(RenderCmdList* cmdList);
+void gfxSubmitRenderCmdList(RenderCmdList* cmdList); // Submits the list to the GPU, and create a fence to know when it's processed
+void gfxDeleteRenderCmdList(RenderCmdList* cmdList);
 
 void gfxHandleRenderCmdTexturedQuad(void const* cmd);
 
