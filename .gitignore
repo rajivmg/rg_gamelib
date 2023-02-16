@@ -6,3 +6,4 @@ memory.log
 4ed/
 .DS_Store
 3rdparty/EASTL/build-win64
+3rdparty/EASTL/build-apple
