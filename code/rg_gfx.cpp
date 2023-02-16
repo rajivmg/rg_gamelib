@@ -90,8 +90,28 @@ void RenderCmdList::Flush()
 }
 
 // --- Game Graphics APIs
+QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
 
-TextureQuad::TextureQuad(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
+{
+    QuadUV r;
+
+    r.uvTopLeft[0] = (rgFloat)xPx / refWidthPx;
+    r.uvTopLeft[1] = (rgFloat)yPx / refHeightPx;
+
+    r.uvBottomRight[0] = (xPx + widthPx) / (rgFloat)refWidthPx;
+    r.uvBottomRight[1] = (yPx + heightPx) / (rgFloat)refHeightPx;
+
+    return r;
+}
+
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture)
+{
+    return createQuadUV(xPx, yPx, widthPx, heightPx, refTexture->width, refTexture->height);
+}
+
+/*
+QuadUV::QuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
 {
     uvTopLeft[0] = (rgFloat)xPx / refWidthPx;
     uvTopLeft[1] = (rgFloat)yPx / refHeightPx;
@@ -100,13 +120,14 @@ TextureQuad::TextureQuad(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rg
     uvBottomRight[1] = (yPx + heightPx) / (rgFloat)refHeightPx;
 }
 
-TextureQuad::TextureQuad(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture)
-    : TextureQuad(xPx, yPx, widthPx, heightPx, refTexture->width, refTexture->height)
+QuadUV::QuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture)
+    : QuadUV(xPx, yPx, widthPx, heightPx, refTexture->width, refTexture->height)
 {
 
 }
+*/
 
-void immTexturedQuad2(Texture* texture, TextureQuad* quad, rgFloat x, rgFloat y, rgFloat orientationRad, rgFloat scaleX, rgFloat scaleY, rgFloat offsetX, rgFloat offsetY)
+void immTexturedQuad2(Texture* texture, QuadUV* quad, rgFloat x, rgFloat y, rgFloat orientationRad, rgFloat scaleX, rgFloat scaleY, rgFloat offsetX, rgFloat offsetY)
 {
     
 }

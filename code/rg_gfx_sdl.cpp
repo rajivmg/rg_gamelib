@@ -32,7 +32,9 @@ rgInt gfxInit()
         rgAssert(!"SDL Renderer creation failed");
     }
 
-    rg::RenderCmdList gfxCtx = {};
+    //rg::RenderCmdList gfxCtx = {};
+    GfxCtx* ctx = gfxCtx();
+    ctx->graphicCmdLists[0] = new RenderCmdList("graphic cmdlist 0");
 
     return 0;
 }

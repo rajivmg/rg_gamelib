@@ -17,6 +17,15 @@ rg::GfxCtx rg::g_GfxCtx;
 rgInt rg::updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt)
 {
     printf("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
+
+    QuadUV fullQuadUV = createQuadUV(0, 0, 512, 512, 512, 512);
+    gfxTexturedQuad();
+    RenderCmdList* curRenderCmdList = gfxGetRenderCmdList();
+    GfxCmdList* curGfxCmdList = gfxGetCmdList();
+    GfxCmd_TexturedQuad* texQuadCmd = curGfxCmdList->AddCmd();
+    RenderCmd_TexturedQuad *texQuadCmd = RenderCmdList->AddCommand()
+    //RenderCmdList* cmdList = gfxBeginRenderCmdList("GameRenderCmdList");
+    //gfxTexturedQuad(cmdList, birdTexture, defaultQuadUV, Vector2(30, 100), )
     
     return 0;
 }

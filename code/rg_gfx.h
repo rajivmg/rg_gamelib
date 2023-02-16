@@ -29,18 +29,18 @@ struct Texture
     GfxTexture2D* texture;
 };
 
-struct TextureQuad
+struct QuadUV
 {
-    // -- data
     rgFloat uvTopLeft[2];
     rgFloat uvBottomRight[2];
-    
-    // -- func
-    TextureQuad(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
-    TextureQuad(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture);
 };
 
-void immTexturedQuad2(Texture* texture, TextureQuad* quad, rgFloat x, rgFloat y, rgFloat orientationRad = 0.0f, rgFloat scaleX = 1.0f, rgFloat scaleY = 1.0f, rgFloat offsetX = 0.0f, rgFloat offsetY = 0.0f);
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture);
+
+extern QuadUV defaultQuadUV;
+
+void immTexturedQuad2(Texture* texture, QuadUV* quad, rgFloat x, rgFloat y, rgFloat orientationRad = 0.0f, rgFloat scaleX = 1.0f, rgFloat scaleY = 1.0f, rgFloat offsetX = 0.0f, rgFloat offsetY = 0.0f);
 
 
 // --- Low-level Graphics Functions
@@ -117,11 +117,15 @@ struct GfxTexture2D
 #endif
 };
 
+struct RenderCmdList;
+#define MAX_FRAMES_IN_QUEUE 2
+
 struct GfxCtx
 {
     struct // vars common to all type of contexts
     {
         SDL_Window* mainWindow;
+        RenderCmdList* graphicCmdLists[MAX_FRAMES_IN_QUEUE];
         //SDL_Renderer* sdlRenderer;
     };
 
@@ -329,7 +333,7 @@ struct RenderCmd_TexturedQuad
     RenderCmdHeader header;
 
     Texture* texture;
-    TextureQuad* quad;
+    QuadUV* quad;
     rgFloat x;
     rgFloat y;
     rgFloat orientationRad;
@@ -428,9 +432,9 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 GfxTexture2D* gfxNewTexture2D(char const* filename, GfxResourceUsage usage);
 void gfxDeleteTexture2D(GfxTexture2D* t2d);
 
-RenderCmdList* gfxNewRenderCmdList();
-void gfxBeginRenderCmdList(RenderCmdList* cmdList, char const* nametag);
+RenderCmdList* gfxBeginRenderCmdList(char const* nametag);
 void gfxEndRenderCmdList(RenderCmdList* cmdList);
+
 void gfxSubmitRenderCmdList(RenderCmdList* cmdList); // Submits the list to the GPU, and create a fence to know when it's processed
 void gfxDeleteRenderCmdList(RenderCmdList* cmdList);
 
