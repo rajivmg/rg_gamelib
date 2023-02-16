@@ -5,3 +5,4 @@ memleaks.log
 memory.log
 4ed/
 .DS_Store
+3rdparty/EASTL/build-win64
