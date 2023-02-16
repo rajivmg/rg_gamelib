@@ -11,6 +11,15 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
+set(EASTL_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/EASTL)
+include_directories(${EASTL_ROOT_DIR}/include)
+include_directories(${EASTL_ROOT_DIR}/test/packages/EAAssert/include)
+include_directories(${EASTL_ROOT_DIR}/test/packages/EABase/include/Common)
+include_directories(${EASTL_ROOT_DIR}/test/packages/EAMain/include)
+include_directories(${EASTL_ROOT_DIR}/test/packages/EAStdC/include)
+include_directories(${EASTL_ROOT_DIR}/test/packages/EATest/include)
+include_directories(${EASTL_ROOT_DIR}/test/packages/EAThread/include)
+
 if(WIN32)
 
     set(3RD_PARTY_DIR "${CMAKE_SOURCE_DIR}/3rdparty/win64/")
@@ -24,13 +33,14 @@ if(WIN32)
     # set include and lib directories
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${VULKAN_SDK_ROOT_DIR}/Include)
     link_directories(${3RD_PARTY_DIR}/lib ${VULKAN_SDK_ROOT_DIR}/Lib)
+    set(EASTL_LIBRARY debug ${EASTL_ROOT_DIR}/build-win64/Debug/EASTL.lib optimized ${EASTL_ROOT_DIR}/build-win64/Release/EASTL.lib)
     
     add_compile_definitions(RG_SDL_RNDR)
 
     # set compiler flags
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4201 /wd4100 /wd4189 /wd4505 /wd4127 /D_CRT_SECURE_NO_WARNINGS")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd /DDEBUG")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT /DNDEBUG")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd /DDEBUG")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /DNDEBUG")
 
     # !!!!!!! TODO FIX AUTO Copy
     # copy dlls to executable's folder
@@ -40,12 +50,14 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
     add_executable(rg_gamelib ${SRC_FILES})
-    target_link_libraries(rg_gamelib SDL2main SDL2 vulkan-1)
+    target_link_libraries(rg_gamelib SDL2main SDL2 vulkan-1 ${EASTL_LIBRARY})
     set_target_properties(rg_gamelib PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
 
     set_target_properties(rg_gamelib PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
     set_target_properties(rg_gamelib PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
     set_target_properties(rg_gamelib PROPERTIES VS_STARTUP_PROJECT rg_gamelib)
+
+    add_custom_target(NatVis SOURCES ${EASTL_ROOT_DIR}/doc/EASTL.natvis)
 
 elseif(APPLE)
 

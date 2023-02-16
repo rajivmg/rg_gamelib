@@ -3,6 +3,8 @@
 
 #include "rg_gfx.h"
 
+#include <EASTL/vector.h>
+
 // TODO:
 // 2. Add rgLogDebug() rgLogError()
 // 3. Then use the suitable rgLogXXX() version in VKDbgReportCallback Function based on msgType 
@@ -14,16 +16,32 @@ using namespace rg;
 // Important: make this a pointer, otherwise if a type with constructor is added to struct, the compiler will complain because it will try to call the constructor of anonymous structs
 rg::GfxCtx rg::g_GfxCtx;
 
+void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line)
+{
+    return new uint8_t[size];
+}
+
+void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned debugFlags, const char* file, int line)
+{
+    return new uint8_t[size];
+}
+
 rgInt rg::updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt)
 {
     printf("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
 
     QuadUV fullQuadUV = createQuadUV(0, 0, 512, 512, 512, 512);
-    gfxTexturedQuad();
-    RenderCmdList* curRenderCmdList = gfxGetRenderCmdList();
-    GfxCmdList* curGfxCmdList = gfxGetCmdList();
-    GfxCmd_TexturedQuad* texQuadCmd = curGfxCmdList->AddCmd();
-    RenderCmd_TexturedQuad *texQuadCmd = RenderCmdList->AddCommand()
+
+    eastl::vector<QuadUV> quadUVs;
+    quadUVs.push_back(fullQuadUV);
+
+    printf("%f\n", quadUVs.back().uvBottomRight[1]);
+
+    //gfxTexturedQuad();
+    //RenderCmdList* curRenderCmdList = gfxGetRenderCmdList();
+    //GfxCmdList* curGfxCmdList = gfxGetCmdList();
+    //GfxCmd_TexturedQuad* texQuadCmd = curGfxCmdList->AddCmd();
+    //RenderCmd_TexturedQuad *texQuadCmd = RenderCmdList->AddCommand()
     //RenderCmdList* cmdList = gfxBeginRenderCmdList("GameRenderCmdList");
     //gfxTexturedQuad(cmdList, birdTexture, defaultQuadUV, Vector2(30, 100), )
     

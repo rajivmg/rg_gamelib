@@ -33,8 +33,8 @@ rgInt gfxInit()
     }
 
     //rg::RenderCmdList gfxCtx = {};
-    GfxCtx* ctx = gfxCtx();
-    ctx->graphicCmdLists[0] = new RenderCmdList("graphic cmdlist 0");
+    //GfxCtx* ctx = gfxCtx();
+    //ctx->graphicCmdLists[0] = new RenderCmdList("graphic cmdlist 0");
 
     return 0;
 }
