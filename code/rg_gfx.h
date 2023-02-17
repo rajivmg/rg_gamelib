@@ -230,6 +230,7 @@ typedef rgU32 RenderResource;
 struct RenderCmdList
 {
     CmdPacket** packets;    /// List of packets
+    // TODO: Make is a constant size 10240
     rgU32*      keys;       /// Keys of packets
     rgU32       current;    /// Number of packets in the list
     void*       buffer;     /// Memory buffer
@@ -243,7 +244,7 @@ struct RenderCmdList
     Matrix4    *ViewMatrix;
     Matrix4    *ProjMatrix; 
 
-    RenderCmdList(rgU32 _BufferSize, RenderResource _ShaderProgram);
+    RenderCmdList(char const* nametag);
     ~RenderCmdList();
 
     template <typename U>
@@ -417,6 +418,7 @@ namespace cmd
 //
 
 rgInt updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt);
+rgInt gfxCommonInit();
 
 rgInt gfxInit();
 rgInt gfxDraw();

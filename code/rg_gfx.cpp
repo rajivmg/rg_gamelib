@@ -13,13 +13,12 @@ RG_BEGIN_NAMESPACE
 
 DispatchFnT* RenderCmd_TexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
 
-RenderCmdList::RenderCmdList(rgU32 _BufferSize, RenderResource _ShaderProgram) :
-    bufferSize(_BufferSize),
-    ShaderProgram(_ShaderProgram),
+RenderCmdList::RenderCmdList(char const* nametag) :
+    bufferSize(rgMEGABYTE(1)),
     baseOffset(0),
     current(0)
 {
-    const rgU32 MaxPacketsInList = 2048;
+    const rgU32 MaxPacketsInList = 10240;
 
     buffer = rgMalloc(bufferSize);
     memset(buffer, 0, bufferSize);
@@ -91,6 +90,16 @@ void RenderCmdList::Flush()
 
 // --- Game Graphics APIs
 QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
+
+rgInt gfxCommonInit()
+{
+    GfxCtx* ctx = gfxCtx();
+
+    ctx->graphicCmdLists[0] = new RenderCmdList("graphic cmdlist 0");
+    ctx->graphicCmdLists[1] = new RenderCmdList("graphic cmdlist 1");
+
+    return 0;
+}
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
 {

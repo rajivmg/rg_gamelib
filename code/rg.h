@@ -58,16 +58,17 @@ typedef bool        rgBool;
 //
 
 #define rgKILOBYTE(x) 1024LL * (x)
-#define rgMEGABYTE(x) 1024LL * Kilobyte(x)
-#define rgGIGABYTE(x) 1024LL * Megabyte(x)
+#define rgMEGABYTE(x) 1024LL * rgKILOBYTE(x)
+#define rgGIGABYTE(x) 1024LL * rgMEGABYTE(x)
 #define rgARRAY_COUNT(a) (sizeof(a)/sizeof((a)[0]))
 #define rgOFFSET_OF(type, member) ((uintptr_t)&(((type *)0)->member))
 #define rgAssert(exp) SDL_assert(exp)
 #define rgMalloc(s) malloc((s))
 #define rgFree(p) free((p))
+//#define rgNew()
 
 void _rgLogImpl(char const* fmt, ...);
-#define rgLog(...) _LogImpl(__VA_ARGS__)
+#define rgLog(...) _rgLogImpl(__VA_ARGS__)
 
 #define rgLogError(...) SDL_LogError(SDL_LOG_CATEGORY_TEST, __VA_ARGS__)
 
@@ -78,7 +79,7 @@ void _rgLogImpl(char const* fmt, ...)
 {
     va_list argList;
     va_start(argList, fmt);
-    SDL_LogMessageV(SDL_LOG_CATEGORY_TEST, SDL_LOG_PRIORITY_ERROR, fmt, argList);
+    SDL_LogMessageV(SDL_LOG_CATEGORY_TEST, SDL_LOG_PRIORITY_DEBUG, fmt, argList);
     va_end(argList);
 }
 #endif // RG_H_IMPLEMENTATION
