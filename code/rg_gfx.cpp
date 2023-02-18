@@ -11,7 +11,7 @@ RG_BEGIN_NAMESPACE
 // Render Commands
 //-----------------------------------------------------------------------------
 
-DispatchFnT* RenderCmd_TexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
+DispatchFnT* RenderCmdTexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
 
 RenderCmdList::RenderCmdList(char const* nametag) :
     bufferSize(rgMEGABYTE(1)),
@@ -95,10 +95,15 @@ rgInt gfxCommonInit()
 {
     GfxCtx* ctx = gfxCtx();
 
-    ctx->graphicCmdLists[0] = new RenderCmdList("graphic cmdlist 0");
-    ctx->graphicCmdLists[1] = new RenderCmdList("graphic cmdlist 1");
+    ctx->graphicCmdLists[0] = rgNew(RenderCmdList)("graphic cmdlist 0");
+    ctx->graphicCmdLists[1] = rgNew(RenderCmdList)("graphic cmdlist 1");
 
     return 0;
+}
+
+RenderCmdList* gfxGetRenderCmdList()
+{
+    return gfxCtx()->graphicCmdLists[gfxCtx()->frameNumber & 1];
 }
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)

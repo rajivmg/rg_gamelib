@@ -14,7 +14,7 @@
 using namespace rg;
 
 // Important: make this a pointer, otherwise if a type with constructor is added to struct, the compiler will complain because it will try to call the constructor of anonymous structs
-rg::GfxCtx rg::g_GfxCtx;
+rg::GfxCtx* rg::g_GfxCtx;
 
 void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line)
 {
@@ -30,6 +30,12 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
     return new uint8_t[size];
 }
 
+
+rgU32 rgRenderKey(rgBool top)
+{
+    return top ? 1 : 0;
+}
+
 rgInt rg::updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt)
 {
     printf("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
@@ -42,10 +48,12 @@ rgInt rg::updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt)
     printf("%f\n", quadUVs.back().uvBottomRight[1]);
 
     //gfxTexturedQuad();
-    //RenderCmdList* curRenderCmdList = gfxGetRenderCmdList();
+    RenderCmdList* cmdList = gfxGetRenderCmdList();
     //GfxCmdList* curGfxCmdList = gfxGetCmdList();
     //GfxCmd_TexturedQuad* texQuadCmd = curGfxCmdList->AddCmd();
-    //RenderCmd_TexturedQuad *texQuadCmd = RenderCmdList->AddCommand()
+    //RenderCmd_TexturedQuad *texQuadCmd = RenderCmdList->AddCmd()
+    RenderCmdTexturedQuad* texQuadCmd = cmdList->addCmd<RenderCmdTexturedQuad>(rgRenderKey(true));
+    //texQuadCmd->texture = gfxNewTexture2D(hh, jkj);
     //RenderCmdList* cmdList = gfxBeginRenderCmdList("GameRenderCmdList");
     //gfxTexturedQuad(cmdList, birdTexture, defaultQuadUV, Vector2(30, 100), )
     
@@ -80,7 +88,9 @@ rgInt createSDLWindow(GfxCtx* ctx)
 
 int main(int argc, char* argv[])
 {
-    if(createSDLWindow(&g_GfxCtx) != 0)
+    g_GfxCtx = rgNew(GfxCtx);
+
+    if(createSDLWindow(g_GfxCtx) != 0)
     {
         return -1; // error;
     }
@@ -102,6 +112,8 @@ int main(int argc, char* argv[])
     
     while(!shouldQuit)
     {
+        ++g_GfxCtx->frameNumber;
+
         previousPerfCounter = currentPerfCounter;
         currentPerfCounter = SDL_GetPerformanceCounter();
         deltaTime = ((currentPerfCounter - previousPerfCounter) / (1.0 * SDL_GetPerformanceFrequency()));
@@ -118,12 +130,12 @@ int main(int argc, char* argv[])
             }
         }
 
-        updateAndDraw(&g_GfxCtx, deltaTime);
+        updateAndDraw(g_GfxCtx, deltaTime);
         
         gfxDraw();
     }
 
-    SDL_DestroyWindow(g_GfxCtx.mainWindow);
+    SDL_DestroyWindow(g_GfxCtx->mainWindow);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return 0;
 }

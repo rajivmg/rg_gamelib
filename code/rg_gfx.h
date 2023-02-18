@@ -125,6 +125,7 @@ struct GfxCtx
     struct // vars common to all type of contexts
     {
         SDL_Window* mainWindow;
+        rgUInt frameNumber;
         RenderCmdList* graphicCmdLists[MAX_FRAMES_IN_QUEUE];
         //SDL_Renderer* sdlRenderer;
     };
@@ -182,8 +183,8 @@ struct GfxCtx
     };
 };
 
-extern rg::GfxCtx g_GfxCtx;
-inline GfxCtx* gfxCtx() { return &g_GfxCtx; }
+extern rg::GfxCtx* g_GfxCtx;
+inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 
 struct ImmVertexFormat
 {
@@ -252,13 +253,13 @@ struct RenderCmdList
 
     // Create a cmd_packet and initialise it's members.
     template <typename U>
-    CmdPacket* CreateCmdPacket(rgU32 AuxMemorySize);
+    CmdPacket* createCmdPacket(rgU32 auxMemorySize);
 
     template <typename U>
-    U* AddCommand(rgU32 Key, rgU32 AuxMemorySize = 0);
+    U* addCmd(rgU32 key, rgU32 auxMemorySize = 0);
 
     template <typename U, typename V>
-    U *AppendCommand(V *Cmd, rgU32 AuxMemorySize = 0);
+    U* appendCmd(V *cmd, rgU32 auxMemorySize = 0);
 
     void *AllocateMemory(rgU32 MemorySize); // TODO: gfxBeginRenderCmdList() { allocCmdBuffer();  }
     void Sort(); // TODO: gfxEndRenderCmdList() { sortCmdList(); }
@@ -267,49 +268,49 @@ struct RenderCmdList
 };
 
 template <typename U>
-inline rgU32 RenderCmdList::GetCmdPacketSize(rgU32 AuxMemorySize)
+inline rgU32 RenderCmdList::GetCmdPacketSize(rgU32 auxMemorySize)
 {
-    return sizeof(CmdPacket) + sizeof(U) + AuxMemorySize;
+    return sizeof(CmdPacket) + sizeof(U) + auxMemorySize;
 }
 
 template <typename U>
-inline CmdPacket* RenderCmdList::CreateCmdPacket(rgU32 AuxMemorySize)
+inline CmdPacket* RenderCmdList::createCmdPacket(rgU32 auxMemorySize)
 {
-    CmdPacket *Packet = (CmdPacket *)AllocateMemory(GetCmdPacketSize<U>(AuxMemorySize));
-    Packet->nextCmdPacket = nullptr;
-    Packet->dispatchFn = nullptr;
-    Packet->cmd = (u8 *)Packet + sizeof(CmdPacket);
-    Packet->auxMemory = AuxMemorySize > 0 ? (u8 *)Packet->Cmd + sizeof(U) : nullptr;
-
-    return Packet;
+    CmdPacket *packet = (CmdPacket*)AllocateMemory(GetCmdPacketSize<U>(auxMemorySize));
+    packet->nextCmdPacket = nullptr;
+    packet->dispatchFn = nullptr;
+    packet->cmd = (rgU8*)packet + sizeof(CmdPacket);
+    packet->auxMemory = auxMemorySize > 0 ? (rgU8*)packet->cmd + sizeof(U) : nullptr;
+    return packet;
 }
 
 template <typename U>
-inline U* RenderCmdList::AddCommand(rgU32 Key, rgU32 AuxMemorySize)
+inline U* RenderCmdList::addCmd(rgU32 key, rgU32 auxMemorySize)
 {
-    cmd_packet *Packet = CreateCmdPacket<U>(AuxMemorySize);
+    CmdPacket* packet = createCmdPacket<U>(auxMemorySize);
 
-    const u32 I = Current++;
-    Packets[I] = Packet;
-    Keys[I] = Key;
+    const rgU32 I = current++;
+    packets[I] = packet;
+    keys[I] = key;
 
-    Packet->NextCmdPacket = nullptr;
-    Packet->DispatchFn = U::dispatchFn;
+    packet->nextCmdPacket = nullptr;
+    packet->dispatchFn = U::dispatchFn;
 
-    return (U *)(Packet->Cmd);
+    return (U*)(packet->cmd);
 }
 
 template <typename U, typename V>
-inline U* RenderCmdList::AppendCommand(V* Cmd, rgU32 AuxMemorySize)
+inline U* RenderCmdList::appendCmd(V* cmd, rgU32 auxMemorySize)
 {
-    cmd_packet *Packet = CreateCmdPacket<U>(AuxMemorySize);
+    CmdPacket *packet = CreateCmdPacket<U>(auxMemorySize);
 
-    GetCmdPacket(Cmd)->NextCmdPacket = Packet;
-    Packet->NextCmdPacket = nullptr;
-    Packet->DispatchFn = U::dispatchFn;
+    GetCmdPacket(cmd)->nextCmdPacket = packet;
+    packet->nextCmdPacket = nullptr;
+    packet->dispatchFn = U::dispatchFn;
 
-    return (U *)(Packet->Cmd);
+    return (U*)(packet->cmd);
 }
+
 
 enum class vert_format
 {
@@ -329,7 +330,7 @@ struct RenderCmdHeader
     RenderCmdType type;
 };
 
-struct RenderCmd_TexturedQuad
+struct RenderCmdTexturedQuad
 {
     RenderCmdHeader header;
 
@@ -417,12 +418,15 @@ namespace cmd
 }
 //
 
-rgInt updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt);
-rgInt gfxCommonInit();
 
+rgInt updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt);
+
+rgInt gfxCommonInit();
 rgInt gfxInit();
 rgInt gfxDraw();
 void  gfxDstry();
+
+RenderCmdList* gfxGetRenderCmdList();
 
 GfxBuffer* gfxNewBuffer(void* data, rgU32 length, GfxMemoryUsage usage);
 void gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offset = 0);

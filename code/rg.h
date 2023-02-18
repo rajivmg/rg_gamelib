@@ -65,7 +65,7 @@ typedef bool        rgBool;
 #define rgAssert(exp) SDL_assert(exp)
 #define rgMalloc(s) malloc((s))
 #define rgFree(p) free((p))
-//#define rgNew()
+#define rgNew(objectType) new objectType
 
 void _rgLogImpl(char const* fmt, ...);
 #define rgLog(...) _rgLogImpl(__VA_ARGS__)
