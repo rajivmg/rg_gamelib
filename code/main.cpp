@@ -40,7 +40,7 @@ rgInt rg::updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt)
 {
     printf("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
 
-    QuadUV fullQuadUV = createQuadUV(0, 0, 512, 512, 512, 512);
+    QuadUV fullQuadUV = rg::createQuadUV(0, 0, 512, 512, 512, 512);
 
     eastl::vector<QuadUV> quadUVs;
     quadUVs.push_back(fullQuadUV);
@@ -53,8 +53,9 @@ rgInt rg::updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt)
     //GfxCmd_TexturedQuad* texQuadCmd = curGfxCmdList->AddCmd();
     //RenderCmd_TexturedQuad *texQuadCmd = RenderCmdList->AddCmd()
     {
+        // Can RenderCmdList be implemented using intrusive_list
         RenderCmdTexturedQuad* texQuadCmd = cmdList->addCmd<RenderCmdTexturedQuad>(rgRenderKey(true));
-        TexturePtr tTexture = rg::loadTexture("T.tga");
+        TexturePtr tTexture = rg::loadTexture("T.tga"); // TODO: create loadTGA()
         texQuadCmd->texture = gfxNewTexture2D(tTexture, GfxResourceUsage_Read);
     }
     //RenderCmdList* cmdList = gfxBeginRenderCmdList("GameRenderCmdList");
