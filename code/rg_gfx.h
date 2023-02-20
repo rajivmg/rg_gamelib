@@ -125,6 +125,7 @@ struct GfxGraphicsPSO
 
 struct GfxTexture2D
 {
+    rgChar name[32];
     rgUInt width;
     rgUInt height;
     TinyImageFormat pixelFormat;
@@ -136,6 +137,8 @@ struct GfxTexture2D
 #elif defined(RG_VULKAN_RNDR)
 #endif
 };
+
+typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DPtr;
 
 struct RenderCmdList;
 #define MAX_FRAMES_IN_QUEUE 2
@@ -350,11 +353,15 @@ struct RenderCmdHeader
     RenderCmdType type;
 };
 
+// NOTE: RenderCmds are not allowed to own any resources (smartptrs)
+// Should this be allowed?? If yes, then addCmd should "new" the RenderCmd, and Flush should "delete"
+// pros vs cons?
+
 struct RenderCmdTexturedQuad
 {
     RenderCmdHeader header;
 
-    GfxTexture2D* texture;
+    GfxTexture2DPtr texture;
     QuadUV* quad;
     rgFloat x;
     rgFloat y;
@@ -456,7 +463,7 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
 void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 
 GfxTexture2D* gfxNewTexture2D(char const* filename, GfxResourceUsage usage); // TODO: remove this
-GfxTexture2D* gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
+GfxTexture2DPtr gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
 GfxTexture2D* gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage);
 void gfxDeleteTexture2D(GfxTexture2D* t2d);
 

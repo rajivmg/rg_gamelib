@@ -146,18 +146,19 @@ QuadUV::QuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* ref
 
 TexturePtr loadTexture(char const* filename)
 {
-    rgInt texWidth, texHeight, texChnl;
-    unsigned char* texData = stbi_load(filename, &texWidth, &texHeight, &texChnl, 4);
+    rgInt width, height, texChnl;
+    unsigned char* texData = stbi_load(filename, &width, &height, &texChnl, 4);
     
     if(texData == NULL)
     {
         return nullptr;
     }
 
-    TexturePtr tptr = eastl::make_shared<Texture>(unloadTexture);
+    //TexturePtr tptr = eastl::make_shared<Texture>(unloadTexture);
+    TexturePtr tptr = eastl::shared_ptr<Texture>(rgNew(Texture), unloadTexture);
     strcpy(tptr->name, "[NONAME]");
-    tptr->width = texWidth;
-    tptr->height = texHeight;
+    tptr->width = width;
+    tptr->height = height;
     tptr->format = TinyImageFormat_R8G8B8A8_UNORM;
     tptr->buf = texData;
 
@@ -167,6 +168,7 @@ TexturePtr loadTexture(char const* filename)
 void unloadTexture(Texture* t)
 {
     stbi_image_free(t->buf);
+    rgDelete(t);
 }
 
 void immTexturedQuad2(Texture* texture, QuadUV* quad, rgFloat x, rgFloat y, rgFloat orientationRad, rgFloat scaleX, rgFloat scaleY, rgFloat offsetX, rgFloat offsetY)
