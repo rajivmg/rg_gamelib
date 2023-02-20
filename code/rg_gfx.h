@@ -10,6 +10,7 @@
 #endif
 
 #include "rg.h"
+#include <EASTL/shared_ptr.h>
 
 RG_BEGIN_NAMESPACE
 
@@ -20,6 +21,7 @@ RG_BEGIN_NAMESPACE
 // --- Game Graphics APIs
 struct GfxTexture2D;
 
+/*
 struct Texture
 {
 // -- data
@@ -28,6 +30,20 @@ struct Texture
     TinyImageFormat pixelFormat;
     GfxTexture2D* texture;
 };
+*/
+struct Texture
+{
+    rgChar name[32];
+    rgUInt width;
+    rgUInt height;
+    TinyImageFormat format;
+    rgU8* buf;
+};
+
+typedef eastl::shared_ptr<Texture> TexturePtr;
+
+TexturePtr loadTexture(char const* filename);
+void unloadTexture(Texture* t);
 
 struct QuadUV
 {
@@ -109,6 +125,10 @@ struct GfxGraphicsPSO
 
 struct GfxTexture2D
 {
+    rgUInt width;
+    rgUInt height;
+    TinyImageFormat pixelFormat;
+
 #if defined(RG_SDL_RNDR)
     SDL_Texture* sdlTexture;
 #elif defined(RG_METAL_RNDR)
@@ -334,7 +354,7 @@ struct RenderCmdTexturedQuad
 {
     RenderCmdHeader header;
 
-    Texture* texture;
+    GfxTexture2D* texture;
     QuadUV* quad;
     rgFloat x;
     rgFloat y;
@@ -435,7 +455,9 @@ void gfxDeleteBuffer(GfxBuffer* bufferResource);
 GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
 void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 
-GfxTexture2D* gfxNewTexture2D(char const* filename, GfxResourceUsage usage);
+GfxTexture2D* gfxNewTexture2D(char const* filename, GfxResourceUsage usage); // TODO: remove this
+GfxTexture2D* gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
+GfxTexture2D* gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage);
 void gfxDeleteTexture2D(GfxTexture2D* t2d);
 
 RenderCmdList* gfxBeginRenderCmdList(char const* nametag);

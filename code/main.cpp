@@ -53,7 +53,7 @@ rgInt rg::updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt)
     //GfxCmd_TexturedQuad* texQuadCmd = curGfxCmdList->AddCmd();
     //RenderCmd_TexturedQuad *texQuadCmd = RenderCmdList->AddCmd()
     RenderCmdTexturedQuad* texQuadCmd = cmdList->addCmd<RenderCmdTexturedQuad>(rgRenderKey(true));
-    //texQuadCmd->texture = gfxNewTexture2D(hh, jkj);
+    //texQuadCmd->texture = gfxNewTexture2D("T.tga", GfxResourceUsage_Read);
     //RenderCmdList* cmdList = gfxBeginRenderCmdList("GameRenderCmdList");
     //gfxTexturedQuad(cmdList, birdTexture, defaultQuadUV, Vector2(30, 100), )
     

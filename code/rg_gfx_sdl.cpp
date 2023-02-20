@@ -13,10 +13,18 @@ static inline SDL_Renderer* sdlRndr()
     return gfxCtx()->sdl.renderer;
 }
 
-void RenderTexturedQuad(void const* cmd)
+static inline SDL_PixelFormatEnum convertPixelFormat(TinyImageFormat f)
 {
-
+    switch(f)
+    {
+    case TinyImageFormat_R8G8B8A8_UNORM:
+        return SDL_PIXELFORMAT_RGBA32;
+    default:
+        rgAssert(!"Format conversion not defined");
+        return SDL_PIXELFORMAT_UNKNOWN;
+    }
 }
+
 
 rgInt gfxInit()
 {
@@ -46,6 +54,18 @@ rgInt gfxDraw()
     SDL_RenderPresent(sdlRndr());
 
     return 0;
+}
+
+GfxTexture2D* gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
+{
+    Texture* tex = texture.get();
+
+    SDL_CreateTexture(sdlRndr(), toSDLFormat(tex->format), 
+}
+
+GfxTexture2D* gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage)
+{
+    return nullptr;
 }
 
 void gfxHandleRenderCmdTexturedQuad(void const* cmd)

@@ -55,6 +55,8 @@ typedef int32_t     rgInt;
 typedef float       rgFloat;
 typedef double      rgDouble;
 typedef bool        rgBool;
+
+typedef char        rgChar;
 //
 
 #define rgKILOBYTE(x) 1024LL * (x)
