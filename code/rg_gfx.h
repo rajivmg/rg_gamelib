@@ -19,18 +19,8 @@ RG_BEGIN_NAMESPACE
 #endif
 
 // --- Game Graphics APIs
-struct GfxTexture2D;
+//struct GfxTexture2D;
 
-/*
-struct Texture
-{
-// -- data
-    rgUInt width;
-    rgUInt height;
-    TinyImageFormat pixelFormat;
-    GfxTexture2D* texture;
-};
-*/
 struct Texture
 {
     rgChar name[32];
@@ -61,154 +51,8 @@ void immTexturedQuad2(Texture* texture, QuadUV* quad, rgFloat x, rgFloat y, rgFl
 
 // --- Low-level Graphics Functions
 
-enum GfxMemoryUsage
-{
-    GfxMemoryUsage_CPUToGPU,
-    GfxMemoryUsage_GPUOnly,
-    GfxMemoryUsage_CPUOnly
-};
-
-enum GfxResourceUsage
-{
-    GfxResourceUsage_Read,
-    GfxResourceUsage_Write,
-    GfxResourceUsage_ReadWrite
-};
-
-struct GfxBuffer
-{
-    GfxMemoryUsage usageMode;
-    rgU32 capacity;
-#if defined(RG_METAL_RNDR)
-    MTL::Buffer* mtlBuffer;
-#elif defined(RG_VULKAN_RNDR)
-#endif
-};
-
-enum GfxShaderType
-{
-    GfxShaderType_Vertex,
-    GfxShaderType_Fragment,
-    GfxShaderType_Compute
-};
-
-struct GfxColorAttachementDesc
-{
-    TinyImageFormat pixelFormat;
-};
-
-struct GfxRenderStateDesc
-{
-    static const rgUInt MAX_COLOR_ATTACHMENTS = 8;
- 
-    GfxColorAttachementDesc colorAttachments[MAX_COLOR_ATTACHMENTS];
-    TinyImageFormat depthAttachementFormat;
-    TinyImageFormat stencilAttachementFormat;
-};
-
-struct GfxShaderDesc
-{
-    char const* shaderSrcCode;
-    char const* vsEntryPoint;
-    char const* fsEntryPoint;
-    char const* csEntryPoint;
-    char const* macros;
-};
-
-struct GfxGraphicsPSO
-{
-#if defined(RG_METAL_RNDR)
-    MTL::RenderPipelineState* mtlPSO;
-#elif defined(RG_VULKAN_RNDR)
-#endif
-};
-
-struct GfxTexture2D
-{
-    rgChar name[32];
-    rgUInt width;
-    rgUInt height;
-    TinyImageFormat pixelFormat;
-
-#if defined(RG_SDL_RNDR)
-    SDL_Texture* sdlTexture;
-#elif defined(RG_METAL_RNDR)
-    MTL::Texture* mtlTexture;
-#elif defined(RG_VULKAN_RNDR)
-#endif
-};
-
-typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DPtr;
-
 struct RenderCmdList;
 #define MAX_FRAMES_IN_QUEUE 2
-
-struct GfxCtx
-{
-    GfxCtx() {}
-    ~GfxCtx() {}
-
-    struct // vars common to all type of contexts
-    {
-        SDL_Window* mainWindow;
-        rgUInt frameNumber;
-        RenderCmdList* graphicCmdLists[MAX_FRAMES_IN_QUEUE];
-        //SDL_Renderer* sdlRenderer;
-    };
-
-#if defined(RG_SDL_RNDR)
-        struct SDLGfxCtx
-        {
-            SDL_Renderer* renderer;
-            GfxTexture2DPtr tTex;
-        } sdl;
-#elif defined(RG_METAL_RNDR)
-        struct
-        {
-            void* layer; // type: id<CAMetalLayer>
-            NS::View *view;
-            MTL::Device *device;
-            MTL::CommandQueue* commandQueue;
-            
-            // -- immediate mode resources
-            GfxBuffer* immVertexBuffer;
-            rgUInt immCurrentVertexCount;
-            GfxBuffer* immIndexBuffer;
-            rgUInt immCurrentIndexCount;
-            GfxGraphicsPSO* immPSO;
-            
-            GfxTexture2D* birdTexture;
-        } mtl;
-#elif defined(RG_VULKAN_RNDR)
-        struct
-        {
-            VkInstance inst;
-            VkPhysicalDevice physicalDevice;
-            rgUInt graphicsQueueIndex;
-
-            VkDevice device;
-            rgUInt deviceExtCount;
-            char const** deviceExtNames;
-            VkQueue graphicsQueue;
-
-            VkCommandPool graphicsCmdPool;
-            VkCommandBuffer graphicsCmdBuffer;
-
-            VkSurfaceKHR surface;
-            VkSwapchainKHR swapchain;
-            VkImageView* swapchainImageViews;
-
-            //VkFormat swapchainDesc; // is this the right way to store this info?
-
-            PFN_vkCreateDebugReportCallbackEXT fnCreateDbgReportCallback;
-            PFN_vkDestroyDebugReportCallbackEXT fnDestroyDbgReportCallback;
-            VkDebugReportCallbackEXT dbgReportCallback;
-        } vk;
-#endif
-};
-
-extern rg::GfxCtx* g_GfxCtx;
-inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 
 struct ImmVertexFormat
 {
@@ -335,14 +179,191 @@ inline U* RenderCmdList::appendCmd(V* cmd, rgU32 auxMemorySize)
     return (U*)(packet->cmd);
 }
 
+rgInt gfxCommonInit();
+rgInt updateAndDraw(rgDouble dt);
 
-enum class vert_format
+/// ----- RENDERCMDLIST
+RenderCmdList* gfxGetRenderCmdList();
+RenderCmdList* gfxBeginRenderCmdList(char const* nametag);
+void gfxEndRenderCmdList(RenderCmdList* cmdList);
+
+void gfxSubmitRenderCmdList(RenderCmdList* cmdList); // Submits the list to the GPU, and create a fence to know when it's processed
+void gfxDeleteRenderCmdList(RenderCmdList* cmdList);
+
+////////
+/// STUFF BELOW NEEDS TO BE IMPLEMENTED FOR EACH GRAPHICS BACKEND
+////////
+
+enum GfxMemoryUsage
 {
-    P1C1UV1,
-    P1C1,
-    P1N1UV1
+    GfxMemoryUsage_CPUToGPU,
+    GfxMemoryUsage_GPUOnly,
+    GfxMemoryUsage_CPUOnly
 };
 
+enum GfxResourceUsage
+{
+    GfxResourceUsage_Read,
+    GfxResourceUsage_Write,
+    GfxResourceUsage_ReadWrite
+};
+
+/// ----- GFX-SETUP
+rgInt gfxInit();
+void  gfxDestroy();
+rgInt gfxDraw();
+
+/// ----- BUFFER
+struct GfxBuffer
+{
+    GfxMemoryUsage usageMode;
+    rgU32 capacity;
+
+#if defined(RG_METAL_RNDR)
+    MTL::Buffer* mtlBuffer;
+#elif defined(RG_VULKAN_RNDR)
+
+#endif
+};
+typedef eastl::shared_ptr<GfxBuffer> GfxBufferPtr;
+
+GfxBuffer*  gfxNewBuffer(void* data, rgU32 length, GfxMemoryUsage usage);
+void        gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offset);
+void        gfxDeleteBuffer(GfxBuffer* bufferResource);
+
+/// ----- PIPELINE
+enum GfxShaderType
+{
+    GfxShaderType_Vertex,
+    GfxShaderType_Fragment,
+    GfxShaderType_Compute
+};
+
+struct GfxColorAttachementDesc
+{
+    TinyImageFormat pixelFormat;
+};
+
+struct GfxRenderStateDesc
+{
+    static const rgUInt MAX_COLOR_ATTACHMENTS = 8;
+
+    GfxColorAttachementDesc colorAttachments[MAX_COLOR_ATTACHMENTS];
+    TinyImageFormat depthAttachementFormat;
+    TinyImageFormat stencilAttachementFormat;
+};
+
+struct GfxShaderDesc
+{
+    char const* shaderSrcCode;
+    char const* vsEntryPoint;
+    char const* fsEntryPoint;
+    char const* csEntryPoint;
+    char const* macros;
+};
+
+struct GfxGraphicsPSO
+{
+#if defined(RG_METAL_RNDR)
+    MTL::RenderPipelineState* mtlPSO;
+#elif defined(RG_VULKAN_RNDR)
+
+#endif
+};
+
+GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
+void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
+
+/// ----- TEXTURE
+struct GfxTexture2D
+{
+    rgChar name[32];
+    rgUInt width;
+    rgUInt height;
+    TinyImageFormat pixelFormat;
+
+#if defined(RG_METAL_RNDR)
+    MTL::Texture* mtlTexture;
+#elif defined(RG_VULKAN_RNDR)
+
+#elif defined(RG_SDL_RNDR)
+    SDL_Texture* sdlTexture;
+#endif
+};
+typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DPtr;
+
+GfxTexture2DPtr gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
+GfxTexture2DPtr gfxNewTexture2D(void* buf, char const* name, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage);
+void gfxDeleteTexture2D(GfxTexture2D* t2d);
+
+/// ----- GFX CONTEXT
+struct GfxCtx
+{
+    GfxCtx() {}
+    ~GfxCtx() {}
+
+    struct // vars common to all type of contexts
+    {
+        SDL_Window* mainWindow;
+        rgUInt frameNumber;
+        RenderCmdList* graphicCmdLists[MAX_FRAMES_IN_QUEUE];
+    };
+
+#if defined(RG_SDL_RNDR)
+    struct SDLGfxCtx
+    {
+        SDL_Renderer* renderer;
+        GfxTexture2DPtr tTex;
+    } sdl;
+#elif defined(RG_METAL_RNDR)
+    struct
+    {
+        void* layer; // type: id<CAMetalLayer>
+        NS::View *view;
+        MTL::Device *device;
+        MTL::CommandQueue* commandQueue;
+
+        // -- immediate mode resources
+        GfxBuffer* immVertexBuffer;
+        rgUInt immCurrentVertexCount;
+        GfxBuffer* immIndexBuffer;
+        rgUInt immCurrentIndexCount;
+        GfxGraphicsPSO* immPSO;
+
+        GfxTexture2D* birdTexture;
+    } mtl;
+#elif defined(RG_VULKAN_RNDR)
+    struct
+    {
+        VkInstance inst;
+        VkPhysicalDevice physicalDevice;
+        rgUInt graphicsQueueIndex;
+
+        VkDevice device;
+        rgUInt deviceExtCount;
+        char const** deviceExtNames;
+        VkQueue graphicsQueue;
+
+        VkCommandPool graphicsCmdPool;
+        VkCommandBuffer graphicsCmdBuffer;
+
+        VkSurfaceKHR surface;
+        VkSwapchainKHR swapchain;
+        VkImageView* swapchainImageViews;
+
+        //VkFormat swapchainDesc; // is this the right way to store this info?
+
+        PFN_vkCreateDebugReportCallbackEXT fnCreateDbgReportCallback;
+        PFN_vkDestroyDebugReportCallbackEXT fnDestroyDbgReportCallback;
+        VkDebugReportCallbackEXT dbgReportCallback;
+    } vk;
+#endif
+};
+extern rg::GfxCtx* g_GfxCtx;
+
+inline GfxCtx* gfxCtx() { return g_GfxCtx; }
+
+/// ----- RENDER COMMANDS
 enum RenderCmdType
 {
     RenderCmdType_ColoredQuad,
@@ -377,102 +398,6 @@ struct RenderCmdTexturedQuad
 
 // struct RenderCmd_NewTransientResource
 // struct RenderCmd_DeleteTransientResource
-
-//struct vert_P1C1UV1
-//{
-//    vec3 Position;
-//    vec2 UV;
-//    vec4 Color;
-//};
-//
-//struct vert_P1C1
-//{
-//    vec3 Position;
-//    vec4 Color;
-//};
-//
-//struct vert_P1N1UV1
-//{
-//    vec3 Position;
-//    vec3 Normal;
-//    vec2 UV;
-//};
-
-namespace cmd
-{
-
-
-    //struct draw
-    //{
-    //    render_resource     VertexBuffer;
-    //    vert_format         VertexFormat;
-    //    u32                 StartVertex;
-    //    u32                 VertexCount;
-    //    render_resource     Textures[8];
-
-    //    static dispatch_fn  *dispatchFn;
-    //};
-    //static_assert(std::is_pod<draw>::value == true, "Must be a POD.");
-
-    //struct draw_indexed
-    //{
-    //    render_resource     VertexBuffer;
-    //    vert_format         VertexFormat;
-    //    render_resource     IndexBuffer;
-    //    u32                 IndexCount;
-    //    render_resource     Textures[8];
-
-    //    static dispatch_fn  *dispatchFn;
-    //};
-
-    //struct copy_const_buffer
-    //{
-    //    render_resource ConstantBuffer;
-    //    void            *Data;
-    //    u32             Size;
-
-    //    static dispatch_fn  *dispatchFn;
-    //};
-
-    //struct draw_debug_lines
-    //{
-    //    render_resource     VertexBuffer;
-    //    vert_format         VertexFormat;
-    //    u32                 StartVertex;
-    //    u32                 VertexCount;
-
-    //    static dispatch_fn  *dispatchFn;
-    //};
-}
-//
-
-
-rgInt updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt);
-
-rgInt gfxCommonInit();
-rgInt gfxInit();
-rgInt gfxDraw();
-void  gfxDstry();
-
-RenderCmdList* gfxGetRenderCmdList();
-
-GfxBuffer* gfxNewBuffer(void* data, rgU32 length, GfxMemoryUsage usage);
-void gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offset = 0);
-void gfxDeleteBuffer(GfxBuffer* bufferResource);
-
-GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
-void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
-
-GfxTexture2D* gfxNewTexture2D(char const* filename, GfxResourceUsage usage); // TODO: remove this
-GfxTexture2DPtr gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
-GfxTexture2D* gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage);
-void gfxDeleteTexture2D(GfxTexture2D* t2d);
-
-RenderCmdList* gfxBeginRenderCmdList(char const* nametag);
-void gfxEndRenderCmdList(RenderCmdList* cmdList);
-
-void gfxSubmitRenderCmdList(RenderCmdList* cmdList); // Submits the list to the GPU, and create a fence to know when it's processed
-void gfxDeleteRenderCmdList(RenderCmdList* cmdList);
 
 void gfxHandleRenderCmdTexturedQuad(void const* cmd);
 

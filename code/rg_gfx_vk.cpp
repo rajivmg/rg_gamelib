@@ -91,7 +91,7 @@ rgInt gfxDraw()
     return 0;
 }
 
-void gfxDstry()
+void gfxDestroy()
 {
 
 }

@@ -36,7 +36,7 @@ rgU32 rgRenderKey(rgBool top)
     return top ? 1 : 0;
 }
 
-rgInt rg::updateAndDraw(rg::GfxCtx* gtxCtx, rgDouble dt)
+rgInt rg::updateAndDraw(rgDouble dt)
 {
     printf("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
 
@@ -135,7 +135,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        updateAndDraw(g_GfxCtx, deltaTime);
+        updateAndDraw(deltaTime);
         
         gfxDraw();
     }
