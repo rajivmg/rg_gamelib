@@ -69,8 +69,9 @@ rgInt gfxInit()
 rgInt gfxDraw()
 {
     SDL_RenderClear(sdlRndr());
+    rg::GfxTexture2DPtr t = gfxCtx()->sdl.tTex;
 
-
+    SDL_RenderCopy(sdlRndr(), t->sdlTexture, NULL, NULL);
 
     SDL_RenderPresent(sdlRndr());
 
@@ -82,7 +83,9 @@ GfxTexture2DPtr gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
     Texture* tex = texture.get();
 
     SDL_Texture* sdlTexture = SDL_CreateTexture(sdlRndr(), toSDLPixelFormat(tex->format), toSDLResourceUsage(usage), tex->width, tex->height);
-    
+    SDL_Rect rect = { 0, 0, tex->width, tex->height };
+    SDL_UpdateTexture(sdlTexture, &rect, tex->buf, tex->width * TinyImageFormat_ChannelCount(tex->format) * 1);
+
     //GfxTexture2DPtr t2dPtr = eastl::make_shared<GfxTexture2D>(gfxDeleteTexture2D);
     GfxTexture2DPtr t2dPtr = eastl::shared_ptr<GfxTexture2D>(rgNew(GfxTexture2D), gfxDeleteTexture2D);
     t2dPtr->width = tex->width;

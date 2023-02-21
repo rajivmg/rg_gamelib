@@ -145,6 +145,9 @@ struct RenderCmdList;
 
 struct GfxCtx
 {
+    GfxCtx() {}
+    ~GfxCtx() {}
+
     struct // vars common to all type of contexts
     {
         SDL_Window* mainWindow;
@@ -153,12 +156,11 @@ struct GfxCtx
         //SDL_Renderer* sdlRenderer;
     };
 
-    union
-    {
 #if defined(RG_SDL_RNDR)
         struct SDLGfxCtx
         {
             SDL_Renderer* renderer;
+            GfxTexture2DPtr tTex;
         } sdl;
 #elif defined(RG_METAL_RNDR)
         struct
@@ -203,7 +205,6 @@ struct GfxCtx
             VkDebugReportCallbackEXT dbgReportCallback;
         } vk;
 #endif
-    };
 };
 
 extern rg::GfxCtx* g_GfxCtx;
