@@ -9,9 +9,6 @@ RG_BEGIN_NAMESPACE
 
 #include "shaders/metal/imm_shader.inl"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
 namespace metal_util
 {
 MTL::PixelFormat convertPixelFormat(TinyImageFormat f)
@@ -86,10 +83,11 @@ rgInt gfxInit()
     rgUInt triangleVerticesSize = sizeof(triangleVertices);
     
     gfxCtx()->mtl.immVertexBuffer = gfxNewBuffer(nullptr, triangleVerticesSize, GfxMemoryUsage_CPUToGPU);
-    gfxUpdateBuffer(gfxCtx()->mtl.immVertexBuffer, triangleVertices, triangleVerticesSize);
+    gfxUpdateBuffer(gfxCtx()->mtl.immVertexBuffer, triangleVertices, triangleVerticesSize, 0);
 
     //metalutils::getPreprocessorMacrosDict("SHADOW_PASS, USE_TEX1  USE_TEX2");
-    gfxCtx()->mtl.birdTexture = gfxNewTexture2D("bird_texture.png", GfxResourceUsage_Read);
+    TexturePtr birdTex = rg::loadTexture("bird_texture.png");
+    gfxCtx()->mtl.birdTexture = gfxNewTexture2D(birdTex, GfxResourceUsage_Read);
     return 0;
 }
 
@@ -263,34 +261,48 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
     pso->mtlPSO->release();
 }
 
-GfxTexture2D* gfxNewTexture2D(char const* filename, GfxResourceUsage usage)
+GfxTexture2DPtr gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
 {
-    rgInt texWidth, texHeight, texChnl;
-    unsigned char* texData = stbi_load(filename, &texWidth, &texHeight, &texChnl, 4);
-    
+    Texture* tex = texture.get();
+    return gfxNewTexture2D(tex->buf, tex->name, tex->width, tex->height, tex->format, usage);
+}
+
+GfxTexture2DPtr gfxNewTexture2D(void* buf, char const* name, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage)
+{
+    rgAssert(buf != NULL);
+
     MTL::TextureDescriptor* texDesc = MTL::TextureDescriptor::alloc()->init();
-    
-    texDesc->setWidth(texWidth);
-    texDesc->setHeight(texHeight);
-    texDesc->setPixelFormat(metal_util::convertPixelFormat(TinyImageFormat_R8G8B8A8_UNORM));
+    texDesc->setWidth(width);
+    texDesc->setHeight(height);
+    texDesc->setPixelFormat(metal_util::convertPixelFormat(format));
     texDesc->setTextureType(MTL::TextureType2D);
     texDesc->setStorageMode(MTL::StorageModeShared);
     texDesc->setUsage(metal_util::convertResourceUsage(usage));
     
-    GfxTexture2D* texture2D = new GfxTexture2D;
-    
-    texture2D->mtlTexture = mtlDevice()->newTexture(texDesc);
-    texture2D->mtlTexture->replaceRegion(MTL::Region(0, 0, 0, texWidth, texHeight, 1), 0, texData, texWidth * 4);
-    
+    MTL::Texture* mtlTexture = mtlDevice()->newTexture(texDesc);
     texDesc->release();
-    stbi_image_free(texData);
     
-    return texture2D;
+    mtlTexture->replaceRegion(MTL::Region(0, 0, 0, width, height, 1), 0, buf, width * TinyImageFormat_ChannelCount(format) * 1);
+    
+    GfxTexture2DPtr t2dPtr = eastl::shared_ptr<GfxTexture2D>(rgNew(GfxTexture2D), gfxDeleteTexture2D);
+    t2dPtr->width = width;
+    t2dPtr->height = height;
+    t2dPtr->pixelFormat = format;
+    t2dPtr->mtlTexture = mtlTexture;
+    strcpy(t2dPtr->name, name);
+
+    return t2dPtr;
 }
 
 void gfxDeleteTexture2D(GfxTexture2D* t2d)
 {
     t2d->mtlTexture->release();
+    rgDelete(t2d);
+}
+
+void gfxHandleRenderCmdTexturedQuad(void const* cmd)
+{
+
 }
 
 RG_END_NAMESPACE

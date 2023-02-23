@@ -330,7 +330,7 @@ struct GfxCtx
         rgUInt immCurrentIndexCount;
         GfxGraphicsPSO* immPSO;
 
-        GfxTexture2D* birdTexture;
+        GfxTexture2DPtr birdTexture;
     } mtl;
 #elif defined(RG_VULKAN_RNDR)
     struct

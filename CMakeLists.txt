@@ -69,6 +69,8 @@ elseif(APPLE)
     find_library(APPL_METAL Metal REQUIRED)
     find_library(SDL2 SDL2 REQUIRED)
 
+    set(EASTL_LIBRARY ${EASTL_ROOT_DIR}/build-apple/libEASTL.a)
+
     # set source files
     file(GLOB SRC_FILES "code/*.cpp" "code/*.mm" "code/*.h" "code/shaders/metal/*.inl")
     file(GLOB SHADER_SRC_FILES "code/shaders/metal/*.metal")
@@ -77,7 +79,7 @@ elseif(APPLE)
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${3RD_PARTY_DIR}/inc/metal-cpp ${3RD_PARTY_DIR}/inc/metal-cpp-extensions)
 
     add_executable(rg_gamelib ${SRC_FILES} ${SHADER_SRC_FILES})
-    target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2})
+    target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2} ${EASTL_LIBRARY})
 
     set_source_files_properties(${SHADER_SRC_FILES} PROPERTIES LANGUAGE METAL)
 endif()
