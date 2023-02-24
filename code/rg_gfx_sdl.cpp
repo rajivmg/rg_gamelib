@@ -69,9 +69,12 @@ rgInt gfxInit()
 rgInt gfxDraw()
 {
     SDL_RenderClear(sdlRndr());
-    rg::GfxTexture2DPtr t = gfxCtx()->sdl.tTex;
 
-    SDL_RenderCopy(sdlRndr(), t->sdlTexture, NULL, NULL);
+    gfxGetRenderCmdList()->draw();
+
+    //rg::GfxTexture2DPtr t = gfxCtx()->sdl.tTex;
+
+    //SDL_RenderCopy(sdlRndr(), t->sdlTexture, NULL, NULL);
 
     SDL_RenderPresent(sdlRndr());
 
@@ -109,9 +112,10 @@ void gfxDeleteTexture2D(GfxTexture2D* t2d)
     rgDelete(t2d);
 }
 
-void gfxHandleRenderCmdTexturedQuad(void const* cmd)
+void gfxHandleRenderCmdTexturedQuad(void const* _cmd)
 {
-
+    RenderCmdTexturedQuad* cmd = (RenderCmdTexturedQuad*)_cmd;
+    SDL_RenderCopy(sdlRndr(),cmd->texture->sdlTexture, NULL, NULL);
 }
 
 RG_END_NAMESPACE

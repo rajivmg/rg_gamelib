@@ -68,6 +68,7 @@ typedef char        rgChar;
 #define rgMalloc(s) malloc((s))
 #define rgFree(p) free((p))
 #define rgNew(objectType) new objectType
+#define rgPlacementNew(objectType, placementAddress) new(placementAddress) objectType
 #define rgDelete(object) delete object
 
 void _rgLogImpl(char const* fmt, ...);

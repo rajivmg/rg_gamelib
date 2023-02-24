@@ -54,7 +54,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     //RenderCmd_TexturedQuad *texQuadCmd = RenderCmdList->AddCmd()
     {
         // Can RenderCmdList be implemented using intrusive_list
-        RenderCmdTexturedQuad* texQuadCmd = cmdList->addCmd<RenderCmdTexturedQuad>(rgRenderKey(true));
+        RenderCmdTexturedQuad* texQuadCmd = cmdList->addCmd<RenderCmdTexturedQuad>(rgRenderKey(true), 0);
         TexturePtr tTexture = rg::loadTexture("T.tga"); // TODO: create loadTGA()
         texQuadCmd->texture = gfxNewTexture2D(tTexture, GfxResourceUsage_Read);
         //gfxCtx()->sdl.tTex = texQuadCmd->texture;

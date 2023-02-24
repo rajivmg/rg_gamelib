@@ -34,15 +34,15 @@ RenderCmdList::~RenderCmdList()
     rgFree(buffer);
 }
 
-void* RenderCmdList::AllocateMemory(rgU32 MemorySize)
-{
-    rgAssert((bufferSize - baseOffset) >= MemorySize);
-    void *Mem = ((rgU8 *)buffer + baseOffset);
-    baseOffset += MemorySize;
-    return Mem; 
-}
+//void* RenderCmdList::AllocateMemory(rgU32 MemorySize)
+//{
+//    rgAssert((bufferSize - baseOffset) >= MemorySize);
+//    void *Mem = ((rgU8 *)buffer + baseOffset);
+//    baseOffset += MemorySize;
+//    return Mem; 
+//}
 
-void RenderCmdList::Sort()
+void RenderCmdList::sort()
 {
     // Sort using insertion sort.
     // TODO: Use Radix sort
@@ -61,35 +61,81 @@ void RenderCmdList::Sort()
     }
 }
 
-void RenderCmdList::Submit()
-{
-    //rndr::UseShaderProgram(ShaderProgram);
-    //rndr::SetViewMatrix(*ViewMatrix);
-    //rndr::SetProjectionMatrix(*ProjMatrix);
-    for(rgU32 I = 0; I < current; ++I)
-    {
-        CmdPacket *Packet = packets[I];
+//void RenderCmdList::Submit()
+//{
+//    //rndr::UseShaderProgram(ShaderProgram);
+//    //rndr::SetViewMatrix(*ViewMatrix);
+//    //rndr::SetProjectionMatrix(*ProjMatrix);
+//    for(rgU32 I = 0; I < current; ++I)
+//    {
+//        CmdPacket *Packet = packets[I];
+//
+//        for(;;)
+//        {
+//            DispatchFnT *DispatchFn = Packet->dispatchFn;
+//            void *Cmd = Packet->cmd;
+//            DispatchFn(Cmd);
+//
+//            Packet = Packet->nextCmdPacket;
+//
+//            if(Packet == nullptr)
+//                break;
+//        }
+//    }
+//}
 
+void RenderCmdList::draw()
+{
+    for(rgU32 i = 0; i < current; ++i)
+    {
+        CmdPacket* pkt = packets[i];
         for(;;)
         {
-            DispatchFnT *DispatchFn = Packet->dispatchFn;
-            void *Cmd = Packet->cmd;
-            DispatchFn(Cmd);
+            DispatchFnT* DispatchFn = pkt->dispatchFn;
+            DispatchFn(pkt->cmd);
 
-            Packet = Packet->nextCmdPacket;
-
-            if(Packet == nullptr)
+            pkt = pkt->nextCmdPacket;
+            if(pkt == NULL)
+            {
                 break;
+            }
         }
     }
 }
 
-void RenderCmdList::Flush()
+void RenderCmdList::afterDraw()
 {
+    for(rgU32 i = 0; i < current; ++i)
+    {
+        CmdPacket* pkt = packets[i];
+        for(;;)
+        {
+            delete pkt->cmd;
+
+            pkt = pkt->nextCmdPacket;
+            if(pkt == NULL)
+            {
+                break;
+            }
+        }
+    }
+
     memset(buffer, 0, baseOffset);
     current = 0;
     baseOffset = 0;
 }
+
+//void gfxSubmitRenderCmdList(RenderCmdList* cmdList)
+//{
+//
+//}
+
+//void RenderCmdList::Flush()
+//{
+//    memset(buffer, 0, baseOffset);
+//    current = 0;
+//    baseOffset = 0;
+//}
 
 // --- Game Graphics APIs
 QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
@@ -126,23 +172,6 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture
 {
     return createQuadUV(xPx, yPx, widthPx, heightPx, refTexture->width, refTexture->height);
 }
-
-/*
-QuadUV::QuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
-{
-    uvTopLeft[0] = (rgFloat)xPx / refWidthPx;
-    uvTopLeft[1] = (rgFloat)yPx / refHeightPx;
-    
-    uvBottomRight[0] = (xPx + widthPx) / (rgFloat)refWidthPx;
-    uvBottomRight[1] = (yPx + heightPx) / (rgFloat)refHeightPx;
-}
-
-QuadUV::QuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture)
-    : QuadUV(xPx, yPx, widthPx, heightPx, refTexture->width, refTexture->height)
-{
-
-}
-*/
 
 TexturePtr loadTexture(char const* filename)
 {
