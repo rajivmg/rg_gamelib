@@ -282,13 +282,15 @@ struct RenderCmdTexturedQuad
     rgFloat offsetX;
     rgFloat offsetY;
 
-    static DispatchFnT* dispatchFn;
+    static CmdDispatchFnT* dispatchFn;
+    static CmdDestructorFnT* destructorFn;
 };
 
 // struct RenderCmd_NewTransientResource
 // struct RenderCmd_DeleteTransientResource
 
 void gfxHandleRenderCmdTexturedQuad(void const* cmd);
+//void gfxDestroyRenderCmdTexturedQuad(void* cmd);
 
 RG_END_NAMESPACE
 

@@ -14,7 +14,21 @@ RG_BEGIN_NAMESPACE
 // Render Commands
 //-----------------------------------------------------------------------------
 
-DispatchFnT* RenderCmdTexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
+//void gfxDestroyRenderCmdTexturedQuad(void* cmd)
+//{
+//    ((RenderCmdTexturedQuad*)cmd)->~RenderCmdTexturedQuad();
+//}
+
+#define RG_GEN_RENDER_CMD_DESTRUCTOR(type) void gfxDestroy ## type(void* cmd) { ((type*)cmd)->~type(); } \
+CmdDestructorFnT* type::destructorFn = gfxDestroy ## type
+
+#define RG_DECL_RENDER_CMD_HANDLER(type) CmdDispatchFnT* type::dispatchFn = gfxHandle ## type
+
+//CmdDispatchFnT* RenderCmdTexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
+//CmdDestructorFnT* RenderCmdTexturedQuad::destructorFn = gfxDestroyRenderCmdTexturedQuad;
+
+RG_DECL_RENDER_CMD_HANDLER(RenderCmdTexturedQuad);
+RG_GEN_RENDER_CMD_DESTRUCTOR(RenderCmdTexturedQuad);
 
 RenderCmdList::RenderCmdList(char const* nametag) :
     bufferSize(rgMEGABYTE(1)),
@@ -91,7 +105,7 @@ void RenderCmdList::draw()
         CmdPacket* pkt = packets[i];
         for(;;)
         {
-            DispatchFnT* DispatchFn = pkt->dispatchFn;
+            CmdDispatchFnT* DispatchFn = pkt->dispatchFn;
             DispatchFn(pkt->cmd);
 
             pkt = pkt->nextCmdPacket;
@@ -103,6 +117,21 @@ void RenderCmdList::draw()
     }
 }
 
+// TODO: call this through a deleter ptr in CmdPacket
+static void handleCmdDelete(void* cmd)
+{
+    RenderCmdHeader* header = (RenderCmdHeader*)cmd;
+    switch(header->type)
+    {
+        case RenderCmdType_TexturedQuad:
+        {
+            ((RenderCmdTexturedQuad*)cmd)->~RenderCmdTexturedQuad();
+        } break;
+        default:
+            rgAssert(!"Invalid type");
+    }
+}
+
 void RenderCmdList::afterDraw()
 {
     for(rgU32 i = 0; i < current; ++i)
@@ -110,7 +139,10 @@ void RenderCmdList::afterDraw()
         CmdPacket* pkt = packets[i];
         for(;;)
         {
-            delete pkt->cmd;
+            //delete pkt->cmd;
+            //handleCmdDelete(pkt->cmd);
+            CmdDestructorFnT* DestructorFn = pkt->destructorFn;
+            DestructorFn(pkt->cmd);
 
             pkt = pkt->nextCmdPacket;
             if(pkt == NULL)

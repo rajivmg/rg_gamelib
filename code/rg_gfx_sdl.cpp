@@ -71,6 +71,7 @@ rgInt gfxDraw()
     SDL_RenderClear(sdlRndr());
 
     gfxGetRenderCmdList()->draw();
+    gfxGetRenderCmdList()->afterDraw();
 
     //rg::GfxTexture2DPtr t = gfxCtx()->sdl.tTex;
 

@@ -19,12 +19,14 @@ RG_BEGIN_NAMESPACE
                                   +-----------------------+
 */
 
-typedef void (DispatchFnT)(void const* cmd);
+typedef void (CmdDispatchFnT)(void const* cmd);
+typedef void (CmdDestructorFnT)(void* cmd);
 
 struct CmdPacket
 {
     CmdPacket* nextCmdPacket;
-    DispatchFnT* dispatchFn;
+    CmdDispatchFnT* dispatchFn;
+    CmdDestructorFnT* destructorFn;
     void* cmd;
     void* auxMemory;
 };
@@ -68,6 +70,7 @@ public:
 
         packet->nextCmdPacket = nullptr;
         packet->dispatchFn = U::dispatchFn;
+        packet->destructorFn = U::destructorFn;
 
         //U* c = new(packet->cmd) U; // Should we do this?? What are the disadvantages?
         U* c = rgPlacementNew(U, packet->cmd); // Should we do this?? What are the disadvantages?
@@ -82,7 +85,8 @@ public:
 
         getCmdPacket(cmd)->nextCmdPacket = packet;
         packet->nextCmdPacket = nullptr;
-        packet->dispatchFn = U::dispatchFn;
+        packet->dispatchFn = U::dispatchFn; // did you forget to create dispatch function ptr in the cmd struct
+        packet->destructorFn = U::destructorFn;
 
         return (U*)(packet->cmd);
     }
