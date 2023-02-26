@@ -36,6 +36,16 @@ rgU32 rgRenderKey(rgBool top)
     return top ? 1 : 0;
 }
 
+rgInt rg::setup()
+{
+    //TexturePtr tTexture = ; // TODO: create loadTGA() 
+    GfxTexture2DRef t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxResourceUsage_Read);
+    // This should be done by gfxNewTexture2D
+    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("T.tga"), t2dptr));
+
+    return 0;
+}
+
 rgInt rg::updateAndDraw(rgDouble dt)
 {
     printf("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
@@ -56,8 +66,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         // Can RenderCmdList be implemented using intrusive_list
         RenderCmdTexturedQuad* texQuadCmd = cmdList->addCmd<RenderCmdTexturedQuad>(rgRenderKey(true), 0);
         texQuadCmd->header.type = RenderCmdType_TexturedQuad;
-        TexturePtr tTexture = rg::loadTexture("T.tga"); // TODO: create loadTGA()
-        texQuadCmd->texture = gfxNewTexture2D(tTexture, GfxResourceUsage_Read);
+        texQuadCmd->texture = gfxGetTexture2DPtr(CRC32_STR("T.tga")); //gfxCtx()->textures2D[CRC32_STR("T.tga")].get();//gfxNewTexture2D(tTexture, GfxResourceUsage_Read);
         //gfxCtx()->sdl.tTex = texQuadCmd->texture;
     }
     //RenderCmdList* cmdList = gfxBeginRenderCmdList("GameRenderCmdList");
@@ -108,6 +117,8 @@ int main(int argc, char* argv[])
     {
         return gfxInitResult | gfxCommonInitResult;
     }
+
+    rg::setup();
 
     rgBool shouldQuit = false;
     SDL_Event event;

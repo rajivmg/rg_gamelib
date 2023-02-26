@@ -12,6 +12,7 @@
 #include "rg.h"
 #include "rg_gfx_rendercmd.h"
 #include <EASTL/shared_ptr.h>
+#include <EASTL/hash_map.h>
 
 #define MAX_FRAMES_IN_QUEUE 2
 
@@ -56,6 +57,7 @@ void immTexturedQuad2(Texture* texture, QuadUV* quad, rgFloat x, rgFloat y, rgFl
 // General Common Stuff
 //-----------------------------------------------------------------------------
 rgInt gfxCommonInit();
+rgInt setup();
 rgInt updateAndDraw(rgDouble dt);
 
 //-----------------------------------------------------------------------------
@@ -175,10 +177,11 @@ struct GfxTexture2D
     SDL_Texture* sdlTexture;
 #endif
 };
-typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DPtr;
+typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DRef;
+typedef GfxTexture2D* GfxTexture2DPtr;
 
-GfxTexture2DPtr gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
-GfxTexture2DPtr gfxNewTexture2D(void* buf, char const* name, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage);
+GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
+GfxTexture2DRef gfxNewTexture2D(void* buf, char const* name, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage);
 void gfxDeleteTexture2D(GfxTexture2D* t2d);
 
 //-----------------------------------------------------------------------------
@@ -194,13 +197,17 @@ struct GfxCtx
         SDL_Window* mainWindow;
         rgUInt frameNumber;
         RenderCmdList* graphicCmdLists[MAX_FRAMES_IN_QUEUE];
+
+        // crc32 - GfxTexture2DRef
+        typedef eastl::hash_map<rgCRC32, GfxTexture2DRef> HashMapCrc32vsGfxTexture2D;
+        HashMapCrc32vsGfxTexture2D textures2D; // create helper functions insert/delete getter as GfxTexture2D
     };
 
 #if defined(RG_SDL_RNDR)
     struct SDLGfxCtx
     {
         SDL_Renderer* renderer;
-        GfxTexture2DPtr tTex;
+        GfxTexture2DRef tTex;
     } sdl;
 #elif defined(RG_METAL_RNDR)
     struct
@@ -217,7 +224,7 @@ struct GfxCtx
         rgUInt immCurrentIndexCount;
         GfxGraphicsPSO* immPSO;
 
-        GfxTexture2DPtr birdTexture;
+        GfxTexture2DRef birdTexture;
     } mtl;
 #elif defined(RG_VULKAN_RNDR)
     struct
@@ -249,6 +256,8 @@ struct GfxCtx
 extern rg::GfxCtx* g_GfxCtx;
 
 inline GfxCtx* gfxCtx() { return g_GfxCtx; }
+
+GfxTexture2DPtr gfxGetTexture2DPtr(rgCRC32 id);
 
 //-----------------------------------------------------------------------------
 // Gfx Render Command
@@ -283,7 +292,7 @@ struct RenderCmdTexturedQuad
     rgFloat offsetY;
 
     static CmdDispatchFnT* dispatchFn;
-    static CmdDestructorFnT* destructorFn;
+    //static CmdDestructorFnT* destructorFn;
 };
 
 // struct RenderCmd_NewTransientResource

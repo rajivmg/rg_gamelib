@@ -6,6 +6,7 @@
 #include <SDL2/SDL.h>
 #include <tiny_imageformat/tinyimageformat.h>
 #include <vectormath/vectormath.hpp>
+#include <compile_time_crc.h>
 
 #define RG_BEGIN_NAMESPACE namespace rg {
 #define RG_END_NAMESPACE }
@@ -57,6 +58,8 @@ typedef double      rgDouble;
 typedef bool        rgBool;
 
 typedef char        rgChar;
+
+typedef uint32_t    rgCRC32;
 //
 
 #define rgKILOBYTE(x) 1024LL * (x)
@@ -74,6 +77,7 @@ typedef char        rgChar;
 void _rgLogImpl(char const* fmt, ...);
 #define rgLog(...) _rgLogImpl(__VA_ARGS__)
 
+#define rgLogWarn(...) SDL_LogWarn(SDL_LOG_CATEGORY_TEST, __VA_ARGS__)
 #define rgLogError(...) SDL_LogError(SDL_LOG_CATEGORY_TEST, __VA_ARGS__)
 
 /// ----- Implementation

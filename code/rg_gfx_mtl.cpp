@@ -261,13 +261,13 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
     pso->mtlPSO->release();
 }
 
-GfxTexture2DPtr gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
+GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
 {
     Texture* tex = texture.get();
     return gfxNewTexture2D(tex->buf, tex->name, tex->width, tex->height, tex->format, usage);
 }
 
-GfxTexture2DPtr gfxNewTexture2D(void* buf, char const* name, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage)
+GfxTexture2DRef gfxNewTexture2D(void* buf, char const* name, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage)
 {
     rgAssert(buf != NULL);
 
@@ -284,7 +284,7 @@ GfxTexture2DPtr gfxNewTexture2D(void* buf, char const* name, rgUInt width, rgUIn
     
     mtlTexture->replaceRegion(MTL::Region(0, 0, 0, width, height, 1), 0, buf, width * TinyImageFormat_ChannelCount(format) * 1);
     
-    GfxTexture2DPtr t2dPtr = eastl::shared_ptr<GfxTexture2D>(rgNew(GfxTexture2D), gfxDeleteTexture2D);
+    GfxTexture2DRef t2dPtr = eastl::shared_ptr<GfxTexture2D>(rgNew(GfxTexture2D), gfxDeleteTexture2D);
     t2dPtr->width = width;
     t2dPtr->height = height;
     t2dPtr->pixelFormat = format;

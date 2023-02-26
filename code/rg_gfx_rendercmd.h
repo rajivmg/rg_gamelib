@@ -20,13 +20,13 @@ RG_BEGIN_NAMESPACE
 */
 
 typedef void (CmdDispatchFnT)(void const* cmd);
-typedef void (CmdDestructorFnT)(void* cmd);
+//typedef void (CmdDestructorFnT)(void* cmd);
 
 struct CmdPacket
 {
     CmdPacket* nextCmdPacket;
     CmdDispatchFnT* dispatchFn;
-    CmdDestructorFnT* destructorFn;
+    //CmdDestructorFnT* destructorFn;
     void* cmd;
     void* auxMemory;
 };
@@ -70,11 +70,11 @@ public:
 
         packet->nextCmdPacket = nullptr;
         packet->dispatchFn = U::dispatchFn;
-        packet->destructorFn = U::destructorFn;
+        //packet->destructorFn = U::destructorFn;
 
         //U* c = new(packet->cmd) U; // Should we do this?? What are the disadvantages?
-        U* c = rgPlacementNew(U, packet->cmd); // Should we do this?? What are the disadvantages?
-        return c;
+        //U* c = rgPlacementNew(U, packet->cmd); // Should we do this?? What are the disadvantages?
+        return (U*)packet->cmd;
     }
 
     // TODO: don't need V here, as getCmdPacket is not dep on cmd type. use void*
