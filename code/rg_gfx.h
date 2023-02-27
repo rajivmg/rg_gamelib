@@ -199,10 +199,6 @@ struct GfxCtx
     // crc32 - GfxTexture2DRef
     typedef eastl::hash_map<rgCRC32, GfxTexture2DRef> HashMapCrc32vsGfxTexture2D;
     HashMapCrc32vsGfxTexture2D textures2D; // create helper functions insert/delete getter as GfxTexture2D
-    
-    struct // vars common to all type of contexts
-    {
-    };
 
 #if defined(RG_SDL_RNDR)
     struct SDLGfxCtx
