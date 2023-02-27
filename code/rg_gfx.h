@@ -192,15 +192,16 @@ struct GfxCtx
     GfxCtx() {}
     ~GfxCtx() {}
 
+    SDL_Window* mainWindow;
+    rgUInt frameNumber;
+    RenderCmdList* graphicCmdLists[MAX_FRAMES_IN_QUEUE];
+
+    // crc32 - GfxTexture2DRef
+    typedef eastl::hash_map<rgCRC32, GfxTexture2DRef> HashMapCrc32vsGfxTexture2D;
+    HashMapCrc32vsGfxTexture2D textures2D; // create helper functions insert/delete getter as GfxTexture2D
+    
     struct // vars common to all type of contexts
     {
-        SDL_Window* mainWindow;
-        rgUInt frameNumber;
-        RenderCmdList* graphicCmdLists[MAX_FRAMES_IN_QUEUE];
-
-        // crc32 - GfxTexture2DRef
-        typedef eastl::hash_map<rgCRC32, GfxTexture2DRef> HashMapCrc32vsGfxTexture2D;
-        HashMapCrc32vsGfxTexture2D textures2D; // create helper functions insert/delete getter as GfxTexture2D
     };
 
 #if defined(RG_SDL_RNDR)

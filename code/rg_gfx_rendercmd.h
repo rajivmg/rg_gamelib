@@ -86,7 +86,7 @@ public:
         getCmdPacket(cmd)->nextCmdPacket = packet;
         packet->nextCmdPacket = nullptr;
         packet->dispatchFn = U::dispatchFn; // did you forget to create dispatch function ptr in the cmd struct
-        packet->destructorFn = U::destructorFn;
+        //packet->destructorFn = U::destructorFn;
 
         return (U*)(packet->cmd);
     }
