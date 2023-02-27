@@ -13,6 +13,8 @@
 #include "rg_gfx_rendercmd.h"
 #include <EASTL/shared_ptr.h>
 #include <EASTL/hash_map.h>
+#include <EASTL/vector.h>
+#include <EASTL/fixed_vector.h>
 
 #define MAX_FRAMES_IN_QUEUE 2
 
@@ -42,6 +44,7 @@ void unloadTexture(Texture* t);
 //-----------------------------------------------------------------------------
 struct QuadUV
 {
+    // TODO: use Vector4 here?
     rgFloat uvTopLeft[2];
     rgFloat uvBottomRight[2];
 };
@@ -50,6 +53,25 @@ extern QuadUV defaultQuadUV;
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture);
+
+//-----------------------------------------------------------------------------
+// Textured Quad
+//-----------------------------------------------------------------------------
+struct TexturedQuad
+{
+    QuadUV uv;
+    Vector2 pos;   // <-- Combine these two?
+    Vector2 scale; // <-- ^^^^^^^ Vector4
+    Vector2 offset;
+    rgFloat orientationRad;
+};
+
+typedef eastl::vector<TexturedQuad> TexturedQuads;
+
+template <rgSize N>
+using InplaceTexturedQuads = eastl::fixed_vector<TexturedQuad, N>;
+
+TexturedQuad createTexturedQuad(); // TODO: implement
 
 void immTexturedQuad2(Texture* texture, QuadUV* quad, rgFloat x, rgFloat y, rgFloat orientationRad = 0.0f, rgFloat scaleX = 1.0f, rgFloat scaleY = 1.0f, rgFloat offsetX = 0.0f, rgFloat offsetY = 0.0f);
 
@@ -262,7 +284,8 @@ GfxTexture2DPtr gfxGetTexture2DPtr(rgCRC32 id);
 enum RenderCmdType
 {
     RenderCmdType_ColoredQuad,
-    RenderCmdType_TexturedQuad
+    RenderCmdType_TexturedQuad,
+    RenderCmdType_TexturedQuads
 };
 
 struct RenderCmdHeader
@@ -290,6 +313,15 @@ struct RenderCmdTexturedQuad
 
     static CmdDispatchFnT* dispatchFn;
     //static CmdDestructorFnT* destructorFn;
+};
+
+struct RenderCmdTexturedQuads
+{
+    //RenderCmdHeader header; // TODO: instead of header, only store static const type?
+    static const RenderCmdType type = RenderCmdType_TexturedQuads;
+    
+    GfxTexture2DPtr texture;
+    
 };
 
 // struct RenderCmd_NewTransientResource

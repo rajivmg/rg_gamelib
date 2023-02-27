@@ -101,27 +101,34 @@ rgInt gfxDraw()
     if(currentMetalDrawable != nullptr)
     {
         MTL::CommandBuffer* commandBuffer = ctx->mtl.commandQueue->commandBuffer();
-        // create renderpass descriptor
+        
+        // create RenderCommandEncoder
         MTL::RenderPassDescriptor* renderPassDesc = MTL::RenderPassDescriptor::alloc()->init();
         MTL::RenderPassColorAttachmentDescriptor* colorAttachmentDesc = renderPassDesc->colorAttachments()->object(0);
         colorAttachmentDesc->setClearColor(MTL::ClearColor::Make(0.5, 0.5, 0.5, 1.0));
         colorAttachmentDesc->setLoadAction(MTL::LoadActionClear);
         colorAttachmentDesc->setStoreAction(MTL::StoreActionStore);
         colorAttachmentDesc->setTexture(currentMetalDrawable->texture());
+        
         MTL::RenderCommandEncoder* renderCmdEnc = commandBuffer->renderCommandEncoder(renderPassDesc);
         renderPassDesc->autorelease();
+        
+        gfxGetRenderCmdList()->draw();
+        gfxGetRenderCmdList()->afterDraw();
+        
+        /*
         renderCmdEnc->setRenderPipelineState(ctx->mtl.immPSO->mtlPSO);
         renderCmdEnc->setVertexBuffer(ctx->mtl.immVertexBuffer->mtlBuffer, 0, 0);
         renderCmdEnc->setFragmentTexture(gfxCtx()->mtl.birdTexture->mtlTexture, 0);
         renderCmdEnc->drawPrimitives(MTL::PrimitiveType::PrimitiveTypeTriangle, NS::UInteger(0), NS::UInteger(3));
-        
+        */
         renderCmdEnc->endEncoding();
         commandBuffer->presentDrawable(currentMetalDrawable);
         commandBuffer->commit();
     }
     else
     {
-        printf("Current drawable is null!!!");
+        rgLogError("Current mtl drawable is null");
         // exit
     }
     // --- Autorelease pool END

@@ -51,6 +51,8 @@ typedef double      rgR64;
 typedef intptr_t    rgIPtr;
 typedef uintptr_t   rgUPtr;
 
+typedef size_t      rgSize;
+
 typedef uint32_t    rgUInt;
 typedef int32_t     rgInt;
 typedef float       rgFloat;
@@ -60,6 +62,7 @@ typedef bool        rgBool;
 typedef char        rgChar;
 
 typedef uint32_t    rgCRC32;
+
 //
 
 #define rgKILOBYTE(x) 1024LL * (x)
