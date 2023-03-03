@@ -20,6 +20,7 @@ RG_BEGIN_NAMESPACE
 //CmdDestructorFnT* RenderCmdTexturedQuad::destructorFn = gfxDestroyRenderCmdTexturedQuad;
 
 RG_DECL_RENDER_CMD_HANDLER(RenderCmdTexturedQuad);
+RG_DECL_RENDER_CMD_HANDLER(RenderCmdTexturedQuads);
 //RG_GEN_RENDER_CMD_DESTRUCTOR(RenderCmdTexturedQuad);
 
 RenderCmdList::RenderCmdList(char const* nametag) :

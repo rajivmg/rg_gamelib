@@ -8,6 +8,7 @@ RG_BEGIN_NAMESPACE
 #define mtlCtx g_GfxCtx.mtl
 
 #include "shaders/metal/imm_shader.inl"
+#include "shaders/metal/simple2d_shader.inl"
 
 namespace metal_util
 {
@@ -44,7 +45,7 @@ static MTL::Device* mtlDevice()
     return gfxCtx()->mtl.device;
 }
 
-struct SimpleVertexFormat
+struct SimpleVertexFormat1
 {
     simd::float3 position;
     simd::float2 texcoord;
@@ -73,7 +74,21 @@ rgInt gfxInit()
     
     gfxCtx()->mtl.immPSO = gfxNewGraphicsPSO(&immShaderDesc, &immRenderStateDesc);
     
-    SimpleVertexFormat triangleVertices[3] =
+    //
+    
+    GfxShaderDesc simple2dShaderDesc = {};
+    simple2dShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;
+    simple2dShaderDesc.vsEntryPoint = "simple2d_VS";
+    simple2dShaderDesc.fsEntryPoint = "simple2d_FS";
+    simple2dShaderDesc.macros = "F";
+    
+    GfxRenderStateDesc simple2dRenderStateDesc = {};
+    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    
+    gfxCtx()->mtl.simple2dPSO = gfxNewGraphicsPSO(&simple2dShaderDesc, &simple2dRenderStateDesc);
+    
+    //
+    SimpleVertexFormat1 triangleVertices[3] =
     {
         {{-0.8f, 0.8f, 0.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
         {{0.0f, -0.8f, 0.0f}, {0.5f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
@@ -112,9 +127,11 @@ rgInt gfxDraw()
         
         MTL::RenderCommandEncoder* renderCmdEnc = commandBuffer->renderCommandEncoder(renderPassDesc);
         renderPassDesc->autorelease();
+        ctx->mtl.activeRCEncoder = renderCmdEnc;
         
         gfxGetRenderCmdList()->draw();
         gfxGetRenderCmdList()->afterDraw();
+        
         
         /*
         renderCmdEnc->setRenderPipelineState(ctx->mtl.immPSO->mtlPSO);
@@ -122,6 +139,7 @@ rgInt gfxDraw()
         renderCmdEnc->setFragmentTexture(gfxCtx()->mtl.birdTexture->mtlTexture, 0);
         renderCmdEnc->drawPrimitives(MTL::PrimitiveType::PrimitiveTypeTriangle, NS::UInteger(0), NS::UInteger(3));
         */
+        
         renderCmdEnc->endEncoding();
         commandBuffer->presentDrawable(currentMetalDrawable);
         commandBuffer->commit();
@@ -310,6 +328,26 @@ void gfxDeleteTexture2D(GfxTexture2D* t2d)
 void gfxHandleRenderCmdTexturedQuad(void const* cmd)
 {
 
+}
+
+void gfxHandleRenderCmdTexturedQuads(void const* cmd)
+{
+    //
+    RenderCmdTexturedQuads* rc = (RenderCmdTexturedQuads*)cmd;
+    
+    eastl::vector<SimpleVertexFormat> vertices;
+    genTexturedQuadVertices(rc->quads, &vertices);
+    
+    GfxCtx* ctx = gfxCtx();
+    
+    rgFloat* om = toFloatPtr(ctx->orthographicMatrix);
+    
+    ctx->mtl.activeRCEncoder->setRenderPipelineState(ctx->mtl.simple2dPSO->mtlPSO);
+    ctx->mtl.activeRCEncoder->setVertexBytes(om, 16 * sizeof(rgFloat), 0);
+    ctx->mtl.activeRCEncoder->setVertexBytes(&vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 1);
+    //ctx->mtl.activeRCEncoder->setFrontFacingWinding(MTL::WindingCounterClockwise);
+    //ctx->mtl.activeRCEncoder->setFragmentTexture(gfxCtx()->mtl.birdTexture->mtlTexture, 0);
+    ctx->mtl.activeRCEncoder->drawPrimitives(MTL::PrimitiveType::PrimitiveTypeTriangle, NS::UInteger(0), 6, NS::UInteger(vertices.size())/6);
 }
 
 RG_END_NAMESPACE

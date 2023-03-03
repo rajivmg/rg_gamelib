@@ -20,6 +20,8 @@ include_directories(${EASTL_ROOT_DIR}/test/packages/EAStdC/include)
 include_directories(${EASTL_ROOT_DIR}/test/packages/EATest/include)
 include_directories(${EASTL_ROOT_DIR}/test/packages/EAThread/include)
 
+file(GLOB GAME_SRC_FILES "code/game/*.cpp" "code/game/*.h")
+
 if(WIN32)
 
     set(3RD_PARTY_DIR "${CMAKE_SOURCE_DIR}/3rdparty/win64/")
@@ -49,7 +51,7 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
-    add_executable(rg_gamelib ${SRC_FILES})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES})
     target_link_libraries(rg_gamelib SDL2main SDL2 vulkan-1 ${EASTL_LIBRARY})
     set_target_properties(rg_gamelib PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
 
@@ -78,7 +80,7 @@ elseif(APPLE)
     add_compile_definitions(RG_METAL_RNDR)
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${3RD_PARTY_DIR}/inc/metal-cpp ${3RD_PARTY_DIR}/inc/metal-cpp-extensions)
 
-    add_executable(rg_gamelib ${SRC_FILES} ${SHADER_SRC_FILES})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${SHADER_SRC_FILES})
     target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2} ${EASTL_LIBRARY})
 
     set_source_files_properties(${SHADER_SRC_FILES} PROPERTIES LANGUAGE METAL)

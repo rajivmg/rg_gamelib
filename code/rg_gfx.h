@@ -60,18 +60,62 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture
 struct TexturedQuad
 {
     QuadUV uv;
+#if 0
     Vector2 pos;   // <-- Combine these two?
     Vector2 scale; // <-- ^^^^^^^ Vector4
+#else
+    //Vector4 posScale;
+    rgFloat4 posSize;
+#endif
+    
+#if 0
     Vector2 offset;
     rgFloat orientationRad;
+#else
+    //Vector4 offsetOrientation;
+    rgFloat4 offsetOrientation;
+#endif
+    
+    //TexturedQuad(QuadUV uv_, Vector4 posScale_, Vector4 offsetOrientation_);
 };
 
 typedef eastl::vector<TexturedQuad> TexturedQuads;
 
+// Is this possible? this will be deleted by the time RenderCmd is processed
 template <rgSize N>
 using InplaceTexturedQuads = eastl::fixed_vector<TexturedQuad, N>;
 
-TexturedQuad createTexturedQuad(); // TODO: implement
+/*
+inline TexturedQuad* pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, Vector4 posScale, Vector4 offsetOrientation)
+{
+    TexturedQuad& tQuad = quadList->emplace_back(uv, posScale, offsetOrientation);
+    return &tQuad;
+}
+
+template <rgSize N>
+inline TexturedQuad* pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, Vector4 posScale, Vector4 offsetOrientation)
+{
+    TexturedQuad& tQuad = quadList->emplace_back({uv, posScale, offsetOrientation});
+    return &tQuad;
+}
+ */
+
+inline void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation)
+{
+    TexturedQuad& q = quadList->push_back();
+    q.uv = uv;
+    q.posSize = posSize;
+    q.offsetOrientation = offsetOrientation;
+}
+
+template <rgSize N>
+inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation)
+{
+    TexturedQuad& q = quadList->push_back();
+    q.uv = uv;
+    q.posSize = posSize;
+    q.offsetOrientation = offsetOrientation;
+}
 
 void immTexturedQuad2(Texture* texture, QuadUV* quad, rgFloat x, rgFloat y, rgFloat orientationRad = 0.0f, rgFloat scaleX = 1.0f, rgFloat scaleY = 1.0f, rgFloat offsetX = 0.0f, rgFloat offsetY = 0.0f);
 
@@ -135,6 +179,15 @@ struct ImmVertexFormat
     rgFloat position[3];
     rgFloat color[4];
 };
+
+struct SimpleVertexFormat
+{
+    rgFloat pos[2];
+    rgFloat texcoord[2];
+    rgFloat color[4];
+};
+
+void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices);
 
 //-----------------------------------------------------------------------------
 // Gfx Pipeline
@@ -221,6 +274,8 @@ struct GfxCtx
     // crc32 - GfxTexture2DRef
     typedef eastl::hash_map<rgCRC32, GfxTexture2DRef> HashMapCrc32vsGfxTexture2D;
     HashMapCrc32vsGfxTexture2D textures2D; // create helper functions insert/delete getter as GfxTexture2D
+    
+    Matrix4 orthographicMatrix;
 
 #if defined(RG_SDL_RNDR)
     struct SDLGfxCtx
@@ -235,6 +290,8 @@ struct GfxCtx
         NS::View *view;
         MTL::Device *device;
         MTL::CommandQueue* commandQueue;
+        
+        MTL::RenderCommandEncoder* activeRCEncoder;
 
         // -- immediate mode resources
         GfxBuffer* immVertexBuffer;
@@ -242,6 +299,8 @@ struct GfxCtx
         GfxBuffer* immIndexBuffer;
         rgUInt immCurrentIndexCount;
         GfxGraphicsPSO* immPSO;
+        
+        GfxGraphicsPSO* simple2dPSO;
 
         GfxTexture2DRef birdTexture;
     } mtl;
@@ -320,14 +379,17 @@ struct RenderCmdTexturedQuads
     //RenderCmdHeader header; // TODO: instead of header, only store static const type?
     static const RenderCmdType type = RenderCmdType_TexturedQuads;
     
-    GfxTexture2DPtr texture;
+    GfxTexture2DPtr texture; //replace this with unbound texture array index
+    TexturedQuads* quads;
     
+    static CmdDispatchFnT* dispatchFn;
 };
 
 // struct RenderCmd_NewTransientResource
 // struct RenderCmd_DeleteTransientResource
 
 void gfxHandleRenderCmdTexturedQuad(void const* cmd);
+void gfxHandleRenderCmdTexturedQuads(void const* cmd);
 //void gfxDestroyRenderCmdTexturedQuad(void* cmd);
 
 RG_END_NAMESPACE

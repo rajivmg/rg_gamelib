@@ -4,6 +4,7 @@
 #include "rg_gfx.h"
 
 #include <EASTL/vector.h>
+#include "game/game.h"
 
 // TODO:
 // 2. Add rgLogDebug() rgLogError()
@@ -30,6 +31,7 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
     return new uint8_t[size];
 }
 
+GameData* g_GameData;
 
 rgU32 rgRenderKey(rgBool top)
 {
@@ -38,11 +40,24 @@ rgU32 rgRenderKey(rgBool top)
 
 rgInt rg::setup()
 {
+    g_GameData = rgNew(GameData);
+    
     //TexturePtr tTexture = ; // TODO: create loadTGA() 
     GfxTexture2DRef t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxResourceUsage_Read);
     // This should be done by gfxNewTexture2D
     gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("T.tga"), t2dptr));
 
+    for(rgInt i = 0; i < 4; ++i)
+    {
+        for(rgInt j = 0; j < 4; ++j)
+        {
+            rgFloat px = j * 100 + 10;
+            rgFloat py = i * 100 + 10;
+            
+            pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0});
+        }
+    }
+    
     return 0;
 }
 
@@ -68,6 +83,10 @@ rgInt rg::updateAndDraw(rgDouble dt)
         texQuadCmd->header.type = RenderCmdType_TexturedQuad;
         texQuadCmd->texture = gfxGetTexture2DPtr(CRC32_STR("T.tga")); //gfxCtx()->textures2D[CRC32_STR("T.tga")].get();//gfxNewTexture2D(tTexture, GfxResourceUsage_Read);
         //gfxCtx()->sdl.tTex = texQuadCmd->texture;
+        
+        RenderCmdTexturedQuads* rcTexQuads = cmdList->addCmd<RenderCmdTexturedQuads>(rgRenderKey(true), 0);
+        rcTexQuads->quads = &g_GameData->characterPortraits;
+        
     }
     //RenderCmdList* cmdList = gfxBeginRenderCmdList("GameRenderCmdList");
     //gfxTexturedQuad(cmdList, birdTexture, defaultQuadUV, Vector2(30, 100), )

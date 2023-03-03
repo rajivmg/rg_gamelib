@@ -83,6 +83,25 @@ void _rgLogImpl(char const* fmt, ...);
 #define rgLogWarn(...) SDL_LogWarn(SDL_LOG_CATEGORY_TEST, __VA_ARGS__)
 #define rgLogError(...) SDL_LogError(SDL_LOG_CATEGORY_TEST, __VA_ARGS__)
 
+union rgFloat4
+{
+    float v[4];
+    struct
+    {
+        float x;
+        float y;
+        float z;
+        float w;
+    };
+    struct
+    {
+        float r;
+        float g;
+        float b;
+        float a;
+    };
+};
+
 /// ----- Implementation
 #ifdef RG_H_IMPLEMENTATION
 // TODO: Add filename and line number, try to remove the need of fmt

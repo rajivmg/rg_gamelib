@@ -17,6 +17,8 @@ rgInt gfxCommonInit()
 
     ctx->graphicCmdLists[0] = rgNew(RenderCmdList)("graphic cmdlist 0");
     ctx->graphicCmdLists[1] = rgNew(RenderCmdList)("graphic cmdlist 1");
+    
+    ctx->orthographicMatrix = Matrix4::orthographic(0.0f, 720.0f, 720.0f, 0, 0.1f, 100.0f);
 
     return 0;
 }
@@ -48,6 +50,71 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 r
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture)
 {
     return createQuadUV(xPx, yPx, widthPx, heightPx, refTexture->width, refTexture->height);
+}
+
+/*
+TexturedQuad::TexturedQuad(QuadUV uv_, Vector4 posScale_, Vector4 offsetOrientation_)
+    : uv(uv_)
+    , posScale(posScale_)
+    , offsetOrientation(offsetOrientation_)
+{
+}
+*/
+
+void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices)
+{
+    rgUInt listSize = (rgUInt)quadList->size();
+    for(rgUInt i = 0; i < listSize; ++i)
+    {
+        TexturedQuad& t = (*quadList)[i];
+        
+        SimpleVertexFormat v[4];
+        // 0 - 1
+        // 3 - 2
+        v[0].pos[0] = t.posSize.x;
+        v[0].pos[1] = t.posSize.y;
+        v[0].texcoord[0] = t.uv.uvTopLeft[0];
+        v[0].texcoord[1] = t.uv.uvTopLeft[1];
+        v[0].color[0] = 1.0f;
+        v[0].color[1] = 1.0f;
+        v[0].color[2] = 1.0f;
+        v[0].color[3] = 1.0f;
+        
+        v[1].pos[0] = t.posSize.x + t.posSize.z;
+        v[1].pos[1] = t.posSize.y;
+        v[1].texcoord[0] = t.uv.uvBottomRight[0];
+        v[1].texcoord[1] = t.uv.uvTopLeft[1];
+        v[1].color[0] = 1.0f;
+        v[1].color[1] = 1.0f;
+        v[1].color[2] = 1.0f;
+        v[1].color[3] = 1.0f;
+        
+        v[2].pos[0] = t.posSize.x + t.posSize.z;
+        v[2].pos[1] = t.posSize.y + t.posSize.w;
+        v[2].texcoord[0] = t.uv.uvBottomRight[0];
+        v[2].texcoord[1] = t.uv.uvBottomRight[1];
+        v[2].color[0] = 1.0f;
+        v[2].color[1] = 1.0f;
+        v[2].color[2] = 1.0f;
+        v[2].color[3] = 1.0f;
+        
+        v[3].pos[0] = t.posSize.x;
+        v[3].pos[1] = t.posSize.y + t.posSize.w;
+        v[3].texcoord[0] = t.uv.uvTopLeft[0];
+        v[3].texcoord[1] = t.uv.uvBottomRight[1];
+        v[3].color[0] = 1.0f;
+        v[3].color[1] = 1.0f;
+        v[3].color[2] = 1.0f;
+        v[3].color[3] = 1.0f;
+        
+        vertices->push_back(v[0]);
+        vertices->push_back(v[3]);
+        vertices->push_back(v[1]);
+        
+        vertices->push_back(v[1]);
+        vertices->push_back(v[3]);
+        vertices->push_back(v[2]);
+    }
 }
 
 TexturePtr loadTexture(char const* filename)
