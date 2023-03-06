@@ -9,37 +9,55 @@ struct Vertex2D
     float4 color;
 };
 
+struct VertexOut
+{
+    float4 position [[position]];
+    float2 texcoord;
+    half4 color;
+    uint instanceId [[flat]];
+};
+
 // struct FrameParams
 // {
 //     float4x4 orthoProjection;
 //     constant Vertex2D* smallVertexBuffer;
 // };
 
-//--
-struct VertexOut
+struct InstanceParams
 {
-    float4 position [[position]];
-    half4 color;
+    uint texID;
 };
-//
 
-//VertexOut vertex basicVertexShader(constant FrameParams& frameParams [[buffer(0)]],
-//                                 uint vertexId [[vertex_id]], uint instanceId [[instance_id]])
+struct FrameResources
+{
+    array<texture2d<float>, 100000> textures2d [[id(0)]];
+};
+
+
 VertexOut vertex simple2d_VS(constant float4x4& projection [[buffer(0)]],
-                                   constant Vertex2D* smallVertexBuffer [[buffer(1)]],
-                                   uint vertexId [[vertex_id]],
-                                   uint instanceId [[instance_id]])
+                             constant Vertex2D* smallVertexBuffer [[buffer(1)]],
+                             constant InstanceParams* instanceParams [[buffer(2)]],
+                             uint vertexId [[vertex_id]],
+                             uint instanceId [[instance_id]])
 {
     VertexOut out;
     constant Vertex2D* v = &smallVertexBuffer[instanceId * 6 + vertexId];
-    out.position = projection * float4(v->pos, -50.0, 1.0);
+    out.position = projection * float4(v->pos, 0, 1.0);
+    out.position.z = 0.5;
+    out.texcoord = v->texcoord;
     out.color  = half4(v->color);
+    out.instanceId = instanceId;
     return out;
 }
 
-fragment half4 simple2d_FS(VertexOut fragIn [[stage_in]])
+fragment half4 simple2d_FS(VertexOut fragIn [[stage_in]],
+                           device FrameResources& frameResources [[buffer(3)]])
 {
-    return fragIn.color;
+    //return half4(1.0, 0.0, 1.0, 1.0);
+    //return fragIn.color;
+    constexpr sampler pointSampler(filter::nearest);
+    float4 color = frameResources.textures2d[fragIn.instanceId].sample(pointSampler, fragIn.texcoord);
+    return half4(color);
 }
 
 )foo";

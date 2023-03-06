@@ -18,7 +18,7 @@ rgInt gfxCommonInit()
     ctx->graphicCmdLists[0] = rgNew(RenderCmdList)("graphic cmdlist 0");
     ctx->graphicCmdLists[1] = rgNew(RenderCmdList)("graphic cmdlist 1");
     
-    ctx->orthographicMatrix = Matrix4::orthographic(0.0f, 720.0f, 720.0f, 0, 0.1f, 100.0f);
+    ctx->orthographicMatrix = Matrix4::orthographic(0.0f, 720.0f, 720.0f, 0, 0.0f, 1000.0f);
 
     return 0;
 }

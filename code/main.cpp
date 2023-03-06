@@ -51,8 +51,8 @@ rgInt rg::setup()
     {
         for(rgInt j = 0; j < 4; ++j)
         {
-            rgFloat px = j * 100 + 10;
-            rgFloat py = i * 100 + 10;
+            rgFloat px = j * (100) + 10 * (j + 1);
+            rgFloat py = i * (100) + 10 * (i + 1);
             
             pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0});
         }

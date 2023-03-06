@@ -303,6 +303,10 @@ struct GfxCtx
         GfxGraphicsPSO* simple2dPSO;
 
         GfxTexture2DRef birdTexture;
+        
+        // arg buffers
+        MTL::ArgumentEncoder* bindlessTextures2DArgEncoder;
+        GfxBuffer* bindlessTextures2DArgBuffer;
     } mtl;
 #elif defined(RG_VULKAN_RNDR)
     struct
