@@ -17,12 +17,6 @@ struct VertexOut
     uint instanceId [[flat]];
 };
 
-// struct FrameParams
-// {
-//     float4x4 orthoProjection;
-//     constant Vertex2D* smallVertexBuffer;
-// };
-
 struct InstanceParams
 {
     uint texID;
@@ -30,7 +24,7 @@ struct InstanceParams
 
 struct FrameResources
 {
-    array<texture2d<float>, 100000> textures2d [[id(0)]];
+    array<texture2d<float>, 99999> textures2d [[id(0)]];
 };
 
 
@@ -56,7 +50,7 @@ fragment half4 simple2d_FS(VertexOut fragIn [[stage_in]],
     //return half4(1.0, 0.0, 1.0, 1.0);
     //return fragIn.color;
     constexpr sampler pointSampler(filter::nearest);
-    float4 color = frameResources.textures2d[fragIn.instanceId].sample(pointSampler, fragIn.texcoord);
+    float4 color = frameResources.textures2d[fragIn.instanceId * 1000].sample(pointSampler, fragIn.texcoord);
     return half4(color);
 }
 

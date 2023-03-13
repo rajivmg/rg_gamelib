@@ -27,11 +27,14 @@ RG_BEGIN_NAMESPACE
 // --- Game Graphics APIs
 struct Texture
 {
-    rgChar name[32];
-    rgUInt width;
-    rgUInt height;
+    rgCRC32 hash;
+    rgU8*   buf;
+    rgUInt  width;
+    rgUInt  height;
     TinyImageFormat format;
-    rgU8* buf;
+    
+    // -- remove in final build
+    rgChar name[32];
 };
 
 typedef eastl::shared_ptr<Texture> TexturePtr;
@@ -256,7 +259,8 @@ typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DRef;
 typedef GfxTexture2D* GfxTexture2DPtr;
 
 GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
-GfxTexture2DRef gfxNewTexture2D(void* buf, char const* name, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage);
+// TODO: Make this private api. This doesn't insert textureref into the hashmap
+GfxTexture2DRef gfxNewTexture2D(rgCRC32 hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
 void gfxDeleteTexture2D(GfxTexture2D* t2d);
 
 //-----------------------------------------------------------------------------

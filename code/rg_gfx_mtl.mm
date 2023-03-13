@@ -112,75 +112,13 @@ rgInt gfxInit()
     TexturePtr birdTex = rg::loadTexture("bird_texture.png");
     gfxCtx()->mtl.birdTexture = gfxNewTexture2D(birdTex, GfxResourceUsage_Read);
     
-    /*
     for(rgInt i = 1; i <= 16; ++i)
     {
         char path[256];
         snprintf(path, 256, "textureslice/textureSlice %d.png", i);
         GfxTexture2DRef t2dptr = gfxNewTexture2D(rg::loadTexture(path), GfxResourceUsage_Read);
-        gfxCtx()->textures2D.insert(eastl::make_pair(i, t2dptr));
     }
-     */
-    
-    //char const path1[64] = "textureslice/textureSlice 1.png";
-    GfxTexture2DRef t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 1.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 1.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 2.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 2.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 3.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 3.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 4.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 4.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 5.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 5.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 6.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 6.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 7.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 7.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 8.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 8.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 9.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 9.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 10.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 10.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 11.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 11.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 12.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 12.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 13.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 13.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 14.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 14.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 15.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 15.png"), t2dptr));
-    
-    t2dptr = gfxNewTexture2D(rg::loadTexture("textureslice/textureSlice 16.png"), GfxResourceUsage_Read);
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("textureslice/textureSlice 16.png"), t2dptr));
-    
-    
-    //
-    /*
-    MTL::ArgumentDescriptor* argDesc = MTL::ArgumentDescriptor::alloc()->init();
-    argDesc->setIndex(0);
-    argDesc->setDataType(MTL::DataTypeTexture);
-    argDesc->setArrayLength(100000);
-    argDesc->setTextureType(MTL::TextureType2D);
-    */
-    
+
     MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
     argDesc.index = 0;
     argDesc.dataType = MTLDataTypeTexture;
@@ -221,78 +159,19 @@ rgInt gfxDraw()
         {
             // bind all textures
             gfxCtx()->mtl.bindlessTextures2DArgEncoder->setArgumentBuffer(gfxCtx()->mtl.bindlessTextures2DArgBuffer->mtlBuffer, 0);
-            /*
-            for(rgInt i = 0; i < gfxCtx()->textures2D.size(); ++i)
+            
+            for(rgInt i = 1; i <= 16 /*gfxCtx()->textures2D.size()*/; ++i)
             {
-                gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[i + 1]->mtlTexture, i);
-                renderCmdEnc->useResource(gfxCtx()->textures2D[i]->mtlTexture, MTL::ResourceUsageRead);
+                char path[256];
+                snprintf(path, 256, "textureslice/textureSlice %d.png", i);
+                
+                GfxTexture2DPtr tex = gfxGetTexture2DPtr(rgCRC32String(path));
+                if(tex)
+                {
+                    gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(tex->mtlTexture, (i - 1) * 1000);
+                    renderCmdEnc->useResource(tex->mtlTexture, MTL::ResourceUsageRead);
+                }
             }
-             */
-            
-            rgCRC32 c = CRC32_STR("textureslice/textureSlice 1.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 0);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 2.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 1);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 3.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 2);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 4.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 3);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 5.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 4);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 6.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 5);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 7.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 6);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 8.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 7);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 9.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 8);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 10.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 9);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 11.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 10);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 12.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 11);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 13.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 12);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 14.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 13);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 15.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 14);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
-            c = CRC32_STR("textureslice/textureSlice 16.png");
-            gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(gfxCtx()->textures2D[c]->mtlTexture, 15);
-            renderCmdEnc->useResource(gfxCtx()->textures2D[c]->mtlTexture, MTL::ResourceUsageRead);
-            
             
             renderCmdEnc->setFragmentBuffer(gfxCtx()->mtl.bindlessTextures2DArgBuffer->mtlBuffer, 0, 3);
         }
@@ -457,10 +336,10 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
 GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
 {
     Texture* tex = texture.get();
-    return gfxNewTexture2D(tex->buf, tex->name, tex->width, tex->height, tex->format, usage);
+    return gfxNewTexture2D(tex->hash, tex->buf, tex->width, tex->height, tex->format, usage, tex->name);
 }
 
-GfxTexture2DRef gfxNewTexture2D(void* buf, char const* name, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage)
+GfxTexture2DRef gfxNewTexture2D(rgCRC32 hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
 {
     rgAssert(buf != NULL);
 
@@ -482,8 +361,10 @@ GfxTexture2DRef gfxNewTexture2D(void* buf, char const* name, rgUInt width, rgUIn
     t2dPtr->height = height;
     t2dPtr->pixelFormat = format;
     t2dPtr->mtlTexture = mtlTexture;
-    strcpy(t2dPtr->name, name);
+    name != nullptr ? strcpy(t2dPtr->name, name) : strcpy(t2dPtr->name, "[NoName]");
 
+    gfxCtx()->textures2D.insert(eastl::make_pair(hash, t2dPtr));
+    
     return t2dPtr;
 }
 

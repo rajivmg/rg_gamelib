@@ -129,7 +129,10 @@ TexturePtr loadTexture(char const* filename)
 
     //TexturePtr tptr = eastl::make_shared<Texture>(unloadTexture);
     TexturePtr tptr = eastl::shared_ptr<Texture>(rgNew(Texture), unloadTexture);
-    strcpy(tptr->name, "[NONAME]");
+    strncpy(tptr->name, filename, rgARRAY_COUNT(Texture::name));
+    tptr->name[rgARRAY_COUNT(Texture::name) - 1] = '\0';
+    //strcpy(tptr->name, "[NONAME]");
+    tptr->hash = rgCRC32String(filename);
     tptr->width = width;
     tptr->height = height;
     tptr->format = TinyImageFormat_R8G8B8A8_UNORM;

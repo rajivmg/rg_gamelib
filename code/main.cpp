@@ -88,6 +88,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         rcTexQuads->quads = &g_GameData->characterPortraits;
         
     }
+    
+    rgCRC32 a = rgCRC32String("hello world");
     //RenderCmdList* cmdList = gfxBeginRenderCmdList("GameRenderCmdList");
     //gfxTexturedQuad(cmdList, birdTexture, defaultQuadUV, Vector2(30, 100), )
     

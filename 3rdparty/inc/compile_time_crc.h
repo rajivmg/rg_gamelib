@@ -31,7 +31,7 @@ SOFTWARE.
 // polynomial: 0x104C11DB7, bit reverse algorithm: 
 //  crcmod.Crc(0x104C11DB7, initCrc=0, xorOut=0xFFFFFFFF)
 
-namespace crcdetail
+namespace crc
 {
 static constexpr const uint32_t table[256] =
 {
@@ -100,10 +100,14 @@ constexpr uint32_t compute(const char* data, uint32_t len, uint32_t crc = 0)
     crc = crc ^ 0xFFFFFFFFU;
     return crc;
 }
-}  // namespace crcdetail
+
+}  // namespace crc
 
 // Macro to be used, guarantees hash is computed at compile time.
-#define CRC32_STR(A)                                                           \
-    std::integral_constant<uint32_t, crcdetail::compute(A, sizeof(A)-1)>::value
+#define CRC32_STR(str)                                                           \
+    std::integral_constant<uint32_t, crc::compute(str, sizeof(str)-1)>::value
+
+// TODO: Rework this
+inline uint32_t rgCRC32String(char const* str) { return crc::compute((str), (uint32_t)strlen(str)); }
 
 #endif  // COMPILE_TIME_CRC_H
