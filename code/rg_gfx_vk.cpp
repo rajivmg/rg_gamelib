@@ -86,14 +86,40 @@ rgInt gfxInit()
     return 0;
 }
 
-rgInt gfxDraw()
-{
-    return 0;
-}
-
 void gfxDestroy()
 {
 
+}
+
+rgInt gfxDraw()
+{
+    gfxGetRenderCmdList()->draw();
+    gfxGetRenderCmdList()->afterDraw();
+
+    return 0;
+}
+
+
+GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
+{
+    return GfxTexture2DRef();
+}
+
+GfxTexture2DRef gfxNewTexture2D(rgCRC32 hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
+{
+    return GfxTexture2DRef();
+}
+
+void gfxDeleteTexture2D(GfxTexture2D* t2d)
+{
+}
+
+void gfxHandleRenderCmdTexturedQuad(void const* cmd)
+{
+}
+
+void gfxHandleRenderCmdTexturedQuads(void const* cmd)
+{
 }
 
 #if 0

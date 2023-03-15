@@ -26,6 +26,7 @@ SOFTWARE.
 
 #include <cstdint>
 #include <type_traits>
+#include <cstring>
 
 // Based on code from Python's crcmod module. Polynomial "crc-32".
 // polynomial: 0x104C11DB7, bit reverse algorithm: 
