@@ -23,7 +23,7 @@ rgInt gfxCommonInit()
     return 0;
 }
 
-GfxTexture2DPtr gfxGetTexture2DPtr(rgCRC32 id)
+GfxTexture2DPtr gfxGetTexture2DPtr(rgHash id)
 {
     GfxCtx::HashMapCrc32vsGfxTexture2D::iterator itr = gfxCtx()->textures2D.find(id);
     if(itr == gfxCtx()->textures2D.end())
@@ -132,7 +132,7 @@ TexturePtr loadTexture(char const* filename)
     strncpy(tptr->name, filename, rgARRAY_COUNT(Texture::name));
     tptr->name[rgARRAY_COUNT(Texture::name) - 1] = '\0';
     //strcpy(tptr->name, "[NONAME]");
-    tptr->hash = rgCRC32String(filename);
+    tptr->hash = rgCRC32(filename);
     tptr->width = width;
     tptr->height = height;
     tptr->format = TinyImageFormat_R8G8B8A8_UNORM;

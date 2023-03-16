@@ -27,7 +27,7 @@ RG_BEGIN_NAMESPACE
 // --- Game Graphics APIs
 struct Texture
 {
-    rgCRC32 hash;
+    rgHash  hash;
     rgU8*   buf;
     rgUInt  width;
     rgUInt  height;
@@ -160,7 +160,7 @@ rgInt gfxDraw();
 struct GfxBuffer
 {
     GfxMemoryUsage usageMode;
-    rgU32 capacity;
+    rgSize capacity;
 
 #if defined(RG_METAL_RNDR)
     MTL::Buffer* mtlBuffer;
@@ -170,7 +170,7 @@ struct GfxBuffer
 };
 typedef eastl::shared_ptr<GfxBuffer> GfxBufferPtr;
 
-GfxBuffer*  gfxNewBuffer(void* data, rgU32 length, GfxMemoryUsage usage);
+GfxBuffer*  gfxNewBuffer(void* data, rgSize length, GfxMemoryUsage usage);
 void        gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offset);
 void        gfxDeleteBuffer(GfxBuffer* bufferResource);
 
@@ -260,7 +260,7 @@ typedef GfxTexture2D* GfxTexture2DPtr;
 
 GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
 // TODO: Make this private api. This doesn't insert textureref into the hashmap
-GfxTexture2DRef gfxNewTexture2D(rgCRC32 hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
+GfxTexture2DRef gfxNewTexture2D(rgHash hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
 void gfxDeleteTexture2D(GfxTexture2D* t2d);
 
 //-----------------------------------------------------------------------------
@@ -276,7 +276,7 @@ struct GfxCtx
     RenderCmdList* graphicCmdLists[MAX_FRAMES_IN_QUEUE];
 
     // crc32 - GfxTexture2DRef
-    typedef eastl::hash_map<rgCRC32, GfxTexture2DRef> HashMapCrc32vsGfxTexture2D;
+    typedef eastl::hash_map<rgHash, GfxTexture2DRef> HashMapCrc32vsGfxTexture2D;
     HashMapCrc32vsGfxTexture2D textures2D; // create helper functions insert/delete getter as GfxTexture2D
     
     Matrix4 orthographicMatrix;
@@ -343,7 +343,7 @@ extern rg::GfxCtx* g_GfxCtx;
 
 inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 
-GfxTexture2DPtr gfxGetTexture2DPtr(rgCRC32 id);
+GfxTexture2DPtr gfxGetTexture2DPtr(rgHash id);
 
 //-----------------------------------------------------------------------------
 // Gfx Render Command
@@ -363,7 +363,7 @@ struct RenderCmdHeader
 // NOTE: RenderCmds are not allowed to own any resources (smartptrs)
 // Should this be allowed?? If yes, then addCmd should "new" the RenderCmd, and Flush should "delete"
 // pros vs cons?
-
+/*
 struct RenderCmdTexturedQuad
 {
     RenderCmdHeader header;
@@ -381,7 +381,7 @@ struct RenderCmdTexturedQuad
     static CmdDispatchFnT* dispatchFn;
     //static CmdDestructorFnT* destructorFn;
 };
-
+*/
 struct RenderCmdTexturedQuads
 {
     //RenderCmdHeader header; // TODO: instead of header, only store static const type?

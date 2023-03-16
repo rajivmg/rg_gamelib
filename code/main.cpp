@@ -79,9 +79,9 @@ rgInt rg::updateAndDraw(rgDouble dt)
     //RenderCmd_TexturedQuad *texQuadCmd = RenderCmdList->AddCmd()
     {
         // Can RenderCmdList be implemented using intrusive_list
-        RenderCmdTexturedQuad* texQuadCmd = cmdList->addCmd<RenderCmdTexturedQuad>(rgRenderKey(true), 0);
-        texQuadCmd->header.type = RenderCmdType_TexturedQuad;
-        texQuadCmd->texture = gfxGetTexture2DPtr(CRC32_STR("T.tga")); //gfxCtx()->textures2D[CRC32_STR("T.tga")].get();//gfxNewTexture2D(tTexture, GfxResourceUsage_Read);
+        //RenderCmdTexturedQuad* texQuadCmd = cmdList->addCmd<RenderCmdTexturedQuad>(rgRenderKey(true), 0);
+        //texQuadCmd->header.type = RenderCmdType_TexturedQuad;
+        //texQuadCmd->texture = gfxGetTexture2DPtr(CRC32_STR("T.tga")); //gfxCtx()->textures2D[CRC32_STR("T.tga")].get();//gfxNewTexture2D(tTexture, GfxResourceUsage_Read);
         //gfxCtx()->sdl.tTex = texQuadCmd->texture;
         
         RenderCmdTexturedQuads* rcTexQuads = cmdList->addCmd<RenderCmdTexturedQuads>(rgRenderKey(true), 0);
@@ -89,7 +89,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
     }
     
-    rgCRC32 a = rgCRC32String("hello world");
+    rgHash a = rgCRC32("hello world");
     //RenderCmdList* cmdList = gfxBeginRenderCmdList("GameRenderCmdList");
     //gfxTexturedQuad(cmdList, birdTexture, defaultQuadUV, Vector2(30, 100), )
     

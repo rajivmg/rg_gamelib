@@ -165,7 +165,7 @@ rgInt gfxDraw()
                 char path[256];
                 snprintf(path, 256, "textureslice/textureSlice %d.png", i);
                 
-                GfxTexture2DPtr tex = gfxGetTexture2DPtr(rgCRC32String(path));
+                GfxTexture2DPtr tex = gfxGetTexture2DPtr(rgCRC32(path));
                 if(tex)
                 {
                     gfxCtx()->mtl.bindlessTextures2DArgEncoder->setTexture(tex->mtlTexture, (i - 1) * 1000);
@@ -222,7 +222,7 @@ MTL::ResourceOptions toMTLResourceOptions(GfxMemoryUsage usage)
     return mode;
 }
 
-GfxBuffer* gfxNewBuffer(void* data, rgU32 length, GfxMemoryUsage usage)
+GfxBuffer* gfxNewBuffer(void* data, rgSize length, GfxMemoryUsage usage)
 {
     MTL::ResourceOptions mode = toMTLResourceOptions(usage);
     
@@ -339,7 +339,7 @@ GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
     return gfxNewTexture2D(tex->hash, tex->buf, tex->width, tex->height, tex->format, usage, tex->name);
 }
 
-GfxTexture2DRef gfxNewTexture2D(rgCRC32 hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
+GfxTexture2DRef gfxNewTexture2D(rgHash hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
 {
     rgAssert(buf != NULL);
 

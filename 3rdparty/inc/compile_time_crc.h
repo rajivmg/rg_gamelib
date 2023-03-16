@@ -109,6 +109,6 @@ constexpr uint32_t compute(const char* data, uint32_t len, uint32_t crc = 0)
     std::integral_constant<uint32_t, crc::compute(str, sizeof(str)-1)>::value
 
 // TODO: Rework this
-inline uint32_t rgCRC32String(char const* str) { return crc::compute((str), (uint32_t)strlen(str)); }
+inline uint32_t rgCRC32(char const* str) { return crc::compute((str), (uint32_t)strlen(str)); }
 
 #endif  // COMPILE_TIME_CRC_H

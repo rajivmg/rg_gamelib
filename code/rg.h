@@ -61,7 +61,7 @@ typedef bool        rgBool;
 
 typedef char        rgChar;
 
-typedef uint32_t    rgCRC32;
+typedef uint32_t    rgHash;
 
 //
 
