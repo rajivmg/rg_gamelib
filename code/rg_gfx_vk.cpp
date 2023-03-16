@@ -105,7 +105,7 @@ GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
     return GfxTexture2DRef();
 }
 
-GfxTexture2DRef gfxNewTexture2D(rgCRC32 hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
+GfxTexture2DRef gfxNewTexture2D(rgHash hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
 {
     return GfxTexture2DRef();
 }
