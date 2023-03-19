@@ -3,6 +3,7 @@
 
 #if defined(RG_VULKAN_RNDR)
 #include <vulkan/vulkan.h>
+#include "vk-bootstrap/VkBootstrap.h"
 #elif defined(RG_METAL_RNDR)
 #include <Metal/Metal.hpp>
 #include <AppKit/AppKit.hpp>
@@ -313,8 +314,12 @@ struct GfxCtx
         GfxBuffer* bindlessTextures2DArgBuffer;
     } mtl;
 #elif defined(RG_VULKAN_RNDR)
-    struct
+    struct VkGfxCtx
     {
+        vkb::Instance vkbInstance;
+        vkb::Device vkbDevice;
+        vkb::Swapchain vkbSwapchain;
+
         VkInstance inst;
         VkPhysicalDevice physicalDevice;
         rgUInt graphicsQueueIndex;
@@ -328,8 +333,13 @@ struct GfxCtx
         VkCommandBuffer graphicsCmdBuffer;
 
         VkSurfaceKHR surface;
+        
         VkSwapchainKHR swapchain;
-        VkImageView* swapchainImageViews;
+        std::vector<VkImage> swapchainImages;
+        std::vector<VkImageView> swapchainImageViews;
+        eastl::vector<VkFramebuffer> framebuffers;
+
+        VkRenderPass globalRenderPass;
 
         //VkFormat swapchainDesc; // is this the right way to store this info?
 

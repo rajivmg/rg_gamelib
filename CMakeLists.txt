@@ -20,7 +20,12 @@ include_directories(${EASTL_ROOT_DIR}/test/packages/EAStdC/include)
 include_directories(${EASTL_ROOT_DIR}/test/packages/EATest/include)
 include_directories(${EASTL_ROOT_DIR}/test/packages/EAThread/include)
 
+set(IMGUI_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/imgui-1.89.4)
+set(IMGUI_BACKEND_DIR ${IMGUI_ROOT_DIR}/backends)
+include_directories(${IMGUI_ROOT_DIR})
+
 file(GLOB GAME_SRC_FILES "code/game/*.cpp" "code/game/*.h")
+file(GLOB IMGUI_SRC_FILES "${IMGUI_ROOT_DIR}/*.cpp" "${IMGUI_ROOT_DIR}/*.h")
 
 if(WIN32)
 
@@ -31,6 +36,7 @@ if(WIN32)
 
     # set source files
     file(GLOB SRC_FILES "code/*.cpp" "code/*.h")
+    file(GLOB IMGUI_BACKEND_SRC_FILES "${IMGUI_BACKEND_DIR}/imgui_impl_vulkan.cpp" "${IMGUI_BACKEND_DIR}/imgui_impl_vulkan.h")
 
     # set include and lib directories
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${VULKAN_SDK_ROOT_DIR}/Include)
@@ -51,7 +57,7 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES})
     target_link_libraries(rg_gamelib SDL2main SDL2 vulkan-1 ${EASTL_LIBRARY})
     set_target_properties(rg_gamelib PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
 

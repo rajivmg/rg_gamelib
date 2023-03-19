@@ -9,13 +9,54 @@
 
 RG_BEGIN_NAMESPACE
 
+static void createRenderPass(GfxCtx::VkGfxCtx* vk)
+{
+    VkAttachmentDescription attachment = {};
+    attachment.format = vk->vkbSwapchain.image_format;
+    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+    attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorRef = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorRef;
+
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo rpInfo = {};
+    rpInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    rpInfo.attachmentCount = 1;
+    rpInfo.pAttachments = &attachment;
+    rpInfo.subpassCount = 1;
+    rpInfo.pSubpasses = &subpass;
+    rpInfo.dependencyCount = 1;
+    rpInfo.pDependencies = &dependency;
+
+    rgVK_CHECK(vkCreateRenderPass(vk->device, &rpInfo, NULL, &vk->globalRenderPass));
+}
+
 rgInt gfxInit()
 {
+    GfxCtx::VkGfxCtx* vk = &gfxCtx()->vk;
+
     // -- create vk instance
     vkb::InstanceBuilder instBuilder;
     vkb::Result<vkb::Instance> vkbInstRes = instBuilder.set_app_name("gamelib")
         .request_validation_layers()
-        .use_default_debug_messenger()
         .build();
 
     if(!vkbInstRes)
@@ -23,16 +64,16 @@ rgInt gfxInit()
         rgLogError("Could not create Vulkan Instance\nReason:%s", vkbInstRes.error().message().c_str());
         return -1;
     }
-    
-    vkb::Instance vkbInst = vkbInstRes.value();
-    gfxCtx()->vk.inst = vkbInst.instance;
+
+    vk->vkbInstance = vkbInstRes.value();
+    vk->inst = vk->vkbInstance.instance;
 
     // -- enumerate and select a physical device
-    rgAssert(SDL_Vulkan_CreateSurface(gfxCtx()->mainWindow, gfxCtx()->vk.inst, &(gfxCtx()->vk.surface)));
-    rgAssert(gfxCtx()->vk.surface);
+    rgAssert(SDL_Vulkan_CreateSurface(gfxCtx()->mainWindow, vk->inst, &(vk->surface)));
+    rgAssert(vk->surface);
 
-    vkb::PhysicalDeviceSelector phyDevSelector{ vkbInst };
-    vkb::Result<vkb::PhysicalDevice> phyDevRes = phyDevSelector.set_surface(gfxCtx()->vk.surface)
+    vkb::PhysicalDeviceSelector phyDevSelector{ vk->vkbInstance };
+    vkb::Result<vkb::PhysicalDevice> phyDevRes = phyDevSelector.set_surface(vk->surface)
         .set_minimum_version(1, 1)
         .require_present(true)
         .select();
@@ -44,7 +85,7 @@ rgInt gfxInit()
     }
 
     vkb::PhysicalDevice vkbPhyDevice = phyDevRes.value();
-    gfxCtx()->vk.physicalDevice = vkbPhyDevice.physical_device;
+    vk->physicalDevice = vkbPhyDevice.physical_device;
     
     // -- create logical device
     vkb::DeviceBuilder devBuilder{ vkbPhyDevice };
@@ -56,21 +97,21 @@ rgInt gfxInit()
         return -1;
     }
 
-    vkb::Device vkbDevice = devBuilderRes.value();
-    gfxCtx()->vk.device = vkbDevice.device;
+    vk->vkbDevice = devBuilderRes.value();
+    vk->device = vk->vkbDevice.device;
 
     // -- get graphics queue
-    vkb::Result<VkQueue> grQueRes = vkbDevice.get_queue(vkb::QueueType::graphics);
+    vkb::Result<VkQueue> grQueRes = vk->vkbDevice.get_queue(vkb::QueueType::graphics);
     if(!grQueRes)
     {
         rgLogError("Could not get Vulkan graphics queue\nReason:%s", grQueRes.error().message().c_str());
         return -1;
     }
 
-    gfxCtx()->vk.graphicsQueue = grQueRes.value();
+    vk->graphicsQueue = grQueRes.value();
 
     // -- create swapchain
-    vkb::SwapchainBuilder scBuilder{ vkbDevice };
+    vkb::SwapchainBuilder scBuilder{ vk->vkbDevice };
     vkb::Result<vkb::Swapchain> scBuilderRes = scBuilder.use_default_present_mode_selection()
         .build();
 
@@ -80,15 +121,46 @@ rgInt gfxInit()
         return -1;
     }
 
-    vkb::Swapchain vkbSwapchain = scBuilderRes.value();
-    gfxCtx()->vk.swapchain = vkbSwapchain.swapchain;
+    vk->vkbSwapchain = scBuilderRes.value();
+    vk->swapchain = vk->vkbSwapchain.swapchain;
+
+    createRenderPass(vk);
+
+    // -- create swapchain imageviews
+    vk->swapchainImages = vk->vkbSwapchain.get_images().value();
+    vk->swapchainImageViews = vk->vkbSwapchain.get_image_views().value();
+    
+    vk->framebuffers.resize(vk->swapchainImageViews.size());
+
+    for(rgInt i = 0; i < vk->swapchainImageViews.size(); ++i)
+    {
+        VkImageView attachements[] = { vk->swapchainImageViews[i] };
+
+        VkFramebufferCreateInfo fbInfo = {};
+        fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fbInfo.renderPass = vk->globalRenderPass;
+        fbInfo.attachmentCount = 1;
+        fbInfo.pAttachments = attachements;
+        fbInfo.width = vk->vkbSwapchain.extent.width;
+        fbInfo.height = vk->vkbSwapchain.extent.height;
+        fbInfo.layers = 1;
+
+        rgVK_CHECK(vkCreateFramebuffer(vk->device, &fbInfo, NULL, &vk->framebuffers[i]));
+    }
 
     return 0;
 }
 
 void gfxDestroy()
 {
+    GfxCtx::VkGfxCtx* vk = &gfxCtx()->vk;
+    vk->vkbSwapchain.destroy_image_views(vk->swapchainImageViews);
+    vkb::destroy_swapchain(vk->vkbSwapchain);
+    vkb::destroy_device(vk->vkbDevice);
+    vkb::destroy_surface(vk->vkbInstance, vk->surface);
+    vkb::destroy_instance(vk->vkbInstance);
 
+    // Destroy SDL Window
 }
 
 rgInt gfxDraw()

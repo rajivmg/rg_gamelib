@@ -173,6 +173,7 @@ int main(int argc, char* argv[])
         gfxDraw();
     }
 
+    gfxDestroy();
     SDL_DestroyWindow(g_GfxCtx->mainWindow);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return 0;
