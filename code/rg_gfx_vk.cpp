@@ -49,6 +49,37 @@ static void createRenderPass(GfxCtx::VkGfxCtx* vk)
     rgVK_CHECK(vkCreateRenderPass(vk->device, &rpInfo, NULL, &vk->globalRenderPass));
 }
 
+static void createPipeline(GfxCtx::VkGfxCtx* vk)
+{
+    VkPipelineLayout pipelineLayout;
+    VkPipelineLayoutCreateInfo layoutInfo = {};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    rgVK_CHECK(vkCreatePipelineLayout(vk->device, &layoutInfo, NULL, &pipelineLayout));
+
+    VkPipelineVertexInputStateCreateInfo vertInput = {};
+    vertInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+    VkPipelineInputAssemblyStateCreateInfo iaInfo = {};
+    iaInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    iaInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkPipelineRasterizationStateCreateInfo rasterInfo = {};
+    rasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterInfo.lineWidth = 1.0f;
+
+    VkPipelineColorBlendAttachmentState blendAttach = {};
+    blendAttach.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    
+    VkPipelineColorBlendStateCreateInfo blendInfo = {};
+    blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    blendInfo.attachmentCount = 1;
+    blendInfo.pAttachments = &blendAttach;
+
+    
+
+}
+
 rgInt gfxInit()
 {
     GfxCtx::VkGfxCtx* vk = &gfxCtx()->vk;
