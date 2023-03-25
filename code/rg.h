@@ -102,6 +102,8 @@ union rgFloat4
     };
 };
 
+extern rgBool g_ShouldQuit;
+
 /// ----- Implementation
 #ifdef RG_H_IMPLEMENTATION
 // TODO: Add filename and line number, try to remove the need of fmt

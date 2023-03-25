@@ -32,6 +32,7 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
 }
 
 GameData* g_GameData;
+rgBool g_ShouldQuit;
 
 rgU32 rgRenderKey(rgBool top)
 {
@@ -63,7 +64,7 @@ rgInt rg::setup()
 
 rgInt rg::updateAndDraw(rgDouble dt)
 {
-    printf("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
+    rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
 
     QuadUV fullQuadUV = rg::createQuadUV(0, 0, 512, 512, 512, 512);
 
@@ -141,14 +142,14 @@ int main(int argc, char* argv[])
 
     rg::setup();
 
-    rgBool shouldQuit = false;
+    g_ShouldQuit = false;
     SDL_Event event;
     
     Uint64 currentPerfCounter = SDL_GetPerformanceCounter();
     Uint64 previousPerfCounter = currentPerfCounter;
     rgDouble deltaTime = 0.0;
     
-    while(!shouldQuit)
+    while(!g_ShouldQuit)
     {
         ++g_GfxCtx->frameNumber;
 
@@ -160,7 +161,7 @@ int main(int argc, char* argv[])
         {
             if(event.type == SDL_QUIT)
             {
-                shouldQuit = true;
+                g_ShouldQuit = true;
             }
             else
             {
