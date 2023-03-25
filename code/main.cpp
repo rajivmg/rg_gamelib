@@ -2,6 +2,7 @@
 #include "rg.h"
 
 #include "rg_gfx.h"
+#include "rg_physic.h"
 
 #include <EASTL/vector.h>
 #include "game/game.h"
@@ -32,6 +33,8 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
 }
 
 GameData* g_GameData;
+rg::PhysicSystem* g_PhysicSystem;
+
 rgBool g_ShouldQuit;
 
 rgU32 rgRenderKey(rgBool top)
@@ -59,6 +62,8 @@ rgInt rg::setup()
         }
     }
     
+    g_PhysicSystem = rgNew(PhysicSystem);
+
     return 0;
 }
 

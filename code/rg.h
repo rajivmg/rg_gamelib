@@ -65,6 +65,8 @@ typedef uint32_t    rgHash;
 
 //
 
+#define RG_INLINE inline
+
 #define rgKILOBYTE(x) 1024LL * (x)
 #define rgMEGABYTE(x) 1024LL * rgKILOBYTE(x)
 #define rgGIGABYTE(x) 1024LL * rgMEGABYTE(x)
@@ -85,24 +87,75 @@ void _rgLogImpl(char const* fmt, ...);
 
 union rgFloat4
 {
-    float v[4];
+    rgFloat v[4];
     struct
     {
-        float x;
-        float y;
-        float z;
-        float w;
+        rgFloat x;
+        rgFloat y;
+        rgFloat z;
+        rgFloat w;
     };
     struct
     {
-        float r;
-        float g;
-        float b;
-        float a;
+        rgFloat r;
+        rgFloat g;
+        rgFloat b;
+        rgFloat a;
     };
 };
 
+union rgFloat3
+{
+    rgFloat v[3];
+    struct
+    {
+        rgFloat x;
+        rgFloat y;
+        rgFloat z;
+    };
+    struct
+    {
+        rgFloat r;
+        rgFloat g;
+        rgFloat b;
+    };
+};
+
+RG_INLINE rgFloat3 operator+(rgFloat3& a, rgFloat3& b)
+{
+    return rgFloat3{a.x + b.x, a.y + b.y, a.z + b.z};
+}
+
+RG_INLINE rgFloat3 operator-(rgFloat3& a, rgFloat3& b)
+{
+    return rgFloat3{ a.x - b.x, a.y - b.y, a.z - b.z };
+}
+
+RG_INLINE rgFloat3& operator+=(rgFloat3& a, rgFloat3& b)
+{
+    a = a + b;
+    return a;
+}
+
+RG_INLINE rgFloat3 operator*(rgFloat3& a, rgFloat b)
+{
+    return rgFloat3{a.x * b, a.y * b, a.z * b};
+}
+
+#define rgPrint(x) rgPrintImplementation(#x, x)
+
+RG_INLINE void rgPrintImplementation(const char* varName, rgFloat3& a)
+{
+    rgLog("%s = {%f, %f, %f}\n", varName, a.x, a.y, a.z);
+}
+
 extern rgBool g_ShouldQuit;
+
+RG_BEGIN_NAMESPACE
+struct PhysicSystem;
+RG_END_NAMESPACE
+
+extern rg::PhysicSystem* g_PhysicSystem;
 
 /// ----- Implementation
 #ifdef RG_H_IMPLEMENTATION
