@@ -52,6 +52,10 @@ static void createRenderPass(GfxCtx::VkGfxCtx* vk)
 
 static VkShaderModule createShaderModuleFromSrc(GfxCtx::VkGfxCtx* vk, const char* srcCode)
 {
+    /*
+    F:\rg_gamelib\3rdparty\dxc_2023_03_01\bin\x64>dxc "F:\rg_gamelib\code\shaders\vulkan\triangle.hlsl" -spirv -T vs_6_0 -E VS_triangle -Fo "F:\rg_gamelib\code\shaders\vulkan\vs_triangle.spirv"
+    F:\rg_gamelib\3rdparty\dxc_2023_03_01\bin\x64>dxc "F:\rg_gamelib\code\shaders\vulkan\triangle.hlsl" -spirv -T ps_6_0 -E FS_triangle -Fo "F:\rg_gamelib\code\shaders\vulkan\fs_triangle.spirv"
+    */
     return VkShaderModule(0);
 }
 

@@ -12,7 +12,7 @@ struct VSOut
     float4 pos : SV_POSITION;
 };
 
-float3 triangleVertexData[3] = { float3(0.5, -0.5, 1.0), float3(0.5, 0.5, 1.0), float3(-0.5, 0.5, 1.0) };
+static const float3 triangleVertexData[3] = { float3(0.5, -0.5, 1.0), float3(0.5, 0.5, 1.0), float3(-0.5, 0.5, 1.0) };
 
 VSOut VS_triangle(/* in VSIn input,*/ uint vertexID : SV_VERTEXID)
 {
