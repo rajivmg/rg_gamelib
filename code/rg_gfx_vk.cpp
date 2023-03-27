@@ -6,6 +6,7 @@
 #include "vk-bootstrap/VkBootstrapDispatch.h"
 
 #include <SDL2/SDL_vulkan.h>
+#include <EASTL/fixed_vector.h>
 
 RG_BEGIN_NAMESPACE
 
@@ -49,6 +50,11 @@ static void createRenderPass(GfxCtx::VkGfxCtx* vk)
     rgVK_CHECK(vkCreateRenderPass(vk->device, &rpInfo, NULL, &vk->globalRenderPass));
 }
 
+static VkShaderModule createShaderModuleFromSrc(GfxCtx::VkGfxCtx* vk, const char* srcCode)
+{
+    return VkShaderModule(0);
+}
+
 static void createPipeline(GfxCtx::VkGfxCtx* vk)
 {
     VkPipelineLayout pipelineLayout;
@@ -76,8 +82,26 @@ static void createPipeline(GfxCtx::VkGfxCtx* vk)
     blendInfo.attachmentCount = 1;
     blendInfo.pAttachments = &blendAttach;
 
-    
+    VkPipelineViewportStateCreateInfo viewportInfo = {};
+    viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportInfo.viewportCount = 1;
+    viewportInfo.scissorCount = 1;
 
+    VkPipelineDepthStencilStateCreateInfo depthStencilInfo = {};
+    depthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    
+    VkPipelineMultisampleStateCreateInfo multisampleInfo = {};
+    multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    eastl::fixed_vector<VkDynamicState, 2> dynStates;
+    dynStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+    dynStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
+
+    VkPipelineDynamicStateCreateInfo dynInfo = {};
+    dynInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynInfo.pDynamicStates = &dynStates.front();
+    dynInfo.dynamicStateCount = (uint32_t)dynStates.size();
 }
 
 rgInt gfxInit()
