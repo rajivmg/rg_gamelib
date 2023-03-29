@@ -47,7 +47,7 @@ rgInt rg::setup()
     g_GameData = rgNew(GameData);
     
     //TexturePtr tTexture = ; // TODO: create loadTGA() 
-    GfxTexture2DRef t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxResourceUsage_Read);
+    GfxTexture2DRef t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxResourceUsage_Static);
     // This should be done by gfxNewTexture2D
     gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("T.tga"), t2dptr));
 
@@ -69,14 +69,14 @@ rgInt rg::setup()
 
 rgInt rg::updateAndDraw(rgDouble dt)
 {
-    rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
+    //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
 
     QuadUV fullQuadUV = rg::createQuadUV(0, 0, 512, 512, 512, 512);
 
     eastl::vector<QuadUV> quadUVs;
     quadUVs.push_back(fullQuadUV);
 
-    printf("%f\n", quadUVs.back().uvBottomRight[1]);
+    //printf("%f\n", quadUVs.back().uvBottomRight[1]);
 
     //gfxTexturedQuad();
     RenderCmdList* cmdList = gfxGetRenderCmdList();

@@ -121,7 +121,7 @@ union rgFloat3
     };
 };
 
-RG_INLINE rgFloat3 operator+(rgFloat3& a, rgFloat3& b)
+RG_INLINE rgFloat3 operator+(const rgFloat3& a, const rgFloat3& b)
 {
     return rgFloat3{a.x + b.x, a.y + b.y, a.z + b.z};
 }
@@ -131,7 +131,7 @@ RG_INLINE rgFloat3 operator-(rgFloat3& a, rgFloat3& b)
     return rgFloat3{ a.x - b.x, a.y - b.y, a.z - b.z };
 }
 
-RG_INLINE rgFloat3& operator+=(rgFloat3& a, rgFloat3& b)
+RG_INLINE rgFloat3& operator+=(rgFloat3& a, const rgFloat3& b)
 {
     a = a + b;
     return a;

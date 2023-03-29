@@ -145,7 +145,11 @@ enum GfxResourceUsage
 {
     GfxResourceUsage_Read,
     GfxResourceUsage_Write,
-    GfxResourceUsage_ReadWrite
+    GfxResourceUsage_ReadWrite,
+    
+    GfxResourceUsage_Static,    // Immutable, once created content cannot be updated
+    GfxResourceUsage_Dynamic,   // Content will be updated infrequently
+    GfxResourceUsage_Stream     // Content will be updated every frame
 };
 
 //-----------------------------------------------------------------------------
@@ -160,9 +164,9 @@ rgInt gfxDraw();
 //-----------------------------------------------------------------------------
 struct GfxBuffer
 {
-    GfxMemoryUsage usageMode;
+    GfxResourceUsage usageMode;
     rgSize capacity;
-
+    
 #if defined(RG_METAL_RNDR)
     MTL::Buffer* mtlBuffer;
 #elif defined(RG_VULKAN_RNDR)
@@ -171,7 +175,7 @@ struct GfxBuffer
 };
 typedef eastl::shared_ptr<GfxBuffer> GfxBufferPtr;
 
-GfxBuffer*  gfxNewBuffer(void* data, rgSize length, GfxMemoryUsage usage);
+GfxBuffer*  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
 void        gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offset);
 void        gfxDeleteBuffer(GfxBuffer* bufferResource);
 
@@ -289,14 +293,14 @@ struct GfxCtx
         GfxTexture2DRef tTex;
     } sdl;
 #elif defined(RG_METAL_RNDR)
-    struct
+    struct Mtl
     {
         void* layer; // type: id<CAMetalLayer>
         NS::View *view;
         MTL::Device *device;
         MTL::CommandQueue* commandQueue;
         
-        MTL::RenderCommandEncoder* activeRCEncoder;
+        MTL::RenderCommandEncoder* currentRenderEncoder;
 
         // -- immediate mode resources
         GfxBuffer* immVertexBuffer;
@@ -310,8 +314,8 @@ struct GfxCtx
         GfxTexture2DRef birdTexture;
         
         // arg buffers
-        MTL::ArgumentEncoder* bindlessTextures2DArgEncoder;
-        GfxBuffer* bindlessTextures2DArgBuffer;
+        MTL::ArgumentEncoder* largeArrayTex2DArgEncoder;
+        GfxBuffer* largeArrayTex2DArgBuffer;
     } mtl;
 #elif defined(RG_VULKAN_RNDR)
     struct VkGfxCtx

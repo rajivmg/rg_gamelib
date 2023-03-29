@@ -11,7 +11,7 @@ static void Verlet(PhysicSystem* sys)
         rgFloat3& forceAcc = sys->particleForceAccumulators[i];
         rgFloat3 temp = curPos;
 
-        curPos += curPos - prevPos + forceAcc * sys->timestep * sys->timestep;
+        curPos += curPos - prevPos + forceAcc * (sys->timestep * sys->timestep);
 
         prevPos = temp;
     }
