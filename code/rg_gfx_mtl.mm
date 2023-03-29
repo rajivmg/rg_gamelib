@@ -173,7 +173,8 @@ rgInt gfxDraw()
                     mtl()->currentRenderEncoder->useResource(tex->mtlTexture, MTL::ResourceUsageRead);
                 }
             }
-
+            mtl()->largeArrayTex2DArgBuffer->mtlBuffer->didModifyRange(NS::Range(0, mtl()->largeArrayTex2DArgBuffer->mtlBuffer->length()));
+            
             mtl()->currentRenderEncoder->setFragmentBuffer(mtl()->largeArrayTex2DArgBuffer->mtlBuffer, 0, 3);
         }
         
