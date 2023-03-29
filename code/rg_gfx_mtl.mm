@@ -13,49 +13,21 @@
 
 RG_BEGIN_NAMESPACE
 
-#define mtlCtx g_GfxCtx.mtl
-
 #include "shaders/metal/imm_shader.inl"
 #include "shaders/metal/simple2d_shader.inl"
 
-namespace metal_util
-{
-MTL::ResourceUsage convertResourceUsage(GfxResourceUsage usage)
-{
-    switch(usage)
-    {
-        case GfxResourceUsage_Read:
-            return MTL::ResourceUsageRead;
-            break;
-            
-        case GfxResourceUsage_Write:
-            return MTL::ResourceUsageWrite;
-            break;
-            
-        case GfxResourceUsage_ReadWrite:
-            return (MTL::ResourceUsageRead | MTL::ResourceUsageWrite);
-            break;
-            
-        default:
-            return MTL::ResourceUsageRead;
-            break;
-    }
-}
-}
-
-static MTL::Device* mtlDevice()
-{
-    return gfxCtx()->mtl.device;
-}
-
-static id<MTLDevice> device()
-{
-    return (__bridge id<MTLDevice>)(gfxCtx()->mtl.device);
-}
-
+#if 0
 static GfxCtx::Mtl* mtl()
 {
     return &g_GfxCtx->mtl;
+}
+#else
+#define mtl() (&g_GfxCtx->mtl)
+#endif
+
+static id<MTLDevice> getMTLDevice()
+{
+    return (__bridge id<MTLDevice>)(mtl()->device);
 }
 
 MTLResourceOptions toMTLResourceOptions(GfxResourceUsage usage)
@@ -156,7 +128,7 @@ rgInt gfxInit()
     argDesc.arrayLength = 100000;
     argDesc.textureType = MTLTextureType2D;
     
-    gfxCtx()->mtl.largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[device() newArgumentEncoderWithArguments: @[argDesc]];
+    gfxCtx()->mtl.largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[getMTLDevice() newArgumentEncoderWithArguments: @[argDesc]];
     gfxCtx()->mtl.largeArrayTex2DArgBuffer = gfxNewBuffer(nullptr, mtl()->largeArrayTex2DArgEncoder->encodedLength(), GfxResourceUsage_Dynamic);
 
     return 0;
@@ -275,11 +247,11 @@ GfxBuffer* gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage)
     
     if(data != NULL)
     {
-        resource->mtlBuffer = (__bridge MTL::Buffer*)[device() newBufferWithBytes:data length:(NSUInteger)size options:options];
+        resource->mtlBuffer = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithBytes:data length:(NSUInteger)size options:options];
     }
     else
     {
-        resource->mtlBuffer = (__bridge MTL::Buffer*)[device() newBufferWithLength:(NSUInteger)size options:options];
+        resource->mtlBuffer = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
     }
     
     return resource;
@@ -316,7 +288,7 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
     
     NS::Error* err = nullptr;
     
-    MTL::Library* shaderLib = mtlDevice()->newLibrary(NS::String::string(shaderDesc->shaderSrcCode, NS::UTF8StringEncoding), compileOptions, &err);
+    MTL::Library* shaderLib = mtl()->device->newLibrary(NS::String::string(shaderDesc->shaderSrcCode, NS::UTF8StringEncoding), compileOptions, &err);
     
     if(err)
     {
@@ -354,7 +326,7 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
         }
     }
     
-    graphicsPSO->mtlPSO = mtlDevice()->newRenderPipelineState(psoDesc, &err);
+    graphicsPSO->mtlPSO = mtl()->device->newRenderPipelineState(psoDesc, &err);
     
     if(err)
     {
@@ -395,7 +367,7 @@ GfxTexture2DRef gfxNewTexture2D(rgHash hash, void* buf, rgUInt width, rgUInt hei
     texDesc.usage = MTLTextureUsageShaderRead; // TODO: RenderTarget
     texDesc.resourceOptions = toMTLResourceOptions(usage);
     
-    id<MTLTexture> mtlTexture = [device() newTextureWithDescriptor:texDesc];
+    id<MTLTexture> mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc];
     [texDesc release];
     
     // copy the texture data
