@@ -11,6 +11,18 @@ RG_BEGIN_NAMESPACE
 // --- Game Graphics APIs
 QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
 
+Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat near, rgFloat far)
+{
+    rgFloat length = 1.0f / (right - left);
+    rgFloat height = 1.0f / (top - bottom);
+    rgFloat depth  = 1.0f / (far - near);
+    
+    return Matrix4(Vector4(2.0f * length, 0, 0, 0),
+                   Vector4(0, 2.0f * height, 0, 0),
+                   Vector4(0, 0, depth, 0),
+                   Vector4(-((right + left) * length), -((top +bottom) * height), -near * depth, 1.0f));
+}
+
 rgInt gfxCommonInit()
 {
     GfxCtx* ctx = gfxCtx();
@@ -18,7 +30,17 @@ rgInt gfxCommonInit()
     ctx->graphicCmdLists[0] = rgNew(RenderCmdList)("graphic cmdlist 0");
     ctx->graphicCmdLists[1] = rgNew(RenderCmdList)("graphic cmdlist 1");
     
-    ctx->orthographicMatrix = Matrix4::orthographic(0.0f, 720.0f, 720.0f, 0, 0.0f, 1000.0f);
+    ctx->orthographicMatrix = Matrix4::orthographic(0.0f, 720.0f, 720.0f, 0, 0.1f, 1000.0f);
+    
+#ifdef RG_METAL_RNDR
+    //Matrix4 scaleZHalf = Matrix4::scale(Vector3(1.0f, 1.0f, -0.5f));
+    Matrix4 scaleZHalf = Matrix4::scale(Vector3(1.0f, 1.0f, -0.5f));
+    Matrix4 shiftZHalf = Matrix4::translation(Vector3(0.0f, 0.0f, 0.5f));
+    //Matrix4 shiftZHalf = Matrix4::translation(Vector3(1.0f, -1.0f, -1000.0f / (0.1f - 1000.0f)));
+    //Matrix4 scaleShiftZHalf = shiftZHalf * scaleZHalf;
+    //ctx->orthographicMatrix = shiftZHalf * scaleZHalf * ctx->orthographicMatrix;
+    ctx->orthographicMatrix = makeOrthoProjection(0.0f, 720.0f, 720.0f, 0.0f, 0.1f, 1000.0f);
+#endif
 
     return 0;
 }

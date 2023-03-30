@@ -36,8 +36,8 @@ VertexOut vertex simple2d_VS(constant float4x4& projection [[buffer(0)]],
 {
     VertexOut out;
     constant Vertex2D* v = &smallVertexBuffer[instanceId * 6 + vertexId];
-    out.position = projection * float4(v->pos, 0, 1.0);
-    out.position.z = 0.5;
+    out.position = projection * float4(v->pos, 1.0, 1.0);
+    //out.position.z = 0.5;
     out.texcoord = v->texcoord;
     out.color  = half4(v->color);
     out.instanceId = instanceId;
@@ -50,7 +50,7 @@ fragment half4 simple2d_FS(VertexOut fragIn [[stage_in]],
     //return half4(1.0, 0.0, 1.0, 1.0);
     //return fragIn.color;
     constexpr sampler pointSampler(filter::nearest);
-    float4 color = frameResources.textures2d[fragIn.instanceId * 1000].sample(pointSampler, fragIn.texcoord);
+    float4 color = frameResources.textures2d[fragIn.instanceId * 6000].sample(pointSampler, fragIn.texcoord);
     return half4(color);
 }
 

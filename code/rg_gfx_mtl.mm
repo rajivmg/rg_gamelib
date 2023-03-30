@@ -16,7 +16,7 @@ RG_BEGIN_NAMESPACE
 #include "shaders/metal/imm_shader.inl"
 #include "shaders/metal/simple2d_shader.inl"
 
-#if 0
+#if 1
 static GfxCtx::Mtl* mtl()
 {
     return &g_GfxCtx->mtl;
@@ -113,7 +113,7 @@ rgInt gfxInit()
 
     //metalutils::getPreprocessorMacrosDict("SHADOW_PASS, USE_TEX1  USE_TEX2");
     TexturePtr birdTex = rg::loadTexture("bird_texture.png");
-    gfxCtx()->mtl.birdTexture = gfxNewTexture2D(birdTex, GfxResourceUsage_Dynamic);
+    gfxCtx()->mtl.birdTexture = gfxNewTexture2D(birdTex, GfxResourceUsage_Static);
     
     for(rgInt i = 1; i <= 16; ++i)
     {
@@ -125,10 +125,14 @@ rgInt gfxInit()
     MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
     argDesc.index = 0;
     argDesc.dataType = MTLDataTypeTexture;
-    argDesc.arrayLength = 100000;
+    argDesc.arrayLength = 99999;
     argDesc.textureType = MTLTextureType2D;
     
-    gfxCtx()->mtl.largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[getMTLDevice() newArgumentEncoderWithArguments: @[argDesc]];
+    MTLArgumentDescriptor* argDesc2 = [MTLArgumentDescriptor argumentDescriptor];
+    argDesc2.index = 90001;
+    argDesc2.dataType = MTLDataTypeSampler;
+    
+    gfxCtx()->mtl.largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[getMTLDevice() newArgumentEncoderWithArguments: @[argDesc, argDesc2]];
     gfxCtx()->mtl.largeArrayTex2DArgBuffer = gfxNewBuffer(nullptr, mtl()->largeArrayTex2DArgEncoder->encodedLength(), GfxResourceUsage_Dynamic);
 
     return 0;
@@ -139,7 +143,7 @@ rgInt gfxDraw()
     NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
     // --- Autorelease pool BEGIN
     GfxCtx* ctx = gfxCtx();
-    CA::MetalDrawable* currentMetalDrawable = metalutils::nextDrawable(ctx);
+    CA::MetalDrawable* currentMetalDrawable = metalutils::nextDrawable(ctx); 
     rgAssert(currentMetalDrawable != nullptr);
     if(currentMetalDrawable != nullptr)
     {
@@ -169,7 +173,7 @@ rgInt gfxDraw()
                 GfxTexture2DPtr tex = gfxGetTexture2DPtr(rgCRC32(path));
                 if(tex)
                 {
-                    mtl()->largeArrayTex2DArgEncoder->setTexture(tex->mtlTexture, (i - 1) * 1000);
+                    mtl()->largeArrayTex2DArgEncoder->setTexture(tex->mtlTexture, (i - 1) * 6000);
                     mtl()->currentRenderEncoder->useResource(tex->mtlTexture, MTL::ResourceUsageRead);
                 }
             }
@@ -265,6 +269,7 @@ void gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offse
     if(dstBuffer->usageMode != GfxResourceUsage_Static)
     {
         memcpy((rgU8*)dstBuffer->mtlBuffer->contents() + offset, data, length);
+        dstBuffer->mtlBuffer->didModifyRange(NS::Range(offset, length));
     }
     else
     {
@@ -364,7 +369,7 @@ GfxTexture2DRef gfxNewTexture2D(rgHash hash, void* buf, rgUInt width, rgUInt hei
     texDesc.height = height;
     texDesc.pixelFormat = toMTLPixelFormat(format);
     texDesc.textureType = MTLTextureType2D;
-    texDesc.storageMode = MTLStorageModeShared;
+    texDesc.storageMode = MTLStorageModeManaged;
     texDesc.usage = MTLTextureUsageShaderRead; // TODO: RenderTarget
     texDesc.resourceOptions = toMTLResourceOptions(usage);
     
@@ -433,8 +438,8 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
     viewport.originY = 0;
     viewport.width = 720;
     viewport.height = 720;
-    viewport.znear = 0.0f;
-    viewport.zfar = 1000.0f;
+    viewport.znear = 0.0;
+    viewport.zfar = 1.0;
     mtl()->currentRenderEncoder->setViewport(viewport);
     //ctx->mtl.activeRCEncoder->setFrontFacingWinding(MTL::WindingCounterClockwise);
     //ctx->mtl.activeRCEncoder->setFragmentTexture(gfxCtx()->mtl.birdTexture->mtlTexture, 0);
