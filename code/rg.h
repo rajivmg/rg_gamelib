@@ -153,6 +153,17 @@ extern rgBool g_ShouldQuit;
 
 RG_BEGIN_NAMESPACE
 struct PhysicSystem;
+
+struct FileData
+{
+    rgBool  isValid;
+    rgU8*   data;
+    rgSize  dataSize;
+};
+
+FileData readFile(const char* filepath);
+void     freeFileData(FileData* fd);
+
 RG_END_NAMESPACE
 
 extern rg::PhysicSystem* g_PhysicSystem;
@@ -167,5 +178,68 @@ void _rgLogImpl(char const* fmt, ...)
     SDL_LogMessageV(SDL_LOG_CATEGORY_TEST, SDL_LOG_PRIORITY_DEBUG, fmt, argList);
     va_end(argList);
 }
+
+RG_BEGIN_NAMESPACE
+
+FileData readFile(const char* filepath)
+{
+    FileData result = {};
+
+    SDL_RWops* fp = SDL_RWFromFile(filepath, "rb");
+
+    if(fp != NULL)
+    {
+        SDL_RWseek(fp, 0, RW_SEEK_END);
+        Sint64 size = (rgSize)SDL_RWtell(fp);
+
+        if(size == -1 || size <= 0)
+        {
+            SDL_RWclose(fp);
+            result.isValid = false;
+            return result;
+        }
+        else
+        {
+            result.dataSize = (rgSize)size;
+        }
+
+        SDL_RWseek(fp, 0, RW_SEEK_SET);
+
+        result.data = (rgU8*)rgMalloc(sizeof(rgU8) * size);
+        if(result.data == NULL)
+        {
+            rgLog("Cannot allocate memory(%dbytes) for reading file %s", size, filepath);
+            SDL_RWclose(fp);
+            result.isValid = false;
+            return result;
+        }
+
+        rgSize sizeRead = SDL_RWread(fp, result.data, sizeof(rgU8), size);
+        if(sizeRead != size)
+        {
+            result.isValid = false;
+            rgFree(result.data);
+        }
+
+        SDL_RWclose(fp);
+
+        result.isValid = true;
+    }
+    else
+    {
+        rgLog("Cannot open/read file %s", filepath);
+        result.isValid = false;
+    }
+
+    return result;
+}
+
+void freeFileData(FileData* fd)
+{
+    rgFree(fd->data);
+}
+
+RG_END_NAMESPACE
+
 #endif // RG_H_IMPLEMENTATION
 #endif // __RG_H__
