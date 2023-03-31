@@ -47,9 +47,18 @@ rgInt rg::setup()
     g_GameData = rgNew(GameData);
     
     //TexturePtr tTexture = ; // TODO: create loadTGA() 
-    GfxTexture2DRef t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxResourceUsage_Static);
-    // This should be done by gfxNewTexture2D
-    gfxCtx()->textures2D.insert(eastl::make_pair(CRC32_STR("T.tga"), t2dptr));
+    GfxTexture2DHandle t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxResourceUsage_Static);
+    
+    TexturePtr birdTex = rg::loadTexture("bird_texture.png");
+    gfxCtx()->mtl.birdTexture = gfxNewTexture2D(birdTex, GfxResourceUsage_Static);
+    
+    for(rgInt i = 1; i <= 16; ++i)
+    {
+        char path[256];
+        snprintf(path, 256, "textureslice/textureSlice %d.png", i);
+        GfxTexture2DHandle t2d = gfxNewTexture2D(rg::loadTexture(path), GfxResourceUsage_Static);
+        gfxCtx()->debugTextureHandles.push_back(t2d);
+    }
 
     for(rgInt i = 0; i < 4; ++i)
     {

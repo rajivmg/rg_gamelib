@@ -134,6 +134,8 @@ rgInt updateAndDraw(rgDouble dt);
 // STUFF BELOW NEEDS TO BE IMPLEMENTED FOR EACH GRAPHICS BACKEND
 //-----------------------------------------------------------------------------
 
+static const rgSize kInvalidHandle = ~(0x0);
+
 enum GfxMemoryUsage
 {
     GfxMemoryUsage_CPUToGPU,
@@ -245,13 +247,16 @@ void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 //-----------------------------------------------------------------------------
 // Gfx Texture
 //-----------------------------------------------------------------------------
+typedef rgSize GfxTexture2DHandle;
+
 struct GfxTexture2D
 {
     rgChar name[32];
     rgUInt width;
     rgUInt height;
     TinyImageFormat pixelFormat;
-
+    GfxTexture2DHandle handle;
+    
 #if defined(RG_METAL_RNDR)
     MTL::Texture* mtlTexture;
 #elif defined(RG_VULKAN_RNDR)
@@ -263,10 +268,8 @@ struct GfxTexture2D
 typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DRef;
 typedef GfxTexture2D* GfxTexture2DPtr;
 
-GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
-// TODO: Make this private api. This doesn't insert textureref into the hashmap
-GfxTexture2DRef gfxNewTexture2D(rgHash hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
-void gfxDeleteTexture2D(GfxTexture2D* t2d);
+GfxTexture2DRef creatorGfxTexture2D(GfxTexture2DHandle handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
+void deleterGfxTexture2D(GfxTexture2D* t2d);
 
 //-----------------------------------------------------------------------------
 // Graphic Context
@@ -280,11 +283,13 @@ struct GfxCtx
     rgUInt frameNumber;
     RenderCmdList* graphicCmdLists[MAX_FRAMES_IN_QUEUE];
 
-    // crc32 - GfxTexture2DRef
-    typedef eastl::hash_map<rgHash, GfxTexture2DRef> HashMapCrc32vsGfxTexture2D;
-    HashMapCrc32vsGfxTexture2D textures2D; // create helper functions insert/delete getter as GfxTexture2D
+    typedef eastl::vector<GfxTexture2DRef> HandleListGfxTexture2D;
+    HandleListGfxTexture2D textures2D;
+    eastl::vector<GfxTexture2DHandle> textures2DFreeHandles;
     
     Matrix4 orthographicMatrix;
+    
+    eastl::vector<GfxTexture2DHandle> debugTextureHandles; // test only
 
 #if defined(RG_SDL_RNDR)
     struct SDLGfxCtx
@@ -311,7 +316,7 @@ struct GfxCtx
         
         GfxGraphicsPSO* simple2dPSO;
 
-        GfxTexture2DRef birdTexture;
+        GfxTexture2DHandle birdTexture;
         
         // arg buffers
         MTL::ArgumentEncoder* largeArrayTex2DArgEncoder;
@@ -357,7 +362,9 @@ extern rg::GfxCtx* g_GfxCtx;
 
 inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 
-GfxTexture2DPtr gfxGetTexture2DPtr(rgHash id);
+GfxTexture2DHandle gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
+GfxTexture2DHandle gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
+GfxTexture2DPtr gfxGetTexture2DPtr(GfxTexture2DHandle handle);
 
 //-----------------------------------------------------------------------------
 // Gfx Render Command

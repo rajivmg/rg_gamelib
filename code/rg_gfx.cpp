@@ -45,15 +45,61 @@ rgInt gfxCommonInit()
     return 0;
 }
 
-GfxTexture2DPtr gfxGetTexture2DPtr(rgHash id)
+GfxTexture2DPtr gfxGetTexture2DPtr(GfxTexture2DHandle handle)
 {
-    GfxCtx::HashMapCrc32vsGfxTexture2D::iterator itr = gfxCtx()->textures2D.find(id);
-    if(itr == gfxCtx()->textures2D.end())
+    rgAssert(handle < gfxCtx()->textures2D.size());
+    
+    GfxTexture2DPtr ptr = nullptr;
+    ptr = gfxCtx()->textures2D[handle].get();
+    rgAssert(ptr != nullptr);
+    
+    return ptr;
+}
+
+static GfxTexture2DHandle getFreeTextures2DHandle()
+{
+    GfxTexture2DHandle texHandle = kInvalidHandle;
+    
+    if(!gfxCtx()->textures2DFreeHandles.empty())
     {
-        rgLogWarn("Could not find texture2d with id %d", id);
-        return nullptr;
+        texHandle = gfxCtx()->textures2DFreeHandles.back();
+        gfxCtx()->textures2DFreeHandles.pop_back();
     }
-    return itr->second.get();
+    else
+    {
+        texHandle = gfxCtx()->textures2D.size();
+        gfxCtx()->textures2D.resize(texHandle + 1);
+    }
+    
+    rgAssert(texHandle != kInvalidHandle);
+    return texHandle;
+}
+
+GfxTexture2DHandle gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
+{
+    Texture* tex = texture.get();
+    rgAssert(tex != nullptr);
+    
+    GfxTexture2DHandle texHandle = getFreeTextures2DHandle();
+    GfxTexture2DRef t2dRef = creatorGfxTexture2D(texHandle, tex->buf, tex->width, tex->height, tex->format, usage, tex->name);
+    gfxCtx()->textures2D[texHandle] = t2dRef;
+    return texHandle;
+}
+
+GfxTexture2DHandle gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
+{
+    GfxTexture2DHandle texHandle = getFreeTextures2DHandle();
+    GfxTexture2DRef t2dRef = creatorGfxTexture2D(texHandle, buf, width, height, format, usage, name);
+    gfxCtx()->textures2D[texHandle] = t2dRef;
+    return texHandle;
+}
+
+void gfxDeleteTexture2D(GfxTexture2DHandle handle)
+{
+    rgAssert(handle < gfxCtx()->textures2D.size());
+    
+    gfxCtx()->textures2D[handle] = GfxTexture2DRef();
+    gfxCtx()->textures2DFreeHandles.push_back(handle);
 }
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)

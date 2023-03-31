@@ -112,15 +112,6 @@ rgInt gfxInit()
     gfxUpdateBuffer(gfxCtx()->mtl.immVertexBuffer, triangleVertices, triangleVerticesSize, 0);
 
     //metalutils::getPreprocessorMacrosDict("SHADOW_PASS, USE_TEX1  USE_TEX2");
-    TexturePtr birdTex = rg::loadTexture("bird_texture.png");
-    gfxCtx()->mtl.birdTexture = gfxNewTexture2D(birdTex, GfxResourceUsage_Static);
-    
-    for(rgInt i = 1; i <= 16; ++i)
-    {
-        char path[256];
-        snprintf(path, 256, "textureslice/textureSlice %d.png", i);
-        GfxTexture2DRef t2dptr = gfxNewTexture2D(rg::loadTexture(path), GfxResourceUsage_Static);
-    }
 
     MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
     argDesc.index = 0;
@@ -164,20 +155,16 @@ rgInt gfxDraw()
         // bind all textures
         {
             mtl()->largeArrayTex2DArgEncoder->setArgumentBuffer(gfxCtx()->mtl.largeArrayTex2DArgBuffer->mtlBuffer, 0);
+            rgSize largeArrayTex2DIndex = 0;
             
-            for(rgInt i = 1; i <= 16 /*gfxCtx()->textures2D.size()*/; ++i)
+            for(GfxTexture2DHandle handle : gfxCtx()->debugTextureHandles)
             {
-                char path[256];
-                snprintf(path, 256, "textureslice/textureSlice %d.png", i);
+                GfxTexture2DPtr texPtr = gfxGetTexture2DPtr(handle);
+                mtl()->largeArrayTex2DArgEncoder->setTexture(texPtr->mtlTexture, largeArrayTex2DIndex * 6000);
+                // TODO: allocate textures from a heap
+                mtl()->currentRenderEncoder->useResource(texPtr->mtlTexture, MTL::ResourceUsageRead);
                 
-                GfxTexture2DPtr tex = gfxGetTexture2DPtr(rgCRC32(path));
-                if(tex)
-                {
-                    mtl()->largeArrayTex2DArgEncoder->setTexture(tex->mtlTexture, (i - 1) * 6000);
-                    
-                    // TODO: allocate textures from a heap
-                    mtl()->currentRenderEncoder->useResource(tex->mtlTexture, MTL::ResourceUsageRead);
-                }
+                ++largeArrayTex2DIndex;
             }
             
             mtl()->largeArrayTex2DArgBuffer->mtlBuffer->didModifyRange(NS::Range(0, mtl()->largeArrayTex2DArgBuffer->mtlBuffer->length()));
@@ -357,13 +344,7 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
     pso->mtlPSO->release();
 }
 
-GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
-{
-    Texture* tex = texture.get();
-    return gfxNewTexture2D(tex->hash, tex->buf, tex->width, tex->height, tex->format, usage, tex->name);
-}
-
-GfxTexture2DRef gfxNewTexture2D(rgHash hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
+GfxTexture2DRef creatorGfxTexture2D(GfxTexture2DHandle handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
 {
     rgAssert(buf != NULL);
     MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];
@@ -384,21 +365,20 @@ GfxTexture2DRef gfxNewTexture2D(rgHash hash, void* buf, rgUInt width, rgUInt hei
         MTLRegion region = MTLRegionMake2D(0, 0, width, height);
         [mtlTexture replaceRegion:region mipmapLevel:0 withBytes:buf bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
     }
-        
-    // create refobj
-    GfxTexture2DRef t2dPtr = eastl::shared_ptr<GfxTexture2D>(rgNew(GfxTexture2D), gfxDeleteTexture2D);
-    t2dPtr->width = width;
-    t2dPtr->height = height;
-    t2dPtr->pixelFormat = format;
-    t2dPtr->mtlTexture = (__bridge MTL::Texture*)mtlTexture;
-    name != nullptr ? strcpy(t2dPtr->name, name) : strcpy(t2dPtr->name, "[NoName]");
 
-    gfxCtx()->textures2D.insert(eastl::make_pair(hash, t2dPtr));
+    // create refobj
+    GfxTexture2DRef t2dRef = eastl::shared_ptr<GfxTexture2D>(rgNew(GfxTexture2D), deleterGfxTexture2D);
+    t2dRef->width = width;
+    t2dRef->height = height;
+    t2dRef->pixelFormat = format;
+    t2dRef->mtlTexture = (__bridge MTL::Texture*)mtlTexture;
+    t2dRef->handle = handle;
+    name != nullptr ? strcpy(t2dRef->name, name) : strcpy(t2dRef->name, "[NoName]");
     
-    return t2dPtr;
+    return t2dRef;
 }
 
-void gfxDeleteTexture2D(GfxTexture2D* t2d)
+void deleterGfxTexture2D(GfxTexture2D* t2d)
 {
     t2d->mtlTexture->release();
     rgDelete(t2d);
