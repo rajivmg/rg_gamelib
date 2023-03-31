@@ -130,7 +130,7 @@ rgInt gfxInit()
     
     MTLArgumentDescriptor* argDesc2 = [MTLArgumentDescriptor argumentDescriptor];
     argDesc2.index = 90001;
-    argDesc2.dataType = MTLDataTypeSampler;
+    argDesc2.dataType = MTLDataTypePointer;
     
     gfxCtx()->mtl.largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[getMTLDevice() newArgumentEncoderWithArguments: @[argDesc, argDesc2]];
     gfxCtx()->mtl.largeArrayTex2DArgBuffer = gfxNewBuffer(nullptr, mtl()->largeArrayTex2DArgEncoder->encodedLength(), GfxResourceUsage_Dynamic);
@@ -143,7 +143,7 @@ rgInt gfxDraw()
     NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
     // --- Autorelease pool BEGIN
     GfxCtx* ctx = gfxCtx();
-    CA::MetalDrawable* currentMetalDrawable = metalutils::nextDrawable(ctx); 
+    CA::MetalDrawable* currentMetalDrawable = metalutils::nextDrawable(ctx);
     rgAssert(currentMetalDrawable != nullptr);
     if(currentMetalDrawable != nullptr)
     {
@@ -161,8 +161,8 @@ rgInt gfxDraw()
         mtl()->currentRenderEncoder = (__bridge MTL::RenderCommandEncoder*)[commandBuffer renderCommandEncoderWithDescriptor:renderPassDesc];
         [renderPassDesc autorelease];
         
+        // bind all textures
         {
-            // bind all textures
             mtl()->largeArrayTex2DArgEncoder->setArgumentBuffer(gfxCtx()->mtl.largeArrayTex2DArgBuffer->mtlBuffer, 0);
             
             for(rgInt i = 1; i <= 16 /*gfxCtx()->textures2D.size()*/; ++i)
@@ -174,11 +174,13 @@ rgInt gfxDraw()
                 if(tex)
                 {
                     mtl()->largeArrayTex2DArgEncoder->setTexture(tex->mtlTexture, (i - 1) * 6000);
+                    
+                    // TODO: allocate textures from a heap
                     mtl()->currentRenderEncoder->useResource(tex->mtlTexture, MTL::ResourceUsageRead);
                 }
             }
-            mtl()->largeArrayTex2DArgBuffer->mtlBuffer->didModifyRange(NS::Range(0, mtl()->largeArrayTex2DArgBuffer->mtlBuffer->length()));
             
+            mtl()->largeArrayTex2DArgBuffer->mtlBuffer->didModifyRange(NS::Range(0, mtl()->largeArrayTex2DArgBuffer->mtlBuffer->length()));
             mtl()->currentRenderEncoder->setFragmentBuffer(mtl()->largeArrayTex2DArgBuffer->mtlBuffer, 0, 3);
         }
         
