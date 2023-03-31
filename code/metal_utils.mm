@@ -11,6 +11,7 @@ void initMetal(rg::GfxCtx* ctx)
     CAMetalLayer* mtlLayer = (CAMetalLayer*)ctx->mtl.layer;
     mtlLayer.device = (__bridge id<MTLDevice>)(ctx->mtl.device);
     mtlLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    mtlLayer.maximumDrawableCount = 2;
 }
 
 CA::MetalDrawable* nextDrawable(rg::GfxCtx* ctx)

@@ -17,7 +17,7 @@
 #include <EASTL/vector.h>
 #include <EASTL/fixed_vector.h>
 
-#define MAX_FRAMES_IN_QUEUE 2
+#define RG_MAX_FRAMES_IN_QUEUE 3
 
 RG_BEGIN_NAMESPACE
 
@@ -281,7 +281,9 @@ struct GfxCtx
 
     SDL_Window* mainWindow;
     rgUInt frameNumber;
-    RenderCmdList* graphicCmdLists[MAX_FRAMES_IN_QUEUE];
+    rgS32 frameIndex;
+    
+    RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_QUEUE];
 
     typedef eastl::vector<GfxTexture2DRef> HandleListGfxTexture2D;
     HandleListGfxTexture2D textures2D;
@@ -304,6 +306,8 @@ struct GfxCtx
         NS::View *view;
         MTL::Device *device;
         MTL::CommandQueue* commandQueue;
+        
+        dispatch_semaphore_t framesInFlightSemaphore;
         
         MTL::RenderCommandEncoder* currentRenderEncoder;
 

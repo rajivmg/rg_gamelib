@@ -10,6 +10,7 @@
 #import <Metal/Metal.h>
 #import <Metal/MTLArgumentEncoder.h>
 #import <Metal/MTLBuffer.h>
+#include <QuartzCore/CAMetalLayer.h>
 
 RG_BEGIN_NAMESPACE
 
@@ -71,8 +72,14 @@ rgInt gfxInit()
     ctx->mtl.layer = SDL_Metal_GetLayer(ctx->mtl.view);
     ctx->mtl.device = MTL::CreateSystemDefaultDevice();
     ctx->mtl.commandQueue = ctx->mtl.device->newCommandQueue();
+    //
+    CAMetalLayer* mtlLayer = (CAMetalLayer*)ctx->mtl.layer;
+    mtlLayer.device = (__bridge id<MTLDevice>)(ctx->mtl.device);
+    mtlLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    mtlLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_QUEUE;
+    //
 
-    metalutils::initMetal(ctx);
+    mtl()->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_QUEUE);
     
     GfxShaderDesc immShaderDesc = {};
     immShaderDesc.shaderSrcCode = g_ImmShaderSrcCode;
@@ -131,6 +138,9 @@ rgInt gfxInit()
 
 rgInt gfxDraw()
 {
+    dispatch_semaphore_wait(mtl()->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
+    gfxCtx()->frameIndex = (gfxCtx()->frameIndex + 1) % RG_MAX_FRAMES_IN_QUEUE;
+    
     NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
     // --- Autorelease pool BEGIN
     GfxCtx* ctx = gfxCtx();
@@ -184,6 +194,13 @@ rgInt gfxDraw()
         
         mtl()->currentRenderEncoder->endEncoding();
         [commandBuffer presentDrawable:(__bridge id<MTLDrawable>)currentMetalDrawable];
+        
+        __block dispatch_semaphore_t blockSemaphore = mtl()->framesInFlightSemaphore;
+        [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
+         {
+            dispatch_semaphore_signal(blockSemaphore);
+        }];
+        
         [commandBuffer commit];
     }
     else
