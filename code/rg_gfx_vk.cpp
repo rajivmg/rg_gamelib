@@ -106,6 +106,9 @@ static void createPipeline(GfxCtx::VkGfxCtx* vk)
     dynInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynInfo.pDynamicStates = &dynStates.front();
     dynInfo.dynamicStateCount = (uint32_t)dynStates.size();
+
+    eastl::fixed_vector<VkPipelineShaderStageCreateInfo, 2> shaderStages;
+    //FileData vsFile = readFile("")
 }
 
 rgInt gfxInit()
