@@ -108,7 +108,8 @@ static void createPipeline(GfxCtx::VkGfxCtx* vk)
     dynInfo.dynamicStateCount = (uint32_t)dynStates.size();
 
     eastl::fixed_vector<VkPipelineShaderStageCreateInfo, 2> shaderStages;
-    //FileData vsFile = readFile("")
+    FileData vsFile = readFile("shaders/vulkan/vs_triangle.spirv");
+    rgAssert(vsFile.isValid);
 }
 
 rgInt gfxInit()
@@ -209,6 +210,8 @@ rgInt gfxInit()
 
         rgVK_CHECK(vkCreateFramebuffer(vk->device, &fbInfo, NULL, &vk->framebuffers[i]));
     }
+
+    createPipeline(vk);
 
     return 0;
 }
