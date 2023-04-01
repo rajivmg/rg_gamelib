@@ -230,19 +230,14 @@ rgInt gfxDraw()
     return 0;
 }
 
-
-GfxTexture2DRef gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
+GfxTexture2DRef creatorGfxTexture2D(GfxTexture2DHandle handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
 {
     return GfxTexture2DRef();
 }
 
-GfxTexture2DRef gfxNewTexture2D(rgHash hash, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
+void deleterGfxTexture2D(GfxTexture2D* t2d)
 {
-    return GfxTexture2DRef();
-}
 
-void gfxDeleteTexture2D(GfxTexture2D* t2d)
-{
 }
 
 void gfxHandleRenderCmdTexturedQuad(void const* cmd)
