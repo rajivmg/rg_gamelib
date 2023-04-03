@@ -138,6 +138,7 @@ rgInt gfxInit()
 
 rgInt gfxDraw()
 {
+    // TODO: move this from here..
     dispatch_semaphore_wait(mtl()->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
     gfxCtx()->frameIndex = (gfxCtx()->frameIndex + 1) % RG_MAX_FRAMES_IN_QUEUE;
     
@@ -164,9 +165,12 @@ rgInt gfxDraw()
         
         // bind all textures
         {
-            mtl()->largeArrayTex2DArgEncoder->setArgumentBuffer(gfxCtx()->mtl.largeArrayTex2DArgBuffer->mtlBuffer, 0);
-            rgSize largeArrayTex2DIndex = 0;
+            rgInt argBufferActiveIndex = mtl()->largeArrayTex2DArgBuffer->activeIdx;
+            MTL::Buffer* argBuffer = mtl()->largeArrayTex2DArgBuffer->mtlBuffers[argBufferActiveIndex];
             
+            mtl()->largeArrayTex2DArgEncoder->setArgumentBuffer(argBuffer, 0);
+            
+            rgSize largeArrayTex2DIndex = 0;
             for(GfxTexture2DHandle handle : gfxCtx()->debugTextureHandles)
             {
                 GfxTexture2DPtr texPtr = gfxGetTexture2DPtr(handle);
@@ -177,8 +181,8 @@ rgInt gfxDraw()
                 ++largeArrayTex2DIndex;
             }
             
-            mtl()->largeArrayTex2DArgBuffer->mtlBuffer->didModifyRange(NS::Range(0, mtl()->largeArrayTex2DArgBuffer->mtlBuffer->length()));
-            mtl()->currentRenderEncoder->setFragmentBuffer(mtl()->largeArrayTex2DArgBuffer->mtlBuffer, 0, 3);
+            argBuffer->didModifyRange(NS::Range(0, argBuffer->length()));
+            mtl()->currentRenderEncoder->setFragmentBuffer(argBuffer, 0, 3);
         }
         
         gfxGetRenderCmdList()->draw();
@@ -247,7 +251,8 @@ GfxBuffer* gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage)
     
     GfxBuffer* resource = new GfxBuffer;
     resource->usageMode = usage;
-    resource->capacity = size;
+    resource->size = size;
+    resource->activeIdx = 0;
     
     if(usage == GfxResourceUsage_Static)
     {
@@ -256,26 +261,39 @@ GfxBuffer* gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage)
     
     MTLResourceOptions options = toMTLResourceOptions(usage);
     
-    if(data != NULL)
+    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_QUEUE; ++i)
     {
-        resource->mtlBuffer = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithBytes:data length:(NSUInteger)size options:options];
-    }
-    else
-    {
-        resource->mtlBuffer = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
+        if(data != NULL)
+        {
+            resource->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithBytes:data length:(NSUInteger)size options:options];
+        }
+        else
+        {
+            resource->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
+        }
+        
+        if(usage == GfxResourceUsage_Static)
+        {
+            break;
+        }
     }
     
     return resource;
 }
 
-void gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offset)
+void gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgU32 length, rgU32 offset)
 {
-    rgAssert(dstBuffer);
+    rgAssert(buffer);
     
-    if(dstBuffer->usageMode != GfxResourceUsage_Static)
+    if(buffer->usageMode != GfxResourceUsage_Static)
     {
-        memcpy((rgU8*)dstBuffer->mtlBuffer->contents() + offset, data, length);
-        dstBuffer->mtlBuffer->didModifyRange(NS::Range(offset, length));
+        if(++buffer->activeIdx >= RG_MAX_FRAMES_IN_QUEUE)
+        {
+            buffer->activeIdx = 0;
+        }
+        
+        memcpy((rgU8*)buffer->mtlBuffers[buffer->activeIdx]->contents() + offset, data, length);
+        buffer->mtlBuffers[buffer->activeIdx]->didModifyRange(NS::Range(offset, length));
     }
     else
     {
@@ -283,9 +301,17 @@ void gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offse
     }
 }
 
-void gfxDeleteBuffer(GfxBuffer* bufferResource)
+void gfxDeleteBuffer(GfxBuffer* buffer)
 {
-    bufferResource->mtlBuffer->release();
+    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_QUEUE; ++i)
+    {
+        buffer->mtlBuffers[i]->release();
+        
+        if(buffer->usageMode == GfxResourceUsage_Static)
+        {
+            break;
+        }
+    }
 }
 
 GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)

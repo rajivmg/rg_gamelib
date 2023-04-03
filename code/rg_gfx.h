@@ -167,10 +167,10 @@ rgInt gfxDraw();
 struct GfxBuffer
 {
     GfxResourceUsage usageMode;
-    rgSize capacity;
-    
+    rgSize size;
+    rgInt activeIdx;
 #if defined(RG_METAL_RNDR)
-    MTL::Buffer* mtlBuffer;
+    MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_QUEUE];
 #elif defined(RG_VULKAN_RNDR)
 
 #endif
@@ -178,8 +178,8 @@ struct GfxBuffer
 typedef eastl::shared_ptr<GfxBuffer> GfxBufferPtr;
 
 GfxBuffer*  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
-void        gfxUpdateBuffer(GfxBuffer* dstBuffer, void* data, rgU32 length, rgU32 offset);
-void        gfxDeleteBuffer(GfxBuffer* bufferResource);
+void        gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgU32 length, rgU32 offset);
+void        gfxDeleteBuffer(GfxBuffer* buffer);
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format

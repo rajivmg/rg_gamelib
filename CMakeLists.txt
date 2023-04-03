@@ -90,4 +90,7 @@ elseif(APPLE)
     target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2} ${EASTL_LIBRARY})
 
     set_source_files_properties(${SHADER_SRC_FILES} PROPERTIES LANGUAGE METAL)
+    
+    set_target_properties(rg_gamelib PROPERTIES XCODE_GENERATE_SCHEME TRUE
+                                                XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
 endif()
