@@ -1,12 +1,12 @@
 #if defined(RG_VULKAN_RNDR)
 #include "rg_gfx.h"
 
+#define VOLK_IMPLEMENTATION
+#include "volk/volk.h"
+
 #include "vk-bootstrap/VkBootstrap.cpp"
 #include "vk-bootstrap/VkBootstrap.h"
 #include "vk-bootstrap/VkBootstrapDispatch.h"
-
-#define VOLK_IMPLEMENTATION
-#include "volk/volk.h"
 
 #include <SDL2/SDL_vulkan.h>
 #include <EASTL/fixed_vector.h>
@@ -64,6 +64,8 @@ static VkShaderModule createShaderModuleFromSrc(GfxCtx::VkGfxCtx* vk, const char
 
 static void createPipeline(GfxCtx::VkGfxCtx* vk)
 {
+    auto da = vkCreateShadersEXT;
+
     VkPipelineLayout pipelineLayout;
     VkPipelineLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -146,6 +148,7 @@ rgInt gfxInit()
     vkb::Result<vkb::PhysicalDevice> phyDevRes = phyDevSelector.set_surface(vk->surface)
         .set_minimum_version(1, 1)
         .require_present(true)
+        .add_required_extension("VK_EXT_shader_object")
         .select();
 
     if(!phyDevRes)
@@ -170,7 +173,7 @@ rgInt gfxInit()
     vk->vkbDevice = devBuilderRes.value();
     vk->device = vk->vkbDevice.device;
 
-    volkLoadDevice(vk->device);
+    volkLoadDevice(vk->device); /// volk
 
     // -- get graphics queue
     vkb::Result<VkQueue> grQueRes = vk->vkbDevice.get_queue(vkb::QueueType::graphics);

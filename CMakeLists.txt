@@ -30,17 +30,14 @@ file(GLOB IMGUI_SRC_FILES "${IMGUI_ROOT_DIR}/*.cpp" "${IMGUI_ROOT_DIR}/*.h")
 if(WIN32)
 
     set(3RD_PARTY_DIR "${CMAKE_SOURCE_DIR}/3rdparty/win64/")
-    
-    # set vulkan sdk paths
-    set(VULKAN_SDK_ROOT_DIR "C:/VulkanSDK/1.2.162.1" CACHE PATH "Vulkan SDK root dir") 
 
     # set source files
     file(GLOB SRC_FILES "code/*.cpp" "code/*.h")
     file(GLOB IMGUI_BACKEND_SRC_FILES "${IMGUI_BACKEND_DIR}/imgui_impl_vulkan.cpp" "${IMGUI_BACKEND_DIR}/imgui_impl_vulkan.h")
 
     # set include and lib directories
-    include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${VULKAN_SDK_ROOT_DIR}/Include)
-    link_directories(${3RD_PARTY_DIR}/lib ${VULKAN_SDK_ROOT_DIR}/Lib)
+    include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${CMAKE_SOURCE_DIR}/3rdparty/inc/Vulkan-Headers/include)
+    link_directories(${3RD_PARTY_DIR}/lib)
     set(EASTL_LIBRARY debug ${EASTL_ROOT_DIR}/build-win64/Debug/EASTL.lib optimized ${EASTL_ROOT_DIR}/build-win64/Release/EASTL.lib)
     
     add_compile_definitions(RG_VULKAN_RNDR VK_NO_PROTOTYPES)
