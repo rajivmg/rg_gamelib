@@ -34,6 +34,8 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
 
 GameData* g_GameData;
 rg::PhysicSystem* g_PhysicSystem;
+rgDouble rg::g_DeltaTime;
+rgDouble rg::g_Time;
 
 rgBool g_ShouldQuit;
 
@@ -98,6 +100,18 @@ rgInt rg::updateAndDraw(rgDouble dt)
         //texQuadCmd->header.type = RenderCmdType_TexturedQuad;
         //texQuadCmd->texture = gfxGetTexture2DPtr(CRC32_STR("T.tga")); //gfxCtx()->textures2D[CRC32_STR("T.tga")].get();//gfxNewTexture2D(tTexture, GfxResourceUsage_Read);
         //gfxCtx()->sdl.tTex = texQuadCmd->texture;
+        
+        g_GameData->characterPortraits.resize(0);
+        for(rgInt i = 0; i < 4; ++i)
+        {
+            for(rgInt j = 0; j < 4; ++j)
+            {
+                rgFloat px = j * (100) + 10 * (j + 1) + sinf(g_Time) * 10;
+                rgFloat py = i * (100) + 10 * (i + 1) + cosf(g_Time) * 10;
+                
+                pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0});
+            }
+        }
         
         RenderCmdTexturedQuads* rcTexQuads = cmdList->addCmd<RenderCmdTexturedQuads>(rgRenderKey(true), 0);
         rcTexQuads->quads = &g_GameData->characterPortraits;
@@ -167,9 +181,11 @@ int main(int argc, char* argv[])
     {
         ++g_GfxCtx->frameNumber;
 
+        Uint64 counterFrequency = SDL_GetPerformanceFrequency();
         previousPerfCounter = currentPerfCounter;
         currentPerfCounter = SDL_GetPerformanceCounter();
-        deltaTime = ((currentPerfCounter - previousPerfCounter) / (1.0 * SDL_GetPerformanceFrequency()));
+        g_DeltaTime = ((currentPerfCounter - previousPerfCounter) / (1.0 * SDL_GetPerformanceFrequency()));
+        g_Time = currentPerfCounter / (1.0 * counterFrequency);
         
         while(SDL_PollEvent(&event) != 0)
         {

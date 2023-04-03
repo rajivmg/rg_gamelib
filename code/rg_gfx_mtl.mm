@@ -145,9 +145,12 @@ rgInt gfxDraw()
     NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
     // --- Autorelease pool BEGIN
     GfxCtx* ctx = gfxCtx();
-    CA::MetalDrawable* currentMetalDrawable = metalutils::nextDrawable(ctx);
-    rgAssert(currentMetalDrawable != nullptr);
-    if(currentMetalDrawable != nullptr)
+    //CA::MetalDrawable* currentMetalDrawable = metalutils::nextDrawable(ctx);
+    CAMetalLayer* metalLayer = (CAMetalLayer*)mtl()->layer;
+    id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
+    
+    rgAssert(metalDrawable != nullptr);
+    if(metalDrawable != nullptr)
     {
         id<MTLCommandBuffer> commandBuffer = (__bridge id<MTLCommandBuffer>)mtl()->commandQueue->commandBuffer();
         
@@ -155,7 +158,8 @@ rgInt gfxDraw()
         MTLRenderPassDescriptor* renderPassDesc = [[MTLRenderPassDescriptor alloc] init];
 
         MTLRenderPassColorAttachmentDescriptor* colorAttachmentDesc = [renderPassDesc colorAttachments][0];
-        colorAttachmentDesc.texture = (__bridge id<MTLTexture>)(currentMetalDrawable->texture());
+        //colorAttachmentDesc.texture = (__bridge id<MTLTexture>)(mtlDrawable->texture());
+        colorAttachmentDesc.texture = [metalDrawable texture];
         colorAttachmentDesc.clearColor = MTLClearColorMake(0.5, 0.5, 0.5, 1.0);
         colorAttachmentDesc.loadAction = MTLLoadActionClear;
         colorAttachmentDesc.storeAction = MTLStoreActionStore;
@@ -197,7 +201,7 @@ rgInt gfxDraw()
         */
         
         mtl()->currentRenderEncoder->endEncoding();
-        [commandBuffer presentDrawable:(__bridge id<MTLDrawable>)currentMetalDrawable];
+        [commandBuffer presentDrawable:metalDrawable];
         
         __block dispatch_semaphore_t blockSemaphore = mtl()->framesInFlightSemaphore;
         [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
@@ -281,7 +285,7 @@ GfxBuffer* gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage)
     return resource;
 }
 
-void gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgU32 length, rgU32 offset)
+void gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
 {
     rgAssert(buffer);
     
@@ -292,8 +296,8 @@ void gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgU32 length, rgU32 offset)
             buffer->activeIdx = 0;
         }
         
-        memcpy((rgU8*)buffer->mtlBuffers[buffer->activeIdx]->contents() + offset, data, length);
-        buffer->mtlBuffers[buffer->activeIdx]->didModifyRange(NS::Range(offset, length));
+        memcpy((rgU8*)buffer->mtlBuffers[buffer->activeIdx]->contents() + offset, data, size);
+        buffer->mtlBuffers[buffer->activeIdx]->didModifyRange(NS::Range(offset, size));
     }
     else
     {
@@ -321,8 +325,10 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
     NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
     
     // --- compile shader
+    NS::Dictionary* shaderMacros = metalutils::getPreprocessorMacrosDict(shaderDesc->macros);
     MTL::CompileOptions* compileOptions = MTL::CompileOptions::alloc()->init();
-    compileOptions->setPreprocessorMacros(metalutils::getPreprocessorMacrosDict(shaderDesc->macros));
+    compileOptions->setPreprocessorMacros(shaderMacros);
+    shaderMacros->autorelease();
     
     NS::Error* err = nullptr;
     
@@ -440,6 +446,14 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
     eastl::vector<SimpleVertexFormat> vertices;
     genTexturedQuadVertices(rc->quads, &vertices);
     
+    if(gfxCtx()->rcTexturedQuadsVB == nullptr)
+    {
+        gfxCtx()->rcTexturedQuadsVB = gfxNewBuffer(nullptr, rgMEGABYTE(16), GfxResourceUsage_Stream);
+    }
+    
+    GfxBuffer* texturesQuadVB = gfxCtx()->rcTexturedQuadsVB;
+    gfxUpdateBuffer(texturesQuadVB, &vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 0);
+    
     // Later only one texture per RenderCmdTexturedQuads allowed
     struct InstanceParams
     {
@@ -455,7 +469,8 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
     
     mtl()->currentRenderEncoder->setRenderPipelineState(ctx->mtl.simple2dPSO->mtlPSO);
     mtl()->currentRenderEncoder->setVertexBytes(om, 16 * sizeof(rgFloat), 0);
-    mtl()->currentRenderEncoder->setVertexBytes(&vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 1);
+    //mtl()->currentRenderEncoder->setVertexBytes(&vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 1);
+    mtl()->currentRenderEncoder->setVertexBuffer(texturesQuadVB->mtlBuffers[texturesQuadVB->activeIdx], 0, 1);
     mtl()->currentRenderEncoder->setCullMode(MTL::CullModeNone);
     
     MTL::Viewport viewport;

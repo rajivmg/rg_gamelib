@@ -178,7 +178,7 @@ struct GfxBuffer
 typedef eastl::shared_ptr<GfxBuffer> GfxBufferPtr;
 
 GfxBuffer*  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
-void        gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgU32 length, rgU32 offset);
+void        gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset);
 void        gfxDeleteBuffer(GfxBuffer* buffer);
 
 //-----------------------------------------------------------------------------
@@ -292,6 +292,9 @@ struct GfxCtx
     Matrix4 orthographicMatrix;
     
     eastl::vector<GfxTexture2DHandle> debugTextureHandles; // test only
+    
+    // RenderCmdTexturedQuads
+    GfxBuffer* rcTexturedQuadsVB;
 
 #if defined(RG_SDL_RNDR)
     struct SDLGfxCtx

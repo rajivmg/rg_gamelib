@@ -164,6 +164,9 @@ struct FileData
 FileData readFile(const char* filepath);
 void     freeFileData(FileData* fd);
 
+extern rgDouble g_DeltaTime;
+extern rgDouble g_Time;
+
 RG_END_NAMESPACE
 
 extern rg::PhysicSystem* g_PhysicSystem;
