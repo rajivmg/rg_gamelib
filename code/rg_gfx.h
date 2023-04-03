@@ -80,6 +80,7 @@ struct TexturedQuad
     rgFloat4 offsetOrientation;
 #endif
     
+    rgU32 texID;
     //TexturedQuad(QuadUV uv_, Vector4 posScale_, Vector4 offsetOrientation_);
 };
 
@@ -104,24 +105,24 @@ inline TexturedQuad* pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV 
 }
  */
 
-inline void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation)
+inline void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, rgU32 texID)
 {
     TexturedQuad& q = quadList->push_back();
     q.uv = uv;
     q.posSize = posSize;
     q.offsetOrientation = offsetOrientation;
+    q.texID = texID;
 }
 
 template <rgSize N>
-inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation)
+inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, rgU32 texID)
 {
     TexturedQuad& q = quadList->push_back();
     q.uv = uv;
     q.posSize = posSize;
     q.offsetOrientation = offsetOrientation;
+    q.texID = texID;
 }
-
-void immTexturedQuad2(Texture* texture, QuadUV* quad, rgFloat x, rgFloat y, rgFloat orientationRad = 0.0f, rgFloat scaleX = 1.0f, rgFloat scaleY = 1.0f, rgFloat offsetX = 0.0f, rgFloat offsetY = 0.0f);
 
 //-----------------------------------------------------------------------------
 // General Common Stuff
@@ -134,7 +135,7 @@ rgInt updateAndDraw(rgDouble dt);
 // STUFF BELOW NEEDS TO BE IMPLEMENTED FOR EACH GRAPHICS BACKEND
 //-----------------------------------------------------------------------------
 
-static const rgSize kInvalidHandle = ~(0x0);
+static const rgU32 kInvalidHandle = ~(0x0);
 
 enum GfxMemoryUsage
 {
@@ -197,7 +198,12 @@ struct SimpleVertexFormat
     rgFloat color[4];
 };
 
-void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices);
+struct SimpleInstanceParams
+{
+    rgU32 texID;
+};
+
+void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, eastl::vector<SimpleInstanceParams>* instanceParams);
 
 //-----------------------------------------------------------------------------
 // Gfx Pipeline
@@ -247,7 +253,8 @@ void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 //-----------------------------------------------------------------------------
 // Gfx Texture
 //-----------------------------------------------------------------------------
-typedef rgSize GfxTexture2DHandle;
+typedef rgU32 GfxTexture2DHandle;
+static_assert(sizeof(GfxTexture2DHandle) == sizeof(TexturedQuad::texID), "sizeof(GfxTexture2DHandle) == sizeof(TexturedQuad::texID)");
 
 struct GfxTexture2D
 {

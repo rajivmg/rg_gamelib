@@ -67,7 +67,8 @@ static GfxTexture2DHandle getFreeTextures2DHandle()
     }
     else
     {
-        texHandle = gfxCtx()->textures2D.size();
+        rgAssert(gfxCtx()->textures2D.size() <= UINT32_MAX);
+        texHandle = (GfxTexture2DHandle)gfxCtx()->textures2D.size();
         gfxCtx()->textures2D.resize(texHandle + 1);
     }
     
@@ -129,7 +130,7 @@ TexturedQuad::TexturedQuad(QuadUV uv_, Vector4 posScale_, Vector4 offsetOrientat
 }
 */
 
-void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices)
+void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, eastl::vector<SimpleInstanceParams>* instanceParams)
 {
     rgUInt listSize = (rgUInt)quadList->size();
     for(rgUInt i = 0; i < listSize; ++i)
@@ -182,6 +183,10 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         vertices->push_back(v[1]);
         vertices->push_back(v[3]);
         vertices->push_back(v[2]);
+        
+        SimpleInstanceParams instParam;
+        instParam.texID = t.texID;
+        instanceParams->push_back(instParam);
     }
 }
 
@@ -213,11 +218,6 @@ void unloadTexture(Texture* t)
 {
     stbi_image_free(t->buf);
     rgDelete(t);
-}
-
-void immTexturedQuad2(Texture* texture, QuadUV* quad, rgFloat x, rgFloat y, rgFloat orientationRad, rgFloat scaleX, rgFloat scaleY, rgFloat offsetX, rgFloat offsetY)
-{
-    
 }
 
 RG_END_NAMESPACE

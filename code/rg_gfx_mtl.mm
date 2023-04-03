@@ -175,6 +175,8 @@ rgInt gfxDraw()
             mtl()->largeArrayTex2DArgEncoder->setArgumentBuffer(argBuffer, 0);
             
             rgSize largeArrayTex2DIndex = 0;
+            
+#if 0
             for(GfxTexture2DHandle handle : gfxCtx()->debugTextureHandles)
             {
                 GfxTexture2DPtr texPtr = gfxGetTexture2DPtr(handle);
@@ -184,7 +186,14 @@ rgInt gfxDraw()
                 
                 ++largeArrayTex2DIndex;
             }
-            
+#else
+            for(GfxTexture2DRef tex2D : gfxCtx()->textures2D)
+            {
+                mtl()->largeArrayTex2DArgEncoder->setTexture(tex2D->mtlTexture, largeArrayTex2DIndex);
+                mtl()->currentRenderEncoder->useResource(tex2D->mtlTexture, MTL::ResourceUsageRead);
+                ++largeArrayTex2DIndex;
+            }
+#endif
             argBuffer->didModifyRange(NS::Range(0, argBuffer->length()));
             mtl()->currentRenderEncoder->setFragmentBuffer(argBuffer, 0, 3);
         }
@@ -409,7 +418,9 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
     RenderCmdTexturedQuads* rc = (RenderCmdTexturedQuads*)cmd;
     
     eastl::vector<SimpleVertexFormat> vertices;
-    genTexturedQuadVertices(rc->quads, &vertices);
+    eastl::vector<SimpleInstanceParams> instanceParams;
+    
+    genTexturedQuadVertices(rc->quads, &vertices, &instanceParams);
     
     if(gfxCtx()->rcTexturedQuadsVB == nullptr)
     {
@@ -418,14 +429,12 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
     
     GfxBuffer* texturesQuadVB = gfxCtx()->rcTexturedQuadsVB;
     gfxUpdateBuffer(texturesQuadVB, &vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 0);
-    
-    // Later only one texture per RenderCmdTexturedQuads allowed
-    struct InstanceParams
-    {
-        rgU32 texID;
-    };
+
     // this is same as as rgU32, so we can write
-    eastl::fixed_vector<rgU32, 32> instanceParamsArray = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+    //eastl::fixed_vector<rgU32, 32> instanceParamsArray = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+    
+    
+    
     
     
     GfxCtx* ctx = gfxCtx();
@@ -434,6 +443,7 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
     
     mtl()->currentRenderEncoder->setRenderPipelineState(ctx->mtl.simple2dPSO->mtlPSO);
     mtl()->currentRenderEncoder->setVertexBytes(om, 16 * sizeof(rgFloat), 0);
+    mtl()->currentRenderEncoder->setFragmentBytes(&instanceParams.front(), instanceParams.size() * sizeof(SimpleInstanceParams), 4);
     mtl()->currentRenderEncoder->setVertexBuffer(texturesQuadVB->mtlBuffers[texturesQuadVB->activeIdx], 0, 1);
     mtl()->currentRenderEncoder->setCullMode(MTL::CullModeNone);
     

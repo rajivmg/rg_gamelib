@@ -17,7 +17,7 @@ struct VertexOut
     uint instanceId [[flat]];
 };
 
-struct InstanceParams
+struct SimpleInstanceParams
 {
     uint texID;
 };
@@ -30,7 +30,7 @@ struct FrameResources
 
 VertexOut vertex simple2d_VS(constant float4x4& projection [[buffer(0)]],
                              constant Vertex2D* smallVertexBuffer [[buffer(1)]],
-                             constant InstanceParams* instanceParams [[buffer(2)]],
+                             constant SimpleInstanceParams* instanceParams [[buffer(2)]],
                              uint vertexId [[vertex_id]],
                              uint instanceId [[instance_id]])
 {
@@ -45,12 +45,13 @@ VertexOut vertex simple2d_VS(constant float4x4& projection [[buffer(0)]],
 }
 
 fragment half4 simple2d_FS(VertexOut fragIn [[stage_in]],
-                           device FrameResources& frameResources [[buffer(3)]])
+                           device FrameResources& frameResources [[buffer(3)]],
+                           constant SimpleInstanceParams* instanceParams [[buffer(4)]])
 {
     //return half4(1.0, 0.0, 1.0, 1.0);
     //return fragIn.color;
-    constexpr sampler pointSampler(filter::nearest);
-    float4 color = frameResources.textures2d[fragIn.instanceId * 6000].sample(pointSampler, fragIn.texcoord);
+    constexpr sampler pointSampler(filter::linear);
+    float4 color = frameResources.textures2d[instanceParams[fragIn.instanceId].texID].sample(pointSampler, fragIn.texcoord);
     return half4(color);
 }
 
