@@ -47,12 +47,8 @@ rgU32 rgRenderKey(rgBool top)
 rgInt rg::setup()
 {
     g_GameData = rgNew(GameData);
-    
-    //TexturePtr tTexture = ; // TODO: create loadTGA() 
+
     GfxTexture2DHandle t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxResourceUsage_Static);
-    
-    //TexturePtr birdTex = rg::loadTexture("bird_texture.png");
-    //gfxCtx()->mtl.birdTexture = gfxNewTexture2D(birdTex, GfxResourceUsage_Static);
     
     for(rgInt i = 1; i <= 16; ++i)
     {
@@ -60,17 +56,6 @@ rgInt rg::setup()
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
         GfxTexture2DHandle t2d = gfxNewTexture2D(rg::loadTexture(path), GfxResourceUsage_Static);
         gfxCtx()->debugTextureHandles.push_back(t2d);
-    }
-
-    for(rgInt i = 0; i < 4; ++i)
-    {
-        for(rgInt j = 0; j < 4; ++j)
-        {
-            rgFloat px = j * (100) + 10 * (j + 1);
-            rgFloat py = i * (100) + 10 * (i + 1);
-            
-            pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0});
-        }
     }
     
     g_PhysicSystem = rgNew(PhysicSystem);
@@ -91,16 +76,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
 
     //gfxTexturedQuad();
     RenderCmdList* cmdList = gfxGetRenderCmdList();
-    //GfxCmdList* curGfxCmdList = gfxGetCmdList();
-    //GfxCmd_TexturedQuad* texQuadCmd = curGfxCmdList->AddCmd();
-    //RenderCmd_TexturedQuad *texQuadCmd = RenderCmdList->AddCmd()
     {
-        // Can RenderCmdList be implemented using intrusive_list
-        //RenderCmdTexturedQuad* texQuadCmd = cmdList->addCmd<RenderCmdTexturedQuad>(rgRenderKey(true), 0);
-        //texQuadCmd->header.type = RenderCmdType_TexturedQuad;
-        //texQuadCmd->texture = gfxGetTexture2DPtr(CRC32_STR("T.tga")); //gfxCtx()->textures2D[CRC32_STR("T.tga")].get();//gfxNewTexture2D(tTexture, GfxResourceUsage_Read);
-        //gfxCtx()->sdl.tTex = texQuadCmd->texture;
-        
         g_GameData->characterPortraits.resize(0);
         for(rgInt i = 0; i < 4; ++i)
         {
@@ -119,9 +95,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     }
     
     rgHash a = rgCRC32("hello world");
-    //RenderCmdList* cmdList = gfxBeginRenderCmdList("GameRenderCmdList");
-    //gfxTexturedQuad(cmdList, birdTexture, defaultQuadUV, Vector2(30, 100), )
-    
+
     return 0;
 }
 

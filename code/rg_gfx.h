@@ -17,7 +17,7 @@
 #include <EASTL/vector.h>
 #include <EASTL/fixed_vector.h>
 
-#define RG_MAX_FRAMES_IN_QUEUE 3
+#define RG_MAX_FRAMES_IN_FLIGHT 3
 
 RG_BEGIN_NAMESPACE
 
@@ -170,7 +170,7 @@ struct GfxBuffer
     rgSize size;
     rgInt activeIdx;
 #if defined(RG_METAL_RNDR)
-    MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_QUEUE];
+    MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_FLIGHT];
 #elif defined(RG_VULKAN_RNDR)
 
 #endif
@@ -283,7 +283,7 @@ struct GfxCtx
     rgUInt frameNumber;
     rgS32 frameIndex;
     
-    RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_QUEUE];
+    RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
 
     typedef eastl::vector<GfxTexture2DRef> HandleListGfxTexture2D;
     HandleListGfxTexture2D textures2D;

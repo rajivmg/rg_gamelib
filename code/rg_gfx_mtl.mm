@@ -76,10 +76,10 @@ rgInt gfxInit()
     CAMetalLayer* mtlLayer = (CAMetalLayer*)ctx->mtl.layer;
     mtlLayer.device = (__bridge id<MTLDevice>)(ctx->mtl.device);
     mtlLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-    mtlLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_QUEUE;
+    mtlLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_FLIGHT;
     //
 
-    mtl()->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_QUEUE);
+    mtl()->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
     
     GfxShaderDesc immShaderDesc = {};
     immShaderDesc.shaderSrcCode = g_ImmShaderSrcCode;
@@ -140,7 +140,7 @@ rgInt gfxDraw()
 {
     // TODO: move this from here..
     dispatch_semaphore_wait(mtl()->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
-    gfxCtx()->frameIndex = (gfxCtx()->frameIndex + 1) % RG_MAX_FRAMES_IN_QUEUE;
+    gfxCtx()->frameIndex = (gfxCtx()->frameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
     
     NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
     // --- Autorelease pool BEGIN
@@ -191,15 +191,7 @@ rgInt gfxDraw()
         
         gfxGetRenderCmdList()->draw();
         gfxGetRenderCmdList()->afterDraw();
-        
-        
-        /*
-        renderCmdEnc->setRenderPipelineState(ctx->mtl.immPSO->mtlPSO);
-        renderCmdEnc->setVertexBuffer(ctx->mtl.immVertexBuffer->mtlBuffer, 0, 0);
-        renderCmdEnc->setFragmentTexture(gfxCtx()->mtl.birdTexture->mtlTexture, 0);
-        renderCmdEnc->drawPrimitives(MTL::PrimitiveType::PrimitiveTypeTriangle, NS::UInteger(0), NS::UInteger(3));
-        */
-        
+
         mtl()->currentRenderEncoder->endEncoding();
         [commandBuffer presentDrawable:metalDrawable];
         
@@ -227,28 +219,6 @@ void gfxDestroy()
     
 }
 
-/*
-MTL::ResourceOptions toMTLResourceOptions(GfxMemoryUsage usage)
-{
-    MTL::ResourceOptions mode; // todo: set default
-    switch(usage)
-    {
-        case GfxMemoryUsage_CPUToGPU:
-            mode = MTL::ResourceStorageModeShared | MTL::ResourceCPUCacheModeWriteCombined;
-            break;
-        case GfxMemoryUsage_GPUOnly:
-            mode = MTL::StorageModePrivate;
-            break;
-        case GfxMemoryUsage_CPUOnly:
-            rgAssert(!"Not implemented");
-            break;
-        default:
-            rgAssert(!"Incorrect usages mode");
-    }
-    return mode;
-}
-*/
-
 GfxBuffer* gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage)
 {
     MTL::ResourceOptions mode = toMTLResourceOptions(usage);
@@ -265,7 +235,7 @@ GfxBuffer* gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage)
     
     MTLResourceOptions options = toMTLResourceOptions(usage);
     
-    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_QUEUE; ++i)
+    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         if(data != NULL)
         {
@@ -291,7 +261,7 @@ void gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
     
     if(buffer->usageMode != GfxResourceUsage_Static)
     {
-        if(++buffer->activeIdx >= RG_MAX_FRAMES_IN_QUEUE)
+        if(++buffer->activeIdx >= RG_MAX_FRAMES_IN_FLIGHT)
         {
             buffer->activeIdx = 0;
         }
@@ -307,7 +277,7 @@ void gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
 
 void gfxDeleteBuffer(GfxBuffer* buffer)
 {
-    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_QUEUE; ++i)
+    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         buffer->mtlBuffers[i]->release();
         
@@ -433,11 +403,6 @@ void deleterGfxTexture2D(GfxTexture2D* t2d)
     rgDelete(t2d);
 }
 
-void gfxHandleRenderCmdTexturedQuad(void const* cmd)
-{
-
-}
-
 void gfxHandleRenderCmdTexturedQuads(void const* cmd)
 {
     //
@@ -469,7 +434,6 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
     
     mtl()->currentRenderEncoder->setRenderPipelineState(ctx->mtl.simple2dPSO->mtlPSO);
     mtl()->currentRenderEncoder->setVertexBytes(om, 16 * sizeof(rgFloat), 0);
-    //mtl()->currentRenderEncoder->setVertexBytes(&vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 1);
     mtl()->currentRenderEncoder->setVertexBuffer(texturesQuadVB->mtlBuffers[texturesQuadVB->activeIdx], 0, 1);
     mtl()->currentRenderEncoder->setCullMode(MTL::CullModeNone);
     
