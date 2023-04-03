@@ -43,7 +43,7 @@ if(WIN32)
     link_directories(${3RD_PARTY_DIR}/lib ${VULKAN_SDK_ROOT_DIR}/Lib)
     set(EASTL_LIBRARY debug ${EASTL_ROOT_DIR}/build-win64/Debug/EASTL.lib optimized ${EASTL_ROOT_DIR}/build-win64/Release/EASTL.lib)
     
-    add_compile_definitions(RG_VULKAN_RNDR)
+    add_compile_definitions(RG_VULKAN_RNDR VK_NO_PROTOTYPES)
 
     # set compiler flags
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4201 /wd4100 /wd4189 /wd4505 /wd4127 /D_CRT_SECURE_NO_WARNINGS")
@@ -58,7 +58,7 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
     add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES})
-    target_link_libraries(rg_gamelib SDL2main SDL2 vulkan-1 ${EASTL_LIBRARY})
+    target_link_libraries(rg_gamelib SDL2main SDL2 ${EASTL_LIBRARY})
     set_target_properties(rg_gamelib PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
 
     set_target_properties(rg_gamelib PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")

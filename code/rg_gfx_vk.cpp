@@ -5,6 +5,9 @@
 #include "vk-bootstrap/VkBootstrap.h"
 #include "vk-bootstrap/VkBootstrapDispatch.h"
 
+#define VOLK_IMPLEMENTATION
+#include "volk/volk.h"
+
 #include <SDL2/SDL_vulkan.h>
 #include <EASTL/fixed_vector.h>
 
@@ -116,6 +119,8 @@ rgInt gfxInit()
 {
     GfxCtx::VkGfxCtx* vk = &gfxCtx()->vk;
 
+    rgVK_CHECK(volkInitialize()); /// volk
+
     // -- create vk instance
     vkb::InstanceBuilder instBuilder;
     vkb::Result<vkb::Instance> vkbInstRes = instBuilder.set_app_name("gamelib")
@@ -130,6 +135,8 @@ rgInt gfxInit()
 
     vk->vkbInstance = vkbInstRes.value();
     vk->inst = vk->vkbInstance.instance;
+
+    volkLoadInstance(vk->inst); /// volk
 
     // -- enumerate and select a physical device
     rgAssert(SDL_Vulkan_CreateSurface(gfxCtx()->mainWindow, vk->inst, &(vk->surface)));
@@ -162,6 +169,8 @@ rgInt gfxInit()
 
     vk->vkbDevice = devBuilderRes.value();
     vk->device = vk->vkbDevice.device;
+
+    volkLoadDevice(vk->device);
 
     // -- get graphics queue
     vkb::Result<VkQueue> grQueRes = vk->vkbDevice.get_queue(vkb::QueueType::graphics);
