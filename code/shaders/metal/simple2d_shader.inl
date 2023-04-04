@@ -27,17 +27,21 @@ struct FrameResources
     array<texture2d<float>, 99999> textures2d [[id(0)]];
 };
 
+struct Camera
+{
+    float4x4 projection;
+    float4x4 view;
+};
 
-VertexOut vertex simple2d_VS(constant float4x4& projection [[buffer(0)]],
-                             constant Vertex2D* smallVertexBuffer [[buffer(1)]],
+VertexOut vertex simple2d_VS(constant Camera& camera [[buffer(0)]],
+                             constant Vertex2D* vertexBuffer [[buffer(1)]],
                              constant SimpleInstanceParams* instanceParams [[buffer(2)]],
                              uint vertexId [[vertex_id]],
                              uint instanceId [[instance_id]])
 {
     VertexOut out;
-    constant Vertex2D* v = &smallVertexBuffer[instanceId * 6 + vertexId];
-    out.position = projection * float4(v->pos, 1.0, 1.0);
-    //out.position.z = 0.5;
+    constant Vertex2D* v = &vertexBuffer[instanceId * 6 + vertexId];
+    out.position = camera.projection * camera.view * float4(v->pos, 1.0, 1.0);
     out.texcoord = v->texcoord;
     out.color  = half4(v->color);
     out.instanceId = instanceId;
@@ -50,7 +54,7 @@ fragment half4 simple2d_FS(VertexOut fragIn [[stage_in]],
 {
     //return half4(1.0, 0.0, 1.0, 1.0);
     //return fragIn.color;
-    constexpr sampler pointSampler(filter::linear);
+    constexpr sampler pointSampler(filter::nearest);
     float4 color = frameResources.textures2d[instanceParams[fragIn.instanceId].texID].sample(pointSampler, fragIn.texcoord);
     return half4(color);
 }

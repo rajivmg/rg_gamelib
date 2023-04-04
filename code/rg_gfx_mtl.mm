@@ -427,23 +427,40 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
         gfxCtx()->rcTexturedQuadsVB = gfxNewBuffer(nullptr, rgMEGABYTE(16), GfxResourceUsage_Stream);
     }
     
+    if(gfxCtx()->rcTexturedQuadsInstParams == nullptr)
+    {
+        gfxCtx()->rcTexturedQuadsInstParams = gfxNewBuffer(nullptr, rgMEGABYTE(4), GfxResourceUsage_Stream);
+    }
+    
     GfxBuffer* texturesQuadVB = gfxCtx()->rcTexturedQuadsVB;
+    GfxBuffer* texturedQuadInstParams = gfxCtx()->rcTexturedQuadsInstParams;
     gfxUpdateBuffer(texturesQuadVB, &vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 0);
-
+    gfxUpdateBuffer(texturedQuadInstParams, &instanceParams.front(), instanceParams.size() * sizeof(SimpleInstanceParams), 0);
+    
     // this is same as as rgU32, so we can write
     //eastl::fixed_vector<rgU32, 32> instanceParamsArray = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
     
-    
-    
-    
-    
+
     GfxCtx* ctx = gfxCtx();
     
-    rgFloat* om = toFloatPtr(ctx->orthographicMatrix);
+    struct Camera
+    {
+        float projection[16];
+        float view[16];
+    } cam;
+    
+    rgFloat* orthoMatrix = toFloatPtr(ctx->orthographicMatrix);
+    rgFloat* viewMatrix = toFloatPtr(ctx->viewMatrix);
+    
+    for(rgInt i = 0; i < 16; ++i)
+    {
+        cam.projection[i] = orthoMatrix[i];
+        cam.view[i] = viewMatrix[i];
+    }
     
     mtl()->currentRenderEncoder->setRenderPipelineState(ctx->mtl.simple2dPSO->mtlPSO);
-    mtl()->currentRenderEncoder->setVertexBytes(om, 16 * sizeof(rgFloat), 0);
-    mtl()->currentRenderEncoder->setFragmentBytes(&instanceParams.front(), instanceParams.size() * sizeof(SimpleInstanceParams), 4);
+    mtl()->currentRenderEncoder->setVertexBytes(&cam, sizeof(Camera), 0);
+    mtl()->currentRenderEncoder->setFragmentBuffer(texturedQuadInstParams->mtlBuffers[texturedQuadInstParams->activeIdx], 0, 4);
     mtl()->currentRenderEncoder->setVertexBuffer(texturesQuadVB->mtlBuffers[texturesQuadVB->activeIdx], 0, 1);
     mtl()->currentRenderEncoder->setCullMode(MTL::CullModeNone);
     

@@ -30,7 +30,7 @@ rgInt gfxCommonInit()
     ctx->graphicCmdLists[0] = rgNew(RenderCmdList)("graphic cmdlist 0");
     ctx->graphicCmdLists[1] = rgNew(RenderCmdList)("graphic cmdlist 1");
     
-    ctx->orthographicMatrix = Matrix4::orthographic(0.0f, 720.0f, 720.0f, 0, 0.1f, 1000.0f);
+    ctx->orthographicMatrix = Matrix4::orthographic(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0, 0.1f, 1000.0f);
     
 #ifdef RG_METAL_RNDR
     //Matrix4 scaleZHalf = Matrix4::scale(Vector3(1.0f, 1.0f, -0.5f));
@@ -41,7 +41,8 @@ rgInt gfxCommonInit()
     //ctx->orthographicMatrix = shiftZHalf * scaleZHalf * ctx->orthographicMatrix;
     ctx->orthographicMatrix = makeOrthoProjection(0.0f, 720.0f, 720.0f, 0.0f, 0.1f, 1000.0f);
 #endif
-
+    
+    ctx->viewMatrix = Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0));
     return 0;
 }
 

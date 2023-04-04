@@ -34,6 +34,8 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
 
 GameData* g_GameData;
 rg::PhysicSystem* g_PhysicSystem;
+rg::WindowInfo g_WindowInfo;
+
 rgDouble rg::g_DeltaTime;
 rgDouble rg::g_Time;
 
@@ -58,6 +60,19 @@ rgInt rg::setup()
         gfxCtx()->debugTextureHandles.push_back(t2d);
     }
     
+    g_GameData->oceanTileTexture = gfxNewTexture2D(rg::loadTexture("oceanTile.png"), GfxResourceUsage_Static);
+    
+    {
+        for(rgInt y = -50; y < 50; ++y)
+        {
+            for(rgInt x = -50; x < 50; ++x)
+            {
+                pushTexturedQuad(&g_GameData->terrainAndOcean, defaultQuadUV, {(rgFloat)x, (rgFloat)y, 64.0f, 64.0f}, {0, 0, 0, 0}, g_GameData->oceanTileTexture);
+            }
+        }
+         //g_GameData->terrainAndOcean
+    }
+    
     g_PhysicSystem = rgNew(PhysicSystem);
 
     return 0;
@@ -77,6 +92,9 @@ rgInt rg::updateAndDraw(rgDouble dt)
     //gfxTexturedQuad();
     RenderCmdList* cmdList = gfxGetRenderCmdList();
     {
+        RenderCmdTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<RenderCmdTexturedQuads>(rgRenderKey(true), 0);
+        rcTerrainAndOceanQuads->quads = &g_GameData->terrainAndOcean;
+        
         g_GameData->characterPortraits.resize(0);
         for(rgInt i = 0; i < 4; ++i)
         {
@@ -101,8 +119,11 @@ rgInt rg::updateAndDraw(rgDouble dt)
 
 rgInt createSDLWindow(GfxCtx* ctx)
 {
-    rgUInt windowWidth = 720;
-    rgUInt windowHeight = 720;
+    g_WindowInfo.width = 720;
+    g_WindowInfo.height = 720;
+    
+    //rgUInt windowWidth = 720;
+    //rgUInt windowHeight = 720;
     Uint32 windowFlags = 0;
     
 #ifdef RG_VULKAN_RNDR
@@ -117,7 +138,7 @@ rgInt createSDLWindow(GfxCtx* ctx)
     {
         ctx->mainWindow = SDL_CreateWindow("gamelib",
                                            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                           windowWidth, windowHeight, windowFlags);
+                                           g_WindowInfo.width, g_WindowInfo.height, windowFlags);
         rgAssert(ctx->mainWindow != NULL);
         return 0;
     }

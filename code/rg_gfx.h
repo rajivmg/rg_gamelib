@@ -151,7 +151,7 @@ enum GfxResourceUsage
     GfxResourceUsage_Write,
     GfxResourceUsage_ReadWrite,
     
-    GfxResourceUsage_Static,    // Immutable, once created content cannot be updated
+    GfxResourceUsage_Static,    // Immutable, once created content cannot be modified
     GfxResourceUsage_Dynamic,   // Content will be updated infrequently
     GfxResourceUsage_Stream     // Content will be updated every frame
 };
@@ -298,11 +298,13 @@ struct GfxCtx
     eastl::vector<GfxTexture2DHandle> textures2DFreeHandles;
     
     Matrix4 orthographicMatrix;
+    Matrix4 viewMatrix;
     
     eastl::vector<GfxTexture2DHandle> debugTextureHandles; // test only
     
     // RenderCmdTexturedQuads
     GfxBuffer* rcTexturedQuadsVB;
+    GfxBuffer* rcTexturedQuadsInstParams;
 
 #if defined(RG_SDL_RNDR)
     struct SDLGfxCtx

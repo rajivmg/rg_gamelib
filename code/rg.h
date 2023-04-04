@@ -167,8 +167,15 @@ void     freeFileData(FileData* fd);
 extern rgDouble g_DeltaTime;
 extern rgDouble g_Time;
 
+struct WindowInfo
+{
+    rgUInt width;
+    rgUInt height;
+};
+
 RG_END_NAMESPACE
 
+extern rg::WindowInfo g_WindowInfo;
 extern rg::PhysicSystem* g_PhysicSystem;
 
 /// ----- Implementation
