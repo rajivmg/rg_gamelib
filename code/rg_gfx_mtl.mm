@@ -89,7 +89,8 @@ rgInt gfxInit()
     
     GfxRenderStateDesc immRenderStateDesc = {};
     immRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
-    
+    immRenderStateDesc.colorAttachments[0].blendingEnabled = true;
+
     gfxCtx()->mtl.immPSO = gfxNewGraphicsPSO(&immShaderDesc, &immRenderStateDesc);
     
     //
@@ -102,6 +103,7 @@ rgInt gfxInit()
     
     GfxRenderStateDesc simple2dRenderStateDesc = {};
     simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
     
     gfxCtx()->mtl.simple2dPSO = gfxNewGraphicsPSO(&simple2dShaderDesc, &simple2dRenderStateDesc);
     
@@ -343,9 +345,21 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
     for(rgInt i = 0; i < GfxRenderStateDesc::MAX_COLOR_ATTACHMENTS; ++i)
     {
         TinyImageFormat colorAttFormat = renderStateDesc->colorAttachments[i].pixelFormat;
+        rgBool blendingEnabled = renderStateDesc->colorAttachments[i].blendingEnabled;
         if(colorAttFormat != TinyImageFormat_UNDEFINED)
         {
             psoDesc->colorAttachments()->object(i)->setPixelFormat((MTL::PixelFormat)toMTLPixelFormat(colorAttFormat));
+            psoDesc->colorAttachments()->object(i)->setBlendingEnabled(blendingEnabled);
+            if(blendingEnabled)
+            {
+                psoDesc->colorAttachments()->object(i)->setRgbBlendOperation(MTL::BlendOperationAdd);
+                psoDesc->colorAttachments()->object(i)->setSourceRGBBlendFactor(MTL::BlendFactorSourceAlpha);
+                psoDesc->colorAttachments()->object(i)->setDestinationRGBBlendFactor(MTL::BlendFactorOneMinusSourceAlpha);
+                
+                psoDesc->colorAttachments()->object(i)->setAlphaBlendOperation(MTL::BlendOperationAdd);
+                psoDesc->colorAttachments()->object(i)->setSourceAlphaBlendFactor(MTL::BlendFactorOne);
+                psoDesc->colorAttachments()->object(i)->setDestinationAlphaBlendFactor(MTL::BlendFactorZero);
+            }
         }
     }
     

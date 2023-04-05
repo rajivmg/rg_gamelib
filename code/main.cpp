@@ -62,6 +62,8 @@ rgInt rg::setup()
     
     g_GameData->oceanTileTexture = gfxNewTexture2D(rg::loadTexture("oceanTile.png"), GfxResourceUsage_Static);
     
+    g_GameData->flowerTexture = gfxNewTexture2D(rg::loadTexture("flower.png"), GfxResourceUsage_Static);
+    
     {
         for(rgInt y = -50; y < 50; ++y)
         {
@@ -106,6 +108,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
                 pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfxCtx()->debugTextureHandles[j + i * 4]);
             }
         }
+        pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
         
         RenderCmdTexturedQuads* rcTexQuads = cmdList->addCmd<RenderCmdTexturedQuads>(rgRenderKey(true), 0);
         rcTexQuads->quads = &g_GameData->characterPortraits;

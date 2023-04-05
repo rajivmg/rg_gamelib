@@ -219,11 +219,16 @@ enum GfxShaderType
 struct GfxColorAttachementDesc
 {
     TinyImageFormat pixelFormat;
+    rgBool blendingEnabled;
+
+    // Create predefined common blending operations instead of giving fine control like vv
+    //GfxBlendOp blendOp;
+    //GfxSourceBlendFacter srcBlendFactor;
 };
 
 struct GfxRenderStateDesc
 {
-    static const rgUInt MAX_COLOR_ATTACHMENTS = 8;
+    static const rgUInt MAX_COLOR_ATTACHMENTS = 4;
 
     GfxColorAttachementDesc colorAttachments[MAX_COLOR_ATTACHMENTS];
     TinyImageFormat depthAttachementFormat;
@@ -250,6 +255,15 @@ struct GfxGraphicsPSO
 
 GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
 void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
+
+///
+
+struct GfxRenderPass
+{
+    
+};
+
+void gfxNewRenderPass();
 
 //-----------------------------------------------------------------------------
 // Gfx Texture
