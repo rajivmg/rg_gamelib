@@ -153,7 +153,19 @@ enum GfxResourceUsage
     
     GfxResourceUsage_Static,    // Immutable, once created content cannot be modified
     GfxResourceUsage_Dynamic,   // Content will be updated infrequently
-    GfxResourceUsage_Stream     // Content will be updated every frame
+    GfxResourceUsage_Stream,    // Content will be updated every frame
+};
+
+enum GfxCompareFunc
+{
+    GfxCompareFunc_Always,
+    GfxCompareFunc_Never,
+    GfxCompareFunc_Equal,
+    GfxCompareFunc_NotEqual,
+    GfxCompareFunc_Less,
+    GfxCompareFunc_LessEqual,
+    GfxCompareFunc_Greater,
+    GfxCompareFunc_GreaterEqual,
 };
 
 //-----------------------------------------------------------------------------
@@ -226,14 +238,43 @@ struct GfxColorAttachementDesc
     //GfxSourceBlendFacter srcBlendFactor;
 };
 
+// TODO:
+struct GfxDepthStencilAttachementDesc
+{
+    TinyImageFormat depthStencilFormat;
+    rgBool depthWriteEnabled;
+    GfxCompareFunc depthCompareFunc;
+};
+
 struct GfxRenderStateDesc
 {
     static const rgUInt MAX_COLOR_ATTACHMENTS = 4;
 
     GfxColorAttachementDesc colorAttachments[MAX_COLOR_ATTACHMENTS];
-    TinyImageFormat depthAttachementFormat;
-    TinyImageFormat stencilAttachementFormat;
+    GfxDepthStencilAttachementDesc depthStencilAttachement;
+    
+    // TODO
+    // DepthStencilState ^^
+
+    
+    // Viewport <--- not part of static state
+    // ScissorRect <--- not part of static state
+    // CullMode
+    // WindingMode CW CCW
+    // Primitive Type, Line, LineStrip, Triangle, TriangleStrip
+    // Index Type, U16, U32
 };
+
+// TODO: GfxRenderPass // MTLRenderPassDescriptor
+struct GfxRenderPass
+{
+    // Color Attachment Texture
+    // Color Clear Color
+    // Depth-Stencil Attachment Texture
+    // Depth Clear Value
+};
+
+///
 
 struct GfxShaderDesc
 {
@@ -257,21 +298,13 @@ struct GfxGraphicsPSO
 GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
 void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 
-///
-
-struct GfxRenderPass
-{
-    
-};
-
-void gfxNewRenderPass();
-
 //-----------------------------------------------------------------------------
 // Gfx Texture
 //-----------------------------------------------------------------------------
 typedef rgU32 GfxTexture2DHandle;
 static_assert(sizeof(GfxTexture2DHandle) == sizeof(TexturedQuad::texID), "sizeof(GfxTexture2DHandle) == sizeof(TexturedQuad::texID)");
 
+// TODO: RenderTarget Mode - Color and Depth. Will be used in GfxRenderPass
 struct GfxTexture2D
 {
     rgChar name[32];
@@ -345,11 +378,7 @@ struct GfxCtx
         GfxBuffer* immIndexBuffer;
         rgUInt immCurrentIndexCount;
         GfxGraphicsPSO* immPSO;
-        
-        GfxGraphicsPSO* simple2dPSO;
 
-        GfxTexture2DHandle birdTexture;
-        
         // arg buffers
         MTL::ArgumentEncoder* largeArrayTex2DArgEncoder;
         GfxBuffer* largeArrayTex2DArgBuffer;
@@ -437,10 +466,9 @@ struct RenderCmdTexturedQuad
 */
 struct RenderCmdTexturedQuads
 {
-    //RenderCmdHeader header; // TODO: instead of header, only store static const type?
     static const RenderCmdType type = RenderCmdType_TexturedQuads;
     
-    GfxGraphicsPSO* pso;
+    GfxGraphicsPSO* pso; // TODO: use Handle?
     TexturedQuads* quads;
     
     static CmdDispatchFnT* dispatchFn;

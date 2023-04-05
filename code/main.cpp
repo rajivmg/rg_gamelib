@@ -95,7 +95,7 @@ rgInt rg::setup()
     
     g_PhysicSystem = rgNew(PhysicSystem);
 
-#if 1
+#if 0
     b2Vec2 gravity(0.0f, -9.8f);
     g_GameData->phyWorld = rgNew(b2World)(gravity);
     b2World& world = *g_GameData->phyWorld;
@@ -164,7 +164,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     
     rgHash a = rgCRC32("hello world");
 
-#if 1
+#if 0
     rgFloat timeStep = 1.0f / 60.0f;
     int32 velocityIterations = 6;
     int32 positionIterations = 2;
