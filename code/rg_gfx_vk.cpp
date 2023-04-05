@@ -148,7 +148,7 @@ rgInt gfxInit()
     vkb::Result<vkb::PhysicalDevice> phyDevRes = phyDevSelector.set_surface(vk->surface)
         .set_minimum_version(1, 1)
         .require_present(true)
-        .add_required_extension("VK_EXT_shader_object")
+        /*.add_required_extension("VK_EXT_shader_object")*/
         .select();
 
     if(!phyDevRes)

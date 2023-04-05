@@ -26,6 +26,14 @@ include_directories(${IMGUI_ROOT_DIR})
 
 file(GLOB GAME_SRC_FILES "code/game/*.cpp" "code/game/*.h")
 file(GLOB IMGUI_SRC_FILES "${IMGUI_ROOT_DIR}/*.cpp" "${IMGUI_ROOT_DIR}/*.h")
+source_group("dear-imgui" FILES ${IMGUI_SRC_FILES})
+
+set(BOX2D_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/box2d)
+include_directories(${BOX2D_ROOT_DIR}/include)
+file(GLOB_RECURSE BOX2D_SRC_FILES "${BOX2D_ROOT_DIR}/src/*.cpp" "${BOX2D_ROOT_DIR}/src/*.h")
+source_group("Box2D" FILES ${BOX2D_SRC_FILES})
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if(WIN32)
 
@@ -54,7 +62,7 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES} ${BOX2D_SRC_FILES})
     target_link_libraries(rg_gamelib SDL2main SDL2 ${EASTL_LIBRARY})
     set_target_properties(rg_gamelib PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
 

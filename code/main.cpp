@@ -4,6 +4,8 @@
 #include "rg_gfx.h"
 #include "rg_physic.h"
 
+#include "box2D/box2d.h"
+
 #include <EASTL/vector.h>
 #include "game/game.h"
 
@@ -77,6 +79,33 @@ rgInt rg::setup()
     
     g_PhysicSystem = rgNew(PhysicSystem);
 
+#if 1
+    b2Vec2 gravity(0.0f, -9.8f);
+    g_GameData->phyWorld = rgNew(b2World)(gravity);
+    b2World& world = *g_GameData->phyWorld;
+
+    b2BodyDef groundBodyDef;
+    groundBodyDef.position.Set(0.0f, -10.0f);
+    b2Body* groundBody = world.CreateBody(&groundBodyDef);
+
+    b2PolygonShape groundBox;
+    groundBox.SetAsBox(50.0f, 10.0f);
+    groundBody->CreateFixture(&groundBox, 0.0f);
+
+    b2BodyDef boxBodyDef;
+    boxBodyDef.type = b2_dynamicBody;
+    boxBodyDef.position.Set(0.0f, 4.0f);
+    b2Body* boxBody = world.CreateBody(&boxBodyDef);
+
+    b2PolygonShape boxShape;
+    boxShape.SetAsBox(1.0f, 1.0f);
+    b2FixtureDef boxFixtureDef;
+    boxFixtureDef.shape = &boxShape;
+    boxFixtureDef.density = 1.0f;
+    boxFixtureDef.friction = 0.3f;
+    boxBody->CreateFixture(&boxFixtureDef);
+#endif
+
     return 0;
 }
 
@@ -116,6 +145,14 @@ rgInt rg::updateAndDraw(rgDouble dt)
     }
     
     rgHash a = rgCRC32("hello world");
+
+#if 1
+    rgFloat timeStep = 1.0f / 60.0f;
+    int32 velocityIterations = 6;
+    int32 positionIterations = 2;
+
+    g_GameData->phyWorld->Step(timeStep, velocityIterations, positionIterations);
+#endif
 
     return 0;
 }
