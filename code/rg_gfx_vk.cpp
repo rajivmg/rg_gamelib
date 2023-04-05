@@ -258,6 +258,11 @@ void deleterGfxTexture2D(GfxTexture2D* t2d)
 
 }
 
+GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
+{
+    return nullptr;
+}
+
 void gfxHandleRenderCmdTexturedQuad(void const* cmd)
 {
 }
