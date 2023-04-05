@@ -4,10 +4,12 @@
 #include "rg_gfx.h"
 #include "rg_physic.h"
 
-#include "box2D/box2d.h"
+#include "box2d/box2d.h"
 
 #include <EASTL/vector.h>
 #include "game/game.h"
+
+#include "shaders/metal/simple2d_shader.inl"
 
 // TODO:
 // 2. Add rgLogDebug() rgLogError()
@@ -65,6 +67,20 @@ rgInt rg::setup()
     g_GameData->oceanTileTexture = gfxNewTexture2D(rg::loadTexture("oceanTile.png"), GfxResourceUsage_Static);
     
     g_GameData->flowerTexture = gfxNewTexture2D(rg::loadTexture("flower.png"), GfxResourceUsage_Static);
+    
+    //
+    GfxShaderDesc simple2dShaderDesc = {};
+    simple2dShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;
+    simple2dShaderDesc.vsEntryPoint = "simple2d_VS";
+    simple2dShaderDesc.fsEntryPoint = "simple2d_FS";
+    simple2dShaderDesc.macros = "RIGHT";
+    
+    GfxRenderStateDesc simple2dRenderStateDesc = {};
+    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
+    
+    g_GameData->simple2dPSO = gfxNewGraphicsPSO(&simple2dShaderDesc, &simple2dRenderStateDesc);
+    //
     
     {
         for(rgInt y = -50; y < 50; ++y)
@@ -125,6 +141,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     {
         RenderCmdTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<RenderCmdTexturedQuads>(rgRenderKey(true), 0);
         rcTerrainAndOceanQuads->quads = &g_GameData->terrainAndOcean;
+        rcTerrainAndOceanQuads->pso = g_GameData->simple2dPSO;
         
         g_GameData->characterPortraits.resize(0);
         for(rgInt i = 0; i < 4; ++i)
@@ -140,6 +157,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
         
         RenderCmdTexturedQuads* rcTexQuads = cmdList->addCmd<RenderCmdTexturedQuads>(rgRenderKey(true), 0);
+        rcTexQuads->pso = g_GameData->simple2dPSO;
         rcTexQuads->quads = &g_GameData->characterPortraits;
         
     }

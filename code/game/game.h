@@ -8,6 +8,8 @@ struct GameData
     rg::TexturedQuads terrainAndOcean;
     rg::GfxTexture2DHandle oceanTileTexture;
     rg::GfxTexture2DHandle flowerTexture;
+    
+    rg::GfxGraphicsPSO* simple2dPSO; // TODO: use Handle
 
     b2World* phyWorld;
 };

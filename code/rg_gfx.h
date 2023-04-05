@@ -246,6 +246,7 @@ struct GfxShaderDesc
 
 struct GfxGraphicsPSO
 {
+    // TODO: Vertex attrib info
 #if defined(RG_METAL_RNDR)
     MTL::RenderPipelineState* mtlPSO;
 #elif defined(RG_VULKAN_RNDR)
@@ -439,7 +440,7 @@ struct RenderCmdTexturedQuads
     //RenderCmdHeader header; // TODO: instead of header, only store static const type?
     static const RenderCmdType type = RenderCmdType_TexturedQuads;
     
-    GfxTexture2DPtr texture; //replace this with unbound texture array index
+    GfxGraphicsPSO* pso;
     TexturedQuads* quads;
     
     static CmdDispatchFnT* dispatchFn;

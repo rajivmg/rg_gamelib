@@ -15,7 +15,6 @@
 RG_BEGIN_NAMESPACE
 
 #include "shaders/metal/imm_shader.inl"
-#include "shaders/metal/simple2d_shader.inl"
 
 #if 1
 static GfxCtx::Mtl* mtl()
@@ -92,22 +91,7 @@ rgInt gfxInit()
     immRenderStateDesc.colorAttachments[0].blendingEnabled = true;
 
     gfxCtx()->mtl.immPSO = gfxNewGraphicsPSO(&immShaderDesc, &immRenderStateDesc);
-    
-    //
-    
-    GfxShaderDesc simple2dShaderDesc = {};
-    simple2dShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;
-    simple2dShaderDesc.vsEntryPoint = "simple2d_VS";
-    simple2dShaderDesc.fsEntryPoint = "simple2d_FS";
-    simple2dShaderDesc.macros = "F";
-    
-    GfxRenderStateDesc simple2dRenderStateDesc = {};
-    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
-    simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
-    
-    gfxCtx()->mtl.simple2dPSO = gfxNewGraphicsPSO(&simple2dShaderDesc, &simple2dRenderStateDesc);
-    
-    //
+
     SimpleVertexFormat1 triangleVertices[3] =
     {
         {{-0.8f, 0.8f, 0.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
@@ -301,7 +285,7 @@ void gfxDeleteBuffer(GfxBuffer* buffer)
 
 GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
-    GfxGraphicsPSO* graphicsPSO = new GfxGraphicsPSO;
+    GfxGraphicsPSO* graphicsPSO = rgNew(GfxGraphicsPSO);
     
     NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
     
@@ -384,6 +368,7 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
 void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
 {
     pso->mtlPSO->release();
+    rgDelete(pso);
 }
 
 GfxTexture2DRef creatorGfxTexture2D(GfxTexture2DHandle handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
@@ -451,9 +436,7 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
     gfxUpdateBuffer(texturesQuadVB, &vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 0);
     gfxUpdateBuffer(texturedQuadInstParams, &instanceParams.front(), instanceParams.size() * sizeof(SimpleInstanceParams), 0);
     
-    // this is same as as rgU32, so we can write
-    //eastl::fixed_vector<rgU32, 32> instanceParamsArray = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
-    
+    //
 
     GfxCtx* ctx = gfxCtx();
     
@@ -472,7 +455,7 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
         cam.view[i] = viewMatrix[i];
     }
     
-    mtl()->currentRenderEncoder->setRenderPipelineState(ctx->mtl.simple2dPSO->mtlPSO);
+    mtl()->currentRenderEncoder->setRenderPipelineState(rc->pso->mtlPSO);
     mtl()->currentRenderEncoder->setVertexBytes(&cam, sizeof(Camera), 0);
     mtl()->currentRenderEncoder->setFragmentBuffer(texturedQuadInstParams->mtlBuffers[texturedQuadInstParams->activeIdx], 0, 4);
     mtl()->currentRenderEncoder->setVertexBuffer(texturesQuadVB->mtlBuffers[texturesQuadVB->activeIdx], 0, 1);
