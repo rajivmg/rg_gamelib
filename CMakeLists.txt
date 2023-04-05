@@ -30,7 +30,7 @@ source_group("dear-imgui" FILES ${IMGUI_SRC_FILES})
 
 set(BOX2D_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/box2d)
 include_directories(${BOX2D_ROOT_DIR}/include)
-file(GLOB_RECURSE BOX2D_SRC_FILES "${BOX2D_ROOT_DIR}/src/*.cpp" "${BOX2D_ROOT_DIR}/src/*.h")
+file(GLOB_RECURSE BOX2D_SRC_FILES "${BOX2D_ROOT_DIR}/src/*.cpp")
 source_group("Box2D" FILES ${BOX2D_SRC_FILES})
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)

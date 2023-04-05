@@ -152,6 +152,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     int32 positionIterations = 2;
 
     g_GameData->phyWorld->Step(timeStep, velocityIterations, positionIterations);
+    g_GameData->phyWorld->Dump();
 #endif
 
     return 0;
