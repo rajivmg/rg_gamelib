@@ -330,6 +330,24 @@ void deleterGfxTexture2D(GfxTexture2D* t2d);
 //-----------------------------------------------------------------------------
 // Graphic Context
 //-----------------------------------------------------------------------------
+#if 0
+template <typename RefType, typename HandleType>
+struct GfxHandleManager
+{
+    typedef eastl::vector<RefType> ReferenceList;
+    ReferenceList referenceList; // Hold reference to the resources until no longer needed
+    
+    typedef eastl::vector<HandleType> HandleList;
+    HandleList freeHandles; // Indexes in referenceList which are unused
+
+    HandleType getFreeHandle()
+    {
+
+    }
+    // TODO: eastl::vector<HandleType> getFreeHandles(int count);
+};
+#endif
+
 struct GfxCtx
 {
     GfxCtx() {}
