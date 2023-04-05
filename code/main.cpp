@@ -135,7 +135,16 @@ rgInt rg::updateAndDraw(rgDouble dt)
     quadUVs.push_back(fullQuadUV);
 
     //printf("%f\n", quadUVs.back().uvBottomRight[1]);
-
+    
+    // TODO:
+    // - RenderCmdSetRenderPass
+    // - RenderCmdSetPipeline
+    // - RenderCmdSetViewport
+    // - - RenderCmdPolygon <- This is independent of Pipeline.. thought pipeline Vertex attrib and other req. settings must be compatible
+    // - - RenderCmdPolygon
+    // - RenderCmdSetPipeline
+    // - - RenderCmdPolygon
+    
     //gfxTexturedQuad();
     RenderCmdList* cmdList = gfxGetRenderCmdList();
     {
