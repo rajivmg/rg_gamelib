@@ -345,7 +345,7 @@ void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 // Graphic Context
 //-----------------------------------------------------------------------------
 #if 1
-template <typename RefType, typename HandleType>
+template <typename Type, typename RefType, typename HandleType>
 struct GfxResourceManager
 {
     typedef eastl::vector<RefType> ReferenceList;
@@ -356,8 +356,37 @@ struct GfxResourceManager
 
     HandleType getFreeHandle()
     {
-
+        HandleType result = kInvalidHandle;
+        
+        if(!freeHandles.empty())
+        {
+            result = freeHandles.back();
+            freeHandles.pop_back();
+        }
+        else
+        {
+            rgAssert(referenceList.size() < UINT32_MAX);
+            result = (HandleType)referenceList.size();
+            referenceList.resize(result + 1);
+        }
+        
+        rgAssert(result != kInvalidHandle);
+        return result;
     }
+    
+    void releaseHandle(HandleType handle)
+    {
+        rgAssert(handle < referenceList.size());
+
+        (referenceList[handle]).reset();
+        freeHandles.push_back(handle);
+    }
+    
+    void setReferenceWithHandle(HandleType handle, RefType ref)
+    {
+        referenceList[handle] = ref;
+    }
+
     // TODO: eastl::vector<HandleType> getFreeHandles(int count);
 };
 #endif
@@ -373,9 +402,11 @@ struct GfxCtx
     
     RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
 
-    typedef eastl::vector<GfxTexture2DRef> HandleListGfxTexture2D;
-    HandleListGfxTexture2D textures2D;
-    eastl::vector<HGfxTexture2D> textures2DFreeHandles;
+    //typedef eastl::vector<GfxTexture2DRef> HandleListGfxTexture2D;
+    //HandleListGfxTexture2D textures2D;
+    //eastl::vector<HGfxTexture2D> textures2DFreeHandles;
+    
+    GfxResourceManager<GfxTexture2D, GfxTexture2DRef, HGfxTexture2D> texture2dManager;
     
     Matrix4 orthographicMatrix;
     Matrix4 viewMatrix;

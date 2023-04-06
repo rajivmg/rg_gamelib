@@ -173,7 +173,7 @@ rgInt gfxDraw()
                 ++largeArrayTex2DIndex;
             }
 #else
-            for(GfxTexture2DRef tex2D : gfxCtx()->textures2D)
+            for(GfxTexture2DRef tex2D : gfxCtx()->texture2dManager.referenceList)
             {
                 mtl()->largeArrayTex2DArgEncoder->setTexture(tex2D->mtlTexture, largeArrayTex2DIndex);
                 mtl()->currentRenderEncoder->useResource(tex2D->mtlTexture, MTL::ResourceUsageRead);
