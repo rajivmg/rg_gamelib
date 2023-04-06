@@ -19,7 +19,7 @@ RG_BEGIN_NAMESPACE
 //CmdDispatchFnT* RenderCmdTexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
 //CmdDestructorFnT* RenderCmdTexturedQuad::destructorFn = gfxDestroyRenderCmdTexturedQuad;
 
-//RG_DECL_RENDER_CMD_HANDLER(RenderCmdTexturedQuad);
+RG_DECL_RENDER_CMD_HANDLER(RenderCmdRenderPass);
 RG_DECL_RENDER_CMD_HANDLER(RenderCmdTexturedQuads);
 //RG_GEN_RENDER_CMD_DESTRUCTOR(RenderCmdTexturedQuad);
 
@@ -110,41 +110,8 @@ void RenderCmdList::draw()
     }
 }
 
-// TODO: call this through a deleter ptr in CmdPacket
-static void handleCmdDelete(void* cmd)
-{
-    RenderCmdHeader* header = (RenderCmdHeader*)cmd;
-    switch(header->type)
-    {
-        case RenderCmdType_TexturedQuad:
-        {
-            //((RenderCmdTexturedQuad*)cmd)->~RenderCmdTexturedQuad();
-        } break;
-        default:
-            rgAssert(!"Invalid type");
-    }
-}
-
 void RenderCmdList::afterDraw()
 {
-    //for(rgU32 i = 0; i < current; ++i)
-    //{
-    //    CmdPacket* pkt = packets[i];
-    //    for(;;)
-    //    {
-    //        //delete pkt->cmd;
-    //        //handleCmdDelete(pkt->cmd);
-    //        CmdDestructorFnT* DestructorFn = pkt->destructorFn;
-    //        DestructorFn(pkt->cmd);
-
-    //        pkt = pkt->nextCmdPacket;
-    //        if(pkt == NULL)
-    //        {
-    //            break;
-    //        }
-    //    }
-    //}
-
     memset(buffer, 0, baseOffset);
     current = 0;
     baseOffset = 0;
@@ -152,7 +119,7 @@ void RenderCmdList::afterDraw()
 
 RenderCmdList* gfxGetRenderCmdList()
 {
-    return gfxCtx()->graphicCmdLists[gfxCtx()->frameNumber & 1];
+    return gfxCtx()->graphicCmdLists[g_FrameIndex];
 }
 
 RG_END_NAMESPACE

@@ -40,8 +40,10 @@ GameData* g_GameData;
 rg::PhysicSystem* g_PhysicSystem;
 rg::WindowInfo g_WindowInfo;
 
-rgDouble rg::g_DeltaTime;
-rgDouble rg::g_Time;
+rgDouble g_DeltaTime;
+rgDouble g_Time;
+
+rgInt g_FrameIndex;
 
 rgBool g_ShouldQuit;
 
@@ -54,19 +56,19 @@ rgInt rg::setup()
 {
     g_GameData = rgNew(GameData);
 
-    HGfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxResourceUsage_Static);
+    HGfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
     
     for(rgInt i = 1; i <= 16; ++i)
     {
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
-        HGfxTexture2D t2d = gfxNewTexture2D(rg::loadTexture(path), GfxResourceUsage_Static);
+        HGfxTexture2D t2d = gfxNewTexture2D(rg::loadTexture(path), GfxTextureUsage_ShaderRead);
         gfxCtx()->debugTextureHandles.push_back(t2d);
     }
     
-    g_GameData->oceanTileTexture = gfxNewTexture2D(rg::loadTexture("oceanTile.png"), GfxResourceUsage_Static);
+    g_GameData->oceanTileTexture = gfxNewTexture2D(rg::loadTexture("oceanTile.png"), GfxTextureUsage_ShaderRead);
     
-    g_GameData->flowerTexture = gfxNewTexture2D(rg::loadTexture("flower.png"), GfxResourceUsage_Static);
+    g_GameData->flowerTexture = gfxNewTexture2D(rg::loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
     
     //
     GfxShaderDesc simple2dShaderDesc = {};
@@ -78,6 +80,7 @@ rgInt rg::setup()
     GfxRenderStateDesc simple2dRenderStateDesc = {};
     simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
     simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
+    simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
     
     g_GameData->simple2dPSO = gfxNewGraphicsPSO(&simple2dShaderDesc, &simple2dRenderStateDesc);
     //
@@ -148,6 +151,18 @@ rgInt rg::updateAndDraw(rgDouble dt)
     //gfxTexturedQuad();
     RenderCmdList* cmdList = gfxGetRenderCmdList();
     {
+        RenderCmdRenderPass* rcRenderPass = cmdList->addCmd<RenderCmdRenderPass>(rgRenderKey(false), 0);
+        
+        GfxRenderPass simple2dPass = {};
+        simple2dPass.colorAttachments[0].texture = gfxCtx()->renderTarget0[g_FrameIndex];
+        simple2dPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
+        simple2dPass.colorAttachments[0].clearColor = { 1.0f, 0.5f, 0.7f, 1.0f };
+        simple2dPass.depthStencilAttachmentTexture = gfxCtx()->depthStencilBuffer[g_FrameIndex];
+        simple2dPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
+        simple2dPass.clearDepth = 0.0f;
+        
+        rcRenderPass->renderPass = simple2dPass;
+        
         RenderCmdTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<RenderCmdTexturedQuads>(rgRenderKey(true), 0);
         rcTerrainAndOceanQuads->quads = &g_GameData->terrainAndOcean;
         rcTerrainAndOceanQuads->pso = g_GameData->simple2dPSO;
@@ -217,6 +232,8 @@ rgInt createSDLWindow(GfxCtx* ctx)
 int main(int argc, char* argv[])
 {
     g_GfxCtx = rgNew(GfxCtx);
+    
+    g_FrameIndex = -1;
 
     if(createSDLWindow(g_GfxCtx) != 0)
     {
@@ -243,6 +260,8 @@ int main(int argc, char* argv[])
     while(!g_ShouldQuit)
     {
         ++g_GfxCtx->frameNumber;
+        
+        g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
 
         Uint64 counterFrequency = SDL_GetPerformanceFrequency();
         previousPerfCounter = currentPerfCounter;

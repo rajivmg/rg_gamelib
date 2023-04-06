@@ -29,6 +29,7 @@ rgInt gfxCommonInit()
 
     ctx->graphicCmdLists[0] = rgNew(RenderCmdList)("graphic cmdlist 0");
     ctx->graphicCmdLists[1] = rgNew(RenderCmdList)("graphic cmdlist 1");
+    ctx->graphicCmdLists[2] = rgNew(RenderCmdList)("graphic cmdlist 2");
     
     ctx->orthographicMatrix = Matrix4::orthographic(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0, 0.1f, 1000.0f);
     
@@ -57,7 +58,7 @@ GfxTexture2DPtr gfxGetTexture2DPtr(HGfxTexture2D handle)
     return ptr;
 }
 
-HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
+HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage)
 {
     Texture* tex = texture.get();
     rgAssert(tex != nullptr);
@@ -68,7 +69,7 @@ HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage)
     return texHandle;
 }
 
-HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
+HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
     HGfxTexture2D texHandle = gfxCtx()->texture2dManager.getFreeHandle();
     GfxTexture2DRef t2dRef = creatorGfxTexture2D(texHandle, buf, width, height, format, usage, name);

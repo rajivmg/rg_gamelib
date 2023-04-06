@@ -157,6 +157,13 @@ enum GfxResourceUsage
     GfxResourceUsage_Stream,    // Content will be updated every frame
 };
 
+enum GfxTextureUsage
+{
+    GfxTextureUsage_ShaderRead,
+    GfxTextureUsage_ShaderWrite,
+    GfxTextureUsage_RenderTarget,
+};
+
 enum GfxCompareFunc
 {
     GfxCompareFunc_Always,
@@ -174,6 +181,12 @@ enum GfxLoadAction
     GfxLoadAction_DontCare,
     GfxLoadAction_Load,
     GfxLoadAction_Clear,
+};
+
+enum GfxStoreAction
+{
+    GfxStoreAction_DontCare,
+    GfxStoreAction_Store,
 };
 
 //-----------------------------------------------------------------------------
@@ -229,7 +242,7 @@ struct GfxTexture2D
 typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DRef;
 typedef GfxTexture2D* GfxTexture2DPtr;
 
-GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
+GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
 void deleterGfxTexture2D(GfxTexture2D* t2d);
 
 //-----------------------------------------------------------------------------
@@ -276,9 +289,8 @@ struct GfxColorAttachementStateDesc
 };
 
 // TODO:
-struct GfxDepthStencilAttachementStateDesc
+struct GfxDepthStencilState
 {
-    TinyImageFormat depthStencilFormat;
     rgBool depthWriteEnabled;
     GfxCompareFunc depthCompareFunc;
 };
@@ -286,7 +298,7 @@ struct GfxDepthStencilAttachementStateDesc
 struct GfxRenderStateDesc
 {
     GfxColorAttachementStateDesc colorAttachments[kMaxColorAttachments];
-    GfxDepthStencilAttachementStateDesc depthStencilAttachement;
+    TinyImageFormat depthStencilAttachmentFormat;
     
     // TODO
     // DepthStencilState ^^
@@ -304,6 +316,7 @@ struct GfxColorAttachmentDesc
 {
     HGfxTexture2D texture;
     GfxLoadAction loadAction;
+    GfxStoreAction storeAction;
     rgFloat4      clearColor;
 };
 
@@ -367,7 +380,7 @@ struct GfxResourceManager
         {
             rgAssert(referenceList.size() < UINT32_MAX);
             result = (HandleType)referenceList.size();
-            referenceList.resize(result + 1);
+            referenceList.resize(result + 1); // push_back(nullptr) ?
         }
         
         rgAssert(result != kInvalidHandle);
@@ -398,13 +411,9 @@ struct GfxCtx
 
     SDL_Window* mainWindow;
     rgUInt frameNumber;
-    rgS32 frameIndex;
+    //rgS32 frameIndex;
     
     RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
-
-    //typedef eastl::vector<GfxTexture2DRef> HandleListGfxTexture2D;
-    //HandleListGfxTexture2D textures2D;
-    //eastl::vector<HGfxTexture2D> textures2DFreeHandles;
     
     GfxResourceManager<GfxTexture2D, GfxTexture2DRef, HGfxTexture2D> texture2dManager;
     
@@ -412,6 +421,9 @@ struct GfxCtx
     Matrix4 viewMatrix;
     
     eastl::vector<HGfxTexture2D> debugTextureHandles; // test only
+    
+    HGfxTexture2D renderTarget0[RG_MAX_FRAMES_IN_FLIGHT];
+    HGfxTexture2D depthStencilBuffer[RG_MAX_FRAMES_IN_FLIGHT];
     
     // RenderCmdTexturedQuads
     GfxBuffer* rcTexturedQuadsVB;
@@ -434,13 +446,7 @@ struct GfxCtx
         dispatch_semaphore_t framesInFlightSemaphore;
         
         MTL::RenderCommandEncoder* currentRenderEncoder;
-
-        // -- immediate mode resources
-        GfxBuffer* immVertexBuffer;
-        rgUInt immCurrentVertexCount;
-        GfxBuffer* immIndexBuffer;
-        rgUInt immCurrentIndexCount;
-        GfxGraphicsPSO* immPSO;
+        MTL::CommandBuffer* currentCommandBuffer;
 
         // arg buffers
         MTL::ArgumentEncoder* largeArrayTex2DArgEncoder;
@@ -486,8 +492,8 @@ extern rg::GfxCtx* g_GfxCtx;
 
 inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 
-HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
-HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
+HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage);
+HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
 GfxTexture2DPtr gfxGetTexture2DPtr(HGfxTexture2D handle);
 
 //-----------------------------------------------------------------------------
@@ -495,8 +501,7 @@ GfxTexture2DPtr gfxGetTexture2DPtr(HGfxTexture2D handle);
 //-----------------------------------------------------------------------------
 enum RenderCmdType
 {
-    RenderCmdType_ColoredQuad,
-    RenderCmdType_TexturedQuad,
+    RenderCmdType_RenderPass,
     RenderCmdType_TexturedQuads
 };
 
@@ -527,6 +532,15 @@ struct RenderCmdTexturedQuad
     //static CmdDestructorFnT* destructorFn;
 };
 */
+
+struct RenderCmdRenderPass
+{
+    static const RenderCmdType type = RenderCmdType_RenderPass;
+    static CmdDispatchFnT* dispatchFn;
+    
+    GfxRenderPass renderPass;
+};
+
 struct RenderCmdTexturedQuads
 {
     static const RenderCmdType type = RenderCmdType_TexturedQuads;
@@ -540,7 +554,7 @@ struct RenderCmdTexturedQuads
 // struct RenderCmd_NewTransientResource
 // struct RenderCmd_DeleteTransientResource
 
-void gfxHandleRenderCmdTexturedQuad(void const* cmd);
+void gfxHandleRenderCmdRenderPass(void const* cmd);
 void gfxHandleRenderCmdTexturedQuads(void const* cmd);
 //void gfxDestroyRenderCmdTexturedQuad(void* cmd);
 
