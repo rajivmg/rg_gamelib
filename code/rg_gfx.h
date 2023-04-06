@@ -169,6 +169,13 @@ enum GfxCompareFunc
     GfxCompareFunc_GreaterEqual,
 };
 
+enum GfxLoadAction
+{
+    GfxLoadAction_DontCare,
+    GfxLoadAction_Load,
+    GfxLoadAction_Clear,
+};
+
 //-----------------------------------------------------------------------------
 // Gfx Setup
 //-----------------------------------------------------------------------------
@@ -195,6 +202,35 @@ typedef eastl::shared_ptr<GfxBuffer> GfxBufferPtr;
 GfxBuffer*  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
 void        gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset);
 void        gfxDeleteBuffer(GfxBuffer* buffer);
+
+//-----------------------------------------------------------------------------
+// Gfx Texture
+//-----------------------------------------------------------------------------
+typedef rgU32 HGfxTexture2D;
+static_assert(sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID), "sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID)");
+
+// TODO: RenderTarget Mode - Color and Depth. Will be used in GfxRenderPass
+struct GfxTexture2D
+{
+    rgChar name[32];
+    rgUInt width;
+    rgUInt height;
+    TinyImageFormat pixelFormat;
+    HGfxTexture2D handle;
+    
+#if defined(RG_METAL_RNDR)
+    MTL::Texture* mtlTexture;
+#elif defined(RG_VULKAN_RNDR)
+
+#elif defined(RG_SDL_RNDR)
+    SDL_Texture* sdlTexture;
+#endif
+};
+typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DRef;
+typedef GfxTexture2D* GfxTexture2DPtr;
+
+GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
+void deleterGfxTexture2D(GfxTexture2D* t2d);
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
@@ -229,7 +265,7 @@ enum GfxShaderType
     GfxShaderType_Compute
 };
 
-struct GfxColorAttachementDesc
+struct GfxColorAttachementStateDesc
 {
     TinyImageFormat pixelFormat;
     rgBool blendingEnabled;
@@ -240,7 +276,7 @@ struct GfxColorAttachementDesc
 };
 
 // TODO:
-struct GfxDepthStencilAttachementDesc
+struct GfxDepthStencilAttachementStateDesc
 {
     TinyImageFormat depthStencilFormat;
     rgBool depthWriteEnabled;
@@ -249,8 +285,8 @@ struct GfxDepthStencilAttachementDesc
 
 struct GfxRenderStateDesc
 {
-    GfxColorAttachementDesc colorAttachments[kMaxColorAttachments];
-    GfxDepthStencilAttachementDesc depthStencilAttachement;
+    GfxColorAttachementStateDesc colorAttachments[kMaxColorAttachments];
+    GfxDepthStencilAttachementStateDesc depthStencilAttachement;
     
     // TODO
     // DepthStencilState ^^
@@ -264,16 +300,21 @@ struct GfxRenderStateDesc
     // Index Type, U16, U32
 };
 
-// TODO: GfxRenderPass // MTLRenderPassDescriptor
+struct GfxColorAttachmentDesc
+{
+    HGfxTexture2D texture;
+    GfxLoadAction loadAction;
+    rgFloat4      clearColor;
+};
+
 struct GfxRenderPass
 {
-    //HGfxTexture2D colorAttachments[kMaxColorAttachments];
-    //HGfxTexture2D depthStencilAttachment;
+    GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
     
-    // Color Attachment Texture
-    // Color Clear Color
-    // Depth-Stencil Attachment Texture
-    // Depth Clear Value
+    HGfxTexture2D depthStencilAttachmentTexture;
+    GfxLoadAction depthStencilAttachmentLoadAction;
+    rgFloat  clearDepth;
+    rgU32    clearStencil;
 };
 
 ///
@@ -301,40 +342,11 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
 void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 
 //-----------------------------------------------------------------------------
-// Gfx Texture
-//-----------------------------------------------------------------------------
-typedef rgU32 HGfxTexture2D;
-static_assert(sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID), "sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID)");
-
-// TODO: RenderTarget Mode - Color and Depth. Will be used in GfxRenderPass
-struct GfxTexture2D
-{
-    rgChar name[32];
-    rgUInt width;
-    rgUInt height;
-    TinyImageFormat pixelFormat;
-    HGfxTexture2D handle;
-    
-#if defined(RG_METAL_RNDR)
-    MTL::Texture* mtlTexture;
-#elif defined(RG_VULKAN_RNDR)
-
-#elif defined(RG_SDL_RNDR)
-    SDL_Texture* sdlTexture;
-#endif
-};
-typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DRef;
-typedef GfxTexture2D* GfxTexture2DPtr;
-
-GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
-void deleterGfxTexture2D(GfxTexture2D* t2d);
-
-//-----------------------------------------------------------------------------
 // Graphic Context
 //-----------------------------------------------------------------------------
-#if 0
+#if 1
 template <typename RefType, typename HandleType>
-struct GfxHandleManager
+struct GfxResourceManager
 {
     typedef eastl::vector<RefType> ReferenceList;
     ReferenceList referenceList; // Hold reference to the resources until no longer needed
