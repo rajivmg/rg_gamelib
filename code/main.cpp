@@ -54,13 +54,13 @@ rgInt rg::setup()
 {
     g_GameData = rgNew(GameData);
 
-    GfxTexture2DHandle t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxResourceUsage_Static);
+    HGfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxResourceUsage_Static);
     
     for(rgInt i = 1; i <= 16; ++i)
     {
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
-        GfxTexture2DHandle t2d = gfxNewTexture2D(rg::loadTexture(path), GfxResourceUsage_Static);
+        HGfxTexture2D t2d = gfxNewTexture2D(rg::loadTexture(path), GfxResourceUsage_Static);
         gfxCtx()->debugTextureHandles.push_back(t2d);
     }
     

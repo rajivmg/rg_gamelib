@@ -163,7 +163,7 @@ rgInt gfxDraw()
             rgSize largeArrayTex2DIndex = 0;
             
 #if 0
-            for(GfxTexture2DHandle handle : gfxCtx()->debugTextureHandles)
+            for(HGfxTexture2D handle : gfxCtx()->debugTextureHandles)
             {
                 GfxTexture2DPtr texPtr = gfxGetTexture2DPtr(handle);
                 mtl()->largeArrayTex2DArgEncoder->setTexture(texPtr->mtlTexture, largeArrayTex2DIndex * 6000);
@@ -326,7 +326,7 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
     psoDesc->setFragmentFunction(fs);
     
     rgAssert(renderStateDesc != nullptr);
-    for(rgInt i = 0; i < GfxRenderStateDesc::MAX_COLOR_ATTACHMENTS; ++i)
+    for(rgInt i = 0; i < kMaxColorAttachments; ++i)
     {
         TinyImageFormat colorAttFormat = renderStateDesc->colorAttachments[i].pixelFormat;
         rgBool blendingEnabled = renderStateDesc->colorAttachments[i].blendingEnabled;
@@ -371,7 +371,7 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
     rgDelete(pso);
 }
 
-GfxTexture2DRef creatorGfxTexture2D(GfxTexture2DHandle handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
+GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
 {
     rgAssert(buf != NULL);
     MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];

@@ -6,8 +6,8 @@ struct GameData
 {
     rg::TexturedQuads characterPortraits;
     rg::TexturedQuads terrainAndOcean;
-    rg::GfxTexture2DHandle oceanTileTexture;
-    rg::GfxTexture2DHandle flowerTexture;
+    rg::HGfxTexture2D oceanTileTexture;
+    rg::HGfxTexture2D flowerTexture;
     
     rg::GfxGraphicsPSO* simple2dPSO; // TODO: use Handle
 

@@ -137,6 +137,7 @@ rgInt updateAndDraw(rgDouble dt);
 //-----------------------------------------------------------------------------
 
 static const rgU32 kInvalidHandle = ~(0x0);
+static const rgU32 kMaxColorAttachments = 4;
 
 enum GfxMemoryUsage
 {
@@ -248,9 +249,7 @@ struct GfxDepthStencilAttachementDesc
 
 struct GfxRenderStateDesc
 {
-    static const rgUInt MAX_COLOR_ATTACHMENTS = 4;
-
-    GfxColorAttachementDesc colorAttachments[MAX_COLOR_ATTACHMENTS];
+    GfxColorAttachementDesc colorAttachments[kMaxColorAttachments];
     GfxDepthStencilAttachementDesc depthStencilAttachement;
     
     // TODO
@@ -268,6 +267,9 @@ struct GfxRenderStateDesc
 // TODO: GfxRenderPass // MTLRenderPassDescriptor
 struct GfxRenderPass
 {
+    //HGfxTexture2D colorAttachments[kMaxColorAttachments];
+    //HGfxTexture2D depthStencilAttachment;
+    
     // Color Attachment Texture
     // Color Clear Color
     // Depth-Stencil Attachment Texture
@@ -301,8 +303,8 @@ void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 //-----------------------------------------------------------------------------
 // Gfx Texture
 //-----------------------------------------------------------------------------
-typedef rgU32 GfxTexture2DHandle;
-static_assert(sizeof(GfxTexture2DHandle) == sizeof(TexturedQuad::texID), "sizeof(GfxTexture2DHandle) == sizeof(TexturedQuad::texID)");
+typedef rgU32 HGfxTexture2D;
+static_assert(sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID), "sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID)");
 
 // TODO: RenderTarget Mode - Color and Depth. Will be used in GfxRenderPass
 struct GfxTexture2D
@@ -311,7 +313,7 @@ struct GfxTexture2D
     rgUInt width;
     rgUInt height;
     TinyImageFormat pixelFormat;
-    GfxTexture2DHandle handle;
+    HGfxTexture2D handle;
     
 #if defined(RG_METAL_RNDR)
     MTL::Texture* mtlTexture;
@@ -324,7 +326,7 @@ struct GfxTexture2D
 typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DRef;
 typedef GfxTexture2D* GfxTexture2DPtr;
 
-GfxTexture2DRef creatorGfxTexture2D(GfxTexture2DHandle handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
+GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
 void deleterGfxTexture2D(GfxTexture2D* t2d);
 
 //-----------------------------------------------------------------------------
@@ -361,12 +363,12 @@ struct GfxCtx
 
     typedef eastl::vector<GfxTexture2DRef> HandleListGfxTexture2D;
     HandleListGfxTexture2D textures2D;
-    eastl::vector<GfxTexture2DHandle> textures2DFreeHandles;
+    eastl::vector<HGfxTexture2D> textures2DFreeHandles;
     
     Matrix4 orthographicMatrix;
     Matrix4 viewMatrix;
     
-    eastl::vector<GfxTexture2DHandle> debugTextureHandles; // test only
+    eastl::vector<HGfxTexture2D> debugTextureHandles; // test only
     
     // RenderCmdTexturedQuads
     GfxBuffer* rcTexturedQuadsVB;
@@ -441,9 +443,9 @@ extern rg::GfxCtx* g_GfxCtx;
 
 inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 
-GfxTexture2DHandle gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
-GfxTexture2DHandle gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
-GfxTexture2DPtr gfxGetTexture2DPtr(GfxTexture2DHandle handle);
+HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxResourceUsage usage);
+HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name);
+GfxTexture2DPtr gfxGetTexture2DPtr(HGfxTexture2D handle);
 
 //-----------------------------------------------------------------------------
 // Gfx Render Command
