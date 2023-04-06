@@ -248,7 +248,7 @@ rgInt gfxDraw()
     return 0;
 }
 
-GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxResourceUsage usage, char const* name)
+GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
     return GfxTexture2DRef();
 }
@@ -263,12 +263,13 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
     return nullptr;
 }
 
-void gfxHandleRenderCmdTexturedQuad(void const* cmd)
+void gfxHandleRenderCmdTexturedQuads(void const* cmd)
 {
 }
 
-void gfxHandleRenderCmdTexturedQuads(void const* cmd)
+void gfxHandleRenderCmdRenderPass(void const* cmd)
 {
+
 }
 
 #if 0
