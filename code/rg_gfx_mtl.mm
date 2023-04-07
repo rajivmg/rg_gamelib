@@ -118,6 +118,16 @@ MTLPixelFormat toMTLPixelFormat(TinyImageFormat fmt)
     return (MTLPixelFormat)TinyImageFormat_ToMTLPixelFormat(fmt);
 }
 
+id<MTLTexture> getMTLTexture(HGfxTexture2D handle)
+{
+     return (__bridge id<MTLTexture>)(gfxGetTexture2DPtr(handle)->mtlTexture);
+}
+
+MTLClearColor toMTLClearColor(rgFloat4* color)
+{
+    return MTLClearColorMake(color->r, color->g, color->b, color->a);
+}
+
 struct SimpleVertexFormat1
 {
     simd::float3 position;
@@ -202,7 +212,7 @@ rgInt gfxDraw()
             mtl()->largeArrayTex2DArgEncoder->setArgumentBuffer(argBuffer, 0);
             
             rgSize largeArrayTex2DIndex = 0;
-            for(GfxTexture2DRef tex2D : gfxCtx()->texture2dManager.referenceList)
+            for(GfxTexture2DRef tex2D : gfxCtx()->texture2dManager)
             {
                 mtl()->largeArrayTex2DArgEncoder->setTexture(tex2D->mtlTexture, largeArrayTex2DIndex);
                 ++largeArrayTex2DIndex;
@@ -457,19 +467,18 @@ void gfxHandleRenderCmdRenderPass(void const* cmd)
         }
         
         MTLRenderPassColorAttachmentDescriptor* colorAttachmentDesc = [renderPassDesc colorAttachments][c];
-        rgFloat4* clearColor = &pass->colorAttachments[c].clearColor;
         
-        colorAttachmentDesc.texture = (__bridge id<MTLTexture>) gfxGetTexture2DPtr(pass->colorAttachments[c].texture)->mtlTexture;
-        colorAttachmentDesc.clearColor = MTLClearColorMake(clearColor->r, clearColor->g, clearColor->b, clearColor->a);
+        colorAttachmentDesc.texture = getMTLTexture(pass->colorAttachments[c].texture);
+        colorAttachmentDesc.clearColor = toMTLClearColor(&pass->colorAttachments[c].clearColor);
         colorAttachmentDesc.loadAction = toMTLLoadAction(pass->colorAttachments[c].loadAction);
         colorAttachmentDesc.storeAction = toMTLStoreAction(pass->colorAttachments[c].storeAction);
     }
     
     MTLRenderPassDepthAttachmentDescriptor* depthAttachmentDesc = [renderPassDesc depthAttachment];
-    depthAttachmentDesc.texture  = (__bridge id<MTLTexture>)gfxGetTexture2DPtr(pass->depthStencilAttachmentTexture)->mtlTexture;
+    depthAttachmentDesc.texture  = getMTLTexture(pass->depthStencilAttachmentTexture);
     depthAttachmentDesc.clearDepth = pass->clearDepth;
     depthAttachmentDesc.loadAction = toMTLLoadAction(pass->depthStencilAttachmentLoadAction);
-    depthAttachmentDesc.storeAction = MTLStoreActionStore;
+    depthAttachmentDesc.storeAction = toMTLStoreAction(pass->depthStencilAttachmentStoreAction);
     
     //mtl()->currentRenderEncoder = (__bridge MTL::RenderCommandEncoder*)[commandBuffer renderCommandEncoderWithDescriptor:renderPassDesc];
     mtl()->currentRenderEncoder = mtl()->currentCommandBuffer->renderCommandEncoder((__bridge MTL::RenderPassDescriptor*)renderPassDesc);
@@ -483,7 +492,7 @@ void gfxHandleRenderCmdRenderPass(void const* cmd)
     
     mtl()->currentRenderEncoder->setDepthStencilState((__bridge MTL::DepthStencilState*)dsState);
     
-    for(GfxTexture2DRef tex2D : gfxCtx()->texture2dManager.referenceList)
+    for(GfxTexture2DRef tex2D : gfxCtx()->texture2dManager)
     {
         mtl()->currentRenderEncoder->useResource(tex2D->mtlTexture, MTL::ResourceUsageRead);
     }

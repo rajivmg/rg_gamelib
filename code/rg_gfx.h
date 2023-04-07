@@ -326,6 +326,7 @@ struct GfxRenderPass
     
     HGfxTexture2D depthStencilAttachmentTexture;
     GfxLoadAction depthStencilAttachmentLoadAction;
+    GfxStoreAction depthStencilAttachmentStoreAction;
     rgFloat  clearDepth;
     rgU32    clearStencil;
 };
@@ -398,6 +399,16 @@ struct GfxResourceManager
     void setReferenceWithHandle(HandleType handle, RefType ref)
     {
         referenceList[handle] = ref;
+    }
+    
+    typename ReferenceList::iterator begin() EA_NOEXCEPT
+    {
+        return referenceList.begin();
+    }
+    
+    typename ReferenceList::iterator end() EA_NOEXCEPT
+    {
+        return referenceList.end();
     }
 
     // TODO: eastl::vector<HandleType> getFreeHandles(int count);
