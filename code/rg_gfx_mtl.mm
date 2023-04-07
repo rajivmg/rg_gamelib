@@ -197,6 +197,8 @@ rgInt gfxDraw()
     //CA::MetalDrawable* currentMetalDrawable = metalutils::nextDrawable(ctx);
     CAMetalLayer* metalLayer = (CAMetalLayer*)mtl()->layer;
     id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
+    //mtl()->metalDrawableTexture = (__bridge MTL::Texture*)[metalDrawable texture];
+    //mtl()->metalDrawableTexture->release(); // decr the reference count
     
     rgAssert(metalDrawable != nullptr);
     if(metalDrawable != nullptr)
@@ -461,9 +463,9 @@ void gfxHandleRenderCmdRenderPass(void const* cmd)
 
     for(rgInt c = 0; c < kMaxColorAttachments; ++c)
     {
-        if(pass->colorAttachments[c].texture == 0)
+        if(pass->colorAttachments[c].texture == kUninitializedHandle)
         {
-            break;
+            continue;
         }
         
         MTLRenderPassColorAttachmentDescriptor* colorAttachmentDesc = [renderPassDesc colorAttachments][c];

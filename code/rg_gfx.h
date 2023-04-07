@@ -137,6 +137,7 @@ rgInt updateAndDraw(rgDouble dt);
 //-----------------------------------------------------------------------------
 
 static const rgU32 kInvalidHandle = ~(0x0);
+static const rgU32 kUninitializedHandle = 0;
 static const rgU32 kMaxColorAttachments = 4;
 
 enum GfxMemoryUsage
@@ -358,7 +359,6 @@ void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 //-----------------------------------------------------------------------------
 // Graphic Context
 //-----------------------------------------------------------------------------
-#if 1
 template <typename Type, typename RefType, typename HandleType>
 struct GfxResourceManager
 {
@@ -413,7 +413,6 @@ struct GfxResourceManager
 
     // TODO: eastl::vector<HandleType> getFreeHandles(int count);
 };
-#endif
 
 struct GfxCtx
 {
@@ -455,6 +454,8 @@ struct GfxCtx
         MTL::CommandQueue* commandQueue;
         
         dispatch_semaphore_t framesInFlightSemaphore;
+        
+        //MTL::Texture* metalDrawableTexture;
         
         MTL::RenderCommandEncoder* currentRenderEncoder;
         MTL::CommandBuffer* currentCommandBuffer;
