@@ -259,6 +259,24 @@ rgInt gfxDraw()
     return 0;
 }
 
+GfxBuffer* gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage)
+{
+    VkBufferCreateInfo bufferInfo = {};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    bufferInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    bufferInfo.usage |= VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT;
+    bufferInfo.usage |= VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT;
+    bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    // TODO: Add more :) usage bits, thank you Vulkan 
+
+    VmaAllocationCreateInfo allocInfo = {};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+}
+
 GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
     return GfxTexture2DRef();

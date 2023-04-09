@@ -207,7 +207,7 @@ struct GfxBuffer
 #if defined(RG_METAL_RNDR)
     MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_FLIGHT];
 #elif defined(RG_VULKAN_RNDR)
-
+    VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
 #endif
 };
 typedef eastl::shared_ptr<GfxBuffer> GfxBufferPtr;
@@ -234,7 +234,7 @@ struct GfxTexture2D
 #if defined(RG_METAL_RNDR)
     MTL::Texture* mtlTexture;
 #elif defined(RG_VULKAN_RNDR)
-
+    VkImage vkTexture;
 #elif defined(RG_SDL_RNDR)
     SDL_Texture* sdlTexture;
 #endif
