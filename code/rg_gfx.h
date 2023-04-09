@@ -2,7 +2,6 @@
 #define __RG_GFX_H__
 
 #if defined(RG_VULKAN_RNDR)
-//#include <vulkan/vulkan.h>
 #include "volk/volk.h"
 #include "vk-bootstrap/VkBootstrap.h"
 #elif defined(RG_METAL_RNDR)

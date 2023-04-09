@@ -4,6 +4,8 @@
 #define VOLK_IMPLEMENTATION
 #include "volk/volk.h"
 
+#include "vk_mem_alloc.h"
+
 #include "vk-bootstrap/VkBootstrap.cpp"
 #include "vk-bootstrap/VkBootstrap.h"
 #include "vk-bootstrap/VkBootstrapDispatch.h"
@@ -146,7 +148,7 @@ rgInt gfxInit()
 
     vkb::PhysicalDeviceSelector phyDevSelector{ vk->vkbInstance };
     vkb::Result<vkb::PhysicalDevice> phyDevRes = phyDevSelector.set_surface(vk->surface)
-        .set_minimum_version(1, 1)
+        .set_minimum_version(1, 3)
         .require_present(true)
         /*.add_required_extension("VK_EXT_shader_object")*/
         .select();
@@ -222,6 +224,15 @@ rgInt gfxInit()
 
         rgVK_CHECK(vkCreateFramebuffer(vk->device, &fbInfo, NULL, &vk->framebuffers[i]));
     }
+
+    VmaAllocatorCreateInfo vmaInfo = {};
+    vmaInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+    vmaInfo.physicalDevice = vk->physicalDevice;
+    vmaInfo.device = vk->device;
+    vmaInfo.instance = vk->inst;
+
+    VmaAllocator vmaAllocator;
+    vmaCreateAllocator(&vmaInfo, &vmaAllocator);
 
     createPipeline(vk);
 
