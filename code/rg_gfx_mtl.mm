@@ -148,6 +148,7 @@ rgInt gfxInit()
     mtlLayer.device = (__bridge id<MTLDevice>)(ctx->mtl.device);
     mtlLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     mtlLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_FLIGHT;
+    mtlLayer.framebufferOnly = false;
     //
 
     mtl()->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
@@ -203,8 +204,8 @@ rgInt gfxDraw()
     rgAssert(metalDrawable != nullptr);
     if(metalDrawable != nullptr)
     {
-        id<MTLCommandBuffer> commandBuffer = (__bridge id<MTLCommandBuffer>)mtl()->commandQueue->commandBuffer();
-        mtl()->currentCommandBuffer = (__bridge MTL::CommandBuffer*)commandBuffer;
+        id<MTLCommandBuffer> mtlCommandBuffer = (__bridge id<MTLCommandBuffer>)mtl()->commandQueue->commandBuffer();
+        mtl()->currentCommandBuffer = (__bridge MTL::CommandBuffer*)mtlCommandBuffer;
         
         // bind all textures
         {
@@ -227,15 +228,24 @@ rgInt gfxDraw()
         gfxGetRenderCmdList()->afterDraw();
 
         mtl()->currentRenderEncoder->endEncoding();
-        [commandBuffer presentDrawable:metalDrawable];
+        
+        // blit renderTarget0 to MTLDrawable
+        id<MTLBlitCommandEncoder> blitEncoder = [mtlCommandBuffer blitCommandEncoder];
+        
+        id<MTLTexture> srcTexture = getMTLTexture(gfxCtx()->renderTarget0[g_FrameIndex]);
+        id<MTLTexture> dstTexture = metalDrawable.texture;
+        [blitEncoder copyFromTexture:srcTexture toTexture:dstTexture];
+        [blitEncoder endEncoding];
+        
+        [mtlCommandBuffer presentDrawable:metalDrawable];
         
         __block dispatch_semaphore_t blockSemaphore = mtl()->framesInFlightSemaphore;
-        [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
+        [mtlCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
          {
             dispatch_semaphore_signal(blockSemaphore);
         }];
         
-        [commandBuffer commit];
+        [mtlCommandBuffer commit];
     }
     else
     {
