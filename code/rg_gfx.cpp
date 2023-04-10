@@ -47,15 +47,33 @@ rgInt gfxCommonInit()
     return 0;
 }
 
-GfxTexture2DPtr gfxGetTexture2DPtr(HGfxTexture2D handle)
+HGfxBuffer gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage)
 {
-    rgAssert(handle < gfxCtx()->texture2dManager.referenceList.size());
-    
-    GfxTexture2DPtr ptr = nullptr;
-    ptr = gfxCtx()->texture2dManager.referenceList[handle].get();
-    rgAssert(ptr != nullptr);
-    
-    return ptr;
+    HGfxBuffer bufferHandle = gfxCtx()->buffersManager.getFreeHandle();
+    GfxBufferRef bufferRef = creatorGfxBuffer(data, size, usage);
+    gfxCtx()->buffersManager.setReferenceWithHandle(bufferHandle, bufferRef);
+    return bufferHandle;
+}
+
+void gfxUpdateBuffer(HGfxBuffer handle, void* data, rgSize size, rgU32 offset)
+{
+    GfxBuffer* buffer = gfxCtx()->buffersManager.getPtr(handle);
+    updaterGfxBuffer(buffer, data, size, offset);
+}
+
+void gfxDeleteBuffer(HGfxBuffer handle)
+{
+    gfxCtx()->buffersManager.releaseHandle(handle);
+}
+
+GfxTexture2D* gfxTexture2DPtr(HGfxTexture2D texture2dHandle)
+{
+    return gfxCtx()->texture2dManager.getPtr(texture2dHandle);
+}
+
+GfxBuffer* gfxBufferPtr(HGfxBuffer bufferHandle)
+{
+    return gfxCtx()->buffersManager.getPtr(bufferHandle);
 }
 
 HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage)
@@ -64,7 +82,8 @@ HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage)
     rgAssert(tex != nullptr);
     
     HGfxTexture2D texHandle = gfxCtx()->texture2dManager.getFreeHandle();
-    GfxTexture2DRef t2dRef = creatorGfxTexture2D(texHandle, tex->buf, tex->width, tex->height, tex->format, usage, tex->name);
+    GfxTexture2DRef t2dRef = creatorGfxTexture2D(tex->buf, tex->width, tex->height, tex->format, usage, tex->name);
+    t2dRef->texID = texHandle;
     gfxCtx()->texture2dManager.setReferenceWithHandle(texHandle, t2dRef);
     return texHandle;
 }
@@ -72,7 +91,8 @@ HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage)
 HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
     HGfxTexture2D texHandle = gfxCtx()->texture2dManager.getFreeHandle();
-    GfxTexture2DRef t2dRef = creatorGfxTexture2D(texHandle, buf, width, height, format, usage, name);
+    GfxTexture2DRef t2dRef = creatorGfxTexture2D(buf, width, height, format, usage, name);
+    t2dRef->texID = texHandle;
     gfxCtx()->texture2dManager.setReferenceWithHandle(texHandle, t2dRef);
     return texHandle;
 }

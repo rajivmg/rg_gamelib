@@ -199,6 +199,8 @@ rgInt gfxDraw();
 //-----------------------------------------------------------------------------
 // Gfx Buffers
 //-----------------------------------------------------------------------------
+typedef rgU32 HGfxBuffer;
+
 struct GfxBuffer
 {
     GfxResourceUsage usageMode;
@@ -210,11 +212,15 @@ struct GfxBuffer
     VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
 #endif
 };
-typedef eastl::shared_ptr<GfxBuffer> GfxBufferPtr;
+typedef eastl::shared_ptr<GfxBuffer> GfxBufferRef;
 
-GfxBuffer*  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
-void        gfxUpdateBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset);
-void        gfxDeleteBuffer(GfxBuffer* buffer);
+HGfxBuffer  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
+void        gfxUpdateBuffer(HGfxBuffer handle, void* data, rgSize size, rgU32 offset);
+void        gfxDeleteBuffer(HGfxBuffer handle);
+
+GfxBufferRef creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage);
+void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset);
+void deleterGfxBuffer(GfxBuffer* buffer);
 
 //-----------------------------------------------------------------------------
 // Gfx Texture
@@ -229,7 +235,7 @@ struct GfxTexture2D
     rgUInt width;
     rgUInt height;
     TinyImageFormat pixelFormat;
-    HGfxTexture2D handle;
+    rgU32 texID;
     
 #if defined(RG_METAL_RNDR)
     MTL::Texture* mtlTexture;
@@ -240,9 +246,8 @@ struct GfxTexture2D
 #endif
 };
 typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DRef;
-typedef GfxTexture2D* GfxTexture2DPtr;
 
-GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
+GfxTexture2DRef creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
 void deleterGfxTexture2D(GfxTexture2D* t2d);
 
 //-----------------------------------------------------------------------------
@@ -409,7 +414,18 @@ struct GfxResourceManager
     {
         return referenceList.end();
     }
-
+    
+    Type* getPtr(HandleType handle)
+    {
+        rgAssert(handle < referenceList.size());
+        
+        Type* ptr = nullptr;
+        ptr = referenceList[handle].get();
+        rgAssert(ptr != nullptr);
+        
+        return ptr;
+    }
+    
     // TODO: eastl::vector<HandleType> getFreeHandles(int count);
 };
 
@@ -425,6 +441,7 @@ struct GfxCtx
     RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
     
     GfxResourceManager<GfxTexture2D, GfxTexture2DRef, HGfxTexture2D> texture2dManager;
+    GfxResourceManager<GfxBuffer, GfxBufferRef, HGfxBuffer> buffersManager;
     
     Matrix4 orthographicMatrix;
     Matrix4 viewMatrix;
@@ -435,8 +452,8 @@ struct GfxCtx
     HGfxTexture2D depthStencilBuffer[RG_MAX_FRAMES_IN_FLIGHT];
     
     // RenderCmdTexturedQuads
-    GfxBuffer* rcTexturedQuadsVB;
-    GfxBuffer* rcTexturedQuadsInstParams;
+    HGfxBuffer rcTexturedQuadsVB;
+    HGfxBuffer rcTexturedQuadsInstParams;
 
 #if defined(RG_SDL_RNDR)
     struct SDLGfxCtx
@@ -453,15 +470,13 @@ struct GfxCtx
         MTL::CommandQueue* commandQueue;
         
         dispatch_semaphore_t framesInFlightSemaphore;
-        
-        //MTL::Texture* metalDrawableTexture;
-        
-        MTL::RenderCommandEncoder* currentRenderEncoder;
-        MTL::CommandBuffer* currentCommandBuffer;
+
+        void* renderEncoder; // type: id<MTLRenderCommandEncoder>
+        void* commandBuffer; // type: id<MTLCommandBuffer>
 
         // arg buffers
         MTL::ArgumentEncoder* largeArrayTex2DArgEncoder;
-        GfxBuffer* largeArrayTex2DArgBuffer;
+        HGfxBuffer largeArrayTex2DArgBuffer;
     } mtl;
 #elif defined(RG_VULKAN_RNDR)
     struct VkGfxCtx
@@ -505,7 +520,8 @@ inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 
 HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage);
 HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
-GfxTexture2DPtr gfxGetTexture2DPtr(HGfxTexture2D handle);
+GfxTexture2D*   gfxTexture2DPtr(HGfxTexture2D texture2dHandle);
+GfxBuffer*      gfxBufferPtr(HGfxBuffer bufferHandle);
 
 //-----------------------------------------------------------------------------
 // Gfx Render Command
