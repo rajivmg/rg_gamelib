@@ -259,7 +259,7 @@ rgInt gfxDraw()
     return 0;
 }
 
-GfxBuffer* gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage)
+GfxBufferRef creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
 {
     VkBufferCreateInfo bufferInfo = {};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -275,9 +275,20 @@ GfxBuffer* gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage)
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
+    return GfxBufferRef();
 }
 
-GfxTexture2DRef creatorGfxTexture2D(HGfxTexture2D handle, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
+void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
+{
+
+}
+
+void deleterGfxBuffer(GfxBuffer* buffer)
+{
+
+}
+
+GfxTexture2DRef creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
     return GfxTexture2DRef();
 }

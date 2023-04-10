@@ -199,8 +199,6 @@ rgInt gfxDraw();
 //-----------------------------------------------------------------------------
 // Gfx Buffers
 //-----------------------------------------------------------------------------
-typedef rgU32 HGfxBuffer;
-
 struct GfxBuffer
 {
     GfxResourceUsage usageMode;
@@ -213,10 +211,12 @@ struct GfxBuffer
 #endif
 };
 typedef eastl::shared_ptr<GfxBuffer> GfxBufferRef;
+typedef rgU32 HGfxBuffer;
 
 HGfxBuffer  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
 void        gfxUpdateBuffer(HGfxBuffer handle, void* data, rgSize size, rgU32 offset);
 void        gfxDeleteBuffer(HGfxBuffer handle);
+GfxBuffer*  gfxBufferPtr(HGfxBuffer bufferHandle);
 
 GfxBufferRef creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage);
 void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset);
@@ -225,10 +225,6 @@ void deleterGfxBuffer(GfxBuffer* buffer);
 //-----------------------------------------------------------------------------
 // Gfx Texture
 //-----------------------------------------------------------------------------
-typedef rgU32 HGfxTexture2D;
-static_assert(sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID), "sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID)");
-
-// TODO: RenderTarget Mode - Color and Depth. Will be used in GfxRenderPass
 struct GfxTexture2D
 {
     rgChar name[32];
@@ -246,6 +242,12 @@ struct GfxTexture2D
 #endif
 };
 typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DRef;
+typedef rgU32 HGfxTexture2D;
+static_assert(sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID), "sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID)");
+
+HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage);
+HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
+GfxTexture2D* gfxTexture2DPtr(HGfxTexture2D texture2dHandle);
 
 GfxTexture2DRef creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
 void deleterGfxTexture2D(GfxTexture2D* t2d);
@@ -293,7 +295,6 @@ struct GfxColorAttachementStateDesc
     //GfxSourceBlendFacter srcBlendFactor;
 };
 
-// TODO:
 struct GfxDepthStencilState
 {
     rgBool depthWriteEnabled;
@@ -336,8 +337,6 @@ struct GfxRenderPass
     rgU32    clearStencil;
 };
 
-///
-
 struct GfxShaderDesc
 {
     char const* shaderSrcCode;
@@ -349,7 +348,7 @@ struct GfxShaderDesc
 
 struct GfxGraphicsPSO
 {
-    // TODO: Vertex attrib info
+    // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly. 
 #if defined(RG_METAL_RNDR)
     MTL::RenderPipelineState* mtlPSO;
 #elif defined(RG_VULKAN_RNDR)
@@ -359,6 +358,14 @@ struct GfxGraphicsPSO
 
 GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
 void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
+
+//-----------------------------------------------------------------------------
+// Resource Binding
+//-----------------------------------------------------------------------------
+struct DescriptorBufferLayout
+{
+
+};
 
 //-----------------------------------------------------------------------------
 // Graphic Context
@@ -436,7 +443,6 @@ struct GfxCtx
 
     SDL_Window* mainWindow;
     rgUInt frameNumber;
-    //rgS32 frameIndex;
     
     RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
     
@@ -517,11 +523,6 @@ struct GfxCtx
 extern rg::GfxCtx* g_GfxCtx;
 
 inline GfxCtx* gfxCtx() { return g_GfxCtx; }
-
-HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage);
-HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
-GfxTexture2D*   gfxTexture2DPtr(HGfxTexture2D texture2dHandle);
-GfxBuffer*      gfxBufferPtr(HGfxBuffer bufferHandle);
 
 //-----------------------------------------------------------------------------
 // Gfx Render Command
