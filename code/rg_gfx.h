@@ -81,7 +81,6 @@ struct TexturedQuad
 #endif
     
     rgU32 texID;
-    //TexturedQuad(QuadUV uv_, Vector4 posScale_, Vector4 offsetOrientation_);
 };
 
 typedef eastl::vector<TexturedQuad> TexturedQuads;
@@ -362,10 +361,38 @@ void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
 //-----------------------------------------------------------------------------
 // Resource Binding
 //-----------------------------------------------------------------------------
-struct DescriptorBufferLayout
-{
 
+enum GfxDataType
+{
+    GfxDataType_Buffer,
+    GfxDataType_Texture,
+    GfxDataType_Sampler,
 };
+
+enum GfxTextureType
+{
+    GfxTextureType_2D,
+    GfxTextureType_1D,
+    GfxTextureType_3D,
+};
+
+struct GfxDescriptor
+{
+    rgU32 index;
+    rgU32 arrayLength;
+    GfxDataType type;
+    GfxTextureType textureType;
+};
+
+struct GfxDescriptorBufferEncoder
+{
+#if defined(RG_METAL_RNDR)
+    void* mtlArgEncoder; // type: id<MTLArgumentEncoder>
+#elif defined(RG_VULKAN_RNDR)
+
+#endif
+};
+
 
 //-----------------------------------------------------------------------------
 // Graphic Context

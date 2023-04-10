@@ -83,6 +83,22 @@ rgInt rg::setup()
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
     
     g_GameData->simple2dPSO = gfxNewGraphicsPSO(&simple2dShaderDesc, &simple2dRenderStateDesc);
+
+    //
+    GfxDescriptor desc0 = {};
+    desc0.index = 0; // binding
+    desc0.type = GfxDataType_Texture;
+    desc0.arrayLength = 64000;
+    desc0.textureType = GfxTextureType_2D;
+
+    GfxDescriptor desc1 = {};
+    desc1.index = 64000; // binding
+    desc1.type = GfxDataType_Sampler;
+    desc1.arrayLength = 6;
+    
+    GfxDescriptor* desc[] = {&desc0, &desc1};
+    //gfxNewDescriptorBuffer()
+
     //
     
     {
