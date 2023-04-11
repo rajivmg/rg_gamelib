@@ -5,6 +5,8 @@ project(rg_gamelib)
 
 set(EXECUTABLE_NAME "rg_gamelib" CACHE STRING "Output executable name")
 
+option(VULKAN "Enable Vulkan Graphics API (Windows)" OFF)
+
 # set output folder
 set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/build)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -33,6 +35,8 @@ include_directories(${BOX2D_ROOT_DIR}/include)
 file(GLOB_RECURSE BOX2D_SRC_FILES "${BOX2D_ROOT_DIR}/src/*.cpp")
 source_group("Box2D" FILES ${BOX2D_SRC_FILES})
 
+set(GLEW_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/glew-2.2.0)
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if(WIN32)
@@ -41,14 +45,29 @@ if(WIN32)
 
     # set source files
     file(GLOB SRC_FILES "code/*.cpp" "code/*.h")
-    file(GLOB IMGUI_BACKEND_SRC_FILES "${IMGUI_BACKEND_DIR}/imgui_impl_vulkan.cpp" "${IMGUI_BACKEND_DIR}/imgui_impl_vulkan.h")
+    if(VULKAN)
+        file(GLOB IMGUI_BACKEND_SRC_FILES "${IMGUI_BACKEND_DIR}/imgui_impl_vulkan.cpp" "${IMGUI_BACKEND_DIR}/imgui_impl_vulkan.h")
+    else()
+        set(IMGUI_BACKEND_SRC_FILES "")
+    endif()
 
     # set include and lib directories
-    include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${CMAKE_SOURCE_DIR}/3rdparty/inc/Vulkan-Headers/include)
+    include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc)
     link_directories(${3RD_PARTY_DIR}/lib)
     set(EASTL_LIBRARY debug ${EASTL_ROOT_DIR}/build-win64/Debug/EASTL.lib optimized ${EASTL_ROOT_DIR}/build-win64/Release/EASTL.lib)
     
-    add_compile_definitions(RG_VULKAN_RNDR VK_NO_PROTOTYPES)
+    if(VULKAN)
+        include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc/Vulkan-Headers/include)
+        add_compile_definitions(RG_VULKAN_RNDR VK_NO_PROTOTYPES)
+        set(GRAPHICS_LIBS )
+        set(GRAPHICS_SRC  )
+    else()
+        include_directories(${GLEW_ROOT_DIR}/include)
+        add_compile_definitions(RG_OPENGL_RNDR GLEW_STATIC)
+        set(GRAPHICS_LIBS opengl32.lib)
+        set(GRAPHICS_SRC ${GLEW_ROOT_DIR}/src/glew.c)
+    endif()
+    
 
     # set compiler flags
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4201 /wd4100 /wd4189 /wd4505 /wd4127 /D_CRT_SECURE_NO_WARNINGS")
@@ -62,8 +81,8 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES} ${BOX2D_SRC_FILES})
-    target_link_libraries(rg_gamelib SDL2main SDL2 ${EASTL_LIBRARY})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES} ${BOX2D_SRC_FILES} ${GRAPHICS_SRC})
+    target_link_libraries(rg_gamelib SDL2main SDL2 ${EASTL_LIBRARY} ${GRAPHICS_LIBS})
     set_target_properties(rg_gamelib PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
 
     set_target_properties(rg_gamelib PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")

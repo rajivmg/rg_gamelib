@@ -65,6 +65,8 @@ public:
         CmdPacket* packet = createCmdPacket<U>(auxBufSize);
 
         const rgU32 I = current++;
+
+        // NOTE: Did you forget to gfxGetRenderCmdList()->draw(); gfxGetRenderCmdList()->afterDraw(); in your gfxDraw()?
         packets[I] = packet;
         keys[I] = key;
 

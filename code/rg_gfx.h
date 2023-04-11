@@ -379,8 +379,14 @@ struct GfxGraphicsPSO
 #endif
 };
 
+typedef eastl::shared_ptr<GfxGraphicsPSO> GfxGraphicsPSORef;
+typedef rgU32 HGfxGraphicsPSO;
+
 GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
 void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
+
+//GfxGraphicsPSORef creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
+//void deleterGfxTexture2D(GfxGraphicsPSO* pso);
 
 //-----------------------------------------------------------------------------
 // Resource Binding
@@ -569,6 +575,11 @@ struct GfxCtx
         PFN_vkDestroyDebugReportCallbackEXT fnDestroyDbgReportCallback;
         VkDebugReportCallbackEXT dbgReportCallback;
     } vk;
+#elif defined(RG_OPENGL_RNDR)
+    struct GL
+    {
+        SDL_GLContext context;
+    } gl;
 #endif
 };
 extern rg::GfxCtx* g_GfxCtx;

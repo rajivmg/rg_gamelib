@@ -303,11 +303,16 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
     return nullptr;
 }
 
-void gfxHandleRenderCmdTexturedQuads(void const* cmd)
+void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
 {
 }
 
-void gfxHandleRenderCmdRenderPass(void const* cmd)
+void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
+{
+
+}
+
+void gfxHandleRenderCmd_DrawTriangles(void const* cmd)
 {
 
 }
