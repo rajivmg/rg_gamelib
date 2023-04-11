@@ -627,6 +627,7 @@ END_RENDERCMD_STRUCT();
 
 void gfxHandleRenderCmd_SetRenderPass(void const* cmd);
 void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd);
+void gfxHandleRenderCmd_DrawTriangles(void const* cmd);
 
 RG_END_NAMESPACE
 

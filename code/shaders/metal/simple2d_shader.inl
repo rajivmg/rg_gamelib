@@ -49,7 +49,7 @@ VertexOut vertex simple2d_VS(constant Camera& camera [[buffer(0)]],
 }
 
 fragment half4 simple2d_FS(VertexOut fragIn [[stage_in]],
-                           device FrameResources& frameResources [[buffer(3)]],
+                           device FrameResources& frameResources [[buffer(7)]],
                            constant SimpleInstanceParams* instanceParams [[buffer(4)]])
 {
     //return half4(1.0, 0.0, 1.0, 1.0);

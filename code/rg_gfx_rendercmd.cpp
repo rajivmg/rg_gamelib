@@ -21,6 +21,7 @@ RG_BEGIN_NAMESPACE
 
 RG_DECL_RENDER_CMD_HANDLER(RenderCmd_SetRenderPass);
 RG_DECL_RENDER_CMD_HANDLER(RenderCmd_DrawTexturedQuads);
+RG_DECL_RENDER_CMD_HANDLER(RenderCmd_DrawTriangles);
 //RG_GEN_RENDER_CMD_DESTRUCTOR(RenderCmdTexturedQuad);
 
 RenderCmdList::RenderCmdList(char const* nametag) :

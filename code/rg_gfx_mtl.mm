@@ -25,6 +25,9 @@ static GfxCtx::Mtl* mtl()
 #define mtl() (&g_GfxCtx->mtl)
 #endif
 
+static const rgU32 kBindlessTextureSetBinding = 7;
+static const rgU32 kFrameParamsSetBinding = 6;
+
 static id<MTLDevice> getMTLDevice()
 {
     return (__bridge id<MTLDevice>)(mtl()->device);
@@ -523,7 +526,7 @@ void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
         [mtlRenderEncoder() useResource:(__bridge id<MTLTexture>)tex2D->mtlTexture usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];
     }
     
-    [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(mtl()->largeArrayTex2DArgBuffer) offset:0 atIndex:3];
+    [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(mtl()->largeArrayTex2DArgBuffer) offset:0 atIndex:kBindlessTextureSetBinding];
 }
 
 void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
@@ -584,6 +587,11 @@ void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
     viewport.zfar = 1.0;
     [mtlRenderEncoder() setViewport:viewport];
     [mtlRenderEncoder() drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:vertices.size()/6];
+}
+
+void gfxHandleRenderCmd_DrawTriangles(void const* cmd)
+{
+    
 }
 
 RG_END_NAMESPACE
