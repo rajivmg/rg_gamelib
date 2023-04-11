@@ -478,9 +478,9 @@ void deleterGfxTexture2D(GfxTexture2D* t2d)
     rgDelete(t2d);
 }
 
-void gfxHandleRenderCmdRenderPass(void const* cmd)
+void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
 {
-    GfxRenderPass* pass = &((RenderCmdRenderPass*)cmd)->renderPass;
+    GfxRenderPass* pass = &((RenderCmd_SetRenderPass*)cmd)->renderPass;
     
     // create RenderCommandEncoder
     MTLRenderPassDescriptor* renderPassDesc = [[MTLRenderPassDescriptor alloc] init];
@@ -526,10 +526,10 @@ void gfxHandleRenderCmdRenderPass(void const* cmd)
     [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(mtl()->largeArrayTex2DArgBuffer) offset:0 atIndex:3];
 }
 
-void gfxHandleRenderCmdTexturedQuads(void const* cmd)
+void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
 {
     //
-    RenderCmdTexturedQuads* rc = (RenderCmdTexturedQuads*)cmd;
+    RenderCmd_DrawTexturedQuads* rc = (RenderCmd_DrawTexturedQuads*)cmd;
     
     eastl::vector<SimpleVertexFormat> vertices;
     eastl::vector<SimpleInstanceParams> instanceParams;
@@ -552,7 +552,6 @@ void gfxHandleRenderCmdTexturedQuads(void const* cmd)
     gfxUpdateBuffer(texturedQuadInstParams, &instanceParams.front(), instanceParams.size() * sizeof(SimpleInstanceParams), 0);
     
     //
-
     GfxCtx* ctx = gfxCtx();
     
     struct Camera

@@ -19,8 +19,8 @@ RG_BEGIN_NAMESPACE
 //CmdDispatchFnT* RenderCmdTexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
 //CmdDestructorFnT* RenderCmdTexturedQuad::destructorFn = gfxDestroyRenderCmdTexturedQuad;
 
-RG_DECL_RENDER_CMD_HANDLER(RenderCmdRenderPass);
-RG_DECL_RENDER_CMD_HANDLER(RenderCmdTexturedQuads);
+RG_DECL_RENDER_CMD_HANDLER(RenderCmd_SetRenderPass);
+RG_DECL_RENDER_CMD_HANDLER(RenderCmd_DrawTexturedQuads);
 //RG_GEN_RENDER_CMD_DESTRUCTOR(RenderCmdTexturedQuad);
 
 RenderCmdList::RenderCmdList(char const* nametag) :
@@ -67,29 +67,6 @@ void RenderCmdList::sort()
         }
     }
 }
-
-//void RenderCmdList::Submit()
-//{
-//    //rndr::UseShaderProgram(ShaderProgram);
-//    //rndr::SetViewMatrix(*ViewMatrix);
-//    //rndr::SetProjectionMatrix(*ProjMatrix);
-//    for(rgU32 I = 0; I < current; ++I)
-//    {
-//        CmdPacket *Packet = packets[I];
-//
-//        for(;;)
-//        {
-//            DispatchFnT *DispatchFn = Packet->dispatchFn;
-//            void *Cmd = Packet->cmd;
-//            DispatchFn(Cmd);
-//
-//            Packet = Packet->nextCmdPacket;
-//
-//            if(Packet == nullptr)
-//                break;
-//        }
-//    }
-//}
 
 void RenderCmdList::draw()
 {

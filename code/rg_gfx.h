@@ -147,10 +147,6 @@ enum GfxMemoryUsage
 
 enum GfxResourceUsage
 {
-    GfxResourceUsage_Read,
-    GfxResourceUsage_Write,
-    GfxResourceUsage_ReadWrite,
-    
     GfxResourceUsage_Static,    // Immutable, once created content cannot be modified
     GfxResourceUsage_Dynamic,   // Content will be updated infrequently
     GfxResourceUsage_Stream,    // Content will be updated every frame
@@ -173,6 +169,25 @@ enum GfxCompareFunc
     GfxCompareFunc_LessEqual,
     GfxCompareFunc_Greater,
     GfxCompareFunc_GreaterEqual,
+};
+
+enum GfxCullMode
+{
+    GfxCullMode_None,
+    GfxCullMode_Back,
+    GfxCullMode_Front,
+};
+
+enum GfxWinding
+{
+    GfxWinding_CCW,
+    GfxWinding_CW,
+};
+
+enum GfxTriangleFillMode
+{
+    GfxTriangleFillMode_Fill,
+    GfxTriangleFillMode_Wireframe,
 };
 
 enum GfxLoadAction
@@ -294,7 +309,7 @@ struct GfxColorAttachementStateDesc
     //GfxSourceBlendFacter srcBlendFactor;
 };
 
-struct GfxDepthStencilState
+struct GfxDepthStencilState_
 {
     rgBool depthWriteEnabled;
     GfxCompareFunc depthCompareFunc;
@@ -305,6 +320,15 @@ struct GfxRenderStateDesc
     GfxColorAttachementStateDesc colorAttachments[kMaxColorAttachments];
     TinyImageFormat depthStencilAttachmentFormat;
     
+    // depthstencil state
+    rgBool depthWriteEnabled;
+    GfxCompareFunc depthCompareFunc;
+    
+    GfxCullMode cullMode;
+    GfxWinding winding;
+    GfxTriangleFillMode triangleFillMode;
+    
+    //GfxCullMode
     // TODO
     // DepthStencilState ^^
 
@@ -498,8 +522,8 @@ struct GfxCtx
     struct Mtl
     {
         void* layer; // type: id<CAMetalLayer>
-        NS::View *view;
-        MTL::Device *device;
+        NS::View* view;
+        MTL::Device* device;
         MTL::CommandQueue* commandQueue;
         
         dispatch_semaphore_t framesInFlightSemaphore;
@@ -556,8 +580,9 @@ inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 //-----------------------------------------------------------------------------
 enum RenderCmdType
 {
-    RenderCmdType_RenderPass,
-    RenderCmdType_TexturedQuads
+    RenderCmdType_SetRenderPass,
+    RenderCmdType_DrawTexturedQuads,
+    RenderCmdType_DrawTriangles,
 };
 
 struct RenderCmdHeader
@@ -568,50 +593,40 @@ struct RenderCmdHeader
 // NOTE: RenderCmds are not allowed to own any resources (smartptrs)
 // Should this be allowed?? If yes, then addCmd should "new" the RenderCmd, and Flush should "delete"
 // pros vs cons?
-/*
-struct RenderCmdTexturedQuad
-{
-    RenderCmdHeader header;
 
-    GfxTexture2DPtr texture;
-    QuadUV* quad;
-    rgFloat x;
-    rgFloat y;
-    rgFloat orientationRad;
-    rgFloat scaleX;
-    rgFloat scaleY;
-    rgFloat offsetX;
-    rgFloat offsetY;
+#define BEGIN_RENDERCMD_STRUCT(cmdName)     struct RenderCmd_##cmdName      \
+                                            {                               \
+                                                static const RenderCmdType type = RenderCmdType_##cmdName; \
+                                                static CmdDispatchFnT* dispatchFn
 
-    static CmdDispatchFnT* dispatchFn;
-    //static CmdDestructorFnT* destructorFn;
-};
-*/
+#define END_RENDERCMD_STRUCT()              }
 
-struct RenderCmdRenderPass
-{
-    static const RenderCmdType type = RenderCmdType_RenderPass;
-    static CmdDispatchFnT* dispatchFn;
-    
+// ---===---
+
+BEGIN_RENDERCMD_STRUCT(SetRenderPass);
     GfxRenderPass renderPass;
-};
+END_RENDERCMD_STRUCT();
 
-struct RenderCmdTexturedQuads
-{
-    static const RenderCmdType type = RenderCmdType_TexturedQuads;
-    
-    GfxGraphicsPSO* pso; // TODO: use Handle?
+// ---
+
+BEGIN_RENDERCMD_STRUCT(DrawTexturedQuads);
+    GfxGraphicsPSO* pso; // TODO: use Handle?s
     TexturedQuads* quads;
-    
-    static CmdDispatchFnT* dispatchFn;
-};
+END_RENDERCMD_STRUCT();
 
-// struct RenderCmd_NewTransientResource
-// struct RenderCmd_DeleteTransientResource
+// ---
 
-void gfxHandleRenderCmdRenderPass(void const* cmd);
-void gfxHandleRenderCmdTexturedQuads(void const* cmd);
-//void gfxDestroyRenderCmdTexturedQuad(void* cmd);
+BEGIN_RENDERCMD_STRUCT(DrawTriangles);
+HGfxBuffer vertexBuffer;
+END_RENDERCMD_STRUCT();
+
+// ---===---
+
+#undef BEGIN_RENDERCMD_STRUCT
+#undef END_RENDERCMD_STRUCT
+
+void gfxHandleRenderCmd_SetRenderPass(void const* cmd);
+void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd);
 
 RG_END_NAMESPACE
 

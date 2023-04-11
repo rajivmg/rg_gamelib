@@ -167,7 +167,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     //gfxTexturedQuad();
     RenderCmdList* cmdList = gfxGetRenderCmdList();
     {
-        RenderCmdRenderPass* rcRenderPass = cmdList->addCmd<RenderCmdRenderPass>(rgRenderKey(false), 0);
+        RenderCmd_SetRenderPass* rcRenderPass = cmdList->addCmd<RenderCmd_SetRenderPass>(rgRenderKey(false), 0);
         
         GfxRenderPass simple2dPass = {};
         simple2dPass.colorAttachments[0].texture = gfxCtx()->renderTarget0[g_FrameIndex];
@@ -181,7 +181,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         rcRenderPass->renderPass = simple2dPass;
         
-        RenderCmdTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<RenderCmdTexturedQuads>(rgRenderKey(true), 0);
+        RenderCmd_DrawTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
         rcTerrainAndOceanQuads->quads = &g_GameData->terrainAndOcean;
         rcTerrainAndOceanQuads->pso = g_GameData->simple2dPSO;
         
@@ -198,7 +198,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         }
         pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
         
-        RenderCmdTexturedQuads* rcTexQuads = cmdList->addCmd<RenderCmdTexturedQuads>(rgRenderKey(true), 0);
+        RenderCmd_DrawTexturedQuads* rcTexQuads = cmdList->addCmd<RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
         rcTexQuads->pso = g_GameData->simple2dPSO;
         rcTexQuads->quads = &g_GameData->characterPortraits;
         
