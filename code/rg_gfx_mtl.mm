@@ -475,7 +475,6 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
 
         // copy render state info
         graphicsPSO->renderState = *renderStateDesc;
-        
     }
     
     return graphicsPSO;
@@ -527,36 +526,36 @@ void deleterGfxTexture2D(GfxTexture2D* t2d)
 
 void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
 {
-    GfxRenderPass* pass = &((RenderCmd_SetRenderPass*)cmd)->renderPass;
+    RenderCmd_SetRenderPass* setRenderPass = (RenderCmd_SetRenderPass*)cmd;
+    GfxRenderPass* renderPass = &setRenderPass->renderPass;
     
     // create RenderCommandEncoder
     MTLRenderPassDescriptor* renderPassDesc = [[MTLRenderPassDescriptor alloc] init];
 
     for(rgInt c = 0; c < kMaxColorAttachments; ++c)
     {
-        if(pass->colorAttachments[c].texture == kUninitializedHandle)
+        if(renderPass->colorAttachments[c].texture == kUninitializedHandle)
         {
             continue;
         }
         
         MTLRenderPassColorAttachmentDescriptor* colorAttachmentDesc = [renderPassDesc colorAttachments][c];
         
-        colorAttachmentDesc.texture = getMTLTexture(pass->colorAttachments[c].texture);
-        colorAttachmentDesc.clearColor = toMTLClearColor(&pass->colorAttachments[c].clearColor);
-        colorAttachmentDesc.loadAction = toMTLLoadAction(pass->colorAttachments[c].loadAction);
-        colorAttachmentDesc.storeAction = toMTLStoreAction(pass->colorAttachments[c].storeAction);
+        colorAttachmentDesc.texture = getMTLTexture(renderPass->colorAttachments[c].texture);
+        colorAttachmentDesc.clearColor = toMTLClearColor(&renderPass->colorAttachments[c].clearColor);
+        colorAttachmentDesc.loadAction = toMTLLoadAction(renderPass->colorAttachments[c].loadAction);
+        colorAttachmentDesc.storeAction = toMTLStoreAction(renderPass->colorAttachments[c].storeAction);
     }
     
     MTLRenderPassDepthAttachmentDescriptor* depthAttachmentDesc = [renderPassDesc depthAttachment];
-    depthAttachmentDesc.texture  = getMTLTexture(pass->depthStencilAttachmentTexture);
-    depthAttachmentDesc.clearDepth = pass->clearDepth;
-    depthAttachmentDesc.loadAction = toMTLLoadAction(pass->depthStencilAttachmentLoadAction);
-    depthAttachmentDesc.storeAction = toMTLStoreAction(pass->depthStencilAttachmentStoreAction);
+    depthAttachmentDesc.texture  = getMTLTexture(renderPass->depthStencilAttachmentTexture);
+    depthAttachmentDesc.clearDepth = renderPass->clearDepth;
+    depthAttachmentDesc.loadAction = toMTLLoadAction(renderPass->depthStencilAttachmentLoadAction);
+    depthAttachmentDesc.storeAction = toMTLStoreAction(renderPass->depthStencilAttachmentStoreAction);
 
     mtl()->renderEncoder = [mtlCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
     
     [renderPassDesc autorelease];
-    
     
     MTLDepthStencilDescriptor* depthStencilDesc = [[MTLDepthStencilDescriptor alloc] init];
     depthStencilDesc.depthWriteEnabled = true;
