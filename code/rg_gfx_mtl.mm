@@ -12,6 +12,8 @@
 #import <Metal/MTLBuffer.h>
 #include <QuartzCore/CAMetalLayer.h>
 
+#include <sstream>
+
 RG_BEGIN_NAMESPACE
 
 #include "shaders/metal/imm_shader.inl"
@@ -350,100 +352,131 @@ void deleterGfxBuffer(GfxBuffer* buffer)
     rgDelete(buffer);
 }
 
+NSDictionary* macrosToNSDictionary(char const* macros)
+{
+    // TODO: Remember to free macroDictionary
+    NSMutableDictionary *macroDictionary = [[NSMutableDictionary alloc] init];
+    
+    char const* cursor = macros;
+    std::stringstream macrostring;
+    while(1)
+    {
+        if(*cursor == ' ' || *cursor == ',' || *cursor == '\0')
+        {
+            if(macrostring.str().length() > 0)
+            {
+                [macroDictionary setValue:@"1" forKey:[NSString stringWithUTF8String:macrostring.str().c_str()]];
+                macrostring.str(std::string());
+            }
+            if(*cursor == '\0')
+            {
+                break;
+            }
+            //ppDict->dictionary(NS::UInteger(1), NS::String::string(macro.str().c_str(), NS::UTF8StringEncoding));
+        }
+        else
+        {
+            macrostring.put(*cursor);
+        }
+        ++cursor;
+    }
+    
+    //NSLog(@"PreprocessorDict Keys: %@\n", [macroDictionary allKeys]);
+    //NSLog(@"PreprocessorDict Vals: %@\n", [macroDictionary allValues]);
+    NSLog(@"PreprocessorDict KeyVals: %@\n", macroDictionary);
+    
+    return (NSDictionary*)(macroDictionary);
+}
+
 GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
     GfxGraphicsPSO* graphicsPSO = rgNew(GfxGraphicsPSO);
     
-    NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
-    
-    // --- compile shader
-    NS::Dictionary* shaderMacros = metalutils::getPreprocessorMacrosDict(shaderDesc->macros);
-    MTL::CompileOptions* compileOptions = MTL::CompileOptions::alloc()->init();
-    compileOptions->setPreprocessorMacros(shaderMacros);
-    shaderMacros->autorelease();
-    
-    NS::Error* err = nullptr;
-    
-    MTL::Library* shaderLib = mtl()->device->newLibrary(NS::String::string(shaderDesc->shaderSrcCode, NS::UTF8StringEncoding), compileOptions, &err);
-    
-    if(err)
+    @autoreleasepool
     {
-        printf("%s\n", err->localizedDescription()->utf8String());
-        rgAssert(!"newLibrary error");
-    }
-    
-    compileOptions->release();
-    
-    MTL::Function* vs = nullptr;
-    MTL::Function* fs = nullptr;
-    
-    if(shaderDesc->vsEntryPoint)
-    {
-        vs = shaderLib->newFunction(NS::String::string(shaderDesc->vsEntryPoint, NS::UTF8StringEncoding));
-    }
-    
-    if(shaderDesc->fsEntryPoint)
-    {
-        fs = shaderLib->newFunction(NS::String::string(shaderDesc->fsEntryPoint, NS::UTF8StringEncoding));
-    }
-    
-    // --- create PSO
-    MTL::RenderPipelineDescriptor* psoDesc = MTL::RenderPipelineDescriptor::alloc()->init();
-    psoDesc->setVertexFunction(vs);
-    psoDesc->setFragmentFunction(fs);
-    
-    rgAssert(renderStateDesc != nullptr);
-    for(rgInt i = 0; i < kMaxColorAttachments; ++i)
-    {
-        TinyImageFormat colorAttFormat = renderStateDesc->colorAttachments[i].pixelFormat;
-        if(colorAttFormat != TinyImageFormat_UNDEFINED)
+        // --- compile shader
+        NSDictionary* shaderMacros = macrosToNSDictionary(shaderDesc->macros);
+        
+        MTLCompileOptions* compileOptions = [[MTLCompileOptions alloc] init];
+        [compileOptions setPreprocessorMacros:shaderMacros];
+        [shaderMacros autorelease];
+        
+        NSError* err;
+        id<MTLLibrary> shaderLib = [getMTLDevice() newLibraryWithSource:[NSString stringWithUTF8String:shaderDesc->shaderSrcCode] options:compileOptions error:&err];
+        if(err)
         {
-            rgBool blendingEnabled = renderStateDesc->colorAttachments[i].blendingEnabled;
-            
-            psoDesc->colorAttachments()->object(i)->setPixelFormat((MTL::PixelFormat)toMTLPixelFormat(colorAttFormat));
-            psoDesc->colorAttachments()->object(i)->setBlendingEnabled(blendingEnabled);
-            if(blendingEnabled)
+            printf("%s\n", [[err localizedDescription]UTF8String]);
+            rgAssert(!"newLibrary error");
+        }
+        [compileOptions release];
+    
+        // --- create PSO
+        id<MTLFunction> vs, fs;
+        if(shaderDesc->vsEntryPoint)
+        {
+            vs = [shaderLib newFunctionWithName:[NSString stringWithUTF8String: shaderDesc->vsEntryPoint]];
+        }
+        if(shaderDesc->fsEntryPoint)
+        {
+            fs = [shaderLib newFunctionWithName:[NSString stringWithUTF8String: shaderDesc->fsEntryPoint]];
+        }
+    
+        MTLRenderPipelineDescriptor* psoDesc = [[MTLRenderPipelineDescriptor alloc] init];
+        [psoDesc setVertexFunction:vs];
+        [psoDesc setFragmentFunction:fs];
+        
+        rgAssert(renderStateDesc != nullptr);
+        for(rgInt i = 0; i < kMaxColorAttachments; ++i)
+        {
+            TinyImageFormat colorAttFormat = renderStateDesc->colorAttachments[i].pixelFormat;
+            if(colorAttFormat != TinyImageFormat_UNDEFINED)
             {
-                psoDesc->colorAttachments()->object(i)->setRgbBlendOperation(MTL::BlendOperationAdd);
-                psoDesc->colorAttachments()->object(i)->setSourceRGBBlendFactor(MTL::BlendFactorSourceAlpha);
-                psoDesc->colorAttachments()->object(i)->setDestinationRGBBlendFactor(MTL::BlendFactorOneMinusSourceAlpha);
-                
-                psoDesc->colorAttachments()->object(i)->setAlphaBlendOperation(MTL::BlendOperationAdd);
-                psoDesc->colorAttachments()->object(i)->setSourceAlphaBlendFactor(MTL::BlendFactorOne);
-                psoDesc->colorAttachments()->object(i)->setDestinationAlphaBlendFactor(MTL::BlendFactorZero);
+                rgBool blendingEnabled = renderStateDesc->colorAttachments[i].blendingEnabled;
+                psoDesc.colorAttachments[i].pixelFormat = toMTLPixelFormat(colorAttFormat);
+                psoDesc.colorAttachments[i].blendingEnabled = NO;
+                if(blendingEnabled)
+                {
+                    psoDesc.colorAttachments[i].blendingEnabled = YES;
+                    psoDesc.colorAttachments[i].rgbBlendOperation = MTLBlendOperationAdd;
+                    psoDesc.colorAttachments[i].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+                    psoDesc.colorAttachments[i].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+                    
+                    psoDesc.colorAttachments[i].alphaBlendOperation = MTLBlendOperationAdd;
+                    psoDesc.colorAttachments[i].sourceAlphaBlendFactor = MTLBlendFactorOne;
+                    psoDesc.colorAttachments[i].destinationAlphaBlendFactor = MTLBlendFactorZero;
+                }
             }
         }
-    }
+        
+        if(renderStateDesc->depthStencilAttachmentFormat != TinyImageFormat_UNDEFINED)
+        {
+            psoDesc.depthAttachmentPixelFormat = toMTLPixelFormat(renderStateDesc->depthStencilAttachmentFormat);
+        }
+        
+        // TODO TODO TODO TODO REMOVE
+        // TODO TODO TODO TODO REMOVE
+        MTLAutoreleasedRenderPipelineReflection reflectionInfo;
+        // TODO TODO TODO TODO REMOVE
+        // TODO TODO TODO TODO REMOVE
 
-    if(renderStateDesc->depthStencilAttachmentFormat != TinyImageFormat_UNDEFINED)
-    {
-        psoDesc->setDepthAttachmentPixelFormat((MTL::PixelFormat)toMTLPixelFormat(renderStateDesc->depthStencilAttachmentFormat));
+        //[getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc error:&err];
+        graphicsPSO->mtlPSO = (__bridge MTL::RenderPipelineState*) [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
+        
+        if(err)
+        {
+            printf("%s\n", err.localizedDescription.UTF8String);
+            rgAssert(!"newRenderPipelineState error");
+        }
+        
+        [psoDesc release];
+        [fs release];
+        [vs release];
+        [shaderLib release];
+
+        // copy render state info
+        graphicsPSO->renderState = *renderStateDesc;
+        
     }
-    
-    // TODO TODO TODO TODO REMOVE
-    // TODO TODO TODO TODO REMOVE
-    MTL::AutoreleasedRenderPipelineReflection* reflectionInfo;
-    // TODO TODO TODO TODO REMOVE
-    // TODO TODO TODO TODO REMOVE
-    
-    //graphicsPSO->mtlPSO = mtl()->device->newRenderPipelineState(psoDesc, &err);
-    graphicsPSO->mtlPSO = mtl()->device->newRenderPipelineState(psoDesc, MTL::PipelineOptionArgumentInfo | MTL::PipelineOptionBufferTypeInfo, reflectionInfo, &err);
-    
-    if(err)
-    {
-        printf("%s\n", err->localizedDescription()->utf8String());
-        rgAssert(!"newRenderPipelineState error");
-    }
-    
-    psoDesc->release();
-    fs->release();
-    vs->release();
-    shaderLib->release();
-    
-    // copy render state info
-    graphicsPSO->renderState = *renderStateDesc;
-    
-    arp->release();
     
     return graphicsPSO;
 }
@@ -582,7 +615,7 @@ void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
         cam.projection[i] = orthoMatrix[i];
         cam.view[i] = viewMatrix[i];
     }
-    
+     
     [mtlRenderEncoder() setRenderPipelineState:(__bridge id<MTLRenderPipelineState>)rc->pso->mtlPSO];
     [mtlRenderEncoder() setVertexBytes:&cam length:sizeof(Camera) atIndex:0];
     [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(texturedQuadInstParams) offset:0 atIndex:4];

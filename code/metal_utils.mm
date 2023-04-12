@@ -29,7 +29,7 @@ static CVReturn gfxDrawCVDisplayLinkHandler(CVDisplayLinkRef displayLink,
     rg::gfxDraw();
     return 0;
 }
-
+ 
 NS::Dictionary* getPreprocessorMacrosDict(char const* macros)
 {
     // TODO: Remember to free macroDictionary
