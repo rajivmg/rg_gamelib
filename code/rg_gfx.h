@@ -313,18 +313,11 @@ struct GfxColorAttachementStateDesc
     //GfxSourceBlendFacter srcBlendFactor;
 };
 
-struct GfxDepthStencilState_
-{
-    rgBool depthWriteEnabled;
-    GfxCompareFunc depthCompareFunc;
-};
-
 struct GfxRenderStateDesc
 {
     GfxColorAttachementStateDesc colorAttachments[kMaxColorAttachments];
     TinyImageFormat depthStencilAttachmentFormat;
-    
-    // depthstencil state
+
     rgBool depthWriteEnabled;
     GfxCompareFunc depthCompareFunc;
     
@@ -375,11 +368,12 @@ struct GfxShaderDesc
 
 struct GfxGraphicsPSO
 {
-    // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly. 
+    // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly.
+    GfxRenderStateDesc renderState;
 #if defined(RG_METAL_RNDR)
     MTL::RenderPipelineState* mtlPSO;
 #elif defined(RG_VULKAN_RNDR)
-
+#elif defined(RG_OPENGL_RNDR)
 #endif
 };
 

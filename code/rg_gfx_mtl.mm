@@ -396,9 +396,10 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
     for(rgInt i = 0; i < kMaxColorAttachments; ++i)
     {
         TinyImageFormat colorAttFormat = renderStateDesc->colorAttachments[i].pixelFormat;
-        rgBool blendingEnabled = renderStateDesc->colorAttachments[i].blendingEnabled;
         if(colorAttFormat != TinyImageFormat_UNDEFINED)
         {
+            rgBool blendingEnabled = renderStateDesc->colorAttachments[i].blendingEnabled;
+            
             psoDesc->colorAttachments()->object(i)->setPixelFormat((MTL::PixelFormat)toMTLPixelFormat(colorAttFormat));
             psoDesc->colorAttachments()->object(i)->setBlendingEnabled(blendingEnabled);
             if(blendingEnabled)
@@ -419,7 +420,14 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
         psoDesc->setDepthAttachmentPixelFormat((MTL::PixelFormat)toMTLPixelFormat(renderStateDesc->depthStencilAttachmentFormat));
     }
     
-    graphicsPSO->mtlPSO = mtl()->device->newRenderPipelineState(psoDesc, &err);
+    // TODO TODO TODO TODO REMOVE
+    // TODO TODO TODO TODO REMOVE
+    MTL::AutoreleasedRenderPipelineReflection* reflectionInfo;
+    // TODO TODO TODO TODO REMOVE
+    // TODO TODO TODO TODO REMOVE
+    
+    //graphicsPSO->mtlPSO = mtl()->device->newRenderPipelineState(psoDesc, &err);
+    graphicsPSO->mtlPSO = mtl()->device->newRenderPipelineState(psoDesc, MTL::PipelineOptionArgumentInfo | MTL::PipelineOptionBufferTypeInfo, reflectionInfo, &err);
     
     if(err)
     {
@@ -431,6 +439,9 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
     fs->release();
     vs->release();
     shaderLib->release();
+    
+    // copy render state info
+    graphicsPSO->renderState = *renderStateDesc;
     
     arp->release();
     
