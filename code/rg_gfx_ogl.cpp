@@ -13,6 +13,28 @@ static inline GfxCtx::GL* gl()
 #define gl() (&g_GfxCtx->gl)
 #endif
 
+GLenum toGLPixelFormat(TinyImageFormat format)
+{
+    GLenum glFormat = GL_INVALID_ENUM;
+    switch(format)
+    {
+    case TinyImageFormat_R8G8B8A8_UNORM:
+        glFormat = GL_RGBA8;
+        break;
+    case TinyImageFormat_B8G8R8A8_UNORM:
+        glFormat = GL_BGRA8_EXT;
+        break;
+    case TinyImageFormat_D16_UNORM:
+        glFormat = GL_DEPTH_COMPONENT16;
+        break;
+    default:
+        rgAssert("toGLPixelFormat: Unknown pixel format encountered");
+        break;
+    }
+
+    return glFormat;
+}
+
 rgInt gfxInit()
 {
     gl()->context = SDL_GL_CreateContext(gfxCtx()->mainWindow);
@@ -68,7 +90,25 @@ void deleterGfxBuffer(GfxBuffer* buffer)
 // ===---===---===
 GfxTexture2DRef creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
-    return GfxTexture2DRef(rgNew(GfxTexture2D), deleterGfxTexture2D);
+    GLuint texture;
+    glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+
+    rgUInt mipCount = 1;
+    GLenum pixelFormat = toGLPixelFormat(format);
+    glTextureStorage2D(texture, mipCount, pixelFormat, width, height);
+    
+    if(buf != NULL)
+    {
+        glTextureSubImage2D(texture, mipCount, 0, 0, width, height, pixelFormat, GL_UNSIGNED_BYTE, buf);
+    }
+
+    GfxTexture2DRef tex2dRef = GfxTexture2DRef(rgNew(GfxTexture2D), deleterGfxTexture2D);
+    name != nullptr ? strcpy(tex2dRef->name, name) : strcpy(tex2dRef->name, "[NoName]");
+    tex2dRef->width = width;
+    tex2dRef->height = height;
+    tex2dRef->pixelFormat = format;
+    tex2dRef->glTexture = texture;
+    return tex2dRef;
 }
 
 void deleterGfxTexture2D(GfxTexture2D* t2d)
@@ -95,7 +135,8 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
 void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
 {
     RenderCmd_SetRenderPass* setRenderPass = (RenderCmd_SetRenderPass*)cmd;
-    
+    GfxRenderPass* renderPass = &setRenderPass->renderPass;
+
 }
 
 void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)

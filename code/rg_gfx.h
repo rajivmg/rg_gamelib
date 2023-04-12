@@ -4,6 +4,8 @@
 #if defined(RG_VULKAN_RNDR)
 #include "volk/volk.h"
 #include "vk-bootstrap/VkBootstrap.h"
+#elif defined(RG_OPENGL_RNDR)
+#include <GL/glew.h>
 #elif defined(RG_METAL_RNDR)
 #include <Metal/Metal.hpp>
 #include <AppKit/AppKit.hpp>
@@ -251,6 +253,8 @@ struct GfxTexture2D
     MTL::Texture* mtlTexture;
 #elif defined(RG_VULKAN_RNDR)
     VkImage vkTexture;
+#elif defined(RG_OPENGL_RNDR)
+    GLuint glTexture;
 #elif defined(RG_SDL_RNDR)
     SDL_Texture* sdlTexture;
 #endif
