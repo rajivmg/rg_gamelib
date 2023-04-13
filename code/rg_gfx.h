@@ -226,7 +226,6 @@ struct GfxBuffer
     VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
 #endif
 };
-typedef eastl::shared_ptr<GfxBuffer> GfxBufferRef;
 typedef rgU32 HGfxBuffer;
 
 HGfxBuffer  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
@@ -234,7 +233,7 @@ void        gfxUpdateBuffer(HGfxBuffer handle, void* data, rgSize size, rgU32 of
 void        gfxDeleteBuffer(HGfxBuffer handle);
 GfxBuffer*  gfxBufferPtr(HGfxBuffer bufferHandle);
 
-GfxBufferRef creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage);
+GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage);
 void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset);
 void deleterGfxBuffer(GfxBuffer* buffer);
 
@@ -259,15 +258,15 @@ struct GfxTexture2D
     SDL_Texture* sdlTexture;
 #endif
 };
-typedef eastl::shared_ptr<GfxTexture2D> GfxTexture2DRef;
 typedef rgU32 HGfxTexture2D;
 static_assert(sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID), "sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID)");
 
 HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage);
 HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
+void gfxDeleteTexture2D(HGfxTexture2D handle);
 GfxTexture2D* gfxTexture2DPtr(HGfxTexture2D texture2dHandle);
 
-GfxTexture2DRef creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
+GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
 void deleterGfxTexture2D(GfxTexture2D* t2d);
 
 //-----------------------------------------------------------------------------
@@ -425,11 +424,11 @@ struct GfxDescriptorBufferEncoder
 //-----------------------------------------------------------------------------
 // Graphic Context
 //-----------------------------------------------------------------------------
-template <typename Type, typename RefType, typename HandleType>
+template <typename Type, typename HandleType>
 struct GfxResourceManager
 {
-    typedef eastl::vector<RefType> ReferenceList;
-    ReferenceList referenceList; // Hold reference to the resources until no longer needed
+    typedef eastl::vector<Type*> ResourceList;
+    ResourceList resourceList; // Hold reference to the resources until no longer needed
     
     typedef eastl::vector<HandleType> HandleList;
     HandleList freeHandles; // Indexes in referenceList which are unused
@@ -445,9 +444,9 @@ struct GfxResourceManager
         }
         else
         {
-            rgAssert(referenceList.size() < UINT32_MAX);
-            result = (HandleType)referenceList.size();
-            referenceList.resize(result + 1); // push_back(nullptr) ?
+            rgAssert(resourceList.size() < UINT32_MAX);
+            result = (HandleType)resourceList.size();
+            resourceList.resize(result + 1); // push_back(nullptr) ?
         }
         
         rgAssert(result != kInvalidHandle);
@@ -456,35 +455,33 @@ struct GfxResourceManager
     
     void releaseHandle(HandleType handle)
     {
-        rgAssert(handle < referenceList.size());
+        rgAssert(handle < resourceList.size());
 
-        (referenceList[handle]).reset();
+        resourceList[handle] = nullptr;
         freeHandles.push_back(handle);
     }
     
-    void setReferenceWithHandle(HandleType handle, RefType ref)
+    void setResourcePtrForHandle(HandleType handle, Type* ptr)
     {
-        referenceList[handle] = ref;
+        resourceList[handle] = ptr;
     }
     
-    typename ReferenceList::iterator begin() EA_NOEXCEPT
+    typename ResourceList::iterator begin() EA_NOEXCEPT
     {
-        return referenceList.begin();
+        return resourceList.begin();
     }
     
-    typename ReferenceList::iterator end() EA_NOEXCEPT
+    typename ResourceList::iterator end() EA_NOEXCEPT
     {
-        return referenceList.end();
+        return resourceList.end();
     }
     
     Type* getPtr(HandleType handle)
     {
-        rgAssert(handle < referenceList.size());
+        rgAssert(handle < resourceList.size());
         
-        Type* ptr = nullptr;
-        ptr = referenceList[handle].get();
+        Type* ptr = resourceList[handle];
         rgAssert(ptr != nullptr);
-        
         return ptr;
     }
     
@@ -501,8 +498,8 @@ struct GfxCtx
     
     RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
     
-    GfxResourceManager<GfxTexture2D, GfxTexture2DRef, HGfxTexture2D> texture2dManager;
-    GfxResourceManager<GfxBuffer, GfxBufferRef, HGfxBuffer> buffersManager;
+    GfxResourceManager<GfxTexture2D, HGfxTexture2D> texture2dManager;
+    GfxResourceManager<GfxBuffer, HGfxBuffer> buffersManager;
     
     Matrix4 orthographicMatrix;
     Matrix4 viewMatrix;
@@ -590,6 +587,7 @@ inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 enum RenderCmdType
 {
     RenderCmdType_SetRenderPass,
+    RenderCmdType_SetGraphicsPSO,
     RenderCmdType_DrawTexturedQuads,
     RenderCmdType_DrawTriangles,
 };
@@ -614,6 +612,12 @@ struct RenderCmdHeader
 
 BEGIN_RENDERCMD_STRUCT(SetRenderPass);
     GfxRenderPass renderPass;
+END_RENDERCMD_STRUCT();
+
+// ---
+
+BEGIN_RENDERCMD_STRUCT(SetGraphicsPSO);
+GfxGraphicsPSO* pso;
 END_RENDERCMD_STRUCT();
 
 // ---

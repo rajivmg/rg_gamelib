@@ -70,6 +70,8 @@ rgInt rg::setup()
     
     g_GameData->flowerTexture = gfxNewTexture2D(rg::loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
     
+    gfxDeleteTexture2D(g_GameData->oceanTileTexture);
+    
     //
     GfxShaderDesc simple2dShaderDesc = {};
     simple2dShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;

@@ -233,9 +233,12 @@ rgInt gfxDraw()
             mtl()->largeArrayTex2DArgEncoder->setArgumentBuffer(argBuffer, 0);
             
             rgSize largeArrayTex2DIndex = 0;
-            for(GfxTexture2DRef tex2D : gfxCtx()->texture2dManager)
+            for(GfxTexture2D* tex2D : gfxCtx()->texture2dManager)
             {
-                mtl()->largeArrayTex2DArgEncoder->setTexture(tex2D->mtlTexture, largeArrayTex2DIndex);
+                if(tex2D != nullptr)
+                {
+                    mtl()->largeArrayTex2DArgEncoder->setTexture(tex2D->mtlTexture, largeArrayTex2DIndex);
+                }
                 ++largeArrayTex2DIndex;
             }
             
@@ -281,14 +284,14 @@ void gfxDestroy()
     
 }
 
-GfxBufferRef creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
+GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
 {
     MTL::ResourceOptions mode = toMTLResourceOptions(usage);
     
-    GfxBufferRef bufferRef = GfxBufferRef(rgNew(GfxBuffer), deleterGfxBuffer);
-    bufferRef->usageMode = usage;
-    bufferRef->size = size;
-    bufferRef->activeIdx = 0;
+    GfxBuffer* bufferPtr = rgNew(GfxBuffer);
+    bufferPtr->usageMode = usage;
+    bufferPtr->size = size;
+    bufferPtr->activeIdx = 0;
     
     if(usage == GfxResourceUsage_Static)
     {
@@ -301,11 +304,11 @@ GfxBufferRef creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
     {
         if(data != NULL)
         {
-            bufferRef->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithBytes:data length:(NSUInteger)size options:options];
+            bufferPtr->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithBytes:data length:(NSUInteger)size options:options];
         }
         else
         {
-            bufferRef->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
+            bufferPtr->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
         }
         
         if(usage == GfxResourceUsage_Static)
@@ -314,7 +317,7 @@ GfxBufferRef creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
         }
     }
     
-    return bufferRef;
+    return bufferPtr;
 }
 
 void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
@@ -486,7 +489,7 @@ void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
     rgDelete(pso);
 }
 
-GfxTexture2DRef creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
+GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
     MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];
     texDesc.width = width;
@@ -508,14 +511,14 @@ GfxTexture2DRef creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, Tiny
     }
 
     // create refobj
-    GfxTexture2DRef t2dRef = eastl::shared_ptr<GfxTexture2D>(rgNew(GfxTexture2D), deleterGfxTexture2D);
-    t2dRef->width = width;
-    t2dRef->height = height;
-    t2dRef->pixelFormat = format;
-    t2dRef->mtlTexture = (__bridge MTL::Texture*)mtlTexture;
-    name != nullptr ? strcpy(t2dRef->name, name) : strcpy(t2dRef->name, "[NoName]");
+    GfxTexture2D* tex2dPtr = rgNew(GfxTexture2D);
+    tex2dPtr->width = width;
+    tex2dPtr->height = height;
+    tex2dPtr->pixelFormat = format;
+    tex2dPtr->mtlTexture = (__bridge MTL::Texture*)mtlTexture;
+    name != nullptr ? strcpy(tex2dPtr->name, name) : strcpy(tex2dPtr->name, "[NoName]");
     
-    return t2dRef;
+    return tex2dPtr;
 }
 
 void deleterGfxTexture2D(GfxTexture2D* t2d)
@@ -564,9 +567,12 @@ void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
     
     [mtlRenderEncoder() setDepthStencilState:dsState];
     
-    for(GfxTexture2DRef tex2D : gfxCtx()->texture2dManager)
+    for(GfxTexture2D* tex2D : gfxCtx()->texture2dManager)
     {
-        [mtlRenderEncoder() useResource:(__bridge id<MTLTexture>)tex2D->mtlTexture usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];
+        if(tex2D != nullptr)
+        {
+            [mtlRenderEncoder() useResource:(__bridge id<MTLTexture>)tex2D->mtlTexture usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];
+        }
     }
     
     [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(mtl()->largeArrayTex2DArgBuffer) offset:0 atIndex:kBindlessTextureSetBinding];
