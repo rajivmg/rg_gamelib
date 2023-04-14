@@ -70,9 +70,9 @@ rgInt gfxDraw()
 // ===---===---===
 // BUFFER
 // ===---===---===
-GfxBufferRef creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
+GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
 {
-    return GfxBufferRef(rgNew(GfxBuffer), deleterGfxBuffer);
+    return rgNew(GfxBuffer);
 }
 
 void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
@@ -88,7 +88,7 @@ void deleterGfxBuffer(GfxBuffer* buffer)
 // ===---===---===
 // TEXTURE
 // ===---===---===
-GfxTexture2DRef creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
+GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
     GLuint texture;
     glCreateTextures(GL_TEXTURE_2D, 1, &texture);
@@ -102,13 +102,13 @@ GfxTexture2DRef creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, Tiny
         glTextureSubImage2D(texture, mipCount, 0, 0, width, height, pixelFormat, GL_UNSIGNED_BYTE, buf);
     }
 
-    GfxTexture2DRef tex2dRef = GfxTexture2DRef(rgNew(GfxTexture2D), deleterGfxTexture2D);
-    name != nullptr ? strcpy(tex2dRef->name, name) : strcpy(tex2dRef->name, "[NoName]");
-    tex2dRef->width = width;
-    tex2dRef->height = height;
-    tex2dRef->pixelFormat = format;
-    tex2dRef->glTexture = texture;
-    return tex2dRef;
+    GfxTexture2D* tex2dPtr = rgNew(GfxTexture2D);
+    name != nullptr ? strcpy(tex2dPtr->name, name) : strcpy(tex2dPtr->name, "[NoName]");
+    tex2dPtr->width = width;
+    tex2dPtr->height = height;
+    tex2dPtr->pixelFormat = format;
+    tex2dPtr->glTexture = texture;
+    return tex2dPtr;
 }
 
 void deleterGfxTexture2D(GfxTexture2D* t2d)

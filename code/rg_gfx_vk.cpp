@@ -259,7 +259,7 @@ rgInt gfxDraw()
     return 0;
 }
 
-GfxBufferRef creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
+GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
 {
     VkBufferCreateInfo bufferInfo = {};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -275,7 +275,7 @@ GfxBufferRef creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
-    return GfxBufferRef();
+    return nullptr;
 }
 
 void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
@@ -288,9 +288,9 @@ void deleterGfxBuffer(GfxBuffer* buffer)
 
 }
 
-GfxTexture2DRef creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
+GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
-    return GfxTexture2DRef();
+    return nullptr;
 }
 
 void deleterGfxTexture2D(GfxTexture2D* t2d)
@@ -298,9 +298,19 @@ void deleterGfxTexture2D(GfxTexture2D* t2d)
 
 }
 
-GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
+GfxGraphicsPSO* creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
     return nullptr;
+}
+
+void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
+{
+
+}
+
+void gfxHandleRenderCmd_SetViewport(void const* cmd)
+{
+
 }
 
 void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
@@ -308,6 +318,11 @@ void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
 }
 
 void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
+{
+
+}
+
+void gfxHandleRenderCmd_SetGraphicsPSO(void const* cmd)
 {
 
 }
