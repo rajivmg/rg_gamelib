@@ -1,6 +1,5 @@
 #if defined(RG_METAL_RNDR)
 #include "rg_gfx.h"
-#include "metal_utils.h"
 
 #include <simd/simd.h>
 
