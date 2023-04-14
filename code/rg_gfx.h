@@ -370,7 +370,7 @@ struct GfxGraphicsPSO
     // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly.
     GfxRenderStateDesc renderState;
 #if defined(RG_METAL_RNDR)
-    MTL::RenderPipelineState* mtlPSO;
+    void* mtlPSO; // type: id<MTLRenderPipelineState>
 #elif defined(RG_VULKAN_RNDR)
 #elif defined(RG_OPENGL_RNDR)
 #endif
@@ -586,6 +586,7 @@ inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 //-----------------------------------------------------------------------------
 enum RenderCmdType
 {
+    RenderCmdType_SetViewport,
     RenderCmdType_SetRenderPass,
     RenderCmdType_SetGraphicsPSO,
     RenderCmdType_DrawTexturedQuads,
@@ -610,6 +611,12 @@ struct RenderCmdHeader
 
 // ---===---
 
+BEGIN_RENDERCMD_STRUCT(SetViewport);
+    rgFloat4 viewport;
+END_RENDERCMD_STRUCT();
+
+// ---
+
 BEGIN_RENDERCMD_STRUCT(SetRenderPass);
     GfxRenderPass renderPass;
 END_RENDERCMD_STRUCT();
@@ -617,7 +624,7 @@ END_RENDERCMD_STRUCT();
 // ---
 
 BEGIN_RENDERCMD_STRUCT(SetGraphicsPSO);
-GfxGraphicsPSO* pso;
+    GfxGraphicsPSO* pso;
 END_RENDERCMD_STRUCT();
 
 // ---
@@ -630,7 +637,16 @@ END_RENDERCMD_STRUCT();
 // ---
 
 BEGIN_RENDERCMD_STRUCT(DrawTriangles);
-HGfxBuffer vertexBuffer;
+    HGfxBuffer vertexBuffer;
+    rgU32 vertexBufferOffset;
+    HGfxBuffer indexBuffer;
+    rgU32 indexBufferOffset;
+
+    rgU32 vertexCount;
+    rgU32 indexCount;
+    rgU32 instanceCount;
+    rgU32 baseVertex;
+    rgU32 baseInstance;
 END_RENDERCMD_STRUCT();
 
 // ---===---
@@ -638,7 +654,9 @@ END_RENDERCMD_STRUCT();
 #undef BEGIN_RENDERCMD_STRUCT
 #undef END_RENDERCMD_STRUCT
 
+void gfxHandleRenderCmd_SetViewport(void const* cmd);
 void gfxHandleRenderCmd_SetRenderPass(void const* cmd);
+void gfxHandleRenderCmd_SetGraphicsPSO(void const* cmd);
 void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd);
 void gfxHandleRenderCmd_DrawTriangles(void const* cmd);
 

@@ -138,6 +138,11 @@ MTLClearColor toMTLClearColor(rgFloat4* color)
     return MTLClearColorMake(color->r, color->g, color->b, color->a);
 }
 
+id<MTLRenderPipelineState> toMTLRenderPipelineState(GfxGraphicsPSO* pso)
+{
+    return (__bridge id<MTLRenderPipelineState>)(pso->mtlPSO);
+}
+
 id<MTLRenderCommandEncoder> mtlRenderEncoder()
 {
     return (__bridge id<MTLRenderCommandEncoder>)mtl()->renderEncoder;
@@ -462,7 +467,7 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
         // TODO TODO TODO TODO REMOVE
 
         //[getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc error:&err];
-        graphicsPSO->mtlPSO = (__bridge MTL::RenderPipelineState*) [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
+        graphicsPSO->mtlPSO = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
         
         if(err)
         {
@@ -484,7 +489,7 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
 
 void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
 {
-    pso->mtlPSO->release();
+    [toMTLRenderPipelineState(pso) release];
     rgDelete(pso);
 }
 
@@ -524,6 +529,21 @@ void deleterGfxTexture2D(GfxTexture2D* t2d)
 {
     t2d->mtlTexture->release();
     rgDelete(t2d);
+}
+
+void gfxHandleRenderCmd_SetViewport(void const* cmd)
+{
+    RenderCmd_SetViewport* setViewport = (RenderCmd_SetViewport*)cmd;
+    
+    MTLViewport vp;
+    vp.originX = setViewport->viewport.x;
+    vp.originY = setViewport->viewport.y;
+    vp.width   = setViewport->viewport.z;
+    vp.height  = setViewport->viewport.w;
+    vp.znear   = 0.0f;
+    vp.zfar    = 1.0f;
+    
+    [mtlRenderEncoder() setViewport:vp];
 }
 
 void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
@@ -577,9 +597,14 @@ void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
     [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(mtl()->largeArrayTex2DArgBuffer) offset:0 atIndex:kBindlessTextureSetBinding];
 }
 
+void gfxHandleRenderCmd_SetGraphicsPSO(void const* cmd)
+{
+    RenderCmd_SetGraphicsPSO* setGraphicsPSO = (RenderCmd_SetGraphicsPSO*)cmd;
+    [mtlRenderEncoder() setRenderPipelineState:toMTLRenderPipelineState(setGraphicsPSO->pso)];
+}
+
 void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
 {
-    //
     RenderCmd_DrawTexturedQuads* rc = (RenderCmd_DrawTexturedQuads*)cmd;
     
     eastl::vector<SimpleVertexFormat> vertices;
@@ -639,7 +664,33 @@ void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
 
 void gfxHandleRenderCmd_DrawTriangles(void const* cmd)
 {
+    RenderCmd_DrawTriangles* drawTriangles = (RenderCmd_DrawTriangles*)cmd;
+        
+    rgAssert(drawTriangles->vertexBuffer != kUninitializedHandle);
     
+    [mtlRenderEncoder() setVertexBuffer:getActiveMTLBuffer(drawTriangles->vertexBuffer)
+                                 offset:drawTriangles->vertexBufferOffset
+                                atIndex:0];
+    
+    if(drawTriangles->indexBuffer != kUninitializedHandle)
+    {
+        [mtlRenderEncoder() drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                                       indexCount:drawTriangles->indexCount
+                                        indexType:MTLIndexTypeUInt16
+                                      indexBuffer:getActiveMTLBuffer(drawTriangles->indexBuffer)
+                                indexBufferOffset:drawTriangles->indexBufferOffset
+                                    instanceCount:drawTriangles->instanceCount
+                                       baseVertex:drawTriangles->baseVertex
+                                     baseInstance:drawTriangles->baseInstance];
+    }
+    else
+    {
+        [mtlRenderEncoder() drawPrimitives:MTLPrimitiveTypeTriangle
+                               vertexStart:drawTriangles->baseVertex
+                               vertexCount:drawTriangles->vertexCount
+                             instanceCount:drawTriangles->instanceCount
+                              baseInstance:drawTriangles->baseInstance];
+    }
 }
 
 RG_END_NAMESPACE

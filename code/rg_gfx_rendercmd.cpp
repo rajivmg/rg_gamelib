@@ -19,7 +19,9 @@ RG_BEGIN_NAMESPACE
 //CmdDispatchFnT* RenderCmdTexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
 //CmdDestructorFnT* RenderCmdTexturedQuad::destructorFn = gfxDestroyRenderCmdTexturedQuad;
 
+RG_DECL_RENDER_CMD_HANDLER(RenderCmd_SetViewport);
 RG_DECL_RENDER_CMD_HANDLER(RenderCmd_SetRenderPass);
+RG_DECL_RENDER_CMD_HANDLER(RenderCmd_SetGraphicsPSO);
 RG_DECL_RENDER_CMD_HANDLER(RenderCmd_DrawTexturedQuads);
 RG_DECL_RENDER_CMD_HANDLER(RenderCmd_DrawTriangles);
 //RG_GEN_RENDER_CMD_DESTRUCTOR(RenderCmdTexturedQuad);
