@@ -67,11 +67,6 @@ void gfxDeleteBuffer(HGfxBuffer handle)
     gfxCtx()->buffersManager.releaseHandle(handle);
 }
 
-GfxTexture2D* gfxTexture2DPtr(HGfxTexture2D texture2dHandle)
-{
-    return gfxCtx()->texture2dManager.getPtr(texture2dHandle);
-}
-
 GfxBuffer* gfxBufferPtr(HGfxBuffer bufferHandle)
 {
     return gfxCtx()->buffersManager.getPtr(bufferHandle);
@@ -102,6 +97,30 @@ void gfxDeleteTexture2D(HGfxTexture2D handle)
 {
     deleterGfxTexture2D(gfxTexture2DPtr(handle));
     gfxCtx()->texture2dManager.releaseHandle(handle);
+}
+
+GfxTexture2D* gfxTexture2DPtr(HGfxTexture2D texture2dHandle)
+{
+    return gfxCtx()->texture2dManager.getPtr(texture2dHandle);
+}
+
+HGfxGraphicsPSO gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
+{
+    HGfxGraphicsPSO psoHandle = gfxCtx()->graphicsPSOManager.getFreeHandle();
+    GfxGraphicsPSO* psoPtr = creatorGfxGraphicsPSO(shaderDesc, renderStateDesc);
+    gfxCtx()->graphicsPSOManager.setResourcePtrForHandle(psoHandle, psoPtr);
+    return psoHandle;
+}
+
+void gfxDeleleGraphicsPSO(HGfxGraphicsPSO handle)
+{
+    deleterGfxGraphicsPSO(gfxGraphicsPSOPtr(handle));
+    gfxCtx()->graphicsPSOManager.releaseHandle(handle);
+}
+
+GfxGraphicsPSO* gfxGraphicsPSOPtr(HGfxGraphicsPSO handle)
+{
+    return gfxCtx()->graphicsPSOManager.getPtr(handle);
 }
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)

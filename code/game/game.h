@@ -9,7 +9,7 @@ struct GameData
     rg::HGfxTexture2D oceanTileTexture;
     rg::HGfxTexture2D flowerTexture;
     
-    rg::GfxGraphicsPSO* simple2dPSO; // TODO: use Handle
+    rg::HGfxGraphicsPSO simple2dPSO; // TODO: use Handle
 
     b2World* phyWorld;
 };

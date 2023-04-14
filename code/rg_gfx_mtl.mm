@@ -143,6 +143,11 @@ id<MTLRenderPipelineState> toMTLRenderPipelineState(GfxGraphicsPSO* pso)
     return (__bridge id<MTLRenderPipelineState>)(pso->mtlPSO);
 }
 
+id<MTLRenderPipelineState> toMTLRenderPipelineState(HGfxGraphicsPSO handle)
+{
+    return toMTLRenderPipelineState(gfxGraphicsPSOPtr(handle));
+}
+
 id<MTLRenderCommandEncoder> mtlRenderEncoder()
 {
     return (__bridge id<MTLRenderCommandEncoder>)mtl()->renderEncoder;
@@ -395,7 +400,7 @@ NSDictionary* macrosToNSDictionary(char const* macros)
     return (NSDictionary*)(macroDictionary);
 }
 
-GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
+GfxGraphicsPSO* creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
     GfxGraphicsPSO* graphicsPSO = rgNew(GfxGraphicsPSO);
     
@@ -487,7 +492,7 @@ GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc*
     return graphicsPSO;
 }
 
-void gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso)
+void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
 {
     [toMTLRenderPipelineState(pso) release];
     rgDelete(pso);
@@ -540,8 +545,8 @@ void gfxHandleRenderCmd_SetViewport(void const* cmd)
     vp.originY = setViewport->viewport.y;
     vp.width   = setViewport->viewport.z;
     vp.height  = setViewport->viewport.w;
-    vp.znear   = 0.0f;
-    vp.zfar    = 1.0f;
+    vp.znear   = 0.0;
+    vp.zfar    = 1.0;
     
     [mtlRenderEncoder() setViewport:vp];
 }
@@ -645,7 +650,7 @@ void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
         cam.view[i] = viewMatrix[i];
     }
      
-    [mtlRenderEncoder() setRenderPipelineState:(__bridge id<MTLRenderPipelineState>)rc->pso->mtlPSO];
+    [mtlRenderEncoder() setRenderPipelineState:toMTLRenderPipelineState(rc->pso)];
     [mtlRenderEncoder() setVertexBytes:&cam length:sizeof(Camera) atIndex:0];
     [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(texturedQuadInstParams) offset:0 atIndex:4];
     [mtlRenderEncoder() setVertexBuffer:getActiveMTLBuffer(texturesQuadVB) offset:0 atIndex:1];

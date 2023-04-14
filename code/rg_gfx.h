@@ -376,14 +376,14 @@ struct GfxGraphicsPSO
 #endif
 };
 
-typedef eastl::shared_ptr<GfxGraphicsPSO> GfxGraphicsPSORef;
 typedef rgU32 HGfxGraphicsPSO;
 
-GfxGraphicsPSO* gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
-void            gfxDeleleGraphicsPSO(GfxGraphicsPSO* pso);
+HGfxGraphicsPSO gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
+void            gfxDeleleGraphicsPSO(HGfxGraphicsPSO handle);
+GfxGraphicsPSO* gfxGraphicsPSOPtr(HGfxGraphicsPSO handle);
 
-//GfxGraphicsPSORef creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
-//void deleterGfxTexture2D(GfxGraphicsPSO* pso);
+GfxGraphicsPSO* creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
+void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso);
 
 //-----------------------------------------------------------------------------
 // Resource Binding
@@ -500,6 +500,7 @@ struct GfxCtx
     
     GfxResourceManager<GfxTexture2D, HGfxTexture2D> texture2dManager;
     GfxResourceManager<GfxBuffer, HGfxBuffer> buffersManager;
+    GfxResourceManager<GfxGraphicsPSO, HGfxGraphicsPSO> graphicsPSOManager;
     
     Matrix4 orthographicMatrix;
     Matrix4 viewMatrix;
@@ -630,7 +631,7 @@ END_RENDERCMD_STRUCT();
 // ---
 
 BEGIN_RENDERCMD_STRUCT(DrawTexturedQuads);
-    GfxGraphicsPSO* pso; // TODO: use Handle?s
+    HGfxGraphicsPSO pso; // TODO: use Handle?s
     TexturedQuads* quads;
 END_RENDERCMD_STRUCT();
 
