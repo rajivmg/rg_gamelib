@@ -4,6 +4,7 @@
 #if defined(RG_VULKAN_RNDR)
 #include "volk/volk.h"
 #include "vk-bootstrap/VkBootstrap.h"
+#include "vk_mem_alloc.h"
 #elif defined(RG_OPENGL_RNDR)
 #include <GL/glew.h>
 #elif defined(RG_METAL_RNDR)
@@ -224,6 +225,7 @@ struct GfxBuffer
     MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_FLIGHT];
 #elif defined(RG_VULKAN_RNDR)
     VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
+    VmaAllocation vmaAlloc;
 #endif
 };
 typedef rgU32 HGfxBuffer;
@@ -252,6 +254,7 @@ struct GfxTexture2D
     MTL::Texture* mtlTexture;
 #elif defined(RG_VULKAN_RNDR)
     VkImage vkTexture;
+    VmaAllocation vmaAlloc;
 #elif defined(RG_OPENGL_RNDR)
     GLuint glTexture;
 #elif defined(RG_SDL_RNDR)
@@ -552,6 +555,8 @@ struct GfxCtx
         rgUInt deviceExtCount;
         char const** deviceExtNames;
         VkQueue graphicsQueue;
+
+        VmaAllocator vmaAllocator;
 
         VkCommandPool graphicsCmdPool;
         VkCommandBuffer graphicsCmdBuffer;

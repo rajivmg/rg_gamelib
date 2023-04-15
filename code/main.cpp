@@ -56,6 +56,8 @@ rgInt rg::setup()
 {
     g_GameData = rgNew(GameData);
 
+    HGfxBuffer b = gfxNewBuffer(nullptr, 100, GfxResourceUsage_Dynamic);
+
     HGfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
     
     for(rgInt i = 1; i <= 16; ++i)

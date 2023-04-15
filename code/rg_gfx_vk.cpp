@@ -15,6 +15,11 @@
 
 RG_BEGIN_NAMESPACE
 
+GfxCtx::VkGfxCtx* vkCtx()
+{
+    return &g_GfxCtx->vk;
+}
+
 static void createRenderPass(GfxCtx::VkGfxCtx* vk)
 {
     VkAttachmentDescription attachment = {};
@@ -231,8 +236,7 @@ rgInt gfxInit()
     vmaInfo.device = vk->device;
     vmaInfo.instance = vk->inst;
 
-    VmaAllocator vmaAllocator;
-    vmaCreateAllocator(&vmaInfo, &vmaAllocator);
+    vmaCreateAllocator(&vmaInfo, &vk->vmaAllocator);
 
     createPipeline(vk);
 
@@ -264,17 +268,25 @@ GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
     VkBufferCreateInfo bufferInfo = {};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = size;
-    bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    bufferInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    bufferInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-    bufferInfo.usage |= VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT;
-    bufferInfo.usage |= VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT;
-    bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    // TODO: Add more :) usage bits, thank you Vulkan 
+    bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+        | VK_BUFFER_USAGE_TRANSFER_DST_BIT
+        | VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT
+        | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT
+        | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+        | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+        | VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+        | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+        | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT
+        | VK_BUFFER_USAGE_CONDITIONAL_RENDERING_BIT_EXT
+        | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
+
+    GfxBuffer* bufferPtr = rgNew(GfxBuffer);
 
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-
+    allocInfo.memoryTypeBits = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    vmaCreateBuffer(vkCtx()->vmaAllocator, &bufferInfo, &allocInfo, &bufferPtr->vkBuffers[0], &bufferPtr->vmaAlloc, nullptr);
+    
     return nullptr;
 }
 
@@ -290,7 +302,7 @@ void deleterGfxBuffer(GfxBuffer* buffer)
 
 GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
-    return nullptr;
+    return rgNew(GfxTexture2D);
 }
 
 void deleterGfxTexture2D(GfxTexture2D* t2d)
