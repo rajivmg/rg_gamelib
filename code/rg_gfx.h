@@ -1,16 +1,22 @@
 #ifndef __RG_GFX_H__
 #define __RG_GFX_H__
 
-#if defined(RG_VULKAN_RNDR)
-#include "volk/volk.h"
-#include "vk-bootstrap/VkBootstrap.h"
-#include "vk_mem_alloc.h"
-#elif defined(RG_OPENGL_RNDR)
-#include <GL/glew.h>
+#if defined(RG_D3D12_RNDR)
+    #define WIN32_LEAN_AND_MEAN
+    #include <Windows.h>
+    #include <wrl.h>
+    #include <d3d12.h>
+    using namespace Microsoft::WRL;
 #elif defined(RG_METAL_RNDR)
-#include <Metal/Metal.hpp>
-#include <AppKit/AppKit.hpp>
-#include <MetalKit/MetalKit.hpp>
+    #include <Metal/Metal.hpp>
+    #include <AppKit/AppKit.hpp>
+    #include <MetalKit/MetalKit.hpp>
+#elif defined(RG_VULKAN_RNDR)
+    #include "volk/volk.h"
+    #include "vk-bootstrap/VkBootstrap.h"
+    #include "vk_mem_alloc.h"
+#elif defined(RG_OPENGL_RNDR)
+    #include <GL/glew.h>
 #endif
 
 #include "rg.h"
@@ -221,7 +227,8 @@ struct GfxBuffer
     GfxResourceUsage usageMode;
     rgSize size;
     rgInt activeIdx;
-#if defined(RG_METAL_RNDR)
+#if defined(RG_D3D12_RNDR)
+#elif defined(RG_METAL_RNDR)
     MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_FLIGHT];
 #elif defined(RG_VULKAN_RNDR)
     VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
@@ -249,16 +256,15 @@ struct GfxTexture2D
     rgUInt height;
     TinyImageFormat pixelFormat;
     rgU32 texID;
-    
-#if defined(RG_METAL_RNDR)
+   
+#if defined(RG_D3D12_RNDR)
+#elif defined(RG_METAL_RNDR)
     MTL::Texture* mtlTexture;
 #elif defined(RG_VULKAN_RNDR)
     VkImage vkTexture;
     VmaAllocation vmaAlloc;
 #elif defined(RG_OPENGL_RNDR)
     GLuint glTexture;
-#elif defined(RG_SDL_RNDR)
-    SDL_Texture* sdlTexture;
 #endif
 };
 typedef rgU32 HGfxTexture2D;
@@ -368,14 +374,15 @@ struct GfxShaderDesc
     char const* macros;
 };
 
-struct GfxGraphicsPSO
+// TODO: Not a resource
+struct GfxGraphicsPSO 
 {
     // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly.
     GfxRenderStateDesc renderState;
-#if defined(RG_METAL_RNDR)
+#if defined(RG_D3D12_RNDR)
+#elif defined(RG_METAL_RNDR)
     void* mtlPSO; // type: id<MTLRenderPipelineState>
 #elif defined(RG_VULKAN_RNDR)
-#elif defined(RG_OPENGL_RNDR)
 #endif
 };
 
@@ -416,7 +423,8 @@ struct GfxDescriptor
 
 struct GfxDescriptorBufferEncoder
 {
-#if defined(RG_METAL_RNDR)
+#if defined(RG_D3D12_RNDR)
+#elif defined(RG_METAL_RNDR)
     void* mtlArgEncoder; // type: id<MTLArgumentEncoder>
 #elif defined(RG_VULKAN_RNDR)
 
@@ -517,12 +525,11 @@ struct GfxCtx
     HGfxBuffer rcTexturedQuadsVB;
     HGfxBuffer rcTexturedQuadsInstParams;
 
-#if defined(RG_SDL_RNDR)
-    struct SDLGfxCtx
+#if defined(RG_D3D12_RNDR)
+    struct D3d
     {
-        SDL_Renderer* renderer;
-        GfxTexture2DRef tTex;
-    } sdl;
+        ComPtr<ID3D12Device> device;
+    } d3d;
 #elif defined(RG_METAL_RNDR)
     struct Mtl
     {

@@ -194,8 +194,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         {
             for(rgInt j = 0; j < 4; ++j)
             {
-                rgFloat px = j * (100) + 10 * (j + 1) + sinf(g_Time) * 30;
-                rgFloat py = i * (100) + 10 * (i + 1) + cosf(g_Time) * 30;
+                rgFloat px = j * (100) + 10 * (j + 1) + sinf((rgFloat)g_Time) * 30;
+                rgFloat py = i * (100) + 10 * (i + 1) + cosf((rgFloat)g_Time) * 30;
                 
                 pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfxCtx()->debugTextureHandles[j + i * 4]);
             }

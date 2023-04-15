@@ -11,16 +11,16 @@ RG_BEGIN_NAMESPACE
 // --- Game Graphics APIs
 QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
 
-Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat near, rgFloat far)
+Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue)
 {
     rgFloat length = 1.0f / (right - left);
     rgFloat height = 1.0f / (top - bottom);
-    rgFloat depth  = 1.0f / (far - near);
+    rgFloat depth  = 1.0f / (farValue - nearValue);
     
     return Matrix4(Vector4(2.0f * length, 0, 0, 0),
                    Vector4(0, 2.0f * height, 0, 0),
                    Vector4(0, 0, depth, 0),
-                   Vector4(-((right + left) * length), -((top +bottom) * height), -near * depth, 1.0f));
+                   Vector4(-((right + left) * length), -((top +bottom) * height), -nearValue * depth, 1.0f));
 }
 
 rgInt gfxCommonInit()
