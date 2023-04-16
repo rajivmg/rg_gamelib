@@ -6,6 +6,7 @@
     #include <Windows.h>
     #include <wrl.h>
     #include <d3d12.h>
+    #include <dxgi1_6.h>
     using namespace Microsoft::WRL;
 #elif defined(RG_METAL_RNDR)
     #include <Metal/Metal.hpp>
@@ -528,7 +529,10 @@ struct GfxCtx
 #if defined(RG_D3D12_RNDR)
     struct D3d
     {
-        ComPtr<ID3D12Device> device;
+        ComPtr<ID3D12Device2> device;
+        ComPtr<ID3D12CommandQueue> commandQueue;
+        ComPtr<IDXGISwapChain4> dxgiSwapchain;
+        ComPtr<IDXGIFactory4> dxgiFactory;
     } d3d;
 #elif defined(RG_METAL_RNDR)
     struct Mtl
