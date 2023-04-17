@@ -174,7 +174,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         RenderCmd_SetRenderPass* rcRenderPass = cmdList->addCmd<RenderCmd_SetRenderPass>(rgRenderKey(false), 0);
         
         GfxRenderPass simple2dPass = {};
-        simple2dPass.colorAttachments[0].texture = gfxCtx()->renderTarget0[g_FrameIndex];
+        simple2dPass.colorAttachments[0].texture = gfxCtx()->renderTarget[g_FrameIndex];
         simple2dPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         simple2dPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
         simple2dPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };

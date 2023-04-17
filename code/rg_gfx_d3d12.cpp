@@ -98,17 +98,70 @@ rgInt gfxInit()
     BreakIfFail(dxgiSwapchain1.As(&d3d()->dxgiSwapchain));
 
     // create swapchain RTV
+    
+    // TODO TODO TODO TODO
+    // TODO TODO TODO TODO
+    // TODO TODO TODO TODO
+    // Make handle value start from 1. Default 0 should be uninitialized handle
+
+    HGfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
+
+    // TODO TODO TODO TODO
+    // TODO TODO TODO TODO
+    // TODO TODO TODO TODO
+
     D3D12_DESCRIPTOR_HEAP_DESC descHeap = {};
     descHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    descHeap.NumDescriptors = 64;
+    descHeap.NumDescriptors = RG_MAX_FRAMES_IN_FLIGHT;
     BreakIfFail(device()->CreateDescriptorHeap(&descHeap, __uuidof(d3d()->rtvDescriptorHeap), (void**)&(d3d()->rtvDescriptorHeap)));
 
-    rgUInt rtvDescSize = device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    rgUInt rtvDescriptorSize = device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(d3d()->rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
+        ComPtr<ID3D12Resource> texResource; // TODO: This should be plain pointer!!!
+        BreakIfFail(d3d()->dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
+        device()->CreateRenderTargetView(texResource.Get(), nullptr, rtvDescriptorHandle);
+        rtvDescriptorHandle.Offset(1, rtvDescriptorSize);
 
+        D3D12_RESOURCE_DESC desc = texResource->GetDesc();
+        GfxTexture2D* tex2d = rgNew(GfxTexture2D);
+        strncpy(tex2d->name, "RenderTarget", 32);
+        tex2d->width = (rgUInt)desc.Width;
+        tex2d->height = (rgUInt)desc.Height;
+        tex2d->usage = GfxTextureUsage_RenderTarget;
+        tex2d->pixelFormat = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
+        tex2d->d3dTexture = texResource;
+        gfxCtx()->renderTarget[i] = gfxNewTexture2D(tex2d);
     }
+
+    // create depthstencil
+    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+    dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+    dsvHeapDesc.NumDescriptors = 1;
+    BreakIfFail(device()->CreateDescriptorHeap(&dsvHeapDesc, __uuidof(d3d()->dsvDescriptorHeap), (void**)&(d3d()->dsvDescriptorHeap)));
+    
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
+    dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+    D3D12_CLEAR_VALUE depthStencilClearValue = {};
+    depthStencilClearValue.DepthStencil.Depth = 1.0f;
+    depthStencilClearValue.DepthStencil.Stencil = 0;
+
+    ID3D12Resource* dsResource;
+
+    device()->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        D3D12_HEAP_FLAG_NONE,
+        &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, g_WindowInfo.width, g_WindowInfo.height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &depthStencilClearValue,
+        IID_PPV_ARGS(&dsResource));
+
+    device()->CreateDepthStencilView(dsResource, &dsDesc, d3d()->dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
     return 0;
 }
 

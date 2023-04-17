@@ -72,6 +72,16 @@ GfxBuffer* gfxBufferPtr(HGfxBuffer bufferHandle)
     return gfxCtx()->buffersManager.getPtr(bufferHandle);
 }
 
+HGfxTexture2D gfxNewTexture2D(GfxTexture2D* ptr)
+{
+    rgAssert(ptr != nullptr);
+
+    HGfxTexture2D tex2dHandle = gfxCtx()->texture2dManager.getFreeHandle();
+    ptr->texID = tex2dHandle;
+    gfxCtx()->texture2dManager.setResourcePtrForHandle(tex2dHandle, ptr);
+    return tex2dHandle;
+}
+
 HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage)
 {
     Texture* tex = texture.get();

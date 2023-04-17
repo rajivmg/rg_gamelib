@@ -256,10 +256,12 @@ struct GfxTexture2D
     rgChar name[32];
     rgUInt width;
     rgUInt height;
+    GfxTextureUsage usage;
     TinyImageFormat pixelFormat;
     rgU32 texID;
    
 #if defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Resource> d3dTexture;
 #elif defined(RG_METAL_RNDR)
     MTL::Texture* mtlTexture;
 #elif defined(RG_VULKAN_RNDR)
@@ -272,6 +274,7 @@ struct GfxTexture2D
 typedef rgU32 HGfxTexture2D;
 static_assert(sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID), "sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID)");
 
+HGfxTexture2D gfxNewTexture2D(GfxTexture2D* ptr);
 HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage);
 HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
 void gfxDeleteTexture2D(HGfxTexture2D handle);
@@ -520,7 +523,7 @@ struct GfxCtx
     
     eastl::vector<HGfxTexture2D> debugTextureHandles; // test only
     
-    HGfxTexture2D renderTarget0[RG_MAX_FRAMES_IN_FLIGHT];
+    HGfxTexture2D renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
     HGfxTexture2D depthStencilBuffer[RG_MAX_FRAMES_IN_FLIGHT];
     
     // RenderCmdTexturedQuads
@@ -536,6 +539,7 @@ struct GfxCtx
         ComPtr<IDXGIFactory4> dxgiFactory;
 
         ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
+        ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
     } d3d;
 #elif defined(RG_METAL_RNDR)
     struct Mtl
