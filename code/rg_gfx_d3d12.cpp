@@ -97,7 +97,18 @@ rgInt gfxInit()
     BreakIfFail(d3d()->dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
     BreakIfFail(dxgiSwapchain1.As(&d3d()->dxgiSwapchain));
 
+    // create swapchain RTV
+    D3D12_DESCRIPTOR_HEAP_DESC descHeap = {};
+    descHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    descHeap.NumDescriptors = 64;
+    BreakIfFail(device()->CreateDescriptorHeap(&descHeap, __uuidof(d3d()->rtvDescriptorHeap), (void**)&(d3d()->rtvDescriptorHeap)));
 
+    rgUInt rtvDescSize = device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(d3d()->rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+
+    }
     return 0;
 }
 
