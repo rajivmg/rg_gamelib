@@ -196,7 +196,7 @@ rgInt gfxInit()
     
     for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        ctx->renderTarget0[i] = gfxNewTexture2D(nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, GfxTextureUsage_RenderTarget, "renderTarget0");
+        ctx->renderTarget[i] = gfxNewTexture2D(nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, GfxTextureUsage_RenderTarget, "renderTarget0");
         
         ctx->depthStencilBuffer[i] = gfxNewTexture2D(nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, GfxTextureUsage_RenderTarget, "depthStencilBuffer");
     }
@@ -262,7 +262,7 @@ rgInt gfxDraw()
         // blit renderTarget0 to MTLDrawable
         id<MTLBlitCommandEncoder> blitEncoder = [mtlCommandBuffer() blitCommandEncoder];
         
-        id<MTLTexture> srcTexture = getMTLTexture(gfxCtx()->renderTarget0[g_FrameIndex]);
+        id<MTLTexture> srcTexture = getMTLTexture(gfxCtx()->renderTarget[g_FrameIndex]);
         id<MTLTexture> dstTexture = metalDrawable.texture;
         [blitEncoder copyFromTexture:srcTexture toTexture:dstTexture];
         [blitEncoder endEncoding];
