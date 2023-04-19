@@ -119,7 +119,7 @@ rgInt gfxInit()
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(d3d()->rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        ComPtr<ID3D12Resource> texResource; // TODO: This should be plain pointer!!!
+        ComPtr<ID3D12Resource> texResource;
         BreakIfFail(d3d()->dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
         device()->CreateRenderTargetView(texResource.Get(), nullptr, rtvDescriptorHandle);
         rtvDescriptorHandle.Offset(1, rtvDescriptorSize);
@@ -136,31 +136,41 @@ rgInt gfxInit()
     }
 
     // create depthstencil
+    ComPtr<ID3D12Resource> dsResource;
+
+    D3D12_CLEAR_VALUE depthStencilClearValue = {};
+    depthStencilClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+    depthStencilClearValue.DepthStencil = { 1.0f, 0 };
+
+    BreakIfFail(device()->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        D3D12_HEAP_FLAG_NONE,
+        &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, g_WindowInfo.width, g_WindowInfo.height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &depthStencilClearValue,
+        IID_PPV_ARGS(&dsResource)));
+
     D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
     dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
     dsvHeapDesc.NumDescriptors = 1;
     BreakIfFail(device()->CreateDescriptorHeap(&dsvHeapDesc, __uuidof(d3d()->dsvDescriptorHeap), (void**)&(d3d()->dsvDescriptorHeap)));
-    
+
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsDesc.Texture2D.MipSlice = 0;
     dsDesc.Flags = D3D12_DSV_FLAG_NONE;
+    device()->CreateDepthStencilView(dsResource.Get(), &dsDesc, d3d()->dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-    D3D12_CLEAR_VALUE depthStencilClearValue = {};
-    depthStencilClearValue.DepthStencil.Depth = 1.0f;
-    depthStencilClearValue.DepthStencil.Stencil = 0;
-
-    ID3D12Resource* dsResource;
-
-    device()->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, g_WindowInfo.width, g_WindowInfo.height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
-        D3D12_RESOURCE_STATE_DEPTH_WRITE,
-        &depthStencilClearValue,
-        IID_PPV_ARGS(&dsResource));
-
-    device()->CreateDepthStencilView(dsResource, &dsDesc, d3d()->dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    D3D12_RESOURCE_DESC dsResdesc = dsResource->GetDesc();
+    GfxTexture2D* dsTex = rgNew(GfxTexture2D);
+    strncpy(dsTex->name, "DepthStencilTarget", 32);
+    dsTex->width = (rgUInt)dsResdesc.Width;
+    dsTex->height = (rgUInt)dsResdesc.Height;
+    dsTex->usage = GfxTextureUsage_RenderTarget;
+    dsTex->pixelFormat = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)dsResdesc.Format);
+    dsTex->d3dTexture = dsResource;
+    gfxCtx()->depthStencilBuffer = gfxNewTexture2D(dsTex);
 
     return 0;
 }

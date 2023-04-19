@@ -524,7 +524,7 @@ struct GfxCtx
     eastl::vector<HGfxTexture2D> debugTextureHandles; // test only
     
     HGfxTexture2D renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-    HGfxTexture2D depthStencilBuffer[RG_MAX_FRAMES_IN_FLIGHT];
+    HGfxTexture2D depthStencilBuffer;
     
     // RenderCmdTexturedQuads
     HGfxBuffer rcTexturedQuadsVB;

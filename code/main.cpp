@@ -178,7 +178,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         simple2dPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         simple2dPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
         simple2dPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
-        simple2dPass.depthStencilAttachmentTexture = gfxCtx()->depthStencilBuffer[g_FrameIndex];
+        simple2dPass.depthStencilAttachmentTexture = gfxCtx()->depthStencilBuffer;
         simple2dPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
         simple2dPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         simple2dPass.clearDepth = 0.0f;
