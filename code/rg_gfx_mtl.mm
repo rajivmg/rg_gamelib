@@ -197,9 +197,8 @@ rgInt gfxInit()
     for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         ctx->renderTarget[i] = gfxNewTexture2D(nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, GfxTextureUsage_RenderTarget, "renderTarget0");
-        
-        ctx->depthStencilBuffer[i] = gfxNewTexture2D(nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, GfxTextureUsage_RenderTarget, "depthStencilBuffer");
     }
+    ctx->depthStencilBuffer = gfxNewTexture2D(nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, GfxTextureUsage_RenderTarget, "depthStencilBuffer");
     
     MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
     argDesc.index = 0;
