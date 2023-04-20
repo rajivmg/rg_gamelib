@@ -109,6 +109,28 @@ void waitForPreviousFrame()
     g_FrameIndex = d3d()->dxgiSwapchain->GetCurrentBackBufferIndex();
 }
 
+// https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Fullscreen/src/D3D12Fullscreen.cpp
+// TODO: Have this for now.. We won't have to worry about modifying descriptortables at runtime
+/*
+void WaitForNextFrameBegin()
+{
+    UINT64 curValueToSignal = d3d()->frameFenceValues[g_FrameIndex];
+    BreakIfFail(d3d()->commandQueue->Signal(d3d()->frameFence.Get(), curValueToSignal));
+
+    g_FrameIndex = d3d()->dxgiSwapchain->GetCurrentBackBufferIndex();
+
+    // check if next frame's fence value is reached, meaning we can reuse its framebuffer
+    UINT64 nextFrameFenceValueToWaitFor = d3d()->frameFenceValues[g_FrameIndex];
+    while(d3d()->frameFence->GetCompletedValue() < nextFrameFenceValueToWaitFor)
+    {
+        BreakIfFail(d3d()->frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, d3d()->frameFenceEvent));
+        WaitForSingleObject(d3d()->frameFenceEvent, INFINITE);
+    }
+
+    d3d()->frameFenceValues[g_FrameIndex] = curValueToSignal + 1; // increment for next frame
+}
+*/
+
 ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, rgUInt descriptorsCount, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
 {
     ComPtr<ID3D12DescriptorHeap> descriptorHeap;

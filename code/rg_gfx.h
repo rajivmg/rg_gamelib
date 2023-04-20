@@ -548,6 +548,10 @@ struct GfxCtx
         ComPtr<ID3D12CommandAllocator> commandAllocator; /// [MAX-FRAMES]
         ComPtr<ID3D12GraphicsCommandList> commandList;
 
+        ComPtr<ID3D12Fence> frameFence;
+        UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+        HANDLE frameFenceEvent;
+
         /// test
         ComPtr<ID3D12RootSignature> dummyRootSignature;
         ComPtr<ID3D12PipelineState> dummyPSO;
