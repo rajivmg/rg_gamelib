@@ -296,8 +296,9 @@ int main(int argc, char* argv[])
     {
         ++g_GfxCtx->frameNumber;
         
+#if !defined(RG_D3D12_RNDR)
         g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
-
+#endif
         Uint64 counterFrequency = SDL_GetPerformanceFrequency();
         previousPerfCounter = currentPerfCounter;
         currentPerfCounter = SDL_GetPerformanceCounter();

@@ -540,7 +540,21 @@ struct GfxCtx
         ComPtr<IDXGIFactory4> dxgiFactory;
 
         ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
+        rgUInt rtvDescriptorSize;
+
         ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
+
+        ComPtr<ID3D12CommandAllocator> commandAllocator; /// [MAX-FRAMES]
+        ComPtr<ID3D12GraphicsCommandList> commandList;
+
+        /// test
+        ComPtr<ID3D12RootSignature> dummyRootSignature;
+        ComPtr<ID3D12PipelineState> dummyPSO;
+        ComPtr<ID3D12Resource> triVB;
+        D3D12_VERTEX_BUFFER_VIEW triVBView;
+        ComPtr<ID3D12Fence> dummyFence;
+        rgU64 dummyFenceValue;
+        HANDLE dummyFenceEvent;
     } d3d;
 #elif defined(RG_METAL_RNDR)
     struct Mtl
