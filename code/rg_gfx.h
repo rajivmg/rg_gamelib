@@ -221,6 +221,7 @@ enum GfxStoreAction
 rgInt gfxInit();
 void  gfxDestroy();
 rgInt gfxDraw();
+void  gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
 
 //-----------------------------------------------------------------------------
 // Gfx Buffers
