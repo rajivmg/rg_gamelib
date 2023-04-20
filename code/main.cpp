@@ -150,7 +150,7 @@ rgInt rg::setup()
 
 rgInt rg::updateAndDraw(rgDouble dt)
 {
-    //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
+    rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
 
     QuadUV fullQuadUV = rg::createQuadUV(0, 0, 512, 512, 512, 512);
 
@@ -290,7 +290,6 @@ int main(int argc, char* argv[])
     
     Uint64 currentPerfCounter = SDL_GetPerformanceCounter();
     Uint64 previousPerfCounter = currentPerfCounter;
-    rgDouble deltaTime = 0.0;
     
     while(!g_ShouldQuit)
     {
@@ -317,7 +316,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        updateAndDraw(deltaTime);
+        updateAndDraw(g_DeltaTime);
         
         gfxDraw();
     }
