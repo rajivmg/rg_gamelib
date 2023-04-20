@@ -109,6 +109,35 @@ void waitForPreviousFrame()
     g_FrameIndex = d3d()->dxgiSwapchain->GetCurrentBackBufferIndex();
 }
 
+ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, rgUInt descriptorsCount, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
+{
+    ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+    desc.Type = type;
+    desc.NumDescriptors = descriptorsCount;
+    desc.Flags = flags;
+
+    BreakIfFail(device()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
+
+    return descriptorHeap;
+}
+
+ComPtr<ID3D12CommandAllocator> createCommandAllocator(D3D12_COMMAND_LIST_TYPE commandListType)
+{
+    ComPtr<ID3D12CommandAllocator> commandAllocator;
+    BreakIfFail(device()->CreateCommandAllocator(commandListType, IID_PPV_ARGS(&commandAllocator)));
+    
+    return commandAllocator;
+}
+
+ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> commandAllocator, ID3D12PipelineState* pipelineState)
+{
+    ComPtr<ID3D12GraphicsCommandList> commandList;
+    BreakIfFail(device()->CreateCommandList(0, type, commandAllocator.Get(), pipelineState, IID_PPV_ARGS(&commandList)));
+    BreakIfFail(commandList->Close());
+    return commandList;
+}
+
 // SECTION BEGIN -
 // -----------------------------------------------
 // GFX Functions
@@ -192,10 +221,7 @@ rgInt gfxInit()
     // TODO TODO TODO TODO
     // TODO TODO TODO TODO
 
-    D3D12_DESCRIPTOR_HEAP_DESC descHeap = {};
-    descHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    descHeap.NumDescriptors = RG_MAX_FRAMES_IN_FLIGHT;
-    BreakIfFail(device()->CreateDescriptorHeap(&descHeap, __uuidof(d3d()->rtvDescriptorHeap), (void**)&(d3d()->rtvDescriptorHeap)));
+    d3d()->rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RG_MAX_FRAMES_IN_FLIGHT, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
     d3d()->rtvDescriptorSize = device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(d3d()->rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
@@ -232,10 +258,7 @@ rgInt gfxInit()
         &depthStencilClearValue,
         IID_PPV_ARGS(&dsResource)));
 
-    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-    dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-    dsvHeapDesc.NumDescriptors = 1;
-    BreakIfFail(device()->CreateDescriptorHeap(&dsvHeapDesc, __uuidof(d3d()->dsvDescriptorHeap), (void**)&(d3d()->dsvDescriptorHeap)));
+    d3d()->dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -303,9 +326,8 @@ rgInt gfxInit()
         BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, __uuidof(d3d()->dummyPSO), (void**)&(d3d()->dummyPSO)));
     }
     
-    BreakIfFail(device()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, __uuidof(d3d()->commandAllocator), (void**)&(d3d()->commandAllocator)));
-    BreakIfFail(device()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, d3d()->commandAllocator.Get(), d3d()->dummyPSO.Get(), __uuidof(d3d()->commandList), (void**)&(d3d()->commandList)));
-    BreakIfFail(d3d()->commandList->Close());
+    d3d()->commandAllocator = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    d3d()->commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d()->commandAllocator, d3d()->dummyPSO.Get());
 
     {
         rgFloat triangleVertices[] =
