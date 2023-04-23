@@ -94,25 +94,17 @@ void getHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool
     *ppAdapter = adapter.Detach();
 }
 
-void waitForPreviousFrame()
+void waitForGpu()
 {
-    rgU64 fence = d3d()->dummyFenceValue;
-    BreakIfFail(d3d()->commandQueue->Signal(d3d()->dummyFence.Get(), fence));
-    ++d3d()->dummyFenceValue;
-
-    while(d3d()->dummyFence->GetCompletedValue() < fence)
-    {
-        BreakIfFail(d3d()->dummyFence->SetEventOnCompletion(fence, d3d()->dummyFenceEvent));
-        WaitForSingleObject(d3d()->dummyFenceEvent, INFINITE);
-    }
-
-    g_FrameIndex = d3d()->dxgiSwapchain->GetCurrentBackBufferIndex();
+    BreakIfFail(d3d()->commandQueue->Signal(d3d()->frameFence.Get(), d3d()->frameFenceValues[g_FrameIndex]));
+    BreakIfFail(d3d()->frameFence->SetEventOnCompletion(d3d()->frameFenceValues[g_FrameIndex], d3d()->frameFenceEvent));
+    ::WaitForSingleObject(d3d()->frameFenceEvent, INFINITE);
 }
 
 // https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Fullscreen/src/D3D12Fullscreen.cpp
 // TODO: Have this for now.. We won't have to worry about modifying descriptortables at runtime
-/*
-void WaitForNextFrameBegin()
+
+void startNextFrame()
 {
     UINT64 curValueToSignal = d3d()->frameFenceValues[g_FrameIndex];
     BreakIfFail(d3d()->commandQueue->Signal(d3d()->frameFence.Get(), curValueToSignal));
@@ -129,7 +121,7 @@ void WaitForNextFrameBegin()
 
     d3d()->frameFenceValues[g_FrameIndex] = curValueToSignal + 1; // increment for next frame
 }
-*/
+
 
 ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, rgUInt descriptorsCount, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
 {
@@ -299,6 +291,13 @@ rgInt gfxInit()
     dsTex->d3dTexture = dsResource;
     gfxCtx()->depthStencilBuffer = gfxNewTexture2D(dsTex);
 
+    for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        d3d()->commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    }
+
+    d3d()->commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d()->commandAllocator[g_FrameIndex], nullptr);
+
     ///// 
     // empty root signature
     {
@@ -348,8 +347,8 @@ rgInt gfxInit()
         BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, __uuidof(d3d()->dummyPSO), (void**)&(d3d()->dummyPSO)));
     }
     
-    d3d()->commandAllocator = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
-    d3d()->commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d()->commandAllocator, d3d()->dummyPSO.Get());
+    //d3d()->commandAllocator = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    //d3d()->commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d()->commandAllocator, d3d()->dummyPSO.Get());
 
     {
         rgFloat triangleVertices[] =
@@ -383,15 +382,16 @@ rgInt gfxInit()
     }
 
     {
-        BreakIfFail(device()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(d3d()->dummyFence), (void**)&(d3d()->dummyFence)));
-        d3d()->dummyFenceValue = 1;
-        d3d()->dummyFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if(d3d()->dummyFenceEvent == nullptr)
+        BreakIfFail(device()->CreateFence(d3d()->frameFenceValues[g_FrameIndex], D3D12_FENCE_FLAG_NONE, __uuidof(d3d()->frameFence), (void**)&(d3d()->frameFence)));
+        d3d()->frameFenceValues[g_FrameIndex]++;
+
+        d3d()->frameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if(d3d()->frameFenceEvent == nullptr)
         {
             BreakIfFail(HRESULT_FROM_WIN32(::GetLastError()));
         }
 
-        waitForPreviousFrame();
+        waitForGpu();
     }
 
     return 0;
@@ -399,8 +399,8 @@ rgInt gfxInit()
 
 void gfxDestroy()
 {
-    waitForPreviousFrame();
-    ::CloseHandle(d3d()->dummyFenceEvent);
+    waitForGpu();
+    ::CloseHandle(d3d()->frameFenceEvent);
 }
 
 rgInt gfxDraw()
@@ -408,8 +408,8 @@ rgInt gfxDraw()
     gfxGetRenderCmdList()->draw();
     gfxGetRenderCmdList()->afterDraw();
 
-    BreakIfFail(d3d()->commandAllocator->Reset());
-    BreakIfFail(d3d()->commandList->Reset(d3d()->commandAllocator.Get(), d3d()->dummyPSO.Get()));
+    BreakIfFail(d3d()->commandAllocator[g_FrameIndex]->Reset());
+    BreakIfFail(d3d()->commandList->Reset(d3d()->commandAllocator[g_FrameIndex].Get(), d3d()->dummyPSO.Get()));
 
     ID3D12GraphicsCommandList* commandList = d3d()->commandList.Get();
     commandList->SetGraphicsRootSignature(d3d()->dummyRootSignature.Get());
@@ -439,7 +439,7 @@ rgInt gfxDraw()
     d3d()->commandQueue->ExecuteCommandLists(1, commandLists);
     BreakIfFail(d3d()->dxgiSwapchain->Present(1, 0));
 
-    waitForPreviousFrame();
+    startNextFrame();
 
     return 0;
 }

@@ -268,7 +268,7 @@ int main(int argc, char* argv[])
 {
     g_GfxCtx = rgNew(GfxCtx);
     
-    g_FrameIndex = -1;
+    g_FrameIndex = 0;
 
     if(createSDLWindow(g_GfxCtx) != 0)
     {

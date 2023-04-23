@@ -545,7 +545,7 @@ struct GfxCtx
 
         ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
 
-        ComPtr<ID3D12CommandAllocator> commandAllocator; /// [MAX-FRAMES]
+        ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
         ComPtr<ID3D12GraphicsCommandList> commandList;
 
         ComPtr<ID3D12Fence> frameFence;
@@ -557,9 +557,6 @@ struct GfxCtx
         ComPtr<ID3D12PipelineState> dummyPSO;
         ComPtr<ID3D12Resource> triVB;
         D3D12_VERTEX_BUFFER_VIEW triVBView;
-        ComPtr<ID3D12Fence> dummyFence;
-        rgU64 dummyFenceValue;
-        HANDLE dummyFenceEvent;
     } d3d;
 #elif defined(RG_METAL_RNDR)
     struct Mtl
