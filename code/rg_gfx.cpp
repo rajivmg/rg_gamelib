@@ -133,6 +133,61 @@ GfxGraphicsPSO* gfxGraphicsPSOPtr(HGfxGraphicsPSO handle)
     return gfxCtx()->graphicsPSOManager.getPtr(handle);
 }
 
+/*
+#define DefineGfxObjectFunctions(type, ...) \
+Gfx##type* gfxCreate##type(const char* tag, __VA_ARGS__) \
+{ \
+    Gfx##type* objPtr = rgNew(Gfx##type);
+    creatorGfx##type(Gfx##type* objPtr, tag, __VA_ARGS__) \
+} \
+        Gfx##type* gfxFindOrCreate##type(const char* tag, __VA_ARGS__); \
+        Gfx##type* gfxFind##type(rgHash tagHash);  \
+        Gfx##type* gfxFind##type(char const* tag); \
+        Gfx##type* gfxDestroy##type(rgHash tagHash); \
+        Gfx##type* gfxDestroy##type(char const* tag)
+        */
+
+GfxRenderTarget* gfxCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
+{
+    GfxRenderTarget* objPtr = creatorGfxRenderTarget(tag, width, height, format);
+    gfxCtx()->renderTargets.insert(rgCRC32(tag), objPtr);
+    return objPtr;
+}
+
+GfxRenderTarget* gfxFindOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
+{
+    rgHash hash = rgCRC32(tag);
+    GfxRenderTarget* objPtr = gfxCtx()->renderTargets.find(hash);
+    objPtr = (objPtr == nullptr) ? gfxCreateRenderTarget(tag, width, height, format) : objPtr;
+    return objPtr;
+}
+
+GfxRenderTarget* gfxFindRenderTarget(rgHash tagHash)
+{
+    GfxRenderTarget* objPtr = gfxCtx()->renderTargets.find(tagHash);
+    return objPtr;
+}
+
+GfxRenderTarget* gfxFindRenderTarget(char const* tag)
+{
+    rgHash hash = rgCRC32(tag);
+    GfxRenderTarget* objPtr = gfxFindRenderTarget(hash);
+    return objPtr;
+}
+
+void gfxDestroyRenderTarget(rgHash tagHash)
+{
+    gfxCtx()->renderTargets.markForRemove(tagHash);
+}
+
+void gfxDestroyRenderTarget(char const* tag)
+{
+    rgHash hash = rgCRC32(tag);
+    gfxCtx()->renderTargets.markForRemove(hash);
+}
+
+// ------
+
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
 {
     QuadUV r;

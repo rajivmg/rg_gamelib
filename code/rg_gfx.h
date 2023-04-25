@@ -300,16 +300,24 @@ struct GfxRenderTarget
 GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format);
 void deleterGfxRenderTarget(GfxRenderTarget* ptr);
 
-GfxRenderTarget* gfxNewRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
-void             gfxDeleteRenderTarget(GfxRenderTarget* ptr);
-
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
-GfxRenderTarget* gfxCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
-GfxRenderTarget* gfxFindOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
-GfxRenderTarget* gfxFindRenderTarget(rgHash tagHash);
-GfxRenderTarget* gfxFindRenderTarget(char const* tag);
-void             gfxDestroyRenderTarget(rgHash tagHash);
-void             gfxDestroyRenderTarget(char const* tag);
+
+#define DeclareGfxObjectFunctions(type, ...) Gfx##type* gfxCreate##type(const char* tag, __VA_ARGS__); \
+        Gfx##type* gfxFindOrCreate##type(const char* tag, __VA_ARGS__); \
+        Gfx##type* gfxFind##type(rgHash tagHash);  \
+        Gfx##type* gfxFind##type(char const* tag); \
+        void gfxDestroy##type(rgHash tagHash); \
+        void gfxDestroy##type(char const* tag)
+
+DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
+DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
+
+//GfxRenderTarget* gfxCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
+//GfxRenderTarget* gfxFindOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
+//GfxRenderTarget* gfxFindRenderTarget(rgHash tagHash);
+//GfxRenderTarget* gfxFindRenderTarget(char const* tag);
+//void             gfxDestroyRenderTarget(rgHash tagHash);
+//void             gfxDestroyRenderTarget(char const* tag);
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
@@ -533,15 +541,16 @@ struct GfxResourceManager
 };
 
 template<typename Type>
-struct GfxObjectList
+struct GfxObjectRegistry
 {
     typedef eastl::hash_map<rgHash, Type*> ObjectMap;
     ObjectMap objects;
+    ObjectMap objectsToRemove;
 
     Type* find(rgHash hash)
     {
        ObjectMap::iterator itr = objects.find(hash);
-       return (itr != objects.end()) ? (*itr) : nullptr;
+       return (itr != objects.end()) ? itr->second : nullptr;
     }
 
     void insert(rgHash hash, Type* ptr)
@@ -550,7 +559,26 @@ struct GfxObjectList
         ObjectMap::iterator itr = objects.find(hash);
         rgAssert(itr == objects.end());
 #endif
-        objects.insert_or_assign(eastl::make_pair(hash, ptr));
+        //objects.insert_or_assign(eastl::make_pair(hash, ptr));
+        objects.insert_or_assign(hash, ptr);
+    }
+
+    void markForRemove(rgHash hash)
+    {
+#if defined(ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT)
+        ObjectMap::iterator itr = objects.find(hash);
+        rgAssert(itr != objects.end());
+#endif
+        //objectsToRemove.insert_or_assign(eastl::make_pair(hash, *itr))
+        objectsToRemove.insert_or_assign(hash, itr->second);
+    }
+
+    void removeMarkedObjects()
+    {
+        for(auto itr : objectsToRemove)
+        {
+
+        }
     }
 };
 
@@ -568,7 +596,7 @@ struct GfxCtx
     GfxResourceManager<GfxBuffer, HGfxBuffer> buffersManager;
     GfxResourceManager<GfxGraphicsPSO, HGfxGraphicsPSO> graphicsPSOManager;
 
-    GfxObjectList<GfxRenderTarget> renderTargets;
+    GfxObjectRegistry<GfxRenderTarget> renderTargets;
     
     Matrix4 orthographicMatrix;
     Matrix4 viewMatrix;

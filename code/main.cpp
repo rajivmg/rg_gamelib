@@ -79,12 +79,14 @@ rgInt rg::setup()
     GfxRenderTarget* mickyRT = gfxFind<GfxRenderTarget>("MickyReflectanceRT");
     GfxRenderTarget* mickyRT = gfxFindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
     GfxRenderTarget* mickyRT = gfxFindRenderTarget("MickyReflectanceRT");
+    GfxRenderTarget* mickyRT = gfxCtx()->FindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
 
     GfxRenderTarget* mickyRT = gfxNewRenderTarget("MickeyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
     GfxRenderTarget* mickyRT = gfxRenderTarget("MickeyReflectanceRT");
     GfxRenderTarget* mickyRT = gfxCtx()->renderTargetManager.find("MickyReflectanceRT");
     */
-
+    GfxRenderTarget* mickyRT1 = gfxFindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
+    GfxRenderTarget* mickyRT2 = gfxFindRenderTarget("MickyReflectanceRT");
     //
     GfxShaderDesc simple2dShaderDesc = {};
     simple2dShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;

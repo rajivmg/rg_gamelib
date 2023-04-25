@@ -502,6 +502,16 @@ void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
 
 }
 
+GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format)
+{
+    return rgNew(GfxRenderTarget);
+}
+
+void deleterGfxRenderTarget(GfxRenderTarget* ptr)
+{
+    rgDelete(ptr);
+}
+
 // -----------------------------------------------
 // GPU Resource Creators Deleters and Modifers
 // -----------------------------------------------
