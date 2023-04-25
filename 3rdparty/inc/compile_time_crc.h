@@ -110,5 +110,6 @@ constexpr uint32_t compute(const char* data, uint32_t len, uint32_t crc = 0)
 
 // TODO: Rework this
 inline uint32_t rgCRC32(char const* str) { return crc::compute((str), (uint32_t)strlen(str)); }
+inline uint32_t rgCRC32(char const* data, uint32_t len, uint32_t crc = 0) { return crc::compute(data, len, crc); }
 
 #endif  // COMPILE_TIME_CRC_H

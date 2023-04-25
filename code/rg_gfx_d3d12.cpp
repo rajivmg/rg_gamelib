@@ -444,6 +444,13 @@ rgInt gfxDraw()
     return 0;
 }
 
+void gfxOnSizeChanged()
+{
+    waitForGpu();
+
+
+}
+
 // -----------------------------------------------
 // GFX Function
 // -----------------------------------------------

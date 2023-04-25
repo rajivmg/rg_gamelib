@@ -73,7 +73,18 @@ rgInt rg::setup()
     g_GameData->flowerTexture = gfxNewTexture2D(rg::loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
     
     gfxDeleteTexture2D(g_GameData->oceanTileTexture);
-    
+
+    /*
+    GfxRenderTarget* mickyRT = gfxFindOrCreate<GfxRenderTarget>("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
+    GfxRenderTarget* mickyRT = gfxFind<GfxRenderTarget>("MickyReflectanceRT");
+    GfxRenderTarget* mickyRT = gfxFindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
+    GfxRenderTarget* mickyRT = gfxFindRenderTarget("MickyReflectanceRT");
+
+    GfxRenderTarget* mickyRT = gfxNewRenderTarget("MickeyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
+    GfxRenderTarget* mickyRT = gfxRenderTarget("MickeyReflectanceRT");
+    GfxRenderTarget* mickyRT = gfxCtx()->renderTargetManager.find("MickyReflectanceRT");
+    */
+
     //
     GfxShaderDesc simple2dShaderDesc = {};
     simple2dShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;
@@ -239,6 +250,8 @@ rgInt createSDLWindow(GfxCtx* ctx)
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");
 #elif defined(RG_OPENGL_RNDR)
     windowFlags |= SDL_WINDOW_OPENGL;
+#elif defined(RG_D3D12_RNDR)
+    windowFlags |= SDL_WINDOW_RESIZABLE;
 #endif
     
     if (SDL_Init(SDL_INIT_VIDEO) == 0)
@@ -309,6 +322,12 @@ int main(int argc, char* argv[])
             if(event.type == SDL_QUIT)
             {
                 g_ShouldQuit = true;
+            }
+            else if(event.type == SDL_WINDOWEVENT_SIZE_CHANGED)
+            {
+                g_WindowInfo.width = event.window.data1;
+                g_WindowInfo.height = event.window.data2;
+                gfxOnSizeChanged();
             }
             else
             {

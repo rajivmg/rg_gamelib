@@ -221,6 +221,7 @@ enum GfxStoreAction
 rgInt gfxInit();
 void  gfxDestroy();
 rgInt gfxDraw();
+void  gfxOnSizeChanged();
 void  gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
 
 //-----------------------------------------------------------------------------
@@ -284,6 +285,31 @@ GfxTexture2D* gfxTexture2DPtr(HGfxTexture2D texture2dHandle);
 
 GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
 void deleterGfxTexture2D(GfxTexture2D* t2d);
+
+struct GfxRenderTarget
+{
+    rgChar tag[32]; // myrendermyrendr
+    rgU32 width;
+    rgU32 height;
+    TinyImageFormat format;
+#if defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Resource> d3dRT;
+#endif
+};
+
+GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format);
+void deleterGfxRenderTarget(GfxRenderTarget* ptr);
+
+GfxRenderTarget* gfxNewRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
+void             gfxDeleteRenderTarget(GfxRenderTarget* ptr);
+
+#define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
+GfxRenderTarget* gfxCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
+GfxRenderTarget* gfxFindOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
+GfxRenderTarget* gfxFindRenderTarget(rgHash tagHash);
+GfxRenderTarget* gfxFindRenderTarget(char const* tag);
+void             gfxDestroyRenderTarget(rgHash tagHash);
+void             gfxDestroyRenderTarget(char const* tag);
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
@@ -506,6 +532,28 @@ struct GfxResourceManager
     // TODO: eastl::vector<HandleType> getFreeHandles(int count);
 };
 
+template<typename Type>
+struct GfxObjectList
+{
+    typedef eastl::hash_map<rgHash, Type*> ObjectMap;
+    ObjectMap objects;
+
+    Type* find(rgHash hash)
+    {
+       ObjectMap::iterator itr = objects.find(hash);
+       return (itr != objects.end()) ? (*itr) : nullptr;
+    }
+
+    void insert(rgHash hash, Type* ptr)
+    {
+#if defined(ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT)
+        ObjectMap::iterator itr = objects.find(hash);
+        rgAssert(itr == objects.end());
+#endif
+        objects.insert_or_assign(eastl::make_pair(hash, ptr));
+    }
+};
+
 struct GfxCtx
 {
     GfxCtx() {}
@@ -519,6 +567,8 @@ struct GfxCtx
     GfxResourceManager<GfxTexture2D, HGfxTexture2D> texture2dManager;
     GfxResourceManager<GfxBuffer, HGfxBuffer> buffersManager;
     GfxResourceManager<GfxGraphicsPSO, HGfxGraphicsPSO> graphicsPSOManager;
+
+    GfxObjectList<GfxRenderTarget> renderTargets;
     
     Matrix4 orthographicMatrix;
     Matrix4 viewMatrix;

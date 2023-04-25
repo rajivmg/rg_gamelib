@@ -62,8 +62,8 @@ typedef bool        rgBool;
 typedef char        rgChar;
 
 typedef uint32_t    rgHash;
-
 //
+static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(rgU32) != sizeof(uint32_t)");
 
 #define RG_INLINE inline
 
