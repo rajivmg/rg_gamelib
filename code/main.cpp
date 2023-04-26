@@ -56,23 +56,23 @@ rgInt rg::setup()
 {
     g_GameData = rgNew(GameData);
 
-    HGfxBuffer b = gfxNewBuffer(nullptr, 100, GfxResourceUsage_Dynamic);
+    GfxBuffer* b = gfxFindOrCreateBuffer("dummyBuffer", nullptr, 100, GfxResourceUsage_Dynamic);
 
-    HGfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
+    GfxTexture2D* t2dptr = gfxCreateTexture2D("T.tga", rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
     
     for(rgInt i = 1; i <= 16; ++i)
     {
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
-        HGfxTexture2D t2d = gfxNewTexture2D(rg::loadTexture(path), GfxTextureUsage_ShaderRead);
+        GfxTexture2D* t2d = gfxCreateTexture2D(path,rg::loadTexture(path), GfxTextureUsage_ShaderRead);
         gfxCtx()->debugTextureHandles.push_back(t2d);
     }
     
-    g_GameData->oceanTileTexture = gfxNewTexture2D(rg::loadTexture("oceanTile.png"), GfxTextureUsage_ShaderRead);
+    g_GameData->oceanTileTexture = gfxCreateTexture2D("ocean_tile",rg::loadTexture("oceanTile.png"), GfxTextureUsage_ShaderRead);
     
-    g_GameData->flowerTexture = gfxNewTexture2D(rg::loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
+    g_GameData->flowerTexture = gfxCreateTexture2D("flower", rg::loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
     
-    gfxDeleteTexture2D(g_GameData->oceanTileTexture);
+    gfxDestroyBuffer("ocean_tile");
 
     /*
     GfxRenderTarget* mickyRT = gfxFindOrCreate<GfxRenderTarget>("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
@@ -80,6 +80,7 @@ rgInt rg::setup()
     GfxRenderTarget* mickyRT = gfxFindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
     GfxRenderTarget* mickyRT = gfxFindRenderTarget("MickyReflectanceRT");
     GfxRenderTarget* mickyRT = gfxCtx()->FindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
+    GfxRenderTarget* mickyRT = gfxFindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
 
     GfxRenderTarget* mickyRT = gfxNewRenderTarget("MickeyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
     GfxRenderTarget* mickyRT = gfxRenderTarget("MickeyReflectanceRT");
@@ -99,7 +100,7 @@ rgInt rg::setup()
     simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
     
-    g_GameData->simple2dPSO = gfxNewGraphicsPSO(&simple2dShaderDesc, &simple2dRenderStateDesc);
+    g_GameData->simple2dPSO = gfxCreateGraphicsPSO("simple_pso", &simple2dShaderDesc, &simple2dRenderStateDesc);
 
     //
     GfxDescriptor desc0 = {};

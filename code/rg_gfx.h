@@ -229,9 +229,10 @@ void  gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
 //-----------------------------------------------------------------------------
 struct GfxBuffer
 {
-    GfxResourceUsage usageMode;
-    rgSize size;
-    rgInt activeIdx;
+    rgChar tag[32];
+    rgU32     size;
+    GfxResourceUsage usage;
+    rgInt activeSlot;
 #if defined(RG_D3D12_RNDR)
 #elif defined(RG_METAL_RNDR)
     MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_FLIGHT];
@@ -240,27 +241,27 @@ struct GfxBuffer
     VmaAllocation vmaAlloc;
 #endif
 };
-typedef rgU32 HGfxBuffer;
-
-HGfxBuffer  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
-void        gfxUpdateBuffer(HGfxBuffer handle, void* data, rgSize size, rgU32 offset);
-void        gfxDeleteBuffer(HGfxBuffer handle);
-GfxBuffer*  gfxBufferPtr(HGfxBuffer bufferHandle);
-
-GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage);
-void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset);
-void deleterGfxBuffer(GfxBuffer* buffer);
+//typedef rgU32 HGfxBuffer;
+//
+//HGfxBuffer  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
+//void        gfxUpdateBuffer(HGfxBuffer handle, void* data, rgSize size, rgU32 offset);
+//void        gfxDeleteBuffer(HGfxBuffer handle);
+//GfxBuffer*  gfxBufferPtr(HGfxBuffer bufferHandle);
+//
+//GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage);
+//void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset);
+//void deleterGfxBuffer(GfxBuffer* buffer);
 
 //-----------------------------------------------------------------------------
 // Gfx Texture
 //-----------------------------------------------------------------------------
 struct GfxTexture2D
 {
-    rgChar name[32];
+    rgChar tag[32];
     rgUInt width;
     rgUInt height;
+    TinyImageFormat format;
     GfxTextureUsage usage;
-    TinyImageFormat pixelFormat;
     rgU32 texID;
    
 #if defined(RG_D3D12_RNDR)
@@ -274,17 +275,17 @@ struct GfxTexture2D
     GLuint glTexture;
 #endif
 };
-typedef rgU32 HGfxTexture2D;
-static_assert(sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID), "sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID)");
+//typedef rgU32 HGfxTexture2D;
+//static_assert(sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID), "sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID)");
+//
+//HGfxTexture2D gfxNewTexture2D(GfxTexture2D* ptr);
+//HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage);
+//HGfxTexture2D gfxNewTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
+//void gfxDeleteTexture2D(HGfxTexture2D handle);
+//GfxTexture2D* gfxTexture2DPtr(HGfxTexture2D texture2dHandle);
 
-HGfxTexture2D gfxNewTexture2D(GfxTexture2D* ptr);
-HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage);
-HGfxTexture2D gfxNewTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
-void gfxDeleteTexture2D(HGfxTexture2D handle);
-GfxTexture2D* gfxTexture2DPtr(HGfxTexture2D texture2dHandle);
-
-GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name);
-void deleterGfxTexture2D(GfxTexture2D* t2d);
+//GfxTexture2D* creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
+//void deleterGfxTexture2D(GfxTexture2D* t2d);
 
 struct GfxRenderTarget
 {
@@ -297,8 +298,8 @@ struct GfxRenderTarget
 #endif
 };
 
-GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format);
-void deleterGfxRenderTarget(GfxRenderTarget* ptr);
+///GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget* obj);
+//void deleterGfxRenderTarget(GfxRenderTarget* ptr);
 
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
 
@@ -307,10 +308,20 @@ void deleterGfxRenderTarget(GfxRenderTarget* ptr);
         Gfx##type* gfxFind##type(rgHash tagHash);  \
         Gfx##type* gfxFind##type(char const* tag); \
         void gfxDestroy##type(rgHash tagHash); \
-        void gfxDestroy##type(char const* tag)
+        void gfxDestroy##type(char const* tag); \
+        void allocAndFill##type##Struct(const char* tag, __VA_ARGS__, Gfx##type** obj); \
+        void dealloc##type##Struct(Gfx##type* obj); \
+        Gfx##type* creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
+        void destroyerGfx##type(Gfx##type* obj)
 
+GfxTexture2D* gfxCreateTexture2D(char const* tag, TexturePtr texture, GfxTextureUsage usage);
 DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
 DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
+
+void gfxUpdateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
+void gfxUpdateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
+DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxResourceUsage usage);
+void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
 
 //GfxRenderTarget* gfxCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
 //GfxRenderTarget* gfxFindOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
@@ -389,17 +400,17 @@ struct GfxRenderStateDesc
 
 struct GfxColorAttachmentDesc
 {
-    HGfxTexture2D texture;
-    GfxLoadAction loadAction;
+    GfxTexture2D*      texture;
+    GfxLoadAction   loadAction;
     GfxStoreAction storeAction;
-    rgFloat4      clearColor;
+    rgFloat4        clearColor;
 };
 
 struct GfxRenderPass
 {
     GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
     
-    HGfxTexture2D depthStencilAttachmentTexture;
+    GfxTexture2D* depthStencilAttachmentTexture;
     GfxLoadAction depthStencilAttachmentLoadAction;
     GfxStoreAction depthStencilAttachmentStoreAction;
     rgFloat  clearDepth;
@@ -418,6 +429,7 @@ struct GfxShaderDesc
 // TODO: Not a resource
 struct GfxGraphicsPSO 
 {
+    rgChar tag[32];
     // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly.
     GfxRenderStateDesc renderState;
 #if defined(RG_D3D12_RNDR)
@@ -427,14 +439,16 @@ struct GfxGraphicsPSO
 #endif
 };
 
-typedef rgU32 HGfxGraphicsPSO;
+//typedef rgU32 HGfxGraphicsPSO;
+//
+//HGfxGraphicsPSO gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
+//void            gfxDeleleGraphicsPSO(HGfxGraphicsPSO handle);
+//GfxGraphicsPSO* gfxGraphicsPSOPtr(HGfxGraphicsPSO handle);
+//
+//GfxGraphicsPSO* creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
+//void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso);
 
-HGfxGraphicsPSO gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
-void            gfxDeleleGraphicsPSO(HGfxGraphicsPSO handle);
-GfxGraphicsPSO* gfxGraphicsPSOPtr(HGfxGraphicsPSO handle);
-
-GfxGraphicsPSO* creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
-void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso);
+DeclareGfxObjectFunctions(GraphicsPSO, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
 
 //-----------------------------------------------------------------------------
 // Resource Binding
@@ -592,23 +606,27 @@ struct GfxCtx
     
     RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
     
-    GfxResourceManager<GfxTexture2D, HGfxTexture2D> texture2dManager;
-    GfxResourceManager<GfxBuffer, HGfxBuffer> buffersManager;
-    GfxResourceManager<GfxGraphicsPSO, HGfxGraphicsPSO> graphicsPSOManager;
+    //GfxResourceManager<GfxTexture2D, HGfxTexture2D> texture2dManager;
+    //GfxResourceManager<GfxBuffer, HGfxBuffer> buffersManager;
+    //GfxResourceManager<GfxGraphicsPSO, HGfxGraphicsPSO> graphicsPSOManager;
 
-    GfxObjectRegistry<GfxRenderTarget> renderTargets;
-    
+    GfxObjectRegistry<GfxRenderTarget> registryRenderTarget;
+    GfxObjectRegistry<GfxTexture2D> registryTexture2D;
+    GfxObjectRegistry<GfxBuffer> registryBuffer;
+    GfxObjectRegistry<GfxGraphicsPSO> registryGraphicsPSO;
+
+
     Matrix4 orthographicMatrix;
     Matrix4 viewMatrix;
     
-    eastl::vector<HGfxTexture2D> debugTextureHandles; // test only
+    //eastl::vector<HGfxTexture2D> debugTextureHandles; // test only
     
-    HGfxTexture2D renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-    HGfxTexture2D depthStencilBuffer;
+    //HGfxTexture2D renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
+    //HGfxTexture2D depthStencilBuffer;
     
     // RenderCmdTexturedQuads
-    HGfxBuffer rcTexturedQuadsVB;
-    HGfxBuffer rcTexturedQuadsInstParams;
+    //HGfxBuffer rcTexturedQuadsVB;
+    //HGfxBuffer rcTexturedQuadsInstParams;
 
 #if defined(RG_D3D12_RNDR)
     struct D3d
@@ -749,16 +767,16 @@ END_RENDERCMD_STRUCT();
 // ---
 
 BEGIN_RENDERCMD_STRUCT(DrawTexturedQuads);
-    HGfxGraphicsPSO pso; // TODO: use Handle?s
+    GfxGraphicsPSO* pso;
     TexturedQuads* quads;
 END_RENDERCMD_STRUCT();
 
 // ---
 
 BEGIN_RENDERCMD_STRUCT(DrawTriangles);
-    HGfxBuffer vertexBuffer;
+    GfxBuffer* vertexBuffer;
     rgU32 vertexBufferOffset;
-    HGfxBuffer indexBuffer;
+    GfxBuffer* indexBuffer;
     rgU32 indexBufferOffset;
 
     rgU32 vertexCount;
