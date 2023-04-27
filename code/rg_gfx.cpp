@@ -114,24 +114,24 @@ rgInt gfxCommonInit()
 //    return gfxCtx()->texture2dManager.getPtr(texture2dHandle);
 //}
 
-HGfxGraphicsPSO gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
-{
-    HGfxGraphicsPSO psoHandle = gfxCtx()->graphicsPSOManager.getFreeHandle();
-    GfxGraphicsPSO* psoPtr = creatorGfxGraphicsPSO(shaderDesc, renderStateDesc);
-    gfxCtx()->graphicsPSOManager.setResourcePtrForHandle(psoHandle, psoPtr);
-    return psoHandle;
-}
-
-void gfxDeleleGraphicsPSO(HGfxGraphicsPSO handle)
-{
-    deleterGfxGraphicsPSO(gfxGraphicsPSOPtr(handle));
-    gfxCtx()->graphicsPSOManager.releaseHandle(handle);
-}
-
-GfxGraphicsPSO* gfxGraphicsPSOPtr(HGfxGraphicsPSO handle)
-{
-    return gfxCtx()->graphicsPSOManager.getPtr(handle);
-}
+//HGfxGraphicsPSO gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
+//{
+//    HGfxGraphicsPSO psoHandle = gfxCtx()->graphicsPSOManager.getFreeHandle();
+//    GfxGraphicsPSO* psoPtr = creatorGfxGraphicsPSO(shaderDesc, renderStateDesc);
+//    gfxCtx()->graphicsPSOManager.setResourcePtrForHandle(psoHandle, psoPtr);
+//    return psoHandle;
+//}
+//
+//void gfxDeleleGraphicsPSO(HGfxGraphicsPSO handle)
+//{
+//    deleterGfxGraphicsPSO(gfxGraphicsPSOPtr(handle));
+//    gfxCtx()->graphicsPSOManager.releaseHandle(handle);
+//}
+//
+//GfxGraphicsPSO* gfxGraphicsPSOPtr(HGfxGraphicsPSO handle)
+//{
+//    return gfxCtx()->graphicsPSOManager.getPtr(handle);
+//}
 
 // --------------------
 

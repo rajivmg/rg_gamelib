@@ -2,14 +2,16 @@
 
 #include <box2d/box2d.h>
 
+using namespace rg;
+
 struct GameData
 {
-    rg::TexturedQuads characterPortraits;
-    rg::TexturedQuads terrainAndOcean;
-    rg::HGfxTexture2D oceanTileTexture;
-    rg::HGfxTexture2D flowerTexture;
+    TexturedQuads characterPortraits;
+    TexturedQuads terrainAndOcean;
+    GfxTexture2D* oceanTileTexture;
+    GfxTexture2D* flowerTexture;
     
-    rg::HGfxGraphicsPSO simple2dPSO; // TODO: use Handle
+    GfxGraphicsPSO* simple2dPSO; // TODO: use Handle
 
     b2World* phyWorld;
 };

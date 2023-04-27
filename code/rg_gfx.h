@@ -73,6 +73,8 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture
 //-----------------------------------------------------------------------------
 // Textured Quad
 //-----------------------------------------------------------------------------
+struct GfxTexture2D;
+
 struct TexturedQuad
 {
     QuadUV uv;
@@ -92,7 +94,7 @@ struct TexturedQuad
     rgFloat4 offsetOrientation;
 #endif
     
-    rgU32 texID;
+    GfxTexture2D* tex;
 };
 
 typedef eastl::vector<TexturedQuad> TexturedQuads;
@@ -116,23 +118,23 @@ inline TexturedQuad* pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV 
 }
  */
 
-inline void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, rgU32 texID)
+inline void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
 {
     TexturedQuad& q = quadList->push_back();
     q.uv = uv;
     q.posSize = posSize;
     q.offsetOrientation = offsetOrientation;
-    q.texID = texID;
+    q.tex = tex;
 }
 
 template <rgSize N>
-inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, rgU32 texID)
+inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
 {
     TexturedQuad& q = quadList->push_back();
     q.uv = uv;
     q.posSize = posSize;
     q.offsetOrientation = offsetOrientation;
-    q.texID = texID;
+    q.tex = tex;
 }
 
 //-----------------------------------------------------------------------------
@@ -400,7 +402,7 @@ struct GfxRenderStateDesc
 
 struct GfxColorAttachmentDesc
 {
-    GfxTexture2D*      texture;
+    GfxRenderTarget*      texture;
     GfxLoadAction   loadAction;
     GfxStoreAction storeAction;
     rgFloat4        clearColor;
@@ -410,7 +412,7 @@ struct GfxRenderPass
 {
     GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
     
-    GfxTexture2D* depthStencilAttachmentTexture;
+    GfxRenderTarget* depthStencilAttachmentTexture;
     GfxLoadAction depthStencilAttachmentLoadAction;
     GfxStoreAction depthStencilAttachmentStoreAction;
     rgFloat  clearDepth;
@@ -619,10 +621,10 @@ struct GfxCtx
     Matrix4 orthographicMatrix;
     Matrix4 viewMatrix;
     
-    //eastl::vector<HGfxTexture2D> debugTextureHandles; // test only
+    eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
     
-    //HGfxTexture2D renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-    //HGfxTexture2D depthStencilBuffer;
+    GfxRenderTarget* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
+    GfxRenderTarget* depthStencilBuffer;
     
     // RenderCmdTexturedQuads
     //HGfxBuffer rcTexturedQuadsVB;

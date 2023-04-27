@@ -58,7 +58,7 @@ rgInt rg::setup()
 
     GfxBuffer* b = gfxFindOrCreateBuffer("dummyBuffer", nullptr, 100, GfxResourceUsage_Dynamic);
 
-    GfxTexture2D* t2dptr = gfxCreateTexture2D("T.tga", rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
+    GfxTexture2D* t2dptr = gfxCreateTexture2D("tiny.tga", rg::loadTexture("tiny.tga"), GfxTextureUsage_ShaderRead);
     
     for(rgInt i = 1; i <= 16; ++i)
     {
@@ -68,7 +68,7 @@ rgInt rg::setup()
         gfxCtx()->debugTextureHandles.push_back(t2d);
     }
     
-    g_GameData->oceanTileTexture = gfxCreateTexture2D("ocean_tile",rg::loadTexture("oceanTile.png"), GfxTextureUsage_ShaderRead);
+    g_GameData->oceanTileTexture = gfxCreateTexture2D("ocean_tile",rg::loadTexture("ocean_tile.png"), GfxTextureUsage_ShaderRead);
     
     g_GameData->flowerTexture = gfxCreateTexture2D("flower", rg::loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
     
