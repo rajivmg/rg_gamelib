@@ -154,9 +154,16 @@ static const rgU32 kMaxColorAttachments = 4;
 
 enum GfxMemoryUsage
 {
-    GfxMemoryUsage_CPUToGPU,
-    GfxMemoryUsage_GPUOnly,
-    GfxMemoryUsage_CPUOnly
+    GfxMemoryUsage_CPUToGPU, // UploadHeap
+    GfxMemoryUsage_GPUToCPU, // ReadbackHeap
+    GfxMemoryUsage_GPUOnly,  // DefaultHeap
+    //GfxMemoryUsage_None     =   (0 << 0),
+    //GfxMemoryUsage_GPURead  =   (1 << 0),
+    //GfxMemoryUsage_GPUWrite =   (1 << 1),
+    //GfxMemoryUsage_GPUReadWrite = (GfxMemoryUsage_GPURead | GfxMemoryUsage_GPUWrite),
+    //GfxMemoryUsage_CPURead  =   (1 << 2),
+    //GfxMemoryUsage_CPUWrite =   (1 << 3),
+    //GfxMemoryUsage_CPUReadWrite = (GfxMemoryUsage_CPURead | GfxMemoryUsage_CPUWrite),
 };
 
 enum GfxResourceUsage
@@ -492,63 +499,63 @@ struct GfxDescriptorBufferEncoder
 //-----------------------------------------------------------------------------
 // Graphic Context
 //-----------------------------------------------------------------------------
-template <typename Type, typename HandleType>
-struct GfxResourceManager
+template <typename Type>
+struct GfxBindlessResourceManager
 {
     typedef eastl::vector<Type*> ResourceList;
-    ResourceList resourceList; // Hold reference to the resources until no longer needed
+    ResourceList resources; // Hold reference to the resources until no longer needed
     
-    typedef eastl::vector<HandleType> HandleList;
-    HandleList freeHandles; // Indexes in referenceList which are unused
+    typedef eastl::vector<rgU32> SlotList;
+    SlotList freeSlots; // Indexes in referenceList which are unused
 
-    HandleType getFreeHandle()
+    rgU32 getFreeSlot()
     {
-        HandleType result = kInvalidHandle;
+        rgU32 result = kInvalidHandle;
         
-        if(!freeHandles.empty())
+        if(!freeSlots.empty())
         {
-            result = freeHandles.back();
-            freeHandles.pop_back();
+            result = freeSlots.back();
+            freeSlots.pop_back();
         }
         else
         {
-            rgAssert(resourceList.size() < UINT32_MAX);
-            result = (HandleType)resourceList.size();
-            resourceList.resize(result + 1); // push_back(nullptr) ?
+            rgAssert(resources.size() < UINT32_MAX);
+            result = (rgU32)resources.size();
+            resources.resize(result + 1); // push_back(nullptr) ?
         }
         
         rgAssert(result != kInvalidHandle);
         return result;
     }
     
-    void releaseHandle(HandleType handle)
+    void releaseHandle(rgU32 slot)
     {
-        rgAssert(handle < resourceList.size());
+        rgAssert(slot < resources.size());
 
-        resourceList[handle] = nullptr;
-        freeHandles.push_back(handle);
+        resources[slot] = nullptr;
+        freeSlots.push_back(slot);
     }
     
-    void setResourcePtrForHandle(HandleType handle, Type* ptr)
+    void setResourcePtrInSlot(rgU32 slot, Type* ptr)
     {
-        resourceList[handle] = ptr;
+        resources[slot] = ptr;
     }
     
     typename ResourceList::iterator begin() EA_NOEXCEPT
     {
-        return resourceList.begin();
+        return resources.begin();
     }
     
     typename ResourceList::iterator end() EA_NOEXCEPT
     {
-        return resourceList.end();
+        return resources.end();
     }
     
-    Type* getPtr(HandleType handle)
+    Type* getPtr(rgU32 slot)
     {
-        rgAssert(handle < resourceList.size());
+        rgAssert(slot < resources.size());
         
-        Type* ptr = resourceList[handle];
+        Type* ptr = resources[slot];
         rgAssert(ptr != nullptr);
         return ptr;
     }
@@ -598,6 +605,14 @@ struct GfxObjectRegistry
     }
 };
 
+//template <typename Type>
+//struct BindlessResourceManager
+//{
+//    typedef eastl::vector<Type*> ResourceList;
+//    ResourceList resources;
+//
+//};
+
 struct GfxCtx
 {
     GfxCtx() {}
@@ -616,7 +631,8 @@ struct GfxCtx
     GfxObjectRegistry<GfxTexture2D> registryTexture2D;
     GfxObjectRegistry<GfxBuffer> registryBuffer;
     GfxObjectRegistry<GfxGraphicsPSO> registryGraphicsPSO;
-
+    
+    GfxBindlessResourceManager<GfxTexture2D> bindlessManagerTexture2D;
 
     Matrix4 orthographicMatrix;
     Matrix4 viewMatrix;
