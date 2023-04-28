@@ -29,9 +29,16 @@
 #include <EASTL/vector.h>
 #include <EASTL/fixed_vector.h>
 
+//#define RG_GFX_BEGIN_NAMESPACE namespace gfx {
+//#define RG_GFX_END_NAMESPACE }
+
+#define RG_GFX_BEGIN_NAMESPACE
+#define RG_GFX_END_NAMESPACE
+
 #define RG_MAX_FRAMES_IN_FLIGHT 3
 
 RG_BEGIN_NAMESPACE
+RG_GFX_BEGIN_NAMESPACE
 
 #ifdef RG_VULKAN_RNDR
 #define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
@@ -302,18 +309,18 @@ struct GfxRenderTarget
 
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
 
-#define DeclareGfxObjectFunctions(type, ...) Gfx##type* gfxCreate##type(const char* tag, __VA_ARGS__); \
-        Gfx##type* gfxFindOrCreate##type(const char* tag, __VA_ARGS__); \
-        Gfx##type* gfxFind##type(rgHash tagHash);  \
-        Gfx##type* gfxFind##type(char const* tag); \
-        void gfxDestroy##type(rgHash tagHash); \
-        void gfxDestroy##type(char const* tag); \
+#define DeclareGfxObjectFunctions(type, ...) Gfx##type* create##type(const char* tag, __VA_ARGS__); \
+        Gfx##type* findOrCreate##type(const char* tag, __VA_ARGS__); \
+        Gfx##type* find##type(rgHash tagHash);  \
+        Gfx##type* find##type(char const* tag); \
+        void destroy##type(rgHash tagHash); \
+        void destroy##type(char const* tag); \
         void allocAndFill##type##Struct(const char* tag, __VA_ARGS__, Gfx##type** obj); \
         void dealloc##type##Struct(Gfx##type* obj); \
         Gfx##type* creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
         void destroyerGfx##type(Gfx##type* obj)
 
-GfxTexture2D* gfxCreateTexture2D(char const* tag, TexturePtr texture, GfxTextureUsage usage);
+GfxTexture2D* createTexture2D(char const* tag, TexturePtr texture, GfxTextureUsage usage);
 DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
 DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
 
@@ -799,6 +806,7 @@ void gfxHandleRenderCmd_SetGraphicsPSO(void const* cmd);
 void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd);
 void gfxHandleRenderCmd_DrawTriangles(void const* cmd);
 
+RG_GFX_END_NAMESPACE
 RG_END_NAMESPACE
 
 #endif

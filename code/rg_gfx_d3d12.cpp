@@ -282,7 +282,7 @@ rgInt gfxInit()
     //device()->CreateDepthStencilView(dsResource.Get(), &dsDesc, d3d()->dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
     //D3D12_RESOURCE_DESC dsResdesc = dsResource->GetDesc();
-    gfxCtx()->depthStencilBuffer = gfxCreateTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureUsage_DepthStencil);
+    gfxCtx()->depthStencilBuffer = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureUsage_DepthStencil);
     //GfxTexture2D* dsTex = rgNew(GfxTexture2D);
     //strncpy(dsTex->tag, "DepthStencilTarget", 32);
     //dsTex->width = (rgUInt)dsResdesc.Width;

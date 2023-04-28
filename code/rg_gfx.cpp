@@ -150,7 +150,7 @@ void deallocRenderTargetStruct(GfxRenderTarget* obj)
     rgDelete(obj);
 }
 
-GfxRenderTarget* gfxCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
+GfxRenderTarget* createRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
 {
     GfxRenderTarget* objPtr;
     allocAndFillRenderTargetStruct(tag, width, height, format, &objPtr);
@@ -159,29 +159,29 @@ GfxRenderTarget* gfxCreateRenderTarget(const char* tag, rgU32 width, rgU32 heigh
     return objPtr;
 }
 
-GfxRenderTarget* gfxFindOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
+GfxRenderTarget* findOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
 {
     GfxRenderTarget* objPtr = gfxCtx()->registryRenderTarget.find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? gfxCreateRenderTarget(tag, width, height, format) : objPtr;
+    objPtr = (objPtr == nullptr) ? createRenderTarget(tag, width, height, format) : objPtr;
     return objPtr;
 }
 
-GfxRenderTarget* gfxFindRenderTarget(rgHash tagHash)
+GfxRenderTarget* findRenderTarget(rgHash tagHash)
 {
     return gfxCtx()->registryRenderTarget.find(tagHash);
 }
 
-GfxRenderTarget* gfxFindRenderTarget(char const* tag)
+GfxRenderTarget* findRenderTarget(char const* tag)
 {
-    return gfxFindRenderTarget(rgCRC32(tag));
+    return findRenderTarget(rgCRC32(tag));
 }
 
-void gfxDestroyRenderTarget(rgHash tagHash)
+void destroyRenderTarget(rgHash tagHash)
 {
     gfxCtx()->registryRenderTarget.markForRemove(tagHash);
 }
 
-void gfxDestroyRenderTarget(char const* tag)
+void destroyRenderTarget(char const* tag)
 {
     gfxCtx()->registryRenderTarget.markForRemove(rgCRC32(tag));
 }
@@ -204,12 +204,12 @@ void deallocTexture2DStruct(GfxTexture2D* obj)
     rgDelete(obj);
 }
 
-GfxTexture2D* gfxCreateTexture2D(char const* tag, TexturePtr texture, GfxTextureUsage usage)
+GfxTexture2D* createTexture2D(char const* tag, TexturePtr texture, GfxTextureUsage usage)
 {
-    return gfxCreateTexture2D(tag, texture->buf, texture->width, texture->height, texture->format, usage);
+    return createTexture2D(tag, texture->buf, texture->width, texture->height, texture->format, usage);
 }
 
-GfxTexture2D* gfxCreateTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
+GfxTexture2D* createTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
 {
     GfxTexture2D* objPtr;
     allocAndFillTexture2DStruct(tag, buf, width, height, format, usage, &objPtr);
@@ -218,29 +218,29 @@ GfxTexture2D* gfxCreateTexture2D(const char* tag, void* buf, rgUInt width, rgUIn
     return objPtr;
 }
 
-GfxTexture2D* gfxFindOrCreateTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
+GfxTexture2D* findOrCreateTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
 {
     GfxTexture2D* objPtr = gfxCtx()->registryTexture2D.find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? gfxCreateTexture2D(tag, buf, width, height, format, usage) : objPtr;
+    objPtr = (objPtr == nullptr) ? createTexture2D(tag, buf, width, height, format, usage) : objPtr;
     return objPtr;
 }
 
-GfxTexture2D* gfxFindTexture2D(rgHash tagHash)
+GfxTexture2D* findTexture2D(rgHash tagHash)
 {
     return gfxCtx()->registryTexture2D.find(tagHash);
 }
 
-GfxTexture2D* gfxFindTexture2D(char const* tag)
+GfxTexture2D* findTexture2D(char const* tag)
 {
-    return gfxFindTexture2D(rgCRC32(tag));
+    return findTexture2D(rgCRC32(tag));
 }
 
-void gfxDestroyTexture2D(rgHash tagHash)
+void destroyTexture2D(rgHash tagHash)
 {
     gfxCtx()->registryTexture2D.markForRemove(tagHash);
 }
 
-void gfxDestroyTexture2D(char const* tag)
+void destroyTexture2D(char const* tag)
 {
     gfxCtx()->registryTexture2D.markForRemove(rgCRC32(tag));
 }
@@ -249,7 +249,7 @@ void gfxDestroyTexture2D(char const* tag)
 
 void gfxUpdateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset)
 {
-    GfxBuffer* obj = gfxFindBuffer(tagHash);
+    GfxBuffer* obj = findBuffer(tagHash);
     rgAssert(obj != nullptr);
     updaterGfxBuffer(buf, size, offset, obj);
 }
@@ -273,7 +273,7 @@ void deallocBufferStruct(GfxBuffer* obj)
     rgDelete(obj);
 }
 
-GfxBuffer* gfxCreateBuffer(const char* tag, void* buf, rgU32 size, GfxResourceUsage usage)
+GfxBuffer* createBuffer(const char* tag, void* buf, rgU32 size, GfxResourceUsage usage)
 {
     GfxBuffer* objPtr;
     allocAndFillBufferStruct(tag, buf, size, usage, &objPtr);
@@ -282,29 +282,29 @@ GfxBuffer* gfxCreateBuffer(const char* tag, void* buf, rgU32 size, GfxResourceUs
     return objPtr;
 }
 
-GfxBuffer* gfxFindOrCreateBuffer(const char* tag, void* buf, rgU32 size, GfxResourceUsage usage)
+GfxBuffer* findOrCreateBuffer(const char* tag, void* buf, rgU32 size, GfxResourceUsage usage)
 {
     GfxBuffer* objPtr = gfxCtx()->registryBuffer.find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? gfxCreateBuffer(tag, buf, size, usage) : objPtr;
+    objPtr = (objPtr == nullptr) ? createBuffer(tag, buf, size, usage) : objPtr;
     return objPtr;
 }
 
-GfxBuffer* gfxFindBuffer(rgHash tagHash)
+GfxBuffer* findBuffer(rgHash tagHash)
 {
     return gfxCtx()->registryBuffer.find(tagHash);
 }
 
-GfxBuffer* gfxFindBuffer(char const* tag)
+GfxBuffer* findBuffer(char const* tag)
 {
-    return gfxFindBuffer(rgCRC32(tag));
+    return findBuffer(rgCRC32(tag));
 }
 
-void gfxDestroyBuffer(rgHash tagHash)
+void destroyBuffer(rgHash tagHash)
 {
     gfxCtx()->registryBuffer.markForRemove(tagHash);
 }
 
-void gfxDestroyBuffer(char const* tag)
+void destroyBuffer(char const* tag)
 {
     gfxCtx()->registryBuffer.markForRemove(rgCRC32(tag));
 }
@@ -324,7 +324,7 @@ void deallocGraphicsPSOStruct(GfxGraphicsPSO* obj)
     rgDelete(obj);
 }
 
-GfxGraphicsPSO* gfxCreateGraphicsPSO(const char* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
+GfxGraphicsPSO* createGraphicsPSO(const char* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
     GfxGraphicsPSO* objPtr;
     allocAndFillGraphicsPSOStruct(tag, shaderDesc, renderStateDesc, &objPtr);
@@ -333,29 +333,29 @@ GfxGraphicsPSO* gfxCreateGraphicsPSO(const char* tag, GfxShaderDesc* shaderDesc,
     return objPtr;
 }
 
-GfxGraphicsPSO* gfxFindOrCreateGraphicsPSO(const char* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
+GfxGraphicsPSO* findOrCreateGraphicsPSO(const char* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
     GfxGraphicsPSO* objPtr = gfxCtx()->registryGraphicsPSO.find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? gfxCreateGraphicsPSO(tag, shaderDesc, renderStateDesc) : objPtr;
+    objPtr = (objPtr == nullptr) ? createGraphicsPSO(tag, shaderDesc, renderStateDesc) : objPtr;
     return objPtr;
 }
 
-GfxGraphicsPSO* gfxFindGraphicsPSO(rgHash tagHash)
+GfxGraphicsPSO* findGraphicsPSO(rgHash tagHash)
 {
     return gfxCtx()->registryGraphicsPSO.find(tagHash);
 }
 
-GfxGraphicsPSO* gfxFindGraphicsPSO(char const* tag)
+GfxGraphicsPSO* findGraphicsPSO(char const* tag)
 {
-    return gfxFindGraphicsPSO(rgCRC32(tag));
+    return findGraphicsPSO(rgCRC32(tag));
 }
 
-void gfxDestroyGraphicsPSO(rgHash tagHash)
+void destroyGraphicsPSO(rgHash tagHash)
 {
     gfxCtx()->registryGraphicsPSO.markForRemove(tagHash);
 }
 
-void gfxDestroyGraphicsPSO(char const* tag)
+void destroyGraphicsPSO(char const* tag)
 {
     gfxCtx()->registryGraphicsPSO.markForRemove(rgCRC32(tag));
 }
