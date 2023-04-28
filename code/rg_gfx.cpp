@@ -247,16 +247,16 @@ void destroyTexture2D(char const* tag)
 
 ///
 
-void gfxUpdateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset)
+void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset)
 {
     GfxBuffer* obj = findBuffer(tagHash);
     rgAssert(obj != nullptr);
     updaterGfxBuffer(buf, size, offset, obj);
 }
 
-void gfxUpdateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset)
+void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset)
 {
-    gfxUpdateBuffer(rgCRC32(tag), buf, size, offset);
+    updateBuffer(rgCRC32(tag), buf, size, offset);
 }
 
 void allocAndFillBufferStruct(const char* tag, void* buf, rgU32 size, GfxResourceUsage usage, GfxBuffer** obj)

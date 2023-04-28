@@ -29,15 +29,106 @@
 #include <EASTL/vector.h>
 #include <EASTL/fixed_vector.h>
 
-//#define RG_GFX_BEGIN_NAMESPACE namespace gfx {
-//#define RG_GFX_END_NAMESPACE }
+#define RG_GFX_BEGIN_NAMESPACE namespace gfx {
+#define RG_GFX_END_NAMESPACE }
 
-#define RG_GFX_BEGIN_NAMESPACE
-#define RG_GFX_END_NAMESPACE
+//#define RG_GFX_BEGIN_NAMESPACE
+//#define RG_GFX_END_NAMESPACE
 
 #define RG_MAX_FRAMES_IN_FLIGHT 3
 
 RG_BEGIN_NAMESPACE
+
+static const rgU32 kInvalidHandle = ~(0x0);
+static const rgU32 kUninitializedHandle = 0;
+static const rgU32 kMaxColorAttachments = 4;
+
+enum GfxMemoryType
+{
+    GfxMemoryType_CPUToGPU, // UploadHeap
+    GfxMemoryType_GPUToCPU, // ReadbackHeap
+    GfxMemoryType_GPUOnly,  // DefaultHeap
+    //GfxMemoryUsage_None     =   (0 << 0),
+    //GfxMemoryUsage_GPURead  =   (1 << 0),
+    //GfxMemoryUsage_GPUWrite =   (1 << 1),
+    //GfxMemoryUsage_GPUReadWrite = (GfxMemoryUsage_GPURead | GfxMemoryUsage_GPUWrite),
+    //GfxMemoryUsage_CPURead  =   (1 << 2),
+    //GfxMemoryUsage_CPUWrite =   (1 << 3),
+    //GfxMemoryUsage_CPUReadWrite = (GfxMemoryUsage_CPURead | GfxMemoryUsage_CPUWrite),
+};
+
+enum GfxResourceUsage
+{
+    GfxResourceUsage_Static,    // Immutable, once created content cannot be modified
+    GfxResourceUsage_Dynamic,   // Content will be updated infrequently
+    GfxResourceUsage_Stream,    // Content will be updated every frame
+};
+
+enum GfxBufferUsage
+{
+    GfxBufferUsage_ShaderRW = (0 << 0),
+    GfxBufferUsage_VertexBuffer = (1 << 0),
+    GfxBufferUsage_IndexBuffer = (1 << 1),
+    GfxBufferUsage_ConstantBuffer = (1 << 2),
+    GfxBufferUsage_StructuredBuffer = (1 << 3),
+    GfxBufferUsage_CopySrc = (1 << 4),
+    GfxBufferUsage_CopyDst = (1 << 5),
+};
+
+enum GfxTextureUsage
+{
+    GfxTextureUsage_ShaderRead = (0 << 0),
+    GfxTextureUsage_ShaderReadWrite = (1 << 0),
+    GfxTextureUsage_RenderTarget = (1 << 1),
+    GfxTextureUsage_DepthStencil = (1 << 2),
+    GfxTextureUsage_CopyDst = (1 << 3),
+    GfxTextureUsage_CopySrc = (1 << 4),
+};
+
+enum GfxCompareFunc
+{
+    GfxCompareFunc_Always,
+    GfxCompareFunc_Never,
+    GfxCompareFunc_Equal,
+    GfxCompareFunc_NotEqual,
+    GfxCompareFunc_Less,
+    GfxCompareFunc_LessEqual,
+    GfxCompareFunc_Greater,
+    GfxCompareFunc_GreaterEqual,
+};
+
+enum GfxCullMode
+{
+    GfxCullMode_None,
+    GfxCullMode_Back,
+    GfxCullMode_Front,
+};
+
+enum GfxWinding
+{
+    GfxWinding_CCW,
+    GfxWinding_CW,
+};
+
+enum GfxTriangleFillMode
+{
+    GfxTriangleFillMode_Fill,
+    GfxTriangleFillMode_Wireframe,
+};
+
+enum GfxLoadAction
+{
+    GfxLoadAction_DontCare,
+    GfxLoadAction_Load,
+    GfxLoadAction_Clear,
+};
+
+enum GfxStoreAction
+{
+    GfxStoreAction_DontCare,
+    GfxStoreAction_Store,
+};
+
 RG_GFX_BEGIN_NAMESPACE
 
 #ifdef RG_VULKAN_RNDR
@@ -155,96 +246,6 @@ rgInt updateAndDraw(rgDouble dt);
 // STUFF BELOW NEEDS TO BE IMPLEMENTED FOR EACH GRAPHICS BACKEND
 //-----------------------------------------------------------------------------
 
-static const rgU32 kInvalidHandle = ~(0x0);
-static const rgU32 kUninitializedHandle = 0;
-static const rgU32 kMaxColorAttachments = 4;
-
-enum GfxMemoryType
-{
-    GfxMemoryType_CPUToGPU, // UploadHeap
-    GfxMemoryType_GPUToCPU, // ReadbackHeap
-    GfxMemoryType_GPUOnly,  // DefaultHeap
-    //GfxMemoryUsage_None     =   (0 << 0),
-    //GfxMemoryUsage_GPURead  =   (1 << 0),
-    //GfxMemoryUsage_GPUWrite =   (1 << 1),
-    //GfxMemoryUsage_GPUReadWrite = (GfxMemoryUsage_GPURead | GfxMemoryUsage_GPUWrite),
-    //GfxMemoryUsage_CPURead  =   (1 << 2),
-    //GfxMemoryUsage_CPUWrite =   (1 << 3),
-    //GfxMemoryUsage_CPUReadWrite = (GfxMemoryUsage_CPURead | GfxMemoryUsage_CPUWrite),
-};
-
-enum GfxResourceUsage
-{
-    GfxResourceUsage_Static,    // Immutable, once created content cannot be modified
-    GfxResourceUsage_Dynamic,   // Content will be updated infrequently
-    GfxResourceUsage_Stream,    // Content will be updated every frame
-};
-
-enum GfxBufferUsage
-{
-    GfxBufferUsage_ShaderRW         = (0 << 0),
-    GfxBufferUsage_VertexBuffer     = (1 << 0),
-    GfxBufferUsage_IndexBuffer      = (1 << 1),
-    GfxBufferUsage_ConstantBuffer   = (1 << 2),
-    GfxBufferUsage_StructuredBuffer = (1 << 3),
-    GfxBufferUsage_CopySrc          = (1 << 4),
-    GfxBufferUsage_CopyDst          = (1 << 5),
-};
-
-enum GfxTextureUsage
-{
-    GfxTextureUsage_ShaderRead      = (0 << 0),
-    GfxTextureUsage_ShaderReadWrite = (1 << 0),
-    GfxTextureUsage_RenderTarget    = (1 << 1),
-    GfxTextureUsage_DepthStencil    = (1 << 2),
-    GfxTextureUsage_CopyDst         = (1 << 3),
-    GfxTextureUsage_CopySrc         = (1 << 4),
-};
-
-enum GfxCompareFunc
-{
-    GfxCompareFunc_Always,
-    GfxCompareFunc_Never,
-    GfxCompareFunc_Equal,
-    GfxCompareFunc_NotEqual,
-    GfxCompareFunc_Less,
-    GfxCompareFunc_LessEqual,
-    GfxCompareFunc_Greater,
-    GfxCompareFunc_GreaterEqual,
-};
-
-enum GfxCullMode
-{
-    GfxCullMode_None,
-    GfxCullMode_Back,
-    GfxCullMode_Front,
-};
-
-enum GfxWinding
-{
-    GfxWinding_CCW,
-    GfxWinding_CW,
-};
-
-enum GfxTriangleFillMode
-{
-    GfxTriangleFillMode_Fill,
-    GfxTriangleFillMode_Wireframe,
-};
-
-enum GfxLoadAction
-{
-    GfxLoadAction_DontCare,
-    GfxLoadAction_Load,
-    GfxLoadAction_Clear,
-};
-
-enum GfxStoreAction
-{
-    GfxStoreAction_DontCare,
-    GfxStoreAction_Store,
-};
-
 //-----------------------------------------------------------------------------
 // Gfx Setup
 //-----------------------------------------------------------------------------
@@ -324,8 +325,8 @@ GfxTexture2D* createTexture2D(char const* tag, TexturePtr texture, GfxTextureUsa
 DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
 DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
 
-void gfxUpdateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
-void gfxUpdateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
+void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
+void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
 DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxResourceUsage usage);
 void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
 
@@ -608,124 +609,121 @@ struct GfxObjectRegistry
     }
 };
 
-struct GfxCtx
-{
-    GfxCtx() {}
-    ~GfxCtx() {}
+//------------
+SDL_Window* mainWindow;
+rgUInt frameNumber;
+    
+RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
+    
+GfxObjectRegistry<GfxRenderTarget> registryRenderTarget;
+GfxObjectRegistry<GfxTexture2D> registryTexture2D;
+GfxObjectRegistry<GfxBuffer> registryBuffer;
+GfxObjectRegistry<GfxGraphicsPSO> registryGraphicsPSO;
+    
+GfxBindlessResourceManager<GfxTexture2D> bindlessManagerTexture2D;
 
-    SDL_Window* mainWindow;
-    rgUInt frameNumber;
+Matrix4 orthographicMatrix;
+Matrix4 viewMatrix;
     
-    RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
+eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
     
-    GfxObjectRegistry<GfxRenderTarget> registryRenderTarget;
-    GfxObjectRegistry<GfxTexture2D> registryTexture2D;
-    GfxObjectRegistry<GfxBuffer> registryBuffer;
-    GfxObjectRegistry<GfxGraphicsPSO> registryGraphicsPSO;
-    
-    GfxBindlessResourceManager<GfxTexture2D> bindlessManagerTexture2D;
-
-    Matrix4 orthographicMatrix;
-    Matrix4 viewMatrix;
-    
-    eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
-    
-    GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-    GfxTexture2D* depthStencilBuffer;
+GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
+GfxTexture2D* depthStencilBuffer;
     
     // RenderCmdTexturedQuads
     //HGfxBuffer rcTexturedQuadsVB;
     //HGfxBuffer rcTexturedQuadsInstParams;
+//--------
 
 #if defined(RG_D3D12_RNDR)
-    struct D3d
-    {
-        ComPtr<ID3D12Device2> device;
-        ComPtr<ID3D12CommandQueue> commandQueue;
-        ComPtr<IDXGISwapChain4> dxgiSwapchain;
-        ComPtr<IDXGIFactory4> dxgiFactory;
+struct D3d
+{
+    ComPtr<ID3D12Device2> device;
+    ComPtr<ID3D12CommandQueue> commandQueue;
+    ComPtr<IDXGISwapChain4> dxgiSwapchain;
+    ComPtr<IDXGIFactory4> dxgiFactory;
 
-        ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
-        rgUInt rtvDescriptorSize;
+    ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
+    rgUInt rtvDescriptorSize;
 
-        ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
+    ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
 
-        ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
-        ComPtr<ID3D12GraphicsCommandList> commandList;
+    ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
+    ComPtr<ID3D12GraphicsCommandList> commandList;
 
-        ComPtr<ID3D12Fence> frameFence;
-        UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
-        HANDLE frameFenceEvent;
+    ComPtr<ID3D12Fence> frameFence;
+    UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+    HANDLE frameFenceEvent;
 
-        /// test
-        ComPtr<ID3D12RootSignature> dummyRootSignature;
-        ComPtr<ID3D12PipelineState> dummyPSO;
-        ComPtr<ID3D12Resource> triVB;
-        D3D12_VERTEX_BUFFER_VIEW triVBView;
-    } d3d;
+    /// test
+    ComPtr<ID3D12RootSignature> dummyRootSignature;
+    ComPtr<ID3D12PipelineState> dummyPSO;
+    ComPtr<ID3D12Resource> triVB;
+    D3D12_VERTEX_BUFFER_VIEW triVBView;
+} d3d;
 #elif defined(RG_METAL_RNDR)
-    struct Mtl
-    {
-        void* layer; // type: id<CAMetalLayer>
-        NS::View* view;
-        MTL::Device* device;
-        MTL::CommandQueue* commandQueue;
-        
-        dispatch_semaphore_t framesInFlightSemaphore;
+struct Mtl
+{
+    void* layer; // type: id<CAMetalLayer>
+    NS::View* view;
+    MTL::Device* device;
+    MTL::CommandQueue* commandQueue;
 
-        void* renderEncoder; // type: id<MTLRenderCommandEncoder>
-        void* commandBuffer; // type: id<MTLCommandBuffer>
+    dispatch_semaphore_t framesInFlightSemaphore;
 
-        // arg buffers
-        MTL::ArgumentEncoder* largeArrayTex2DArgEncoder;
-        HGfxBuffer largeArrayTex2DArgBuffer;
-    } mtl;
+    void* renderEncoder; // type: id<MTLRenderCommandEncoder>
+    void* commandBuffer; // type: id<MTLCommandBuffer>
+
+    // arg buffers
+    MTL::ArgumentEncoder* largeArrayTex2DArgEncoder;
+    HGfxBuffer largeArrayTex2DArgBuffer;
+} mtl;
 #elif defined(RG_VULKAN_RNDR)
-    struct VkGfxCtx
-    {
-        vkb::Instance vkbInstance;
-        vkb::Device vkbDevice;
-        vkb::Swapchain vkbSwapchain;
+struct VkGfxCtx
+{
+    vkb::Instance vkbInstance;
+    vkb::Device vkbDevice;
+    vkb::Swapchain vkbSwapchain;
 
-        VkInstance inst;
-        VkPhysicalDevice physicalDevice;
-        rgUInt graphicsQueueIndex;
+    VkInstance inst;
+    VkPhysicalDevice physicalDevice;
+    rgUInt graphicsQueueIndex;
 
-        VkDevice device;
-        rgUInt deviceExtCount;
-        char const** deviceExtNames;
-        VkQueue graphicsQueue;
+    VkDevice device;
+    rgUInt deviceExtCount;
+    char const** deviceExtNames;
+    VkQueue graphicsQueue;
 
-        VmaAllocator vmaAllocator;
+    VmaAllocator vmaAllocator;
 
-        VkCommandPool graphicsCmdPool;
-        VkCommandBuffer graphicsCmdBuffer;
+    VkCommandPool graphicsCmdPool;
+    VkCommandBuffer graphicsCmdBuffer;
 
-        VkSurfaceKHR surface;
-        
-        VkSwapchainKHR swapchain;
-        std::vector<VkImage> swapchainImages;
-        std::vector<VkImageView> swapchainImageViews;
-        eastl::vector<VkFramebuffer> framebuffers;
+    VkSurfaceKHR surface;
 
-        VkRenderPass globalRenderPass;
+    VkSwapchainKHR swapchain;
+    std::vector<VkImage> swapchainImages;
+    std::vector<VkImageView> swapchainImageViews;
+    eastl::vector<VkFramebuffer> framebuffers;
 
-        //VkFormat swapchainDesc; // is this the right way to store this info?
+    VkRenderPass globalRenderPass;
 
-        PFN_vkCreateDebugReportCallbackEXT fnCreateDbgReportCallback;
-        PFN_vkDestroyDebugReportCallbackEXT fnDestroyDbgReportCallback;
-        VkDebugReportCallbackEXT dbgReportCallback;
-    } vk;
+    //VkFormat swapchainDesc; // is this the right way to store this info?
+
+    PFN_vkCreateDebugReportCallbackEXT fnCreateDbgReportCallback;
+    PFN_vkDestroyDebugReportCallbackEXT fnDestroyDbgReportCallback;
+    VkDebugReportCallbackEXT dbgReportCallback;
+} vk;
 #elif defined(RG_OPENGL_RNDR)
-    struct GL
-    {
-        SDL_GLContext context;
-    } gl;
+struct GL
+{
+    SDL_GLContext context;
+} gl;
 #endif
-};
-extern rg::GfxCtx* g_GfxCtx;
 
-inline GfxCtx* gfxCtx() { return g_GfxCtx; }
+//extern rg::GfxCtx* g_GfxCtx;
+
+//inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 
 //-----------------------------------------------------------------------------
 // Gfx Render Command

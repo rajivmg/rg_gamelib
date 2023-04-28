@@ -20,7 +20,7 @@
 using namespace rg;
 
 // Important: make this a pointer, otherwise if a type with constructor is added to struct, the compiler will complain because it will try to call the constructor of anonymous structs
-rg::GfxCtx* rg::g_GfxCtx;
+//rg::GfxCtx* rg::g_GfxCtx;
 
 void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line)
 {
@@ -58,19 +58,19 @@ rgInt rg::setup()
 
     GfxBuffer* b = findOrCreateBuffer("dummyBuffer", nullptr, 100, GfxResourceUsage_Dynamic);
 
-    GfxTexture2D* t2dptr = createTexture2D("tiny.tga", rg::loadTexture("tiny.tga"), GfxTextureUsage_ShaderRead);
+    GfxTexture2D* t2dptr = createTexture2D("tiny.tga", gfx::loadTexture("tiny.tga"), GfxTextureUsage_ShaderRead);
     
     for(rgInt i = 1; i <= 16; ++i)
     {
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
-        GfxTexture2D* t2d = createTexture2D(path,rg::loadTexture(path), GfxTextureUsage_ShaderRead);
-        gfxCtx()->debugTextureHandles.push_back(t2d);
+        GfxTexture2D* t2d = createTexture2D(path, gfx::loadTexture(path), GfxTextureUsage_ShaderRead);
+        gfx::debugTextureHandles.push_back(t2d);
     }
     
-    g_GameData->oceanTileTexture = createTexture2D("ocean_tile",rg::loadTexture("ocean_tile.png"), GfxTextureUsage_ShaderRead);
+    g_GameData->oceanTileTexture = createTexture2D("ocean_tile", gfx::loadTexture("ocean_tile.png"), GfxTextureUsage_ShaderRead);
     
-    g_GameData->flowerTexture = createTexture2D("flower", rg::loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
+    g_GameData->flowerTexture = createTexture2D("flower", gfx::loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
     
     //gfxDestroyBuffer("ocean_tile");
 
@@ -169,9 +169,9 @@ rgInt rg::updateAndDraw(rgDouble dt)
 {
     rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
 
-    QuadUV fullQuadUV = rg::createQuadUV(0, 0, 512, 512, 512, 512);
+    gfx::QuadUV fullQuadUV = gfx::createQuadUV(0, 0, 512, 512, 512, 512);
 
-    eastl::vector<QuadUV> quadUVs;
+    eastl::vector<gfx::QuadUV> quadUVs;
     quadUVs.push_back(fullQuadUV);
 
     //printf("%f\n", quadUVs.back().uvBottomRight[1]);
@@ -188,21 +188,21 @@ rgInt rg::updateAndDraw(rgDouble dt)
     //gfxTexturedQuad();
     RenderCmdList* cmdList = gfxGetRenderCmdList();
     {
-        RenderCmd_SetRenderPass* rcRenderPass = cmdList->addCmd<RenderCmd_SetRenderPass>(rgRenderKey(false), 0);
+        gfx::RenderCmd_SetRenderPass* rcRenderPass = cmdList->addCmd<gfx::RenderCmd_SetRenderPass>(rgRenderKey(false), 0);
         
-        GfxRenderPass simple2dPass = {};
-        simple2dPass.colorAttachments[0].texture = gfxCtx()->renderTarget[g_FrameIndex];
+        gfx::GfxRenderPass simple2dPass = {};
+        simple2dPass.colorAttachments[0].texture = gfx::renderTarget[g_FrameIndex];
         simple2dPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         simple2dPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
         simple2dPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
-        simple2dPass.depthStencilAttachmentTexture = gfxCtx()->depthStencilBuffer;
+        simple2dPass.depthStencilAttachmentTexture = gfx::depthStencilBuffer;
         simple2dPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
         simple2dPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         simple2dPass.clearDepth = 0.0f;
         
         rcRenderPass->renderPass = simple2dPass;
         
-        RenderCmd_DrawTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
+        gfx::RenderCmd_DrawTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<gfx::RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
         rcTerrainAndOceanQuads->quads = &g_GameData->terrainAndOcean;
         rcTerrainAndOceanQuads->pso = g_GameData->simple2dPSO;
         
@@ -214,12 +214,12 @@ rgInt rg::updateAndDraw(rgDouble dt)
                 rgFloat px = j * (100) + 10 * (j + 1) + sinf((rgFloat)g_Time) * 30;
                 rgFloat py = i * (100) + 10 * (i + 1) + cosf((rgFloat)g_Time) * 30;
                 
-                pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfxCtx()->debugTextureHandles[j + i * 4]);
+                pushTexturedQuad(&g_GameData->characterPortraits, gfx::defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
             }
         }
-        pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
+        pushTexturedQuad(&g_GameData->characterPortraits, gfx::defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
         
-        RenderCmd_DrawTexturedQuads* rcTexQuads = cmdList->addCmd<RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
+        gfx::RenderCmd_DrawTexturedQuads* rcTexQuads = cmdList->addCmd<gfx::RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
         rcTexQuads->pso = g_GameData->simple2dPSO;
         rcTexQuads->quads = &g_GameData->characterPortraits;
         
@@ -239,7 +239,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     return 0;
 }
 
-rgInt createSDLWindow(GfxCtx* ctx)
+rgInt createSDLWindow()
 {
     g_WindowInfo.width = 720;
     g_WindowInfo.height = 720;
@@ -273,10 +273,10 @@ rgInt createSDLWindow(GfxCtx* ctx)
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 2);
 #endif
-        ctx->mainWindow = SDL_CreateWindow("gamelib",
+        gfx::mainWindow = SDL_CreateWindow("gamelib",
                                            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                            g_WindowInfo.width, g_WindowInfo.height, windowFlags);
-        rgAssert(ctx->mainWindow != NULL);
+        rgAssert(gfx::mainWindow != NULL);
         return 0;
     }
     
@@ -285,17 +285,17 @@ rgInt createSDLWindow(GfxCtx* ctx)
 
 int main(int argc, char* argv[])
 {
-    g_GfxCtx = rgNew(GfxCtx);
+    //g_GfxCtx = rgNew(GfxCtx);
     
     g_FrameIndex = 0;
 
-    if(createSDLWindow(g_GfxCtx) != 0)
+    if(createSDLWindow() != 0)
     {
         return -1; // error;
     }
 
-    rgInt gfxInitResult = gfxInit();
-    rgInt gfxCommonInitResult = gfxCommonInit();
+    rgInt gfxInitResult = gfx::gfxInit();
+    rgInt gfxCommonInitResult = gfx::gfxCommonInit();
 
     if(gfxInitResult || gfxCommonInitResult)
     {
@@ -312,7 +312,7 @@ int main(int argc, char* argv[])
     
     while(!g_ShouldQuit)
     {
-        ++g_GfxCtx->frameNumber;
+        ++gfx::frameNumber;
         
 #if !defined(RG_D3D12_RNDR)
         g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
@@ -333,7 +333,7 @@ int main(int argc, char* argv[])
             {
                 g_WindowInfo.width = event.window.data1;
                 g_WindowInfo.height = event.window.data2;
-                gfxOnSizeChanged();
+                gfx::gfxOnSizeChanged();
             }
             else
             {
@@ -343,11 +343,11 @@ int main(int argc, char* argv[])
 
         updateAndDraw(g_DeltaTime);
         
-        gfxDraw();
+        gfx::gfxDraw();
     }
 
-    gfxDestroy();
-    SDL_DestroyWindow(g_GfxCtx->mainWindow);
+    gfx::gfxDestroy();
+    SDL_DestroyWindow(gfx::mainWindow);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return 0;
 }
