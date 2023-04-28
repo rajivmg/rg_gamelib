@@ -152,11 +152,11 @@ static const rgU32 kInvalidHandle = ~(0x0);
 static const rgU32 kUninitializedHandle = 0;
 static const rgU32 kMaxColorAttachments = 4;
 
-enum GfxMemoryUsage
+enum GfxMemoryType
 {
-    GfxMemoryUsage_CPUToGPU, // UploadHeap
-    GfxMemoryUsage_GPUToCPU, // ReadbackHeap
-    GfxMemoryUsage_GPUOnly,  // DefaultHeap
+    GfxMemoryType_CPUToGPU, // UploadHeap
+    GfxMemoryType_GPUToCPU, // ReadbackHeap
+    GfxMemoryType_GPUOnly,  // DefaultHeap
     //GfxMemoryUsage_None     =   (0 << 0),
     //GfxMemoryUsage_GPURead  =   (1 << 0),
     //GfxMemoryUsage_GPUWrite =   (1 << 1),
@@ -173,11 +173,25 @@ enum GfxResourceUsage
     GfxResourceUsage_Stream,    // Content will be updated every frame
 };
 
+enum GfxBufferUsage
+{
+    GfxBufferUsage_ShaderRW         = (0 << 0),
+    GfxBufferUsage_VertexBuffer     = (1 << 0),
+    GfxBufferUsage_IndexBuffer      = (1 << 1),
+    GfxBufferUsage_ConstantBuffer   = (1 << 2),
+    GfxBufferUsage_StructuredBuffer = (1 << 3),
+    GfxBufferUsage_CopySrc          = (1 << 4),
+    GfxBufferUsage_CopyDst          = (1 << 5),
+};
+
 enum GfxTextureUsage
 {
-    GfxTextureUsage_ShaderRead,
-    GfxTextureUsage_ShaderWrite,
-    GfxTextureUsage_RenderTarget,
+    GfxTextureUsage_ShaderRead      = (0 << 0),
+    GfxTextureUsage_ShaderReadWrite = (1 << 0),
+    GfxTextureUsage_RenderTarget    = (1 << 1),
+    GfxTextureUsage_DepthStencil    = (1 << 2),
+    GfxTextureUsage_CopyDst         = (1 << 3),
+    GfxTextureUsage_CopySrc         = (1 << 4),
 };
 
 enum GfxCompareFunc
@@ -250,16 +264,6 @@ struct GfxBuffer
     VmaAllocation vmaAlloc;
 #endif
 };
-//typedef rgU32 HGfxBuffer;
-//
-//HGfxBuffer  gfxNewBuffer(void* data, rgSize size, GfxResourceUsage usage);
-//void        gfxUpdateBuffer(HGfxBuffer handle, void* data, rgSize size, rgU32 offset);
-//void        gfxDeleteBuffer(HGfxBuffer handle);
-//GfxBuffer*  gfxBufferPtr(HGfxBuffer bufferHandle);
-//
-//GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage);
-//void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset);
-//void deleterGfxBuffer(GfxBuffer* buffer);
 
 //-----------------------------------------------------------------------------
 // Gfx Texture
@@ -284,17 +288,6 @@ struct GfxTexture2D
     GLuint glTexture;
 #endif
 };
-//typedef rgU32 HGfxTexture2D;
-//static_assert(sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID), "sizeof(HGfxTexture2D) == sizeof(TexturedQuad::texID)");
-//
-//HGfxTexture2D gfxNewTexture2D(GfxTexture2D* ptr);
-//HGfxTexture2D gfxNewTexture2D(TexturePtr texture, GfxTextureUsage usage);
-//HGfxTexture2D gfxNewTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
-//void gfxDeleteTexture2D(HGfxTexture2D handle);
-//GfxTexture2D* gfxTexture2DPtr(HGfxTexture2D texture2dHandle);
-
-//GfxTexture2D* creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
-//void deleterGfxTexture2D(GfxTexture2D* t2d);
 
 struct GfxRenderTarget
 {
@@ -306,9 +299,6 @@ struct GfxRenderTarget
     ComPtr<ID3D12Resource> d3dRT;
 #endif
 };
-
-///GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget* obj);
-//void deleterGfxRenderTarget(GfxRenderTarget* ptr);
 
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
 
@@ -331,13 +321,6 @@ void gfxUpdateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
 void gfxUpdateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
 DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxResourceUsage usage);
 void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
-
-//GfxRenderTarget* gfxCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
-//GfxRenderTarget* gfxFindOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format);
-//GfxRenderTarget* gfxFindRenderTarget(rgHash tagHash);
-//GfxRenderTarget* gfxFindRenderTarget(char const* tag);
-//void             gfxDestroyRenderTarget(rgHash tagHash);
-//void             gfxDestroyRenderTarget(char const* tag);
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
@@ -409,7 +392,7 @@ struct GfxRenderStateDesc
 
 struct GfxColorAttachmentDesc
 {
-    GfxRenderTarget*      texture;
+    GfxTexture2D*      texture;
     GfxLoadAction   loadAction;
     GfxStoreAction storeAction;
     rgFloat4        clearColor;
@@ -419,7 +402,7 @@ struct GfxRenderPass
 {
     GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
     
-    GfxRenderTarget* depthStencilAttachmentTexture;
+    GfxTexture2D* depthStencilAttachmentTexture;
     GfxLoadAction depthStencilAttachmentLoadAction;
     GfxStoreAction depthStencilAttachmentStoreAction;
     rgFloat  clearDepth;
@@ -447,15 +430,6 @@ struct GfxGraphicsPSO
 #elif defined(RG_VULKAN_RNDR)
 #endif
 };
-
-//typedef rgU32 HGfxGraphicsPSO;
-//
-//HGfxGraphicsPSO gfxNewGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
-//void            gfxDeleleGraphicsPSO(HGfxGraphicsPSO handle);
-//GfxGraphicsPSO* gfxGraphicsPSOPtr(HGfxGraphicsPSO handle);
-//
-//GfxGraphicsPSO* creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc);
-//void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso);
 
 DeclareGfxObjectFunctions(GraphicsPSO, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
 
@@ -508,7 +482,7 @@ struct GfxBindlessResourceManager
     typedef eastl::vector<rgU32> SlotList;
     SlotList freeSlots; // Indexes in referenceList which are unused
 
-    rgU32 getFreeSlot()
+    rgU32 _getFreeSlot()
     {
         rgU32 result = kInvalidHandle;
         
@@ -528,7 +502,7 @@ struct GfxBindlessResourceManager
         return result;
     }
     
-    void releaseHandle(rgU32 slot)
+    void _releaseSlot(rgU32 slot)
     {
         rgAssert(slot < resources.size());
 
@@ -536,9 +510,21 @@ struct GfxBindlessResourceManager
         freeSlots.push_back(slot);
     }
     
-    void setResourcePtrInSlot(rgU32 slot, Type* ptr)
+    void _setResourcePtrInSlot(rgU32 slot, Type* ptr)
     {
         resources[slot] = ptr;
+    }
+
+    rgU32 _getSlotOfResourcePtr(Type* ptr)
+    {
+        for(rgUInt i = 0, size = (rgUInt)resources.size(); i < size; ++i)
+        {
+            if(resources[i] == ptr)
+            {
+                return i;
+            }
+        }
+        return kInvalidHandle;
     }
     
     typename ResourceList::iterator begin() EA_NOEXCEPT
@@ -551,16 +537,26 @@ struct GfxBindlessResourceManager
         return resources.end();
     }
     
+    rgU32 getBindlessIndex(Type* ptr)
+    {
+        rgU32 slot = _getSlotOfResourcePtr(ptr);
+        if(slot == kInvalidHandle)
+        {
+            slot = _getFreeSlot();
+            _setResourcePtrInSlot(slot, ptr);
+        }
+        return slot;
+    }
+
     Type* getPtr(rgU32 slot)
     {
         rgAssert(slot < resources.size());
         
         Type* ptr = resources[slot];
-        rgAssert(ptr != nullptr);
         return ptr;
     }
     
-    // TODO: eastl::vector<HandleType> getFreeHandles(int count);
+    // TODO: rgU32 getContiguousFreeSlots(int count);
 };
 
 template<typename Type>
@@ -605,14 +601,6 @@ struct GfxObjectRegistry
     }
 };
 
-//template <typename Type>
-//struct BindlessResourceManager
-//{
-//    typedef eastl::vector<Type*> ResourceList;
-//    ResourceList resources;
-//
-//};
-
 struct GfxCtx
 {
     GfxCtx() {}
@@ -623,10 +611,6 @@ struct GfxCtx
     
     RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
     
-    //GfxResourceManager<GfxTexture2D, HGfxTexture2D> texture2dManager;
-    //GfxResourceManager<GfxBuffer, HGfxBuffer> buffersManager;
-    //GfxResourceManager<GfxGraphicsPSO, HGfxGraphicsPSO> graphicsPSOManager;
-
     GfxObjectRegistry<GfxRenderTarget> registryRenderTarget;
     GfxObjectRegistry<GfxTexture2D> registryTexture2D;
     GfxObjectRegistry<GfxBuffer> registryBuffer;
@@ -639,8 +623,8 @@ struct GfxCtx
     
     eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
     
-    GfxRenderTarget* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-    GfxRenderTarget* depthStencilBuffer;
+    GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
+    GfxTexture2D* depthStencilBuffer;
     
     // RenderCmdTexturedQuads
     //HGfxBuffer rcTexturedQuadsVB;

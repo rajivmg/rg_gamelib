@@ -72,7 +72,7 @@ rgInt rg::setup()
     
     g_GameData->flowerTexture = gfxCreateTexture2D("flower", rg::loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
     
-    gfxDestroyBuffer("ocean_tile");
+    //gfxDestroyBuffer("ocean_tile");
 
     /*
     GfxRenderTarget* mickyRT = gfxFindOrCreate<GfxRenderTarget>("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);

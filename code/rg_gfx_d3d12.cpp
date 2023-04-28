@@ -229,7 +229,7 @@ rgInt gfxInit()
     // TODO TODO TODO TODO
     // Make handle value start from 1. Default 0 should be uninitialized handle
 
-    HGfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
+    //HGfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
 
     // TODO TODO TODO TODO
     // TODO TODO TODO TODO
@@ -248,48 +248,56 @@ rgInt gfxInit()
 
         D3D12_RESOURCE_DESC desc = texResource->GetDesc();
         GfxTexture2D* tex2d = rgNew(GfxTexture2D);
-        strncpy(tex2d->name, "RenderTarget", 32);
+        strncpy(tex2d->tag, "RenderTarget", 32);
         tex2d->width = (rgUInt)desc.Width;
         tex2d->height = (rgUInt)desc.Height;
         tex2d->usage = GfxTextureUsage_RenderTarget;
-        tex2d->pixelFormat = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
+        tex2d->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
         tex2d->d3dTexture = texResource;
-        gfxCtx()->renderTarget[i] = gfxNewTexture2D(tex2d);
+        gfxCtx()->renderTarget[i] = tex2d;
     }
 
     // create depthstencil
-    ComPtr<ID3D12Resource> dsResource;
+    //ComPtr<ID3D12Resource> dsResource;
 
-    D3D12_CLEAR_VALUE depthStencilClearValue = {};
-    depthStencilClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-    depthStencilClearValue.DepthStencil = { 1.0f, 0 };
+    //D3D12_CLEAR_VALUE depthStencilClearValue = {};
+    //depthStencilClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+    //depthStencilClearValue.DepthStencil = { 1.0f, 0 };
 
-    BreakIfFail(device()->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, g_WindowInfo.width, g_WindowInfo.height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
-        D3D12_RESOURCE_STATE_DEPTH_WRITE,
-        &depthStencilClearValue,
-        IID_PPV_ARGS(&dsResource)));
+    //BreakIfFail(device()->CreateCommittedResource(
+    //    &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+    //    D3D12_HEAP_FLAG_NONE,
+    //    &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, g_WindowInfo.width, g_WindowInfo.height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+    //    D3D12_RESOURCE_STATE_DEPTH_WRITE,
+    //    &depthStencilClearValue,
+    //    IID_PPV_ARGS(&dsResource)));
 
     d3d()->dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+
+    //D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
+    //dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    //dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    //dsDesc.Texture2D.MipSlice = 0;
+    //dsDesc.Flags = D3D12_DSV_FLAG_NONE;
+    //device()->CreateDepthStencilView(dsResource.Get(), &dsDesc, d3d()->dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+    //D3D12_RESOURCE_DESC dsResdesc = dsResource->GetDesc();
+    gfxCtx()->depthStencilBuffer = gfxCreateTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureUsage_DepthStencil);
+    //GfxTexture2D* dsTex = rgNew(GfxTexture2D);
+    //strncpy(dsTex->tag, "DepthStencilTarget", 32);
+    //dsTex->width = (rgUInt)dsResdesc.Width;
+    //dsTex->height = (rgUInt)dsResdesc.Height;
+    //dsTex->usage = GfxTextureUsage_RenderTarget;
+    //dsTex->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)dsResdesc.Format);
+    //dsTex->d3dTexture = dsResource;
+    //gfxCtx()->depthStencilBuffer = gfxNewTexture2D(dsTex);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsDesc.Texture2D.MipSlice = 0;
     dsDesc.Flags = D3D12_DSV_FLAG_NONE;
-    device()->CreateDepthStencilView(dsResource.Get(), &dsDesc, d3d()->dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-    D3D12_RESOURCE_DESC dsResdesc = dsResource->GetDesc();
-    GfxTexture2D* dsTex = rgNew(GfxTexture2D);
-    strncpy(dsTex->name, "DepthStencilTarget", 32);
-    dsTex->width = (rgUInt)dsResdesc.Width;
-    dsTex->height = (rgUInt)dsResdesc.Height;
-    dsTex->usage = GfxTextureUsage_RenderTarget;
-    dsTex->pixelFormat = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)dsResdesc.Format);
-    dsTex->d3dTexture = dsResource;
-    gfxCtx()->depthStencilBuffer = gfxNewTexture2D(dsTex);
+    device()->CreateDepthStencilView(gfxCtx()->depthStencilBuffer->d3dTexture.Get(), &dsDesc, d3d()->dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
@@ -353,9 +361,13 @@ rgInt gfxInit()
     {
         rgFloat triangleVertices[] =
         {
-            0.0f, 0.25f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.25f, -0.25f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-            -0.25f, -0.25f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f
+            0.0f, 0.3f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.4f, -0.25f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            -0.25f, -0.1f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+
+            0.0f, 0.25f, 0.1f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.25f, -0.25f, 0.1f, 0.0f, 1.0f, 0.0f, 1.0f,
+            -0.25f, -0.25f, 0.1f, 0.0f, 0.0f, 1.0f, 1.0f
         };
 
         rgUInt vbSize = sizeof(triangleVertices);
@@ -419,7 +431,7 @@ rgInt gfxDraw()
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
     commandList->RSSetScissorRects(1, &scissorRect);
 
-    GfxTexture2D* activeRenderTarget = gfxTexture2DPtr(gfxCtx()->renderTarget[g_FrameIndex]);
+    GfxTexture2D* activeRenderTarget = gfxCtx()->renderTarget[g_FrameIndex];
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(activeRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(d3d()->rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, d3d()->rtvDescriptorSize);
@@ -429,7 +441,7 @@ rgInt gfxDraw()
     commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &d3d()->triVBView);
-    commandList->DrawInstanced(3, 1, 0, 0);
+    commandList->DrawInstanced(6, 1, 0, 0);
 
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(activeRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
@@ -465,12 +477,12 @@ void gfxOnSizeChanged()
 // -----------------------------------------------
 
 // Buffer
-GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
+GfxBuffer* creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxResourceUsage usage, GfxBuffer* obj)
 {
     return rgNew(GfxBuffer);
 }
 
-void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
+void updaterGfxBuffer(void* data, rgUInt size, rgUInt offset, GfxBuffer* buffer)
 {
 
 }
@@ -480,9 +492,83 @@ void deleterGfxBuffer(GfxBuffer* buffer)
 
 }
 
-// Texture
-GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
+GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget* obj)
 {
+    return nullptr;
+}
+
+// Texture
+GfxTexture2D* creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, GfxTexture2D* obj)
+{
+    ComPtr<ID3D12Resource> textureResouce;
+
+    DXGI_FORMAT textureFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
+    
+    D3D12_CLEAR_VALUE* clearValue = nullptr;
+    D3D12_CLEAR_VALUE initialClearValue = {};
+    initialClearValue.Format = textureFormat;
+
+    if(usage & GfxTextureUsage_DepthStencil)
+    {
+        initialClearValue.DepthStencil = { 1.0f, 0 };
+        clearValue = &initialClearValue;
+    }
+    else if(usage & GfxTextureUsage_RenderTarget)
+    {
+        initialClearValue.Color[0] = 0;
+        initialClearValue.Color[1] = 0;
+        initialClearValue.Color[2] = 0;
+        initialClearValue.Color[3] = 0;
+        clearValue = &initialClearValue;
+    }
+    
+    D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_NONE;
+    if(usage & GfxTextureUsage_ShaderReadWrite)
+    {
+        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    }
+    if(usage & GfxTextureUsage_RenderTarget)
+    {
+        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    }
+    if(usage & GfxTextureUsage_DepthStencil)
+    {
+        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+    }
+
+    D3D12_RESOURCE_STATES resourceState = D3D12_RESOURCE_STATE_COMMON;
+    if(usage & GfxTextureUsage_ShaderReadWrite)
+    {
+        resourceState |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    }
+    if(usage & GfxTextureUsage_RenderTarget)
+    {
+        resourceState |= D3D12_RESOURCE_STATE_RENDER_TARGET;
+    }
+    if(usage & GfxTextureUsage_DepthStencil)
+    {
+        resourceState |= D3D12_RESOURCE_STATE_DEPTH_WRITE;
+    }
+
+    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(textureFormat, width, height, 1, 1, 1, 0, resourceFlags);
+
+    BreakIfFail(device()->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDesc,
+        resourceState,
+        clearValue,
+        IID_PPV_ARGS(&textureResouce)));
+
+    //GfxTexture2D* dsTex = rgNew(GfxTexture2D);
+    //strncpy(dsTex->tag, "DepthStencilTarget", 32);
+    //dsTex->width = (rgUInt)dsResdesc.Width;
+    //dsTex->height = (rgUInt)dsResdesc.Height;
+    //dsTex->usage = GfxTextureUsage_RenderTarget;
+    //dsTex->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)dsResdesc.Format);
+    //dsTex->d3dTexture = dsResource;
+    //gfxCtx()->depthStencilBuffer = gfxNewTexture2D(dsTex);
+
     return rgNew(GfxTexture2D);
 }
 
@@ -510,6 +596,11 @@ GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 heig
 void deleterGfxRenderTarget(GfxRenderTarget* ptr)
 {
     rgDelete(ptr);
+}
+
+GfxGraphicsPSO* creatorGfxGraphicsPSO(char const* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
+{
+    return nullptr;
 }
 
 // -----------------------------------------------

@@ -453,7 +453,7 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         vertices->push_back(v[2]);
         
         SimpleInstanceParams instParam;
-        instParam.texID = t.texID;
+        instParam.texID = gfxCtx()->bindlessManagerTexture2D.getBindlessIndex(t.tex);
         instanceParams->push_back(instParam);
     }
 }
