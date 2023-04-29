@@ -616,6 +616,12 @@ void  gfxOnSizeChanged();
 void  gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
 RenderCmdList* gfxGetRenderCmdList();
 
+//-----------------------------------------------------------------------------
+// Gfx function declarations
+//-----------------------------------------------------------------------------
+
+// Helper macros
+// ---------------
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
 
 #define DeclareGfxObjectFunctions(type, ...) Gfx##type* create##type(const char* tag, __VA_ARGS__); \
@@ -629,16 +635,17 @@ RenderCmdList* gfxGetRenderCmdList();
         Gfx##type* creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
         void destroyerGfx##type(Gfx##type* obj)
 
+void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
+void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
+DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxResourceUsage usage);
+void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
+
 GfxTexture2D* createTexture2D(char const* tag, TexturePtr texture, GfxTextureUsage usage);
 DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
+
 DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
 DeclareGfxObjectFunctions(GraphicsPSO, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
 
-DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxResourceUsage usage);
-void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
-void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
-
-void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
@@ -726,9 +733,9 @@ extern eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
 extern GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
 extern GfxTexture2D* depthStencilBuffer;
     
-    // RenderCmdTexturedQuads
-    //HGfxBuffer rcTexturedQuadsVB;
-    //HGfxBuffer rcTexturedQuadsInstParams;
+// RenderCmdTexturedQuads
+//HGfxBuffer rcTexturedQuadsVB;
+//HGfxBuffer rcTexturedQuadsInstParams;
 //--------
 
 #if defined(RG_D3D12_RNDR)
@@ -816,10 +823,6 @@ struct GL
     SDL_GLContext context;
 } gl;
 #endif
-
-//extern rg::GfxCtx* g_GfxCtx;
-
-//inline GfxCtx* gfxCtx() { return g_GfxCtx; }
 
 RG_GFX_END_NAMESPACE
 RG_END_NAMESPACE
