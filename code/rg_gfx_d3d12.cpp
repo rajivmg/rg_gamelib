@@ -2,6 +2,9 @@
 #include "rg_gfx.h"
 
 RG_BEGIN_NAMESPACE
+RG_GFX_BEGIN_NAMESPACE
+
+D3d d3d; // TODO: Make this a pointer
 
 // SECTION BEGIN -
 // -----------------------------------------------
@@ -17,14 +20,14 @@ inline void _BreakIfFail(HRESULT hr)
 
 #define BreakIfFail(x) _BreakIfFail(x)
 
-static GfxCtx::D3d* d3d()
-{
-    return &g_GfxCtx->d3d;
-}
+//static D3d* d3d()
+//{
+//    return &d3d;
+//}
 
 static ComPtr<ID3D12Device> device()
 {
-    return g_GfxCtx->d3d.device;
+    return d3d.device;
 }
 
 // -----------------------------------------------
@@ -96,9 +99,9 @@ void getHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool
 
 void waitForGpu()
 {
-    BreakIfFail(d3d()->commandQueue->Signal(d3d()->frameFence.Get(), d3d()->frameFenceValues[g_FrameIndex]));
-    BreakIfFail(d3d()->frameFence->SetEventOnCompletion(d3d()->frameFenceValues[g_FrameIndex], d3d()->frameFenceEvent));
-    ::WaitForSingleObject(d3d()->frameFenceEvent, INFINITE);
+    BreakIfFail(d3d.commandQueue->Signal(d3d.frameFence.Get(), d3d.frameFenceValues[g_FrameIndex]));
+    BreakIfFail(d3d.frameFence->SetEventOnCompletion(d3d.frameFenceValues[g_FrameIndex], d3d.frameFenceEvent));
+    ::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
 }
 
 // https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Fullscreen/src/D3D12Fullscreen.cpp
@@ -106,20 +109,20 @@ void waitForGpu()
 
 void startNextFrame()
 {
-    UINT64 curValueToSignal = d3d()->frameFenceValues[g_FrameIndex];
-    BreakIfFail(d3d()->commandQueue->Signal(d3d()->frameFence.Get(), curValueToSignal));
+    UINT64 curValueToSignal = d3d.frameFenceValues[g_FrameIndex];
+    BreakIfFail(d3d.commandQueue->Signal(d3d.frameFence.Get(), curValueToSignal));
 
-    g_FrameIndex = d3d()->dxgiSwapchain->GetCurrentBackBufferIndex();
+    g_FrameIndex = d3d.dxgiSwapchain->GetCurrentBackBufferIndex();
 
     // check if next frame's fence value is reached, meaning we can reuse its framebuffer
-    UINT64 nextFrameFenceValueToWaitFor = d3d()->frameFenceValues[g_FrameIndex];
-    while(d3d()->frameFence->GetCompletedValue() < nextFrameFenceValueToWaitFor)
+    UINT64 nextFrameFenceValueToWaitFor = d3d.frameFenceValues[g_FrameIndex];
+    while(d3d.frameFence->GetCompletedValue() < nextFrameFenceValueToWaitFor)
     {
-        BreakIfFail(d3d()->frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, d3d()->frameFenceEvent));
-        WaitForSingleObject(d3d()->frameFenceEvent, INFINITE);
+        BreakIfFail(d3d.frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, d3d.frameFenceEvent));
+        WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
     }
 
-    d3d()->frameFenceValues[g_FrameIndex] = curValueToSignal + 1; // increment for next frame
+    d3d.frameFenceValues[g_FrameIndex] = curValueToSignal + 1; // increment for next frame
 }
 
 
@@ -165,7 +168,7 @@ rgInt gfxInit()
 #if defined(_DEBUG)
     factoryCreateFlag = DXGI_CREATE_FACTORY_DEBUG;
 #endif
-    BreakIfFail(CreateDXGIFactory2(factoryCreateFlag, __uuidof(d3d()->dxgiFactory), (void**)&(d3d()->dxgiFactory)));
+    BreakIfFail(CreateDXGIFactory2(factoryCreateFlag, __uuidof(d3d.dxgiFactory), (void**)&(d3d.dxgiFactory)));
 
     // create debug validation interface
 #ifdef _DEBUG
@@ -174,7 +177,7 @@ rgInt gfxInit()
     debugInterface->EnableDebugLayer();
 
     //ComPtr<ID3D12InfoQueue> debugInfoQueue;
-    //if(SUCCEEDED(d3d()->device.As(&debugInfoQueue)))
+    //if(SUCCEEDED(d3d.device.As(&debugInfoQueue)))
     //{
     //    debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
     //    debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
@@ -184,8 +187,8 @@ rgInt gfxInit()
 
     // create device
     ComPtr<IDXGIAdapter1> hardwareAdapter;
-    getHardwareAdapter(d3d()->dxgiFactory.Get(), &hardwareAdapter, false);
-    BreakIfFail(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), (void**)&(d3d()->device)));
+    getHardwareAdapter(d3d.dxgiFactory.Get(), &hardwareAdapter, false);
+    BreakIfFail(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), (void**)&(d3d.device)));
     
     // create command queue
     D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
@@ -193,7 +196,7 @@ rgInt gfxInit()
     commandQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
     commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 
-    BreakIfFail(device()->CreateCommandQueue(&commandQueueDesc, __uuidof(ID3D12CommandQueue), (void**)&(d3d()->commandQueue)));
+    BreakIfFail(device()->CreateCommandQueue(&commandQueueDesc, __uuidof(ID3D12CommandQueue), (void**)&(d3d.commandQueue)));
 
     // create swapchain
     DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
@@ -211,16 +214,16 @@ rgInt gfxInit()
     HWND hWnd = ::GetActiveWindow();
 
     ComPtr<IDXGISwapChain1> dxgiSwapchain1;
-    BreakIfFail(d3d()->dxgiFactory->CreateSwapChainForHwnd(
-        d3d()->commandQueue.Get(),
+    BreakIfFail(d3d.dxgiFactory->CreateSwapChainForHwnd(
+        d3d.commandQueue.Get(),
         hWnd,
         &swapchainDesc,
         nullptr,
         nullptr,
         &dxgiSwapchain1
     ));
-    BreakIfFail(d3d()->dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
-    BreakIfFail(dxgiSwapchain1.As(&d3d()->dxgiSwapchain));
+    BreakIfFail(d3d.dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
+    BreakIfFail(dxgiSwapchain1.As(&d3d.dxgiSwapchain));
 
     // create swapchain RTV
     
@@ -235,16 +238,16 @@ rgInt gfxInit()
     // TODO TODO TODO TODO
     // TODO TODO TODO TODO
 
-    d3d()->rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RG_MAX_FRAMES_IN_FLIGHT, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    d3d.rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RG_MAX_FRAMES_IN_FLIGHT, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
-    d3d()->rtvDescriptorSize = device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(d3d()->rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    d3d.rtvDescriptorSize = device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(d3d.rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         ComPtr<ID3D12Resource> texResource;
-        BreakIfFail(d3d()->dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
+        BreakIfFail(d3d.dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
         device()->CreateRenderTargetView(texResource.Get(), nullptr, rtvDescriptorHandle);
-        rtvDescriptorHandle.Offset(1, d3d()->rtvDescriptorSize);
+        rtvDescriptorHandle.Offset(1, d3d.rtvDescriptorSize);
 
         D3D12_RESOURCE_DESC desc = texResource->GetDesc();
         GfxTexture2D* tex2d = rgNew(GfxTexture2D);
@@ -254,7 +257,7 @@ rgInt gfxInit()
         tex2d->usage = GfxTextureUsage_RenderTarget;
         tex2d->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
         tex2d->d3dTexture = texResource;
-        gfxCtx()->renderTarget[i] = tex2d;
+        gfx::renderTarget[i] = tex2d;
     }
 
     // create depthstencil
@@ -272,17 +275,17 @@ rgInt gfxInit()
     //    &depthStencilClearValue,
     //    IID_PPV_ARGS(&dsResource)));
 
-    d3d()->dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    d3d.dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 
     //D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     //dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
     //dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     //dsDesc.Texture2D.MipSlice = 0;
     //dsDesc.Flags = D3D12_DSV_FLAG_NONE;
-    //device()->CreateDepthStencilView(dsResource.Get(), &dsDesc, d3d()->dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    //device()->CreateDepthStencilView(dsResource.Get(), &dsDesc, d3d.dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
     //D3D12_RESOURCE_DESC dsResdesc = dsResource->GetDesc();
-    gfxCtx()->depthStencilBuffer = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureUsage_DepthStencil);
+    gfx::depthStencilBuffer = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureUsage_DepthStencil);
     //GfxTexture2D* dsTex = rgNew(GfxTexture2D);
     //strncpy(dsTex->tag, "DepthStencilTarget", 32);
     //dsTex->width = (rgUInt)dsResdesc.Width;
@@ -297,14 +300,14 @@ rgInt gfxInit()
     dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsDesc.Texture2D.MipSlice = 0;
     dsDesc.Flags = D3D12_DSV_FLAG_NONE;
-    device()->CreateDepthStencilView(gfxCtx()->depthStencilBuffer->d3dTexture.Get(), &dsDesc, d3d()->dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    device()->CreateDepthStencilView(gfx::depthStencilBuffer->d3dTexture.Get(), &dsDesc, d3d.dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        d3d()->commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+        d3d.commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
     }
 
-    d3d()->commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d()->commandAllocator[g_FrameIndex], nullptr);
+    d3d.commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d.commandAllocator[g_FrameIndex], nullptr);
 
     ///// 
     // empty root signature
@@ -315,7 +318,7 @@ rgInt gfxInit()
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
         BreakIfFail(D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-        BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(d3d()->dummyRootSignature), (void**)&(d3d()->dummyRootSignature)));
+        BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(d3d.dummyRootSignature), (void**)&(d3d.dummyRootSignature)));
     }
 
     {
@@ -339,7 +342,7 @@ rgInt gfxInit()
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = { inputElementDesc, rgARRAY_COUNT(inputElementDesc) };
-        psoDesc.pRootSignature = d3d()->dummyRootSignature.Get();
+        psoDesc.pRootSignature = d3d.dummyRootSignature.Get();
         psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
         psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -352,11 +355,11 @@ rgInt gfxInit()
         psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
         //psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleDesc.Count = 1;
-        BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, __uuidof(d3d()->dummyPSO), (void**)&(d3d()->dummyPSO)));
+        BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, __uuidof(d3d.dummyPSO), (void**)&(d3d.dummyPSO)));
     }
     
-    //d3d()->commandAllocator = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
-    //d3d()->commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d()->commandAllocator, d3d()->dummyPSO.Get());
+    //d3d.commandAllocator = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    //d3d.commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d.commandAllocator, d3d.dummyPSO.Get());
 
     {
         rgFloat triangleVertices[] =
@@ -378,27 +381,27 @@ rgInt gfxInit()
             &CD3DX12_RESOURCE_DESC::Buffer(vbSize),
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
-            __uuidof(d3d()->triVB),
-            (void**)&(d3d()->triVB)
+            __uuidof(d3d.triVB),
+            (void**)&(d3d.triVB)
         ));
 
         rgU8* vbPtr;;
         CD3DX12_RANGE readRange(0, 0);
-        BreakIfFail(d3d()->triVB->Map(0, &readRange, (void**)&vbPtr));
+        BreakIfFail(d3d.triVB->Map(0, &readRange, (void**)&vbPtr));
         memcpy(vbPtr, triangleVertices, vbSize);
-        d3d()->triVB->Unmap(0, nullptr);
+        d3d.triVB->Unmap(0, nullptr);
 
-        d3d()->triVBView.BufferLocation = d3d()->triVB->GetGPUVirtualAddress();
-        d3d()->triVBView.StrideInBytes = 28;
-        d3d()->triVBView.SizeInBytes = vbSize;
+        d3d.triVBView.BufferLocation = d3d.triVB->GetGPUVirtualAddress();
+        d3d.triVBView.StrideInBytes = 28;
+        d3d.triVBView.SizeInBytes = vbSize;
     }
 
     {
-        BreakIfFail(device()->CreateFence(d3d()->frameFenceValues[g_FrameIndex], D3D12_FENCE_FLAG_NONE, __uuidof(d3d()->frameFence), (void**)&(d3d()->frameFence)));
-        d3d()->frameFenceValues[g_FrameIndex]++;
+        BreakIfFail(device()->CreateFence(d3d.frameFenceValues[g_FrameIndex], D3D12_FENCE_FLAG_NONE, __uuidof(d3d.frameFence), (void**)&(d3d.frameFence)));
+        d3d.frameFenceValues[g_FrameIndex]++;
 
-        d3d()->frameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if(d3d()->frameFenceEvent == nullptr)
+        d3d.frameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if(d3d.frameFenceEvent == nullptr)
         {
             BreakIfFail(HRESULT_FROM_WIN32(::GetLastError()));
         }
@@ -412,7 +415,7 @@ rgInt gfxInit()
 void gfxDestroy()
 {
     waitForGpu();
-    ::CloseHandle(d3d()->frameFenceEvent);
+    ::CloseHandle(d3d.frameFenceEvent);
 }
 
 rgInt gfxDraw()
@@ -420,36 +423,36 @@ rgInt gfxDraw()
     gfxGetRenderCmdList()->draw();
     gfxGetRenderCmdList()->afterDraw();
 
-    BreakIfFail(d3d()->commandAllocator[g_FrameIndex]->Reset());
-    BreakIfFail(d3d()->commandList->Reset(d3d()->commandAllocator[g_FrameIndex].Get(), d3d()->dummyPSO.Get()));
+    BreakIfFail(d3d.commandAllocator[g_FrameIndex]->Reset());
+    BreakIfFail(d3d.commandList->Reset(d3d.commandAllocator[g_FrameIndex].Get(), d3d.dummyPSO.Get()));
 
-    ID3D12GraphicsCommandList* commandList = d3d()->commandList.Get();
-    commandList->SetGraphicsRootSignature(d3d()->dummyRootSignature.Get());
+    ID3D12GraphicsCommandList* commandList = d3d.commandList.Get();
+    commandList->SetGraphicsRootSignature(d3d.dummyRootSignature.Get());
 
     CD3DX12_VIEWPORT vp(0.0f, 0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height);
     commandList->RSSetViewports(1, &vp);
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
     commandList->RSSetScissorRects(1, &scissorRect);
 
-    GfxTexture2D* activeRenderTarget = gfxCtx()->renderTarget[g_FrameIndex];
+    GfxTexture2D* activeRenderTarget = gfx::renderTarget[g_FrameIndex];
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(activeRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(d3d()->rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, d3d()->rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(d3d.rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, d3d.rtvDescriptorSize);
     commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
     const rgFloat clearColor[] = { 0.5f, 0.5f, 0.5f, 1.0f };
     commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &d3d()->triVBView);
+    commandList->IASetVertexBuffers(0, 1, &d3d.triVBView);
     commandList->DrawInstanced(6, 1, 0, 0);
 
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(activeRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     BreakIfFail(commandList->Close());
 
-    ID3D12CommandList* commandLists[] = { d3d()->commandList.Get() };
-    d3d()->commandQueue->ExecuteCommandLists(1, commandLists);
-    BreakIfFail(d3d()->dxgiSwapchain->Present(1, 0));
+    ID3D12CommandList* commandLists[] = { d3d.commandList.Get() };
+    d3d.commandQueue->ExecuteCommandLists(1, commandLists);
+    BreakIfFail(d3d.dxgiSwapchain->Present(1, 0));
 
     startNextFrame();
 
@@ -647,5 +650,6 @@ void gfxHandleRenderCmd_DrawTriangles(void const* cmd)
 // SECTION ENDS -
 
 #undef BreakIfFail
+RG_GFX_END_NAMESPACE
 RG_END_NAMESPACE
 #endif

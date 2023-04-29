@@ -14,7 +14,7 @@ RG_BEGIN_NAMESPACE
 //#define RG_GEN_RENDER_CMD_DESTRUCTOR(type) void gfxDestroy ## type(void* cmd) { ((type*)cmd)->~type(); } \
 //CmdDestructorFnT* type::destructorFn = gfxDestroy ## type
 
-#define RG_DECL_RENDER_CMD_HANDLER(type) CmdDispatchFnT* type::dispatchFn = gfxHandle ## type
+#define RG_DECL_RENDER_CMD_HANDLER(type) CmdDispatchFnT* type::dispatchFn = gfx::gfxHandle ## type
 
 //CmdDispatchFnT* RenderCmdTexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
 //CmdDestructorFnT* RenderCmdTexturedQuad::destructorFn = gfxDestroyRenderCmdTexturedQuad;
@@ -95,11 +95,6 @@ void RenderCmdList::afterDraw()
     memset(buffer, 0, baseOffset);
     current = 0;
     baseOffset = 0;
-}
-
-RenderCmdList* gfxGetRenderCmdList()
-{
-    return gfxCtx()->graphicCmdLists[g_FrameIndex];
 }
 
 RG_END_NAMESPACE

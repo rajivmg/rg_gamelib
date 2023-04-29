@@ -129,12 +129,6 @@ enum GfxStoreAction
     GfxStoreAction_Store,
 };
 
-RG_GFX_BEGIN_NAMESPACE
-
-#ifdef RG_VULKAN_RNDR
-#define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
-#endif
-
 // --- Game Graphics APIs
 struct Texture
 {
@@ -143,7 +137,7 @@ struct Texture
     rgUInt  width;
     rgUInt  height;
     TinyImageFormat format;
-    
+
     // -- remove in final build
     rgChar name[32];
 };
@@ -183,7 +177,7 @@ struct TexturedQuad
     //Vector4 posScale;
     rgFloat4 posSize;
 #endif
-    
+
 #if 0
     Vector2 offset;
     rgFloat orientationRad;
@@ -191,7 +185,7 @@ struct TexturedQuad
     //Vector4 offsetOrientation;
     rgFloat4 offsetOrientation;
 #endif
-    
+
     GfxTexture2D* tex;
 };
 
@@ -236,26 +230,6 @@ inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFlo
 }
 
 //-----------------------------------------------------------------------------
-// General Common Stuff
-//-----------------------------------------------------------------------------
-rgInt gfxCommonInit();
-rgInt setup();
-rgInt updateAndDraw(rgDouble dt);
-
-//-----------------------------------------------------------------------------
-// STUFF BELOW NEEDS TO BE IMPLEMENTED FOR EACH GRAPHICS BACKEND
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// Gfx Setup
-//-----------------------------------------------------------------------------
-rgInt gfxInit();
-void  gfxDestroy();
-rgInt gfxDraw();
-void  gfxOnSizeChanged();
-void  gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
-
-//-----------------------------------------------------------------------------
 // Gfx Buffers
 //-----------------------------------------------------------------------------
 struct GfxBuffer
@@ -284,7 +258,7 @@ struct GfxTexture2D
     TinyImageFormat format;
     GfxTextureUsage usage;
     rgU32 texID;
-   
+
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource> d3dTexture;
 #elif defined(RG_METAL_RNDR)
@@ -307,51 +281,6 @@ struct GfxRenderTarget
     ComPtr<ID3D12Resource> d3dRT;
 #endif
 };
-
-#define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
-
-#define DeclareGfxObjectFunctions(type, ...) Gfx##type* create##type(const char* tag, __VA_ARGS__); \
-        Gfx##type* findOrCreate##type(const char* tag, __VA_ARGS__); \
-        Gfx##type* find##type(rgHash tagHash);  \
-        Gfx##type* find##type(char const* tag); \
-        void destroy##type(rgHash tagHash); \
-        void destroy##type(char const* tag); \
-        void allocAndFill##type##Struct(const char* tag, __VA_ARGS__, Gfx##type** obj); \
-        void dealloc##type##Struct(Gfx##type* obj); \
-        Gfx##type* creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
-        void destroyerGfx##type(Gfx##type* obj)
-
-GfxTexture2D* createTexture2D(char const* tag, TexturePtr texture, GfxTextureUsage usage);
-DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
-DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
-
-void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
-void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
-DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxResourceUsage usage);
-void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
-
-//-----------------------------------------------------------------------------
-// Gfx Vertex Format
-//-----------------------------------------------------------------------------
-struct ImmVertexFormat
-{
-    rgFloat position[3];
-    rgFloat color[4];
-};
-
-struct SimpleVertexFormat
-{
-    rgFloat pos[2];
-    rgFloat texcoord[2];
-    rgFloat color[4];
-};
-
-struct SimpleInstanceParams
-{
-    rgU32 texID;
-};
-
-void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, eastl::vector<SimpleInstanceParams>* instanceParams);
 
 //-----------------------------------------------------------------------------
 // Gfx Pipeline
@@ -380,16 +309,16 @@ struct GfxRenderStateDesc
 
     rgBool depthWriteEnabled;
     GfxCompareFunc depthCompareFunc;
-    
+
     GfxCullMode cullMode;
     GfxWinding winding;
     GfxTriangleFillMode triangleFillMode;
-    
+
     //GfxCullMode
     // TODO
     // DepthStencilState ^^
 
-    
+
     // Viewport <--- not part of static state
     // ScissorRect <--- not part of static state
     // CullMode
@@ -409,7 +338,7 @@ struct GfxColorAttachmentDesc
 struct GfxRenderPass
 {
     GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
-    
+
     GfxTexture2D* depthStencilAttachmentTexture;
     GfxLoadAction depthStencilAttachmentLoadAction;
     GfxStoreAction depthStencilAttachmentStoreAction;
@@ -427,7 +356,7 @@ struct GfxShaderDesc
 };
 
 // TODO: Not a resource
-struct GfxGraphicsPSO 
+struct GfxGraphicsPSO
 {
     rgChar tag[32];
     // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly.
@@ -439,7 +368,286 @@ struct GfxGraphicsPSO
 #endif
 };
 
+template <typename Type>
+struct GfxBindlessResourceManager
+{
+    typedef eastl::vector<Type*> ResourceList;
+    ResourceList resources; // Hold reference to the resources until no longer needed
+
+    typedef eastl::vector<rgU32> SlotList;
+    SlotList freeSlots; // Indexes in referenceList which are unused
+
+    rgU32 _getFreeSlot()
+    {
+        rgU32 result = kInvalidHandle;
+
+        if(!freeSlots.empty())
+        {
+            result = freeSlots.back();
+            freeSlots.pop_back();
+        }
+        else
+        {
+            rgAssert(resources.size() < UINT32_MAX);
+            result = (rgU32)resources.size();
+            resources.resize(result + 1); // push_back(nullptr) ?
+        }
+
+        rgAssert(result != kInvalidHandle);
+        return result;
+    }
+
+    void _releaseSlot(rgU32 slot)
+    {
+        rgAssert(slot < resources.size());
+
+        resources[slot] = nullptr;
+        freeSlots.push_back(slot);
+    }
+
+    void _setResourcePtrInSlot(rgU32 slot, Type* ptr)
+    {
+        resources[slot] = ptr;
+    }
+
+    rgU32 _getSlotOfResourcePtr(Type* ptr)
+    {
+        for(rgUInt i = 0, size = (rgUInt)resources.size(); i < size; ++i)
+        {
+            if(resources[i] == ptr)
+            {
+                return i;
+            }
+        }
+        return kInvalidHandle;
+    }
+
+    typename ResourceList::iterator begin() EA_NOEXCEPT
+    {
+        return resources.begin();
+    }
+
+    typename ResourceList::iterator end() EA_NOEXCEPT
+    {
+        return resources.end();
+    }
+
+    rgU32 getBindlessIndex(Type* ptr)
+    {
+        rgU32 slot = _getSlotOfResourcePtr(ptr);
+        if(slot == kInvalidHandle)
+        {
+            slot = _getFreeSlot();
+            _setResourcePtrInSlot(slot, ptr);
+        }
+        return slot;
+    }
+
+    Type* getPtr(rgU32 slot)
+    {
+        rgAssert(slot < resources.size());
+
+        Type* ptr = resources[slot];
+        return ptr;
+    }
+
+    // TODO: rgU32 getContiguousFreeSlots(int count);
+};
+
+template<typename Type>
+struct GfxObjectRegistry
+{
+    typedef eastl::hash_map<rgHash, Type*> ObjectMap;
+    ObjectMap objects;
+    ObjectMap objectsToRemove;
+
+    Type* find(rgHash hash)
+    {
+        ObjectMap::iterator itr = objects.find(hash);
+        return (itr != objects.end()) ? itr->second : nullptr;
+    }
+
+    void insert(rgHash hash, Type* ptr)
+    {
+#if defined(ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT)
+        ObjectMap::iterator itr = objects.find(hash);
+        rgAssert(itr == objects.end());
+#endif
+        //objects.insert_or_assign(eastl::make_pair(hash, ptr));
+        objects.insert_or_assign(hash, ptr);
+    }
+
+    void markForRemove(rgHash hash)
+    {
+        ObjectMap::iterator itr = objects.find(hash);
+        rgAssert(itr != objects.end());
+        //objectsToRemove.insert_or_assign(eastl::make_pair(hash, *itr))
+        objectsToRemove.insert_or_assign(hash, itr->second);
+    }
+
+    void removeMarkedObjects()
+    {
+        for(auto itr : objectsToRemove)
+        {
+
+        }
+    }
+};
+
+//-----------------------------------------------------------------------------
+// Gfx Render Command
+//-----------------------------------------------------------------------------
+enum RenderCmdType
+{
+    RenderCmdType_SetViewport,
+    RenderCmdType_SetRenderPass,
+    RenderCmdType_SetGraphicsPSO,
+    RenderCmdType_DrawTexturedQuads,
+    RenderCmdType_DrawTriangles,
+};
+
+struct RenderCmdHeader
+{
+    RenderCmdType type;
+};
+
+// NOTE: RenderCmds are not allowed to own any resources (smartptrs)
+// Should this be allowed?? If yes, then addCmd should "new" the RenderCmd, and Flush should "delete"
+// pros vs cons?
+
+#define BEGIN_RENDERCMD_STRUCT(cmdName)     struct RenderCmd_##cmdName      \
+                                            {                               \
+                                                static const RenderCmdType type = RenderCmdType_##cmdName; \
+                                                static CmdDispatchFnT* dispatchFn
+
+#define END_RENDERCMD_STRUCT()              }
+
+// ---===---
+
+BEGIN_RENDERCMD_STRUCT(SetViewport);
+rgFloat4 viewport;
+END_RENDERCMD_STRUCT();
+
+// ---
+
+BEGIN_RENDERCMD_STRUCT(SetRenderPass);
+GfxRenderPass renderPass;
+END_RENDERCMD_STRUCT();
+
+// ---
+
+BEGIN_RENDERCMD_STRUCT(SetGraphicsPSO);
+GfxGraphicsPSO* pso;
+END_RENDERCMD_STRUCT();
+
+// ---
+
+BEGIN_RENDERCMD_STRUCT(DrawTexturedQuads);
+GfxGraphicsPSO* pso;
+TexturedQuads* quads;
+END_RENDERCMD_STRUCT();
+
+// ---
+
+BEGIN_RENDERCMD_STRUCT(DrawTriangles);
+GfxBuffer* vertexBuffer;
+rgU32 vertexBufferOffset;
+GfxBuffer* indexBuffer;
+rgU32 indexBufferOffset;
+
+rgU32 vertexCount;
+rgU32 indexCount;
+rgU32 instanceCount;
+rgU32 baseVertex;
+rgU32 baseInstance;
+END_RENDERCMD_STRUCT();
+
+// ---===---
+
+#undef BEGIN_RENDERCMD_STRUCT
+#undef END_RENDERCMD_STRUCT
+
+RG_GFX_BEGIN_NAMESPACE
+
+void gfxHandleRenderCmd_SetViewport(void const* cmd);
+void gfxHandleRenderCmd_SetRenderPass(void const* cmd);
+void gfxHandleRenderCmd_SetGraphicsPSO(void const* cmd);
+void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd);
+void gfxHandleRenderCmd_DrawTriangles(void const* cmd);
+
+
+#ifdef RG_VULKAN_RNDR
+#define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
+#endif
+
+//-----------------------------------------------------------------------------
+// General Common Stuff
+//-----------------------------------------------------------------------------
+rgInt gfxCommonInit();
+rgInt setup();
+rgInt updateAndDraw(rgDouble dt);
+
+//-----------------------------------------------------------------------------
+// STUFF BELOW NEEDS TO BE IMPLEMENTED FOR EACH GRAPHICS BACKEND
+//-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// Gfx Setup
+//-----------------------------------------------------------------------------
+rgInt gfxInit();
+void  gfxDestroy();
+rgInt gfxDraw();
+void  gfxOnSizeChanged();
+void  gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
+RenderCmdList* gfxGetRenderCmdList();
+
+#define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
+
+#define DeclareGfxObjectFunctions(type, ...) Gfx##type* create##type(const char* tag, __VA_ARGS__); \
+        Gfx##type* findOrCreate##type(const char* tag, __VA_ARGS__); \
+        Gfx##type* find##type(rgHash tagHash);  \
+        Gfx##type* find##type(char const* tag); \
+        void destroy##type(rgHash tagHash); \
+        void destroy##type(char const* tag); \
+        void allocAndFill##type##Struct(const char* tag, __VA_ARGS__, Gfx##type** obj); \
+        void dealloc##type##Struct(Gfx##type* obj); \
+        Gfx##type* creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
+        void destroyerGfx##type(Gfx##type* obj)
+
+GfxTexture2D* createTexture2D(char const* tag, TexturePtr texture, GfxTextureUsage usage);
+DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
+DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
 DeclareGfxObjectFunctions(GraphicsPSO, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
+
+DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxResourceUsage usage);
+void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
+void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
+
+void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
+
+//-----------------------------------------------------------------------------
+// Gfx Vertex Format
+//-----------------------------------------------------------------------------
+struct ImmVertexFormat
+{
+    rgFloat position[3];
+    rgFloat color[4];
+};
+
+struct SimpleVertexFormat
+{
+    rgFloat pos[2];
+    rgFloat texcoord[2];
+    rgFloat color[4];
+};
+
+struct SimpleInstanceParams
+{
+    rgU32 texID;
+};
+
+void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, eastl::vector<SimpleInstanceParams>* instanceParams);
+
 
 //-----------------------------------------------------------------------------
 // Resource Binding
@@ -481,154 +689,27 @@ struct GfxDescriptorBufferEncoder
 //-----------------------------------------------------------------------------
 // Graphic Context
 //-----------------------------------------------------------------------------
-template <typename Type>
-struct GfxBindlessResourceManager
-{
-    typedef eastl::vector<Type*> ResourceList;
-    ResourceList resources; // Hold reference to the resources until no longer needed
-    
-    typedef eastl::vector<rgU32> SlotList;
-    SlotList freeSlots; // Indexes in referenceList which are unused
-
-    rgU32 _getFreeSlot()
-    {
-        rgU32 result = kInvalidHandle;
-        
-        if(!freeSlots.empty())
-        {
-            result = freeSlots.back();
-            freeSlots.pop_back();
-        }
-        else
-        {
-            rgAssert(resources.size() < UINT32_MAX);
-            result = (rgU32)resources.size();
-            resources.resize(result + 1); // push_back(nullptr) ?
-        }
-        
-        rgAssert(result != kInvalidHandle);
-        return result;
-    }
-    
-    void _releaseSlot(rgU32 slot)
-    {
-        rgAssert(slot < resources.size());
-
-        resources[slot] = nullptr;
-        freeSlots.push_back(slot);
-    }
-    
-    void _setResourcePtrInSlot(rgU32 slot, Type* ptr)
-    {
-        resources[slot] = ptr;
-    }
-
-    rgU32 _getSlotOfResourcePtr(Type* ptr)
-    {
-        for(rgUInt i = 0, size = (rgUInt)resources.size(); i < size; ++i)
-        {
-            if(resources[i] == ptr)
-            {
-                return i;
-            }
-        }
-        return kInvalidHandle;
-    }
-    
-    typename ResourceList::iterator begin() EA_NOEXCEPT
-    {
-        return resources.begin();
-    }
-    
-    typename ResourceList::iterator end() EA_NOEXCEPT
-    {
-        return resources.end();
-    }
-    
-    rgU32 getBindlessIndex(Type* ptr)
-    {
-        rgU32 slot = _getSlotOfResourcePtr(ptr);
-        if(slot == kInvalidHandle)
-        {
-            slot = _getFreeSlot();
-            _setResourcePtrInSlot(slot, ptr);
-        }
-        return slot;
-    }
-
-    Type* getPtr(rgU32 slot)
-    {
-        rgAssert(slot < resources.size());
-        
-        Type* ptr = resources[slot];
-        return ptr;
-    }
-    
-    // TODO: rgU32 getContiguousFreeSlots(int count);
-};
-
-template<typename Type>
-struct GfxObjectRegistry
-{
-    typedef eastl::hash_map<rgHash, Type*> ObjectMap;
-    ObjectMap objects;
-    ObjectMap objectsToRemove;
-
-    Type* find(rgHash hash)
-    {
-       ObjectMap::iterator itr = objects.find(hash);
-       return (itr != objects.end()) ? itr->second : nullptr;
-    }
-
-    void insert(rgHash hash, Type* ptr)
-    {
-#if defined(ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT)
-        ObjectMap::iterator itr = objects.find(hash);
-        rgAssert(itr == objects.end());
-#endif
-        //objects.insert_or_assign(eastl::make_pair(hash, ptr));
-        objects.insert_or_assign(hash, ptr);
-    }
-
-    void markForRemove(rgHash hash)
-    {
-#if defined(ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT)
-        ObjectMap::iterator itr = objects.find(hash);
-        rgAssert(itr != objects.end());
-#endif
-        //objectsToRemove.insert_or_assign(eastl::make_pair(hash, *itr))
-        objectsToRemove.insert_or_assign(hash, itr->second);
-    }
-
-    void removeMarkedObjects()
-    {
-        for(auto itr : objectsToRemove)
-        {
-
-        }
-    }
-};
 
 //------------
-SDL_Window* mainWindow;
-rgUInt frameNumber;
+extern SDL_Window* mainWindow;
+extern rgUInt frameNumber;
     
-RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
+extern RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
     
-GfxObjectRegistry<GfxRenderTarget> registryRenderTarget;
-GfxObjectRegistry<GfxTexture2D> registryTexture2D;
-GfxObjectRegistry<GfxBuffer> registryBuffer;
-GfxObjectRegistry<GfxGraphicsPSO> registryGraphicsPSO;
+extern GfxObjectRegistry<GfxRenderTarget> registryRenderTarget;
+extern GfxObjectRegistry<GfxTexture2D> registryTexture2D;
+extern GfxObjectRegistry<GfxBuffer> registryBuffer;
+extern GfxObjectRegistry<GfxGraphicsPSO> registryGraphicsPSO;
     
-GfxBindlessResourceManager<GfxTexture2D> bindlessManagerTexture2D;
+extern GfxBindlessResourceManager<GfxTexture2D> bindlessManagerTexture2D;
 
-Matrix4 orthographicMatrix;
-Matrix4 viewMatrix;
+extern Matrix4 orthographicMatrix;
+extern Matrix4 viewMatrix;
     
-eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
+extern eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
     
-GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-GfxTexture2D* depthStencilBuffer;
+extern GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
+extern GfxTexture2D* depthStencilBuffer;
     
     // RenderCmdTexturedQuads
     //HGfxBuffer rcTexturedQuadsVB;
@@ -660,7 +741,7 @@ struct D3d
     ComPtr<ID3D12PipelineState> dummyPSO;
     ComPtr<ID3D12Resource> triVB;
     D3D12_VERTEX_BUFFER_VIEW triVBView;
-} d3d;
+};
 #elif defined(RG_METAL_RNDR)
 struct Mtl
 {
@@ -724,85 +805,6 @@ struct GL
 //extern rg::GfxCtx* g_GfxCtx;
 
 //inline GfxCtx* gfxCtx() { return g_GfxCtx; }
-
-//-----------------------------------------------------------------------------
-// Gfx Render Command
-//-----------------------------------------------------------------------------
-enum RenderCmdType
-{
-    RenderCmdType_SetViewport,
-    RenderCmdType_SetRenderPass,
-    RenderCmdType_SetGraphicsPSO,
-    RenderCmdType_DrawTexturedQuads,
-    RenderCmdType_DrawTriangles,
-};
-
-struct RenderCmdHeader
-{
-    RenderCmdType type;
-};
-
-// NOTE: RenderCmds are not allowed to own any resources (smartptrs)
-// Should this be allowed?? If yes, then addCmd should "new" the RenderCmd, and Flush should "delete"
-// pros vs cons?
-
-#define BEGIN_RENDERCMD_STRUCT(cmdName)     struct RenderCmd_##cmdName      \
-                                            {                               \
-                                                static const RenderCmdType type = RenderCmdType_##cmdName; \
-                                                static CmdDispatchFnT* dispatchFn
-
-#define END_RENDERCMD_STRUCT()              }
-
-// ---===---
-
-BEGIN_RENDERCMD_STRUCT(SetViewport);
-    rgFloat4 viewport;
-END_RENDERCMD_STRUCT();
-
-// ---
-
-BEGIN_RENDERCMD_STRUCT(SetRenderPass);
-    GfxRenderPass renderPass;
-END_RENDERCMD_STRUCT();
-
-// ---
-
-BEGIN_RENDERCMD_STRUCT(SetGraphicsPSO);
-    GfxGraphicsPSO* pso;
-END_RENDERCMD_STRUCT();
-
-// ---
-
-BEGIN_RENDERCMD_STRUCT(DrawTexturedQuads);
-    GfxGraphicsPSO* pso;
-    TexturedQuads* quads;
-END_RENDERCMD_STRUCT();
-
-// ---
-
-BEGIN_RENDERCMD_STRUCT(DrawTriangles);
-    GfxBuffer* vertexBuffer;
-    rgU32 vertexBufferOffset;
-    GfxBuffer* indexBuffer;
-    rgU32 indexBufferOffset;
-
-    rgU32 vertexCount;
-    rgU32 indexCount;
-    rgU32 instanceCount;
-    rgU32 baseVertex;
-    rgU32 baseInstance;
-END_RENDERCMD_STRUCT();
-
-// ---===---
-
-#undef BEGIN_RENDERCMD_STRUCT
-#undef END_RENDERCMD_STRUCT
-
-void gfxHandleRenderCmd_SetViewport(void const* cmd);
-void gfxHandleRenderCmd_SetRenderPass(void const* cmd);
-void gfxHandleRenderCmd_SetGraphicsPSO(void const* cmd);
-void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd);
-void gfxHandleRenderCmd_DrawTriangles(void const* cmd);
 
 RG_GFX_END_NAMESPACE
 RG_END_NAMESPACE

@@ -7,12 +7,12 @@ using namespace rg;
 
 struct GameData
 {
-    gfx::TexturedQuads characterPortraits;
-    gfx::TexturedQuads terrainAndOcean;
-    gfx::GfxTexture2D* oceanTileTexture;
-    gfx::GfxTexture2D* flowerTexture;
+    TexturedQuads characterPortraits;
+    TexturedQuads terrainAndOcean;
+    GfxTexture2D* oceanTileTexture;
+    GfxTexture2D* flowerTexture;
     
-    gfx::GfxGraphicsPSO* simple2dPSO; // TODO: use Handle
+    GfxGraphicsPSO* simple2dPSO; // TODO: use Handle
 
     b2World* phyWorld;
 };

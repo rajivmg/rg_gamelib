@@ -119,7 +119,6 @@ private:
     }
 };
 
-RenderCmdList* gfxGetRenderCmdList();
 // Submits the list to the GPU, and create a fence to know when it's processed
 void gfxSubmitRenderCmdList(RenderCmdList* cmdList);
 

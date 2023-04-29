@@ -52,25 +52,25 @@ rgU32 rgRenderKey(rgBool top)
     return top ? 1 : 0;
 }
 
-rgInt rg::setup()
+rgInt gfx::setup()
 {
     g_GameData = rgNew(GameData);
 
     GfxBuffer* b = findOrCreateBuffer("dummyBuffer", nullptr, 100, GfxResourceUsage_Dynamic);
 
-    GfxTexture2D* t2dptr = createTexture2D("tiny.tga", gfx::loadTexture("tiny.tga"), GfxTextureUsage_ShaderRead);
+    GfxTexture2D* t2dptr = createTexture2D("tiny.tga", loadTexture("tiny.tga"), GfxTextureUsage_ShaderRead);
     
     for(rgInt i = 1; i <= 16; ++i)
     {
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
-        GfxTexture2D* t2d = createTexture2D(path, gfx::loadTexture(path), GfxTextureUsage_ShaderRead);
+        GfxTexture2D* t2d = createTexture2D(path, loadTexture(path), GfxTextureUsage_ShaderRead);
         gfx::debugTextureHandles.push_back(t2d);
     }
     
-    g_GameData->oceanTileTexture = createTexture2D("ocean_tile", gfx::loadTexture("ocean_tile.png"), GfxTextureUsage_ShaderRead);
+    g_GameData->oceanTileTexture = createTexture2D("ocean_tile", loadTexture("ocean_tile.png"), GfxTextureUsage_ShaderRead);
     
-    g_GameData->flowerTexture = createTexture2D("flower", gfx::loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
+    g_GameData->flowerTexture = createTexture2D("flower", loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
     
     //gfxDestroyBuffer("ocean_tile");
 
@@ -165,13 +165,13 @@ rgInt rg::setup()
     return 0;
 }
 
-rgInt rg::updateAndDraw(rgDouble dt)
+rgInt gfx::updateAndDraw(rgDouble dt)
 {
     rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
 
-    gfx::QuadUV fullQuadUV = gfx::createQuadUV(0, 0, 512, 512, 512, 512);
+    QuadUV fullQuadUV = createQuadUV(0, 0, 512, 512, 512, 512);
 
-    eastl::vector<gfx::QuadUV> quadUVs;
+    eastl::vector<QuadUV> quadUVs;
     quadUVs.push_back(fullQuadUV);
 
     //printf("%f\n", quadUVs.back().uvBottomRight[1]);
@@ -188,9 +188,9 @@ rgInt rg::updateAndDraw(rgDouble dt)
     //gfxTexturedQuad();
     RenderCmdList* cmdList = gfxGetRenderCmdList();
     {
-        gfx::RenderCmd_SetRenderPass* rcRenderPass = cmdList->addCmd<gfx::RenderCmd_SetRenderPass>(rgRenderKey(false), 0);
+        RenderCmd_SetRenderPass* rcRenderPass = cmdList->addCmd<RenderCmd_SetRenderPass>(rgRenderKey(false), 0);
         
-        gfx::GfxRenderPass simple2dPass = {};
+        GfxRenderPass simple2dPass = {};
         simple2dPass.colorAttachments[0].texture = gfx::renderTarget[g_FrameIndex];
         simple2dPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         simple2dPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
@@ -202,7 +202,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         rcRenderPass->renderPass = simple2dPass;
         
-        gfx::RenderCmd_DrawTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<gfx::RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
+        RenderCmd_DrawTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
         rcTerrainAndOceanQuads->quads = &g_GameData->terrainAndOcean;
         rcTerrainAndOceanQuads->pso = g_GameData->simple2dPSO;
         
@@ -214,12 +214,12 @@ rgInt rg::updateAndDraw(rgDouble dt)
                 rgFloat px = j * (100) + 10 * (j + 1) + sinf((rgFloat)g_Time) * 30;
                 rgFloat py = i * (100) + 10 * (i + 1) + cosf((rgFloat)g_Time) * 30;
                 
-                pushTexturedQuad(&g_GameData->characterPortraits, gfx::defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
+                pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
             }
         }
-        pushTexturedQuad(&g_GameData->characterPortraits, gfx::defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
+        pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
         
-        gfx::RenderCmd_DrawTexturedQuads* rcTexQuads = cmdList->addCmd<gfx::RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
+        RenderCmd_DrawTexturedQuads* rcTexQuads = cmdList->addCmd<RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
         rcTexQuads->pso = g_GameData->simple2dPSO;
         rcTexQuads->quads = &g_GameData->characterPortraits;
         
@@ -302,7 +302,7 @@ int main(int argc, char* argv[])
         return gfxInitResult | gfxCommonInitResult;
     }
 
-    rg::setup();
+    gfx::setup();
 
     g_ShouldQuit = false;
     SDL_Event event;
@@ -341,7 +341,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        updateAndDraw(g_DeltaTime);
+        gfx::updateAndDraw(g_DeltaTime);
         
         gfx::gfxDraw();
     }
