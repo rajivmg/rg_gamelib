@@ -52,25 +52,25 @@ rgU32 rgRenderKey(rgBool top)
     return top ? 1 : 0;
 }
 
-rgInt gfx::setup()
+rgInt rg::setup()
 {
     g_GameData = rgNew(GameData);
 
-    GfxBuffer* b = findOrCreateBuffer("dummyBuffer", nullptr, 100, GfxResourceUsage_Dynamic);
+    GfxBuffer* b = gfx::findOrCreateBuffer("dummyBuffer", nullptr, 100, GfxResourceUsage_Dynamic);
 
-    GfxTexture2D* t2dptr = createTexture2D("tiny.tga", loadTexture("tiny.tga"), GfxTextureUsage_ShaderRead);
+    GfxTexture2D* t2dptr = gfx::createTexture2D("tiny.tga", loadTexture("tiny.tga"), GfxTextureUsage_ShaderRead);
     
     for(rgInt i = 1; i <= 16; ++i)
     {
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
-        GfxTexture2D* t2d = createTexture2D(path, loadTexture(path), GfxTextureUsage_ShaderRead);
+        GfxTexture2D* t2d = gfx::createTexture2D(path, loadTexture(path), GfxTextureUsage_ShaderRead);
         gfx::debugTextureHandles.push_back(t2d);
     }
     
-    g_GameData->oceanTileTexture = createTexture2D("ocean_tile", loadTexture("ocean_tile.png"), GfxTextureUsage_ShaderRead);
+    g_GameData->oceanTileTexture = gfx::createTexture2D("ocean_tile", loadTexture("ocean_tile.png"), GfxTextureUsage_ShaderRead);
     
-    g_GameData->flowerTexture = createTexture2D("flower", loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
+    g_GameData->flowerTexture = gfx::createTexture2D("flower", loadTexture("flower.png"), GfxTextureUsage_ShaderRead);
     
     //gfxDestroyBuffer("ocean_tile");
 
@@ -89,8 +89,8 @@ rgInt gfx::setup()
     GfxRenderTarget* mickyRT = gfxRenderTarget("MickeyReflectanceRT");
     GfxRenderTarget* mickyRT = gfxCtx()->renderTargetManager.find("MickyReflectanceRT");
     */
-    GfxRenderTarget* mickyRT1 = findOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
-    GfxRenderTarget* mickyRT2 = findRenderTarget("MickyReflectanceRT");
+    GfxRenderTarget* mickyRT1 = gfx::findOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
+    GfxRenderTarget* mickyRT2 = gfx::findRenderTarget("MickyReflectanceRT");
     //
     GfxShaderDesc simple2dShaderDesc = {};
     simple2dShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;
@@ -103,21 +103,21 @@ rgInt gfx::setup()
     simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
     
-    g_GameData->simple2dPSO = createGraphicsPSO("simple_pso", &simple2dShaderDesc, &simple2dRenderStateDesc);
+    g_GameData->simple2dPSO = gfx::createGraphicsPSO("simple_pso", &simple2dShaderDesc, &simple2dRenderStateDesc);
 
     //
-    GfxDescriptor desc0 = {};
-    desc0.index = 0; // binding
-    desc0.type = GfxDataType_Texture;
-    desc0.arrayLength = 64000;
-    desc0.textureType = GfxTextureType_2D;
+    //GfxDescriptor desc0 = {};
+    //desc0.index = 0; // binding
+    //desc0.type = GfxDataType_Texture;
+    //desc0.arrayLength = 64000;
+    //desc0.textureType = GfxTextureType_2D;
 
-    GfxDescriptor desc1 = {};
-    desc1.index = 64000; // binding
-    desc1.type = GfxDataType_Sampler;
-    desc1.arrayLength = 6;
-    
-    GfxDescriptor* desc[] = {&desc0, &desc1};
+    //GfxDescriptor desc1 = {};
+    //desc1.index = 64000; // binding
+    //desc1.type = GfxDataType_Sampler;
+    //desc1.arrayLength = 6;
+    //
+    //GfxDescriptor* desc[] = {&desc0, &desc1};
     //gfxNewDescriptorBuffer()
 
     //
@@ -165,7 +165,7 @@ rgInt gfx::setup()
     return 0;
 }
 
-rgInt gfx::updateAndDraw(rgDouble dt)
+rgInt rg::updateAndDraw(rgDouble dt)
 {
     rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
 
@@ -186,7 +186,7 @@ rgInt gfx::updateAndDraw(rgDouble dt)
     // - - RenderCmdPolygon
     
     //gfxTexturedQuad();
-    RenderCmdList* cmdList = gfxGetRenderCmdList();
+    RenderCmdList* cmdList = gfx::gfxGetRenderCmdList();
     {
         RenderCmd_SetRenderPass* rcRenderPass = cmdList->addCmd<RenderCmd_SetRenderPass>(rgRenderKey(false), 0);
         
@@ -302,7 +302,7 @@ int main(int argc, char* argv[])
         return gfxInitResult | gfxCommonInitResult;
     }
 
-    gfx::setup();
+    rg::setup();
 
     g_ShouldQuit = false;
     SDL_Event event;
@@ -341,7 +341,7 @@ int main(int argc, char* argv[])
             }
         }
 
-        gfx::updateAndDraw(g_DeltaTime);
+        rg::updateAndDraw(g_DeltaTime);
         
         gfx::gfxDraw();
     }

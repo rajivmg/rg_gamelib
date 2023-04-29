@@ -29,13 +29,10 @@
 #include <EASTL/vector.h>
 #include <EASTL/fixed_vector.h>
 
+#define RG_MAX_FRAMES_IN_FLIGHT 3
+
 #define RG_GFX_BEGIN_NAMESPACE namespace gfx {
 #define RG_GFX_END_NAMESPACE }
-
-//#define RG_GFX_BEGIN_NAMESPACE
-//#define RG_GFX_END_NAMESPACE
-
-#define RG_MAX_FRAMES_IN_FLIGHT 3
 
 RG_BEGIN_NAMESPACE
 
@@ -43,6 +40,9 @@ static const rgU32 kInvalidHandle = ~(0x0);
 static const rgU32 kUninitializedHandle = 0;
 static const rgU32 kMaxColorAttachments = 4;
 
+//-----------------------------------------------------------------------------
+// Enums
+//-----------------------------------------------------------------------------
 enum GfxMemoryType
 {
     GfxMemoryType_CPUToGPU, // UploadHeap
@@ -57,6 +57,7 @@ enum GfxMemoryType
     //GfxMemoryUsage_CPUReadWrite = (GfxMemoryUsage_CPURead | GfxMemoryUsage_CPUWrite),
 };
 
+// TODO: remove this
 enum GfxResourceUsage
 {
     GfxResourceUsage_Static,    // Immutable, once created content cannot be modified
@@ -129,6 +130,141 @@ enum GfxStoreAction
     GfxStoreAction_Store,
 };
 
+enum GfxShaderType
+{
+    GfxShaderType_Vertex,
+    GfxShaderType_Fragment,
+    GfxShaderType_Compute
+};
+
+//-----------------------------------------------------------------------------
+// Gfx Objects Types
+//-----------------------------------------------------------------------------
+
+// Buffer type
+// -------------------
+struct GfxBuffer
+{
+    rgChar tag[32];
+    rgU32     size;
+    GfxResourceUsage usage;
+    rgInt activeSlot;
+#if defined(RG_D3D12_RNDR)
+#elif defined(RG_METAL_RNDR)
+    MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_FLIGHT];
+#elif defined(RG_VULKAN_RNDR)
+    VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
+    VmaAllocation vmaAlloc;
+#endif
+};
+
+// Texture2D type
+// -------------------
+struct GfxTexture2D
+{
+    rgChar tag[32];
+    rgUInt width;
+    rgUInt height;
+    TinyImageFormat format;
+    GfxTextureUsage usage;
+    rgU32 texID;
+
+#if defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Resource> d3dTexture;
+#elif defined(RG_METAL_RNDR)
+    MTL::Texture* mtlTexture;
+#elif defined(RG_VULKAN_RNDR)
+    VkImage vkTexture;
+    VmaAllocation vmaAlloc;
+#elif defined(RG_OPENGL_RNDR)
+    GLuint glTexture;
+#endif
+};
+
+// RenderTarget type
+// ------------------
+struct GfxRenderTarget // TODO: remove this
+{
+    rgChar tag[32]; // myrendermyrendr
+    rgU32 width;
+    rgU32 height;
+    TinyImageFormat format;
+#if defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Resource> d3dRT;
+#endif
+};
+
+// PSO and State types
+// -------------------
+struct GfxColorAttachementStateDesc
+{
+    TinyImageFormat pixelFormat;
+    rgBool blendingEnabled;
+
+    // Create predefined common blending operations instead of giving fine control like vv
+    //GfxBlendOp blendOp;
+    //GfxSourceBlendFacter srcBlendFactor;
+};
+
+struct GfxRenderStateDesc
+{
+    GfxColorAttachementStateDesc colorAttachments[kMaxColorAttachments];
+    TinyImageFormat depthStencilAttachmentFormat;
+
+    rgBool depthWriteEnabled;
+    GfxCompareFunc depthCompareFunc;
+
+    GfxCullMode cullMode;
+    GfxWinding winding;
+    GfxTriangleFillMode triangleFillMode;
+
+    // Viewport <--- not part of static state
+    // ScissorRect <--- not part of static state
+    // Primitive Type, Line, LineStrip, Triangle, TriangleStrip
+    // Index Type, U16, U32
+};
+
+struct GfxColorAttachmentDesc
+{
+    GfxTexture2D*      texture;
+    GfxLoadAction   loadAction;
+    GfxStoreAction storeAction;
+    rgFloat4        clearColor;
+};
+
+struct GfxRenderPass
+{
+    GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
+
+    GfxTexture2D* depthStencilAttachmentTexture;
+    GfxLoadAction depthStencilAttachmentLoadAction;
+    GfxStoreAction depthStencilAttachmentStoreAction;
+    rgFloat  clearDepth;
+    rgU32    clearStencil;
+};
+
+struct GfxShaderDesc
+{
+    char const* shaderSrcCode;
+    char const* vsEntryPoint;
+    char const* fsEntryPoint;
+    char const* csEntryPoint;
+    char const* macros;
+};
+
+struct GfxGraphicsPSO
+{
+    rgChar tag[32];
+    // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly.
+    GfxRenderStateDesc renderState;
+#if defined(RG_D3D12_RNDR)
+#elif defined(RG_METAL_RNDR)
+    void* mtlPSO; // type: id<MTLRenderPipelineState>
+#elif defined(RG_VULKAN_RNDR)
+#endif
+};
+
+
 // --- Game Graphics APIs
 struct Texture
 {
@@ -150,6 +286,8 @@ void unloadTexture(Texture* t);
 //-----------------------------------------------------------------------------
 // Quads
 //-----------------------------------------------------------------------------
+
+// TODO: Is this also part of game struct?
 struct QuadUV
 {
     // TODO: use Vector4 here?
@@ -165,8 +303,9 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture
 //-----------------------------------------------------------------------------
 // Textured Quad
 //-----------------------------------------------------------------------------
-struct GfxTexture2D;
+//struct GfxTexture2D;
 
+// TODO: This is struct of game, move it to game.h
 struct TexturedQuad
 {
     QuadUV uv;
@@ -232,141 +371,16 @@ inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFlo
 //-----------------------------------------------------------------------------
 // Gfx Buffers
 //-----------------------------------------------------------------------------
-struct GfxBuffer
-{
-    rgChar tag[32];
-    rgU32     size;
-    GfxResourceUsage usage;
-    rgInt activeSlot;
-#if defined(RG_D3D12_RNDR)
-#elif defined(RG_METAL_RNDR)
-    MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_FLIGHT];
-#elif defined(RG_VULKAN_RNDR)
-    VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
-    VmaAllocation vmaAlloc;
-#endif
-};
+
 
 //-----------------------------------------------------------------------------
 // Gfx Texture
 //-----------------------------------------------------------------------------
-struct GfxTexture2D
-{
-    rgChar tag[32];
-    rgUInt width;
-    rgUInt height;
-    TinyImageFormat format;
-    GfxTextureUsage usage;
-    rgU32 texID;
 
-#if defined(RG_D3D12_RNDR)
-    ComPtr<ID3D12Resource> d3dTexture;
-#elif defined(RG_METAL_RNDR)
-    MTL::Texture* mtlTexture;
-#elif defined(RG_VULKAN_RNDR)
-    VkImage vkTexture;
-    VmaAllocation vmaAlloc;
-#elif defined(RG_OPENGL_RNDR)
-    GLuint glTexture;
-#endif
-};
-
-struct GfxRenderTarget
-{
-    rgChar tag[32]; // myrendermyrendr
-    rgU32 width;
-    rgU32 height;
-    TinyImageFormat format;
-#if defined(RG_D3D12_RNDR)
-    ComPtr<ID3D12Resource> d3dRT;
-#endif
-};
 
 //-----------------------------------------------------------------------------
 // Gfx Pipeline
 //-----------------------------------------------------------------------------
-enum GfxShaderType
-{
-    GfxShaderType_Vertex,
-    GfxShaderType_Fragment,
-    GfxShaderType_Compute
-};
-
-struct GfxColorAttachementStateDesc
-{
-    TinyImageFormat pixelFormat;
-    rgBool blendingEnabled;
-
-    // Create predefined common blending operations instead of giving fine control like vv
-    //GfxBlendOp blendOp;
-    //GfxSourceBlendFacter srcBlendFactor;
-};
-
-struct GfxRenderStateDesc
-{
-    GfxColorAttachementStateDesc colorAttachments[kMaxColorAttachments];
-    TinyImageFormat depthStencilAttachmentFormat;
-
-    rgBool depthWriteEnabled;
-    GfxCompareFunc depthCompareFunc;
-
-    GfxCullMode cullMode;
-    GfxWinding winding;
-    GfxTriangleFillMode triangleFillMode;
-
-    //GfxCullMode
-    // TODO
-    // DepthStencilState ^^
-
-
-    // Viewport <--- not part of static state
-    // ScissorRect <--- not part of static state
-    // CullMode
-    // WindingMode CW CCW
-    // Primitive Type, Line, LineStrip, Triangle, TriangleStrip
-    // Index Type, U16, U32
-};
-
-struct GfxColorAttachmentDesc
-{
-    GfxTexture2D*      texture;
-    GfxLoadAction   loadAction;
-    GfxStoreAction storeAction;
-    rgFloat4        clearColor;
-};
-
-struct GfxRenderPass
-{
-    GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
-
-    GfxTexture2D* depthStencilAttachmentTexture;
-    GfxLoadAction depthStencilAttachmentLoadAction;
-    GfxStoreAction depthStencilAttachmentStoreAction;
-    rgFloat  clearDepth;
-    rgU32    clearStencil;
-};
-
-struct GfxShaderDesc
-{
-    char const* shaderSrcCode;
-    char const* vsEntryPoint;
-    char const* fsEntryPoint;
-    char const* csEntryPoint;
-    char const* macros;
-};
-
-// TODO: Not a resource
-struct GfxGraphicsPSO
-{
-    rgChar tag[32];
-    // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly.
-    GfxRenderStateDesc renderState;
-#if defined(RG_D3D12_RNDR)
-#elif defined(RG_METAL_RNDR)
-    void* mtlPSO; // type: id<MTLRenderPipelineState>
-#elif defined(RG_VULKAN_RNDR)
-#endif
-};
 
 template <typename Type>
 struct GfxBindlessResourceManager
@@ -494,6 +508,9 @@ struct GfxObjectRegistry
     }
 };
 
+rgInt setup();
+rgInt updateAndDraw(rgDouble dt);
+
 //-----------------------------------------------------------------------------
 // Gfx Render Command
 //-----------------------------------------------------------------------------
@@ -584,8 +601,6 @@ void gfxHandleRenderCmd_DrawTriangles(void const* cmd);
 // General Common Stuff
 //-----------------------------------------------------------------------------
 rgInt gfxCommonInit();
-rgInt setup();
-rgInt updateAndDraw(rgDouble dt);
 
 //-----------------------------------------------------------------------------
 // STUFF BELOW NEEDS TO BE IMPLEMENTED FOR EACH GRAPHICS BACKEND
