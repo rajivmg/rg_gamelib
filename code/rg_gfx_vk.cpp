@@ -243,7 +243,7 @@ rgInt gfxInit()
     return 0;
 }
 
-void gfxDestroy()
+void destroy()
 {
     GfxCtx::VkGfxCtx* vk = &gfxCtx()->vk;
     vk->vkbSwapchain.destroy_image_views(vk->swapchainImageViews);

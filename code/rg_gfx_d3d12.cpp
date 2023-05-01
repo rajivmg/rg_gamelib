@@ -159,7 +159,7 @@ ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(D3D12_COMMAND_LIST_T
 // -----------------------------------------------
 // GFX Functions
 // -----------------------------------------------
-rgInt gfxInit()
+rgInt init()
 {
     // TODO: correctly initialize d3d12 device https://walbourn.github.io/anatomy-of-direct3d-12-create-device/
 
@@ -412,16 +412,16 @@ rgInt gfxInit()
     return 0;
 }
 
-void gfxDestroy()
+void destroy()
 {
     waitForGpu();
     ::CloseHandle(d3d.frameFenceEvent);
 }
 
-rgInt gfxDraw()
+rgInt draw()
 {
-    gfxGetRenderCmdList()->draw();
-    gfxGetRenderCmdList()->afterDraw();
+    getRenderCmdList()->draw();
+    getRenderCmdList()->afterDraw();
 
     BreakIfFail(d3d.commandAllocator[g_FrameIndex]->Reset());
     BreakIfFail(d3d.commandList->Reset(d3d.commandAllocator[g_FrameIndex].Get(), d3d.dummyPSO.Get()));
@@ -459,7 +459,7 @@ rgInt gfxDraw()
     return 0;
 }
 
-void gfxOnSizeChanged()
+void onSizeChanged()
 {
     waitForGpu();
 

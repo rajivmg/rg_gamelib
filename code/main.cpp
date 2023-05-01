@@ -186,7 +186,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     // - - RenderCmdPolygon
     
     //gfxTexturedQuad();
-    RenderCmdList* cmdList = gfx::gfxGetRenderCmdList();
+    RenderCmdList* cmdList = gfx::getRenderCmdList();
     {
         RenderCmd_SetRenderPass* rcRenderPass = cmdList->addCmd<RenderCmd_SetRenderPass>(rgRenderKey(false), 0);
         
@@ -203,6 +203,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         rcRenderPass->renderPass = simple2dPass;
         
         RenderCmd_DrawTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<RenderCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
+        //GfxCmd_DrawTexturedQuads* drawTexturedQuads = cmdList->addCmd<GfxCmd_DrawTexturedQuads>(rgRenderKey(true), 1);
+        //gfx::CmdDrawTexturedQuads* drawTexturedQuads = cmdList->addCmd<gfx::CmdDrawTexturedQuads>(rgRenderKey(true), 1);
         rcTerrainAndOceanQuads->quads = &g_GameData->terrainAndOcean;
         rcTerrainAndOceanQuads->pso = g_GameData->simple2dPSO;
         
@@ -294,8 +296,8 @@ int main(int argc, char* argv[])
         return -1; // error;
     }
 
-    rgInt gfxInitResult = gfx::gfxInit();
-    rgInt gfxCommonInitResult = gfx::gfxCommonInit();
+    rgInt gfxInitResult = gfx::init();
+    rgInt gfxCommonInitResult = gfx::initCommonStuff();
 
     if(gfxInitResult || gfxCommonInitResult)
     {
@@ -333,7 +335,7 @@ int main(int argc, char* argv[])
             {
                 g_WindowInfo.width = event.window.data1;
                 g_WindowInfo.height = event.window.data2;
-                gfx::gfxOnSizeChanged();
+                gfx::onSizeChanged();
             }
             else
             {
@@ -343,10 +345,10 @@ int main(int argc, char* argv[])
 
         rg::updateAndDraw(g_DeltaTime);
         
-        gfx::gfxDraw();
+        gfx::draw();
     }
 
-    gfx::gfxDestroy();
+    gfx::destroy();
     SDL_DestroyWindow(gfx::mainWindow);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return 0;

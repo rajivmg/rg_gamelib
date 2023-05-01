@@ -11,7 +11,7 @@ RG_BEGIN_NAMESPACE
 // --- Game Graphics APIs
 QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
 
-TexturePtr loadTexture(char const* filename)
+TextureRef loadTexture(char const* filename)
 {
     rgInt width, height, texChnl;
     unsigned char* texData = stbi_load(filename, &width, &height, &texChnl, 4);
@@ -21,8 +21,8 @@ TexturePtr loadTexture(char const* filename)
         return nullptr;
     }
 
-    //TexturePtr tptr = eastl::make_shared<Texture>(unloadTexture);
-    TexturePtr tptr = eastl::shared_ptr<Texture>(rgNew(Texture), unloadTexture);
+    //TextureRef tptr = eastl::make_shared<Texture>(unloadTexture);
+    TextureRef tptr = eastl::shared_ptr<Texture>(rgNew(Texture), unloadTexture);
     strncpy(tptr->name, filename, rgARRAY_COUNT(Texture::name));
     tptr->name[rgARRAY_COUNT(Texture::name) - 1] = '\0';
     //strcpy(tptr->name, "[NONAME]");
@@ -93,7 +93,7 @@ Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat
                    Vector4(-((right + left) * length), -((top +bottom) * height), -nearValue * depth, 1.0f));
 }
 
-rgInt gfxCommonInit()
+rgInt initCommonStuff()
 {
     //GfxCtx* ctx = gfxCtx();
 
@@ -117,7 +117,7 @@ rgInt gfxCommonInit()
     return 0;
 }
 
-RenderCmdList* gfxGetRenderCmdList()
+RenderCmdList* getRenderCmdList()
 {
     return graphicCmdLists[g_FrameIndex];
 }
@@ -192,7 +192,7 @@ void deallocTexture2DStruct(GfxTexture2D* obj)
     rgDelete(obj);
 }
 
-GfxTexture2D* createTexture2D(char const* tag, TexturePtr texture, GfxTextureUsage usage)
+GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, GfxTextureUsage usage)
 {
     return createTexture2D(tag, texture->buf, texture->width, texture->height, texture->format, usage);
 }

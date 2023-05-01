@@ -35,7 +35,7 @@ GLenum toGLPixelFormat(TinyImageFormat format)
     return glFormat;
 }
 
-rgInt gfxInit()
+rgInt init()
 {
     gl()->context = SDL_GL_CreateContext(gfxCtx()->mainWindow);
     rgAssert(gl()->context);
@@ -51,17 +51,17 @@ rgInt gfxInit()
     return 0;
 }
 
-void gfxDestroy()
+void destroy()
 {
 
 }
 
-rgInt gfxDraw()
+rgInt draw()
 {
     glViewport(0, 0, 720, 720);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    gfxGetRenderCmdList()->draw();
-    gfxGetRenderCmdList()->afterDraw();
+    getRenderCmdList()->draw();
+    getRenderCmdList()->afterDraw();
 
     SDL_GL_SwapWindow(gfxCtx()->mainWindow);
     return 0;

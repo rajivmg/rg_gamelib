@@ -41,6 +41,12 @@ static const rgU32 kUninitializedHandle = 0;
 static const rgU32 kMaxColorAttachments = 4;
 
 //-----------------------------------------------------------------------------
+// Game functions
+//-----------------------------------------------------------------------------
+rgInt setup();
+rgInt updateAndDraw(rgDouble dt);
+
+//-----------------------------------------------------------------------------
 // Enums
 //-----------------------------------------------------------------------------
 enum GfxMemoryType
@@ -258,128 +264,15 @@ struct GfxGraphicsPSO
     // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly.
     GfxRenderStateDesc renderState;
 #if defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
     void* mtlPSO; // type: id<MTLRenderPipelineState>
 #elif defined(RG_VULKAN_RNDR)
 #endif
 };
 
-
-// --- Game Graphics APIs
-struct Texture
-{
-    rgHash  hash;
-    rgU8*   buf;
-    rgUInt  width;
-    rgUInt  height;
-    TinyImageFormat format;
-
-    // -- remove in final build
-    rgChar name[32];
-};
-
-typedef eastl::shared_ptr<Texture> TexturePtr;
-
-TexturePtr loadTexture(char const* filename);
-void unloadTexture(Texture* t);
-
 //-----------------------------------------------------------------------------
-// Quads
-//-----------------------------------------------------------------------------
-
-// TODO: Is this also part of game struct?
-struct QuadUV
-{
-    // TODO: use Vector4 here?
-    rgFloat uvTopLeft[2];
-    rgFloat uvBottomRight[2];
-};
-
-extern QuadUV defaultQuadUV;
-
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture);
-
-//-----------------------------------------------------------------------------
-// Textured Quad
-//-----------------------------------------------------------------------------
-//struct GfxTexture2D;
-
-// TODO: This is struct of game, move it to game.h
-struct TexturedQuad
-{
-    QuadUV uv;
-#if 0
-    Vector2 pos;   // <-- Combine these two?
-    Vector2 scale; // <-- ^^^^^^^ Vector4
-#else
-    //Vector4 posScale;
-    rgFloat4 posSize;
-#endif
-
-#if 0
-    Vector2 offset;
-    rgFloat orientationRad;
-#else
-    //Vector4 offsetOrientation;
-    rgFloat4 offsetOrientation;
-#endif
-
-    GfxTexture2D* tex;
-};
-
-typedef eastl::vector<TexturedQuad> TexturedQuads;
-
-// Is this possible? this will be deleted by the time RenderCmd is processed
-template <rgSize N>
-using InplaceTexturedQuads = eastl::fixed_vector<TexturedQuad, N>;
-
-/*
-inline TexturedQuad* pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, Vector4 posScale, Vector4 offsetOrientation)
-{
-    TexturedQuad& tQuad = quadList->emplace_back(uv, posScale, offsetOrientation);
-    return &tQuad;
-}
-
-template <rgSize N>
-inline TexturedQuad* pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, Vector4 posScale, Vector4 offsetOrientation)
-{
-    TexturedQuad& tQuad = quadList->emplace_back({uv, posScale, offsetOrientation});
-    return &tQuad;
-}
- */
-
-inline void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
-{
-    TexturedQuad& q = quadList->push_back();
-    q.uv = uv;
-    q.posSize = posSize;
-    q.offsetOrientation = offsetOrientation;
-    q.tex = tex;
-}
-
-template <rgSize N>
-inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
-{
-    TexturedQuad& q = quadList->push_back();
-    q.uv = uv;
-    q.posSize = posSize;
-    q.offsetOrientation = offsetOrientation;
-    q.tex = tex;
-}
-
-//-----------------------------------------------------------------------------
-// Gfx Buffers
-//-----------------------------------------------------------------------------
-
-
-//-----------------------------------------------------------------------------
-// Gfx Texture
-//-----------------------------------------------------------------------------
-
-
-//-----------------------------------------------------------------------------
-// Gfx Pipeline
+// Gfx Helper Classes
 //-----------------------------------------------------------------------------
 
 template <typename Type>
@@ -508,8 +401,90 @@ struct GfxObjectRegistry
     }
 };
 
-rgInt setup();
-rgInt updateAndDraw(rgDouble dt);
+//-----------------------------------------------------------------------------
+// Texture Utils
+//-----------------------------------------------------------------------------
+
+// Texture type
+// -------------
+struct Texture
+{
+    rgHash  hash;
+    rgU8*   buf;
+    rgUInt  width;
+    rgUInt  height;
+    TinyImageFormat format;
+
+    // -- remove in final build
+    rgChar name[32]; // TODO: rename tag
+};
+typedef eastl::shared_ptr<Texture> TextureRef;
+
+TextureRef  loadTexture(char const* filename);
+void        unloadTexture(Texture* t);
+
+// Texture UV helper
+// -----------------
+struct QuadUV
+{
+    // TODO: use Vector4 here?
+    rgFloat uvTopLeft[2];
+    rgFloat uvBottomRight[2];
+};
+
+extern QuadUV defaultQuadUV;
+
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture);
+
+// Textured quad
+// ---------------
+struct TexturedQuad
+{
+    QuadUV uv;
+#if 0
+    Vector2 pos;   // <-- Combine these two?
+    Vector2 scale; // <-- ^^^^^^^ Vector4
+#else
+    //Vector4 posScale;
+    rgFloat4 posSize;
+#endif
+
+#if 0
+    Vector2 offset;
+    rgFloat orientationRad;
+#else
+    //Vector4 offsetOrientation;
+    rgFloat4 offsetOrientation;
+#endif
+
+    GfxTexture2D* tex;
+};
+typedef eastl::vector<TexturedQuad> TexturedQuads;
+
+// Is this possible? this will be deleted by the time RenderCmd is processed
+// TODO: remove this
+template <rgSize N>
+using InplaceTexturedQuads = eastl::fixed_vector<TexturedQuad, N>;
+
+inline void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
+{
+    TexturedQuad& q = quadList->push_back();
+    q.uv = uv;
+    q.posSize = posSize;
+    q.offsetOrientation = offsetOrientation;
+    q.tex = tex;
+}
+
+template <rgSize N>
+inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
+{
+    TexturedQuad& q = quadList->push_back();
+    q.uv = uv;
+    q.posSize = posSize;
+    q.offsetOrientation = offsetOrientation;
+    q.tex = tex;
+}
 
 //-----------------------------------------------------------------------------
 // Gfx Render Command
@@ -600,7 +575,8 @@ void gfxHandleRenderCmd_DrawTriangles(void const* cmd);
 //-----------------------------------------------------------------------------
 // General Common Stuff
 //-----------------------------------------------------------------------------
-rgInt gfxCommonInit();
+rgInt           initCommonStuff();
+RenderCmdList*  getRenderCmdList();
 
 //-----------------------------------------------------------------------------
 // STUFF BELOW NEEDS TO BE IMPLEMENTED FOR EACH GRAPHICS BACKEND
@@ -609,16 +585,16 @@ rgInt gfxCommonInit();
 //-----------------------------------------------------------------------------
 // Gfx Setup
 //-----------------------------------------------------------------------------
-rgInt gfxInit();
-void  gfxDestroy();
-rgInt gfxDraw();
-void  gfxOnSizeChanged();
-void  gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
-RenderCmdList* gfxGetRenderCmdList();
 
 //-----------------------------------------------------------------------------
 // Gfx function declarations
 //-----------------------------------------------------------------------------
+
+rgInt           init();
+void            destroy();
+rgInt           draw();
+void            onSizeChanged();
+void            gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
 
 // Helper macros
 // ---------------
@@ -640,7 +616,7 @@ void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
 DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxResourceUsage usage);
 void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
 
-GfxTexture2D* createTexture2D(char const* tag, TexturePtr texture, GfxTextureUsage usage);
+GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, GfxTextureUsage usage);
 DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
 
 DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
@@ -709,15 +685,14 @@ struct GfxDescriptorBufferEncoder
 
 
 //-----------------------------------------------------------------------------
-// Graphic Context
+// Graphic Context Data
 //-----------------------------------------------------------------------------
-
-//------------
 extern SDL_Window* mainWindow;
 extern rgUInt frameNumber;
     
 extern RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
-    
+
+// TODO: Convert to pointer and new
 extern GfxObjectRegistry<GfxRenderTarget> registryRenderTarget;
 extern GfxObjectRegistry<GfxTexture2D> registryTexture2D;
 extern GfxObjectRegistry<GfxBuffer> registryBuffer;
@@ -736,8 +711,13 @@ extern GfxTexture2D* depthStencilBuffer;
 // RenderCmdTexturedQuads
 //HGfxBuffer rcTexturedQuadsVB;
 //HGfxBuffer rcTexturedQuadsInstParams;
-//--------
 
+//-----------------------------------------------------------------------------
+// API Specific Graphic Context Data
+//-----------------------------------------------------------------------------
+
+// DX12
+// -----------
 #if defined(RG_D3D12_RNDR)
 struct D3d
 {

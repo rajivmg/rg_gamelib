@@ -4,7 +4,6 @@
 
 using namespace rg;
 //using namespace gfx;
-
 struct GameData
 {
     TexturedQuads characterPortraits;

@@ -66,7 +66,7 @@ public:
 
         const rgU32 I = current++;
 
-        // NOTE: Did you forget to gfxGetRenderCmdList()->draw(); gfxGetRenderCmdList()->afterDraw(); in your gfxDraw()?
+        // NOTE: Did you forget to getRenderCmdList()->draw(); getRenderCmdList()->afterDraw(); in your gfxDraw()?
         packets[I] = packet;
         keys[I] = key;
 
