@@ -71,6 +71,13 @@ enum GfxResourceUsage
     GfxResourceUsage_Stream,    // Content will be updated every frame
 };
 
+//-----------------------------------------------------------------------------
+// Gfx Objects Types
+//-----------------------------------------------------------------------------
+
+// Buffer type
+// -------------------
+
 enum GfxBufferUsage
 {
     GfxBufferUsage_ShaderRW = (0 << 0),
@@ -82,73 +89,6 @@ enum GfxBufferUsage
     GfxBufferUsage_CopyDst = (1 << 5),
 };
 
-enum GfxTextureUsage
-{
-    GfxTextureUsage_ShaderRead = (0 << 0),
-    GfxTextureUsage_ShaderReadWrite = (1 << 0),
-    GfxTextureUsage_RenderTarget = (1 << 1),
-    GfxTextureUsage_DepthStencil = (1 << 2),
-    GfxTextureUsage_CopyDst = (1 << 3),
-    GfxTextureUsage_CopySrc = (1 << 4),
-};
-
-enum GfxCompareFunc
-{
-    GfxCompareFunc_Always,
-    GfxCompareFunc_Never,
-    GfxCompareFunc_Equal,
-    GfxCompareFunc_NotEqual,
-    GfxCompareFunc_Less,
-    GfxCompareFunc_LessEqual,
-    GfxCompareFunc_Greater,
-    GfxCompareFunc_GreaterEqual,
-};
-
-enum GfxCullMode
-{
-    GfxCullMode_None,
-    GfxCullMode_Back,
-    GfxCullMode_Front,
-};
-
-enum GfxWinding
-{
-    GfxWinding_CCW,
-    GfxWinding_CW,
-};
-
-enum GfxTriangleFillMode
-{
-    GfxTriangleFillMode_Fill,
-    GfxTriangleFillMode_Wireframe,
-};
-
-enum GfxLoadAction
-{
-    GfxLoadAction_DontCare,
-    GfxLoadAction_Load,
-    GfxLoadAction_Clear,
-};
-
-enum GfxStoreAction
-{
-    GfxStoreAction_DontCare,
-    GfxStoreAction_Store,
-};
-
-enum GfxShaderType
-{
-    GfxShaderType_Vertex,
-    GfxShaderType_Fragment,
-    GfxShaderType_Compute
-};
-
-//-----------------------------------------------------------------------------
-// Gfx Objects Types
-//-----------------------------------------------------------------------------
-
-// Buffer type
-// -------------------
 struct GfxBuffer
 {
     rgChar tag[32];
@@ -164,8 +104,19 @@ struct GfxBuffer
 #endif
 };
 
-// Texture2D type
+// Texture type
 // -------------------
+
+enum GfxTextureUsage
+{
+    GfxTextureUsage_ShaderRead = (0 << 0),
+    GfxTextureUsage_ShaderReadWrite = (1 << 0),
+    GfxTextureUsage_RenderTarget = (1 << 1),
+    GfxTextureUsage_DepthStencil = (1 << 2),
+    GfxTextureUsage_CopyDst = (1 << 3),
+    GfxTextureUsage_CopySrc = (1 << 4),
+};
+
 struct GfxTexture2D
 {
     rgChar tag[32];
@@ -200,8 +151,82 @@ struct GfxRenderTarget // TODO: remove this
 #endif
 };
 
+// RenderPass
+// ------------
+
+enum GfxLoadAction
+{
+    GfxLoadAction_DontCare,
+    GfxLoadAction_Load,
+    GfxLoadAction_Clear,
+};
+
+enum GfxStoreAction
+{
+    GfxStoreAction_DontCare,
+    GfxStoreAction_Store,
+};
+
+struct GfxColorAttachmentDesc
+{
+    GfxTexture2D* texture;
+    GfxLoadAction   loadAction;
+    GfxStoreAction storeAction;
+    rgFloat4        clearColor;
+};
+
+struct GfxRenderPass
+{
+    GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
+
+    GfxTexture2D* depthStencilAttachmentTexture;
+    GfxLoadAction depthStencilAttachmentLoadAction;
+    GfxStoreAction depthStencilAttachmentStoreAction;
+    rgFloat  clearDepth;
+    rgU32    clearStencil;
+};
+
 // PSO and State types
 // -------------------
+
+enum GfxCompareFunc
+{
+    GfxCompareFunc_Always,
+    GfxCompareFunc_Never,
+    GfxCompareFunc_Equal,
+    GfxCompareFunc_NotEqual,
+    GfxCompareFunc_Less,
+    GfxCompareFunc_LessEqual,
+    GfxCompareFunc_Greater,
+    GfxCompareFunc_GreaterEqual,
+};
+
+enum GfxCullMode
+{
+    GfxCullMode_None,
+    GfxCullMode_Back,
+    GfxCullMode_Front,
+};
+
+enum GfxWinding
+{
+    GfxWinding_CCW,
+    GfxWinding_CW,
+};
+
+enum GfxTriangleFillMode
+{
+    GfxTriangleFillMode_Fill,
+    GfxTriangleFillMode_Wireframe,
+};
+
+enum GfxShaderType
+{
+    GfxShaderType_Vertex,
+    GfxShaderType_Fragment,
+    GfxShaderType_Compute
+};
+
 struct GfxColorAttachementStateDesc
 {
     TinyImageFormat pixelFormat;
@@ -228,25 +253,6 @@ struct GfxRenderStateDesc
     // ScissorRect <--- not part of static state
     // Primitive Type, Line, LineStrip, Triangle, TriangleStrip
     // Index Type, U16, U32
-};
-
-struct GfxColorAttachmentDesc
-{
-    GfxTexture2D*      texture;
-    GfxLoadAction   loadAction;
-    GfxStoreAction storeAction;
-    rgFloat4        clearColor;
-};
-
-struct GfxRenderPass
-{
-    GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
-
-    GfxTexture2D* depthStencilAttachmentTexture;
-    GfxLoadAction depthStencilAttachmentLoadAction;
-    GfxStoreAction depthStencilAttachmentStoreAction;
-    rgFloat  clearDepth;
-    rgU32    clearStencil;
 };
 
 struct GfxShaderDesc
@@ -402,7 +408,7 @@ struct GfxObjectRegistry
 };
 
 //-----------------------------------------------------------------------------
-// Texture Utils
+// Texture & Utils
 //-----------------------------------------------------------------------------
 
 // Texture type
@@ -487,61 +493,62 @@ inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFlo
 }
 
 //-----------------------------------------------------------------------------
-// Gfx Render Command
+// Gfx Commands
 //-----------------------------------------------------------------------------
-enum RenderCmdType
+
+enum GfxCmdType
 {
-    RenderCmdType_SetViewport,
-    RenderCmdType_SetRenderPass,
-    RenderCmdType_SetGraphicsPSO,
-    RenderCmdType_DrawTexturedQuads,
-    RenderCmdType_DrawTriangles,
+    GfxCmdType_SetViewport,
+    GfxCmdType_SetRenderPass,
+    GfxCmdType_SetGraphicsPSO,
+    GfxCmdType_DrawTexturedQuads,
+    GfxCmdType_DrawTriangles,
 };
 
-struct RenderCmdHeader
+struct GfxCmdHeader
 {
-    RenderCmdType type;
+    GfxCmdType type;
 };
 
 // NOTE: RenderCmds are not allowed to own any resources (smartptrs)
 // Should this be allowed?? If yes, then addCmd should "new" the RenderCmd, and Flush should "delete"
 // pros vs cons?
 
-#define BEGIN_RENDERCMD_STRUCT(cmdName)     struct RenderCmd_##cmdName      \
-                                            {                               \
-                                                static const RenderCmdType type = RenderCmdType_##cmdName; \
-                                                static CmdDispatchFnT* dispatchFn
+#define BEGIN_GFXCMD_STRUCT(cmdName)    struct GfxCmd_##cmdName         \
+                                        {                               \
+                                            static const GfxCmdType type = GfxCmdType_##cmdName; \
+                                            static CmdDispatchFnT* dispatchFn
 
-#define END_RENDERCMD_STRUCT()              }
+#define END_GFXCMD_STRUCT()             }
 
 // ---===---
 
-BEGIN_RENDERCMD_STRUCT(SetViewport);
+BEGIN_GFXCMD_STRUCT(SetViewport);
 rgFloat4 viewport;
-END_RENDERCMD_STRUCT();
+END_GFXCMD_STRUCT();
 
 // ---
 
-BEGIN_RENDERCMD_STRUCT(SetRenderPass);
+BEGIN_GFXCMD_STRUCT(SetRenderPass);
 GfxRenderPass renderPass;
-END_RENDERCMD_STRUCT();
+END_GFXCMD_STRUCT();
 
 // ---
 
-BEGIN_RENDERCMD_STRUCT(SetGraphicsPSO);
+BEGIN_GFXCMD_STRUCT(SetGraphicsPSO);
 GfxGraphicsPSO* pso;
-END_RENDERCMD_STRUCT();
+END_GFXCMD_STRUCT();
 
 // ---
 
-BEGIN_RENDERCMD_STRUCT(DrawTexturedQuads);
+BEGIN_GFXCMD_STRUCT(DrawTexturedQuads);
 GfxGraphicsPSO* pso;
 TexturedQuads* quads;
-END_RENDERCMD_STRUCT();
+END_GFXCMD_STRUCT();
 
 // ---
 
-BEGIN_RENDERCMD_STRUCT(DrawTriangles);
+BEGIN_GFXCMD_STRUCT(DrawTriangles);
 GfxBuffer* vertexBuffer;
 rgU32 vertexBufferOffset;
 GfxBuffer* indexBuffer;
@@ -552,21 +559,20 @@ rgU32 indexCount;
 rgU32 instanceCount;
 rgU32 baseVertex;
 rgU32 baseInstance;
-END_RENDERCMD_STRUCT();
+END_GFXCMD_STRUCT();
 
 // ---===---
 
-#undef BEGIN_RENDERCMD_STRUCT
-#undef END_RENDERCMD_STRUCT
+#undef BEGIN_GFXCMD_STRUCT
+#undef END_GFXCMD_STRUCT
 
 RG_GFX_BEGIN_NAMESPACE
 
-void gfxHandleRenderCmd_SetViewport(void const* cmd);
-void gfxHandleRenderCmd_SetRenderPass(void const* cmd);
-void gfxHandleRenderCmd_SetGraphicsPSO(void const* cmd);
-void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd);
-void gfxHandleRenderCmd_DrawTriangles(void const* cmd);
-
+void handleGfxCmd_SetViewport(void const* cmd);
+void handleGfxCmd_SetRenderPass(void const* cmd);
+void handleGfxCmd_SetGraphicsPSO(void const* cmd);
+void handleGfxCmd_DrawTexturedQuads(void const* cmd);
+void handleGfxCmd_DrawTriangles(void const* cmd);
 
 #ifdef RG_VULKAN_RNDR
 #define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)

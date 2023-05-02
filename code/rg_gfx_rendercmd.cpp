@@ -14,16 +14,16 @@ RG_BEGIN_NAMESPACE
 //#define RG_GEN_RENDER_CMD_DESTRUCTOR(type) void gfxDestroy ## type(void* cmd) { ((type*)cmd)->~type(); } \
 //CmdDestructorFnT* type::destructorFn = gfxDestroy ## type
 
-#define RG_DECL_RENDER_CMD_HANDLER(type) CmdDispatchFnT* type::dispatchFn = gfx::gfxHandle ## type
+#define RG_DECL_RENDER_CMD_HANDLER(type) CmdDispatchFnT* type::dispatchFn = gfx::handle ## type
 
 //CmdDispatchFnT* RenderCmdTexturedQuad::dispatchFn = gfxHandleRenderCmdTexturedQuad;
 //CmdDestructorFnT* RenderCmdTexturedQuad::destructorFn = gfxDestroyRenderCmdTexturedQuad;
 
-RG_DECL_RENDER_CMD_HANDLER(RenderCmd_SetViewport);
-RG_DECL_RENDER_CMD_HANDLER(RenderCmd_SetRenderPass);
-RG_DECL_RENDER_CMD_HANDLER(RenderCmd_SetGraphicsPSO);
-RG_DECL_RENDER_CMD_HANDLER(RenderCmd_DrawTexturedQuads);
-RG_DECL_RENDER_CMD_HANDLER(RenderCmd_DrawTriangles);
+RG_DECL_RENDER_CMD_HANDLER(GfxCmd_SetViewport);
+RG_DECL_RENDER_CMD_HANDLER(GfxCmd_SetRenderPass);
+RG_DECL_RENDER_CMD_HANDLER(GfxCmd_SetGraphicsPSO);
+RG_DECL_RENDER_CMD_HANDLER(GfxCmd_DrawTexturedQuads);
+RG_DECL_RENDER_CMD_HANDLER(GfxCmd_DrawTriangles);
 //RG_GEN_RENDER_CMD_DESTRUCTOR(RenderCmdTexturedQuad);
 
 RenderCmdList::RenderCmdList(char const* nametag) :

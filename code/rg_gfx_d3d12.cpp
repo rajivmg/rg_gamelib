@@ -619,30 +619,11 @@ GfxGraphicsPSO* creatorGfxGraphicsPSO(char const* tag, GfxShaderDesc* shaderDesc
 // RenderCmd Handlers
 // -----------------------------------------------
 
-void gfxHandleRenderCmd_SetViewport(void const* cmd)
-{
-
-}
-
-void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
-{
-
-}
-
-void gfxHandleRenderCmd_SetGraphicsPSO(void const* cmd)
-{
-
-}
-
-void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
-{
-
-}
-
-void gfxHandleRenderCmd_DrawTriangles(void const* cmd)
-{
-
-}
+void handleGfxCmd_SetViewport(void const* cmd) {}
+void handleGfxCmd_SetRenderPass(void const* cmd) {}
+void handleGfxCmd_SetGraphicsPSO(void const* cmd) {}
+void handleGfxCmd_DrawTexturedQuads(void const* cmd) {}
+void handleGfxCmd_DrawTriangles(void const* cmd) {}
 
 // -----------------------------------------------
 // RenderCmd Handlers
