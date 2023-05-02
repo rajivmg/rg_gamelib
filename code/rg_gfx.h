@@ -125,6 +125,7 @@ struct GfxTexture2D
 
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource> d3dTexture;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE d3dTextureView;
 #elif defined(RG_METAL_RNDR)
     MTL::Texture* mtlTexture;
 #elif defined(RG_VULKAN_RNDR)
@@ -609,7 +610,7 @@ void            gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
         void destroy##type(char const* tag); \
         void allocAndFill##type##Struct(const char* tag, __VA_ARGS__, Gfx##type** obj); \
         void dealloc##type##Struct(Gfx##type* obj); \
-        Gfx##type* creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
+        void creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
         void destroyerGfx##type(Gfx##type* obj)
 
 void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
@@ -731,6 +732,9 @@ struct D3d
     rgUInt rtvDescriptorSize;
 
     ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
+
+    ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
+    rgUInt cbvSrvUavDescriptorSize;
 
     ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
     ComPtr<ID3D12GraphicsCommandList> commandList;

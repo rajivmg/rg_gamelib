@@ -302,6 +302,8 @@ rgInt init()
     dsDesc.Flags = D3D12_DSV_FLAG_NONE;
     device()->CreateDepthStencilView(gfx::depthStencilBuffer->d3dTexture.Get(), &dsDesc, d3d.dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
+    d3d.cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 400000, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         d3d.commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
@@ -486,9 +488,9 @@ void onSizeChanged()
 // -----------------------------------------------
 
 // Buffer
-GfxBuffer* creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxResourceUsage usage, GfxBuffer* obj)
+void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxResourceUsage usage, GfxBuffer* obj)
 {
-    return rgNew(GfxBuffer);
+
 }
 
 void updaterGfxBuffer(void* data, rgUInt size, rgUInt offset, GfxBuffer* buffer)
@@ -501,13 +503,18 @@ void deleterGfxBuffer(GfxBuffer* buffer)
 
 }
 
-GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget* obj)
+void creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget* obj)
 {
-    return nullptr;
+
+}
+
+void deleterGfxRenderTarget(GfxRenderTarget* ptr)
+{
+    rgDelete(ptr);
 }
 
 // Texture
-GfxTexture2D* creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, GfxTexture2D* obj)
+void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, GfxTexture2D* obj)
 {
     ComPtr<ID3D12Resource> textureResouce;
 
@@ -532,31 +539,25 @@ GfxTexture2D* creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUI
     }
     
     D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_NONE;
-    if(usage & GfxTextureUsage_ShaderReadWrite)
-    {
-        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-    }
-    if(usage & GfxTextureUsage_RenderTarget)
-    {
-        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    }
-    if(usage & GfxTextureUsage_DepthStencil)
-    {
-        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-    }
-
     D3D12_RESOURCE_STATES resourceState = D3D12_RESOURCE_STATE_COMMON;
     if(usage & GfxTextureUsage_ShaderReadWrite)
     {
+        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
         resourceState |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
     }
     if(usage & GfxTextureUsage_RenderTarget)
     {
+        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
         resourceState |= D3D12_RESOURCE_STATE_RENDER_TARGET;
     }
     if(usage & GfxTextureUsage_DepthStencil)
     {
+        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
         resourceState |= D3D12_RESOURCE_STATE_DEPTH_WRITE;
+    }
+    if(usage & GfxTextureUsage_ShaderRead)
+    {
+
     }
 
     CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(textureFormat, width, height, 1, 1, 1, 0, resourceFlags);
@@ -569,6 +570,28 @@ GfxTexture2D* creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUI
         clearValue,
         IID_PPV_ARGS(&textureResouce)));
 
+    //CD3DX12_CPU_DESCRIPTOR_HANDLE resourceView 
+
+    if(usage & GfxTextureUsage_ShaderReadWrite)
+    {
+        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        resourceState |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    }
+    if(usage & GfxTextureUsage_RenderTarget)
+    {
+        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+        resourceState |= D3D12_RESOURCE_STATE_RENDER_TARGET;
+    }
+    if(usage & GfxTextureUsage_DepthStencil)
+    {
+        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+        resourceState |= D3D12_RESOURCE_STATE_DEPTH_WRITE;
+    }
+    if(usage & GfxTextureUsage_ShaderRead)
+    {
+
+    }
+
     obj->d3dTexture = textureResouce;
 
     //GfxTexture2D* dsTex = rgNew(GfxTexture2D);
@@ -579,8 +602,6 @@ GfxTexture2D* creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUI
     //dsTex->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)dsResdesc.Format);
     //dsTex->d3dTexture = dsResource;
     //gfxCtx()->depthStencilBuffer = gfxNewTexture2D(dsTex);
-
-    return rgNew(GfxTexture2D);
 }
 
 void deleterGfxTexture2D(GfxTexture2D* t2d)
@@ -589,17 +610,7 @@ void deleterGfxTexture2D(GfxTexture2D* t2d)
 }
 
 // PSO
-GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format)
-{
-    return rgNew(GfxRenderTarget);
-}
-
-void deleterGfxRenderTarget(GfxRenderTarget* ptr)
-{
-    rgDelete(ptr);
-}
-
-GfxGraphicsPSO* creatorGfxGraphicsPSO(char const* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
+void creatorGfxGraphicsPSO(char const* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
 #if 0 
     // empty root signature
@@ -650,7 +661,6 @@ GfxGraphicsPSO* creatorGfxGraphicsPSO(char const* tag, GfxShaderDesc* shaderDesc
         BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, __uuidof(d3d.dummyPSO), (void**)&(d3d.dummyPSO)));
     }
 #endif
-    return rgNew(GfxGraphicsPSO);
 }
 
 void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
