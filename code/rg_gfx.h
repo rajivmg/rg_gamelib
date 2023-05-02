@@ -36,8 +36,8 @@
 
 RG_BEGIN_NAMESPACE
 
-static const rgU32 kInvalidHandle = ~(0x0);
-static const rgU32 kUninitializedHandle = 0;
+static const rgU32 kInvalidValue = ~(0x0);
+static const rgU32 kUninitializedValue = 0;
 static const rgU32 kMaxColorAttachments = 4;
 
 //-----------------------------------------------------------------------------
@@ -47,8 +47,23 @@ rgInt setup();
 rgInt updateAndDraw(rgDouble dt);
 
 //-----------------------------------------------------------------------------
-// Enums
+// Gfx Objects Types
 //-----------------------------------------------------------------------------
+
+// Buffer type
+// -------------------
+
+enum GfxBufferUsage
+{
+    GfxBufferUsage_ShaderRW = (0 << 0),
+    GfxBufferUsage_VertexBuffer = (1 << 0),
+    GfxBufferUsage_IndexBuffer = (1 << 1),
+    GfxBufferUsage_ConstantBuffer = (1 << 2),
+    GfxBufferUsage_StructuredBuffer = (1 << 3),
+    GfxBufferUsage_CopySrc = (1 << 4),
+    GfxBufferUsage_CopyDst = (1 << 5),
+};
+
 enum GfxMemoryType
 {
     GfxMemoryType_CPUToGPU, // UploadHeap
@@ -69,24 +84,6 @@ enum GfxResourceUsage
     GfxResourceUsage_Static,    // Immutable, once created content cannot be modified
     GfxResourceUsage_Dynamic,   // Content will be updated infrequently
     GfxResourceUsage_Stream,    // Content will be updated every frame
-};
-
-//-----------------------------------------------------------------------------
-// Gfx Objects Types
-//-----------------------------------------------------------------------------
-
-// Buffer type
-// -------------------
-
-enum GfxBufferUsage
-{
-    GfxBufferUsage_ShaderRW = (0 << 0),
-    GfxBufferUsage_VertexBuffer = (1 << 0),
-    GfxBufferUsage_IndexBuffer = (1 << 1),
-    GfxBufferUsage_ConstantBuffer = (1 << 2),
-    GfxBufferUsage_StructuredBuffer = (1 << 3),
-    GfxBufferUsage_CopySrc = (1 << 4),
-    GfxBufferUsage_CopyDst = (1 << 5),
 };
 
 struct GfxBuffer
@@ -292,7 +289,7 @@ struct GfxBindlessResourceManager
 
     rgU32 _getFreeSlot()
     {
-        rgU32 result = kInvalidHandle;
+        rgU32 result = kInvalidValue;
 
         if(!freeSlots.empty())
         {
@@ -306,7 +303,7 @@ struct GfxBindlessResourceManager
             resources.resize(result + 1); // push_back(nullptr) ?
         }
 
-        rgAssert(result != kInvalidHandle);
+        rgAssert(result != kInvalidValue);
         return result;
     }
 
@@ -332,7 +329,7 @@ struct GfxBindlessResourceManager
                 return i;
             }
         }
-        return kInvalidHandle;
+        return kInvalidValue;
     }
 
     typename ResourceList::iterator begin() EA_NOEXCEPT
@@ -348,7 +345,7 @@ struct GfxBindlessResourceManager
     rgU32 getBindlessIndex(Type* ptr)
     {
         rgU32 slot = _getSlotOfResourcePtr(ptr);
-        if(slot == kInvalidHandle)
+        if(slot == kInvalidValue)
         {
             slot = _getFreeSlot();
             _setResourcePtrInSlot(slot, ptr);
@@ -566,6 +563,11 @@ END_GFXCMD_STRUCT();
 #undef BEGIN_GFXCMD_STRUCT
 #undef END_GFXCMD_STRUCT
 
+//-----------------------------------------------------------------------------
+// STUFF BELOW OPERATE ON THE CONTENT OF GFX'CTX' DATA, IF IT DOESN'T REQUIRE
+// ACCESS TO GFXCTX CONTENTS, DO NOT PUT IT BELOW THIS LINE.
+//-----------------------------------------------------------------------------
+
 RG_GFX_BEGIN_NAMESPACE
 
 void handleGfxCmd_SetViewport(void const* cmd);
@@ -585,17 +587,10 @@ rgInt           initCommonStuff();
 RenderCmdList*  getRenderCmdList();
 
 //-----------------------------------------------------------------------------
-// STUFF BELOW NEEDS TO BE IMPLEMENTED FOR EACH GRAPHICS BACKEND
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// Gfx Setup
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
 // Gfx function declarations
 //-----------------------------------------------------------------------------
 
+rgInt           preInit();
 rgInt           init();
 void            destroy();
 rgInt           draw();
@@ -632,7 +627,7 @@ DeclareGfxObjectFunctions(GraphicsPSO, GfxShaderDesc* shaderDesc, GfxRenderState
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
 //-----------------------------------------------------------------------------
-struct ImmVertexFormat
+struct ImmVertexFormat_ // TODO: remove
 {
     rgFloat position[3];
     rgFloat color[4];
@@ -699,12 +694,12 @@ extern rgUInt frameNumber;
 extern RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
 
 // TODO: Convert to pointer and new
-extern GfxObjectRegistry<GfxRenderTarget> registryRenderTarget;
-extern GfxObjectRegistry<GfxTexture2D> registryTexture2D;
-extern GfxObjectRegistry<GfxBuffer> registryBuffer;
-extern GfxObjectRegistry<GfxGraphicsPSO> registryGraphicsPSO;
+extern GfxObjectRegistry<GfxRenderTarget>* registryRenderTarget;
+extern GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
+extern GfxObjectRegistry<GfxBuffer>* registryBuffer;
+extern GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
     
-extern GfxBindlessResourceManager<GfxTexture2D> bindlessManagerTexture2D;
+extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
 extern Matrix4 orthographicMatrix;
 extern Matrix4 viewMatrix;

@@ -347,13 +347,15 @@ rgInt init()
         psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        psoDesc.DepthStencilState.DepthEnable = FALSE;
+        psoDesc.DepthStencilState.DepthEnable = TRUE;
+        psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
         psoDesc.DepthStencilState.StencilEnable = FALSE;
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         psoDesc.NumRenderTargets = 1;
         psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
-        //psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleDesc.Count = 1;
         BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, __uuidof(d3d.dummyPSO), (void**)&(d3d.dummyPSO)));
     }
@@ -438,13 +440,17 @@ rgInt draw()
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(activeRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(d3d.rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, d3d.rtvDescriptorSize);
-    commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(d3d.dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+    commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
 
     const rgFloat clearColor[] = { 0.5f, 0.5f, 0.5f, 1.0f };
     commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &d3d.triVBView);
-    commandList->DrawInstanced(6, 1, 0, 0);
+    //commandList->DrawInstanced(6, 1, 0, 0);
+    commandList->DrawInstanced(3, 1, 0, 0);
+    commandList->DrawInstanced(3, 1, 3, 0);
 
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(activeRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
@@ -563,6 +569,8 @@ GfxTexture2D* creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUI
         clearValue,
         IID_PPV_ARGS(&textureResouce)));
 
+    obj->d3dTexture = textureResouce;
+
     //GfxTexture2D* dsTex = rgNew(GfxTexture2D);
     //strncpy(dsTex->tag, "DepthStencilTarget", 32);
     //dsTex->width = (rgUInt)dsResdesc.Width;
@@ -581,16 +589,6 @@ void deleterGfxTexture2D(GfxTexture2D* t2d)
 }
 
 // PSO
-GfxGraphicsPSO* creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
-{
-    return rgNew(GfxGraphicsPSO);
-}
-
-void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
-{
-
-}
-
 GfxRenderTarget* creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format)
 {
     return rgNew(GfxRenderTarget);
@@ -603,7 +601,61 @@ void deleterGfxRenderTarget(GfxRenderTarget* ptr)
 
 GfxGraphicsPSO* creatorGfxGraphicsPSO(char const* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
-    return nullptr;
+#if 0 
+    // empty root signature
+    //{
+    //    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
+    //    rootSigDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+    //    ComPtr<ID3DBlob> signature;
+    //    ComPtr<ID3DBlob> error;
+    //    BreakIfFail(D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+    //    BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(d3d.dummyRootSignature), (void**)&(d3d.dummyRootSignature)));
+    //}
+
+    {
+        ComPtr<ID3DBlob> vertexShader;
+        ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+        UINT shaderCompileFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+        UINT shaderCompileFlag = 0;
+#endif
+
+        BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "VS_Main", "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
+        BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "PS_Main", "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
+
+        D3D12_INPUT_ELEMENT_DESC inputElementDesc[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        };
+
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+        psoDesc.InputLayout = { inputElementDesc, rgARRAY_COUNT(inputElementDesc) };
+        psoDesc.pRootSignature = d3d.dummyRootSignature.Get();
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+        psoDesc.DepthStencilState.DepthEnable = FALSE;
+        psoDesc.DepthStencilState.StencilEnable = FALSE;
+        psoDesc.SampleMask = UINT_MAX;
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        psoDesc.NumRenderTargets = 1;
+        psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
+        //psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+        psoDesc.SampleDesc.Count = 1;
+        BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, __uuidof(d3d.dummyPSO), (void**)&(d3d.dummyPSO)));
+    }
+#endif
+    return rgNew(GfxGraphicsPSO);
+}
+
+void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
+{
+
 }
 
 // -----------------------------------------------

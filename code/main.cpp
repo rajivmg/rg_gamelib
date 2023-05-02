@@ -296,6 +296,7 @@ int main(int argc, char* argv[])
         return -1; // error;
     }
 
+    rgInt gfxPreInitResult = gfx::preInit();
     rgInt gfxInitResult = gfx::init();
     rgInt gfxCommonInitResult = gfx::initCommonStuff();
 

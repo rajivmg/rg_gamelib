@@ -2,6 +2,7 @@
 #include "rg_gfx.h"
 
 #include <string.h>
+#include <EASTL/string.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -66,12 +67,12 @@ rgUInt frameNumber;
 
 RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
 
-GfxObjectRegistry<GfxRenderTarget> registryRenderTarget;
-GfxObjectRegistry<GfxTexture2D> registryTexture2D;
-GfxObjectRegistry<GfxBuffer> registryBuffer;
-GfxObjectRegistry<GfxGraphicsPSO> registryGraphicsPSO;
+GfxObjectRegistry<GfxRenderTarget>* registryRenderTarget;
+GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
+GfxObjectRegistry<GfxBuffer>* registryBuffer;
+GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
 
-GfxBindlessResourceManager<GfxTexture2D> bindlessManagerTexture2D;
+GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
 Matrix4 orthographicMatrix;
 Matrix4 viewMatrix;
@@ -93,15 +94,28 @@ Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat
                    Vector4(-((right + left) * length), -((top +bottom) * height), -nearValue * depth, 1.0f));
 }
 
+rgInt preInit()
+{
+    gfx::registryRenderTarget = rgNew(GfxObjectRegistry<GfxRenderTarget>);
+    gfx::registryTexture2D = rgNew(GfxObjectRegistry<GfxTexture2D>);
+    gfx::registryBuffer = rgNew(GfxObjectRegistry<GfxBuffer>);
+    gfx::registryGraphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
+
+    gfx::bindlessManagerTexture2D = rgNew(GfxBindlessResourceManager<GfxTexture2D>);
+
+    return 0;
+}
+
 rgInt initCommonStuff()
 {
-    //GfxCtx* ctx = gfxCtx();
+    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        eastl::string tag = "graphicsCmdList" + i;
+        gfx::graphicCmdLists[i] = rgNew(RenderCmdList)(tag.c_str());
+    }
 
-    gfx::graphicCmdLists[0] = rgNew(RenderCmdList)("graphic cmdlist 0");
-    gfx::graphicCmdLists[1] = rgNew(RenderCmdList)("graphic cmdlist 1");
-    gfx::graphicCmdLists[2] = rgNew(RenderCmdList)("graphic cmdlist 2");
-    
     gfx::orthographicMatrix = Matrix4::orthographic(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0, 0.1f, 1000.0f);
+    gfx::viewMatrix = Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0));
     
 #ifdef RG_METAL_RNDR
     //Matrix4 scaleZHalf = Matrix4::scale(Vector3(1.0f, 1.0f, -0.5f));
@@ -113,7 +127,6 @@ rgInt initCommonStuff()
     ctx->orthographicMatrix = makeOrthoProjection(0.0f, 720.0f, 720.0f, 0.0f, 0.1f, 1000.0f);
 #endif
     
-    gfx::viewMatrix = Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0));
     return 0;
 }
 
@@ -143,20 +156,20 @@ GfxRenderTarget* createRenderTarget(const char* tag, rgU32 width, rgU32 height, 
     GfxRenderTarget* objPtr;
     allocAndFillRenderTargetStruct(tag, width, height, format, &objPtr);
     creatorGfxRenderTarget(tag, width, height, format, objPtr);
-    gfx::registryRenderTarget.insert(rgCRC32(tag), objPtr);
+    gfx::registryRenderTarget->insert(rgCRC32(tag), objPtr);
     return objPtr;
 }
 
 GfxRenderTarget* findOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
 {
-    GfxRenderTarget* objPtr = gfx::registryRenderTarget.find(rgCRC32(tag));
+    GfxRenderTarget* objPtr = gfx::registryRenderTarget->find(rgCRC32(tag));
     objPtr = (objPtr == nullptr) ? createRenderTarget(tag, width, height, format) : objPtr;
     return objPtr;
 }
 
 GfxRenderTarget* findRenderTarget(rgHash tagHash)
 {
-    return gfx::registryRenderTarget.find(tagHash);
+    return gfx::registryRenderTarget->find(tagHash);
 }
 
 GfxRenderTarget* findRenderTarget(char const* tag)
@@ -166,12 +179,12 @@ GfxRenderTarget* findRenderTarget(char const* tag)
 
 void destroyRenderTarget(rgHash tagHash)
 {
-    gfx::registryRenderTarget.markForRemove(tagHash);
+    gfx::registryRenderTarget->markForRemove(tagHash);
 }
 
 void destroyRenderTarget(char const* tag)
 {
-    gfx::registryRenderTarget.markForRemove(rgCRC32(tag));
+    gfx::registryRenderTarget->markForRemove(rgCRC32(tag));
 }
 
 ///
@@ -202,20 +215,20 @@ GfxTexture2D* createTexture2D(const char* tag, void* buf, rgUInt width, rgUInt h
     GfxTexture2D* objPtr;
     allocAndFillTexture2DStruct(tag, buf, width, height, format, usage, &objPtr);
     creatorGfxTexture2D(tag, buf, width, height, format, usage, objPtr);
-    gfx::registryTexture2D.insert(rgCRC32(tag), objPtr);
+    gfx::registryTexture2D->insert(rgCRC32(tag), objPtr);
     return objPtr;
 }
 
 GfxTexture2D* findOrCreateTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
 {
-    GfxTexture2D* objPtr = gfx::registryTexture2D.find(rgCRC32(tag));
+    GfxTexture2D* objPtr = gfx::registryTexture2D->find(rgCRC32(tag));
     objPtr = (objPtr == nullptr) ? createTexture2D(tag, buf, width, height, format, usage) : objPtr;
     return objPtr;
 }
 
 GfxTexture2D* findTexture2D(rgHash tagHash)
 {
-    return gfx::registryTexture2D.find(tagHash);
+    return gfx::registryTexture2D->find(tagHash);
 }
 
 GfxTexture2D* findTexture2D(char const* tag)
@@ -225,12 +238,12 @@ GfxTexture2D* findTexture2D(char const* tag)
 
 void destroyTexture2D(rgHash tagHash)
 {
-    gfx::registryTexture2D.markForRemove(tagHash);
+    gfx::registryTexture2D->markForRemove(tagHash);
 }
 
 void destroyTexture2D(char const* tag)
 {
-    gfx::registryTexture2D.markForRemove(rgCRC32(tag));
+    gfx::registryTexture2D->markForRemove(rgCRC32(tag));
 }
 
 ///
@@ -254,6 +267,7 @@ void allocAndFillBufferStruct(const char* tag, void* buf, rgU32 size, GfxResourc
     strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxBuffer::tag));
     (*obj)->size = size;
     (*obj)->usage = usage;
+    (*obj)->activeSlot = 0;
 }
 
 void deallocBufferStruct(GfxBuffer* obj)
@@ -266,20 +280,20 @@ GfxBuffer* createBuffer(const char* tag, void* buf, rgU32 size, GfxResourceUsage
     GfxBuffer* objPtr;
     allocAndFillBufferStruct(tag, buf, size, usage, &objPtr);
     creatorGfxBuffer(tag, buf, size, usage, objPtr);
-    gfx::registryBuffer.insert(rgCRC32(tag), objPtr);
+    gfx::registryBuffer->insert(rgCRC32(tag), objPtr);
     return objPtr;
 }
 
 GfxBuffer* findOrCreateBuffer(const char* tag, void* buf, rgU32 size, GfxResourceUsage usage)
 {
-    GfxBuffer* objPtr = gfx::registryBuffer.find(rgCRC32(tag));
+    GfxBuffer* objPtr = gfx::registryBuffer->find(rgCRC32(tag));
     objPtr = (objPtr == nullptr) ? createBuffer(tag, buf, size, usage) : objPtr;
     return objPtr;
 }
 
 GfxBuffer* findBuffer(rgHash tagHash)
 {
-    return gfx::registryBuffer.find(tagHash);
+    return gfx::registryBuffer->find(tagHash);
 }
 
 GfxBuffer* findBuffer(char const* tag)
@@ -289,12 +303,12 @@ GfxBuffer* findBuffer(char const* tag)
 
 void destroyBuffer(rgHash tagHash)
 {
-    gfx::registryBuffer.markForRemove(tagHash);
+    gfx::registryBuffer->markForRemove(tagHash);
 }
 
 void destroyBuffer(char const* tag)
 {
-    gfx::registryBuffer.markForRemove(rgCRC32(tag));
+    gfx::registryBuffer->markForRemove(rgCRC32(tag));
 }
 
 ///
@@ -317,20 +331,20 @@ GfxGraphicsPSO* createGraphicsPSO(const char* tag, GfxShaderDesc* shaderDesc, Gf
     GfxGraphicsPSO* objPtr;
     allocAndFillGraphicsPSOStruct(tag, shaderDesc, renderStateDesc, &objPtr);
     creatorGfxGraphicsPSO(tag, shaderDesc, renderStateDesc, objPtr);
-    gfx::registryGraphicsPSO.insert(rgCRC32(tag), objPtr);
+    gfx::registryGraphicsPSO->insert(rgCRC32(tag), objPtr);
     return objPtr;
 }
 
 GfxGraphicsPSO* findOrCreateGraphicsPSO(const char* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
-    GfxGraphicsPSO* objPtr = gfx::registryGraphicsPSO.find(rgCRC32(tag));
+    GfxGraphicsPSO* objPtr = gfx::registryGraphicsPSO->find(rgCRC32(tag));
     objPtr = (objPtr == nullptr) ? createGraphicsPSO(tag, shaderDesc, renderStateDesc) : objPtr;
     return objPtr;
 }
 
 GfxGraphicsPSO* findGraphicsPSO(rgHash tagHash)
 {
-    return gfx::registryGraphicsPSO.find(tagHash);
+    return gfx::registryGraphicsPSO->find(tagHash);
 }
 
 GfxGraphicsPSO* findGraphicsPSO(char const* tag)
@@ -340,12 +354,12 @@ GfxGraphicsPSO* findGraphicsPSO(char const* tag)
 
 void destroyGraphicsPSO(rgHash tagHash)
 {
-    gfx::registryGraphicsPSO.markForRemove(tagHash);
+    gfx::registryGraphicsPSO->markForRemove(tagHash);
 }
 
 void destroyGraphicsPSO(char const* tag)
 {
-    gfx::registryGraphicsPSO.markForRemove(rgCRC32(tag));
+    gfx::registryGraphicsPSO->markForRemove(rgCRC32(tag));
 }
 
 ///
@@ -423,7 +437,7 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         vertices->push_back(v[2]);
         
         SimpleInstanceParams instParam;
-        instParam.texID = gfx::bindlessManagerTexture2D.getBindlessIndex(t.tex);
+        instParam.texID = gfx::bindlessManagerTexture2D->getBindlessIndex(t.tex);
         instanceParams->push_back(instParam);
     }
 }
