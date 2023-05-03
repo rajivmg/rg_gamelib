@@ -387,7 +387,7 @@ struct GfxObjectRegistry
 
     Type* find(rgHash hash)
     {
-        ObjectMap::iterator itr = objects.find(hash);
+        typename ObjectMap::iterator itr = objects.find(hash);
         return (itr != objects.end()) ? itr->second : nullptr;
     }
 
@@ -403,7 +403,7 @@ struct GfxObjectRegistry
 
     void markForRemove(rgHash hash)
     {
-        ObjectMap::iterator itr = objects.find(hash);
+        typename ObjectMap::iterator itr = objects.find(hash);
         rgAssert(itr != objects.end());
         //objectsToRemove.insert_or_assign(eastl::make_pair(hash, *itr))
         objectsToRemove.insert_or_assign(hash, itr->second);
@@ -415,6 +415,16 @@ struct GfxObjectRegistry
         {
 
         }
+    }
+    
+    typename ObjectMap::iterator begin() EA_NOEXCEPT
+    {
+        return objects.begin();
+    }
+
+    typename ObjectMap::iterator end() EA_NOEXCEPT
+    {
+        return objects.end();
     }
 };
 
@@ -724,8 +734,8 @@ extern GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
 extern GfxTexture2D* depthStencilBuffer;
     
 // RenderCmdTexturedQuads
-//HGfxBuffer rcTexturedQuadsVB;
-//HGfxBuffer rcTexturedQuadsInstParams;
+extern GfxBuffer* rcTexturedQuadsVB;
+extern GfxBuffer* rcTexturedQuadsInstParams;
 
 //-----------------------------------------------------------------------------
 // API Specific Graphic Context Data
@@ -777,8 +787,8 @@ struct Mtl
 
     // arg buffers
     MTL::ArgumentEncoder* largeArrayTex2DArgEncoder;
-    HGfxBuffer largeArrayTex2DArgBuffer;
-} mtl;
+    GfxBuffer* largeArrayTex2DArgBuffer;
+};
 #elif defined(RG_VULKAN_RNDR)
 struct VkGfxCtx
 {

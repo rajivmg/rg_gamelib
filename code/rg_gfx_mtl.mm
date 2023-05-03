@@ -14,24 +14,18 @@
 #include <sstream>
 
 RG_BEGIN_NAMESPACE
+RG_GFX_BEGIN_NAMESPACE
 
 #include "shaders/metal/imm_shader.inl"
 
-#if 1
-static GfxCtx::Mtl* mtl()
-{
-    return &g_GfxCtx->mtl;
-}
-#else
-#define mtl() (&g_GfxCtx->mtl)
-#endif
+gfx::Mtl* mtl = nullptr;
 
 static const rgU32 kBindlessTextureSetBinding = 7;
 static const rgU32 kFrameParamsSetBinding = 6;
 
 static id<MTLDevice> getMTLDevice()
 {
-    return (__bridge id<MTLDevice>)(mtl()->device);
+    return (__bridge id<MTLDevice>)(mtl->device);
 }
 
 MTLResourceOptions toMTLResourceOptions(GfxResourceUsage usage)
@@ -64,12 +58,17 @@ MTLTextureUsage toMTLTextureUsage(GfxTextureUsage usage)
         result |= MTLTextureUsageShaderRead;
     }
     
-    if(usage == GfxTextureUsage_ShaderWrite)
+    if(usage == GfxTextureUsage_ShaderReadWrite)
     {
         result |= MTLTextureUsageShaderWrite;
     }
     
     if(usage == GfxTextureUsage_RenderTarget)
+    {
+        result |= MTLTextureUsageRenderTarget;
+    }
+    
+    if(usage == GfxTextureUsage_DepthStencil)
     {
         result |= MTLTextureUsageRenderTarget;
     }
@@ -81,7 +80,7 @@ MTLResourceUsage toMTLResourceOptions(GfxTextureUsage usage)
 {
     MTLResourceOptions options = MTLStorageModeManaged;
     
-    if(usage == GfxTextureUsage_ShaderWrite)
+    if(usage == GfxTextureUsage_ShaderReadWrite)
     {
         options |= MTLResourceCPUCacheModeWriteCombined;
     }
@@ -122,15 +121,14 @@ MTLPixelFormat toMTLPixelFormat(TinyImageFormat fmt)
     return (MTLPixelFormat)TinyImageFormat_ToMTLPixelFormat(fmt);
 }
 
-id<MTLTexture> getMTLTexture(HGfxTexture2D handle)
+id<MTLTexture> getMTLTexture(GfxTexture2D* ptr)
 {
-     return (__bridge id<MTLTexture>)(gfxTexture2DPtr(handle)->mtlTexture);
+     return (__bridge id<MTLTexture>)(ptr->mtlTexture);
 }
 
-id<MTLBuffer> getActiveMTLBuffer(HGfxBuffer handle)
+id<MTLBuffer> getActiveMTLBuffer(GfxBuffer* ptr)
 {
-    GfxBuffer* buffer = gfxBufferPtr(handle);
-    return (__bridge id<MTLBuffer>)(buffer->mtlBuffers[buffer->activeIdx]);
+    return (__bridge id<MTLBuffer>)(ptr->mtlBuffers[ptr->activeSlot]);
 }
 
 MTLClearColor toMTLClearColor(rgFloat4* color)
@@ -143,19 +141,14 @@ id<MTLRenderPipelineState> toMTLRenderPipelineState(GfxGraphicsPSO* pso)
     return (__bridge id<MTLRenderPipelineState>)(pso->mtlPSO);
 }
 
-id<MTLRenderPipelineState> toMTLRenderPipelineState(HGfxGraphicsPSO handle)
-{
-    return toMTLRenderPipelineState(gfxGraphicsPSOPtr(handle));
-}
-
 id<MTLRenderCommandEncoder> mtlRenderEncoder()
 {
-    return (__bridge id<MTLRenderCommandEncoder>)mtl()->renderEncoder;
+    return (__bridge id<MTLRenderCommandEncoder>)mtl->renderEncoder;
 }
 
 id<MTLCommandBuffer> mtlCommandBuffer()
 {
-    return (__bridge id<MTLCommandBuffer>)mtl()->commandBuffer;
+    return (__bridge id<MTLCommandBuffer>)mtl->commandBuffer;
 }
 
 struct SimpleVertexFormat1
@@ -165,30 +158,31 @@ struct SimpleVertexFormat1
     simd::float4 color;
 };
 
-rgInt gfxInit()
+rgInt init()
 {
-    GfxCtx* ctx = gfxCtx();
-    rgAssert(ctx->mainWindow);
-    ctx->mtl.view = (NS::View*)SDL_Metal_CreateView(ctx->mainWindow);
-    ctx->mtl.layer = SDL_Metal_GetLayer(ctx->mtl.view);
-    ctx->mtl.device = MTL::CreateSystemDefaultDevice();
-    ctx->mtl.commandQueue = ctx->mtl.device->newCommandQueue();
+    mtl = rgNew(gfx::Mtl);
+    
+    rgAssert(gfx::mainWindow);
+    mtl->view = (NS::View*)SDL_Metal_CreateView(gfx::mainWindow);
+    mtl->layer = SDL_Metal_GetLayer(mtl->view);
+    mtl->device = MTL::CreateSystemDefaultDevice();
+    mtl->commandQueue = mtl->device->newCommandQueue();
 
-    CAMetalLayer* mtlLayer = (CAMetalLayer*)ctx->mtl.layer;
-    mtlLayer.device = (__bridge id<MTLDevice>)(ctx->mtl.device);
+    CAMetalLayer* mtlLayer = (CAMetalLayer*)mtl->layer;
+    mtlLayer.device = (__bridge id<MTLDevice>)(mtl->device);
     mtlLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     mtlLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_FLIGHT;
     mtlLayer.framebufferOnly = false;
     //
 
-    mtl()->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
+    mtl->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
 
     // TODO TODO TODO TODO
     // TODO TODO TODO TODO
     // TODO TODO TODO TODO
     // Make handle value start from 1. Default 0 should be uninitialized handle
     
-    HGfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
+    //GfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
     
     // TODO TODO TODO TODO
     // TODO TODO TODO TODO
@@ -196,9 +190,10 @@ rgInt gfxInit()
     
     for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        ctx->renderTarget[i] = gfxNewTexture2D(nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, GfxTextureUsage_RenderTarget, "renderTarget0");
+        eastl::string tag = "renderTarget" + i;
+        gfx::renderTarget[i] = createTexture2D(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, GfxTextureUsage_RenderTarget);
     }
-    ctx->depthStencilBuffer = gfxNewTexture2D(nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, GfxTextureUsage_RenderTarget, "depthStencilBuffer");
+    gfx::depthStencilBuffer = createTexture2D("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, GfxTextureUsage_DepthStencil);
     
     MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
     argDesc.index = 0;
@@ -210,42 +205,41 @@ rgInt gfxInit()
     argDesc2.index = 90001;
     argDesc2.dataType = MTLDataTypePointer;
     
-    gfxCtx()->mtl.largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[getMTLDevice() newArgumentEncoderWithArguments: @[argDesc, argDesc2]];
-    gfxCtx()->mtl.largeArrayTex2DArgBuffer = gfxNewBuffer(nullptr, mtl()->largeArrayTex2DArgEncoder->encodedLength(), GfxResourceUsage_Dynamic);
+    mtl->largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[getMTLDevice() newArgumentEncoderWithArguments: @[argDesc, argDesc2]];
+    mtl->largeArrayTex2DArgBuffer = createBuffer("largeArrayTex2DArgBuffer", nullptr, mtl->largeArrayTex2DArgEncoder->encodedLength(), GfxResourceUsage_Dynamic);
 
     return 0;
 }
 
-rgInt gfxDraw()
+rgInt draw()
 {
     // TODO: move this from here..
-    dispatch_semaphore_wait(mtl()->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
+    dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
     
     NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
     // --- Autorelease pool BEGIN
-    GfxCtx* ctx = gfxCtx();
-    CAMetalLayer* metalLayer = (CAMetalLayer*)mtl()->layer;
+    CAMetalLayer* metalLayer = (CAMetalLayer*)mtl->layer;
     id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
     
     rgAssert(metalDrawable != nullptr);
     if(metalDrawable != nullptr)
     {
-        mtl()->commandBuffer = (__bridge id<MTLCommandBuffer>)mtl()->commandQueue->commandBuffer();
+        mtl->commandBuffer = (__bridge id<MTLCommandBuffer>)mtl->commandQueue->commandBuffer();
         
         // bind all textures
         {
-            GfxBuffer* largeArrayTex2DArgBuffer = gfxBufferPtr(mtl()->largeArrayTex2DArgBuffer);
-            rgInt argBufferActiveIndex = largeArrayTex2DArgBuffer->activeIdx;
+            GfxBuffer* largeArrayTex2DArgBuffer = mtl->largeArrayTex2DArgBuffer;
+            rgInt argBufferActiveIndex = largeArrayTex2DArgBuffer->activeSlot;
             MTL::Buffer* argBuffer = largeArrayTex2DArgBuffer->mtlBuffers[argBufferActiveIndex];
             
-            mtl()->largeArrayTex2DArgEncoder->setArgumentBuffer(argBuffer, 0);
+            mtl->largeArrayTex2DArgEncoder->setArgumentBuffer(argBuffer, 0);
             
             rgSize largeArrayTex2DIndex = 0;
-            for(GfxTexture2D* tex2D : gfxCtx()->texture2dManager)
+            for(GfxTexture2D* texture2d : *gfx::bindlessManagerTexture2D)
             {
-                if(tex2D != nullptr)
+                if(texture2d != nullptr)
                 {
-                    mtl()->largeArrayTex2DArgEncoder->setTexture(tex2D->mtlTexture, largeArrayTex2DIndex);
+                    mtl->largeArrayTex2DArgEncoder->setTexture(texture2d->mtlTexture, largeArrayTex2DIndex);
                 }
                 ++largeArrayTex2DIndex;
             }
@@ -253,22 +247,22 @@ rgInt gfxDraw()
             argBuffer->didModifyRange(NS::Range(0, argBuffer->length()));
         }
         
-        gfxGetRenderCmdList()->draw();
-        gfxGetRenderCmdList()->afterDraw();
+        getRenderCmdList()->draw();
+        getRenderCmdList()->afterDraw();
 
         [mtlRenderEncoder() endEncoding];
         
         // blit renderTarget0 to MTLDrawable
         id<MTLBlitCommandEncoder> blitEncoder = [mtlCommandBuffer() blitCommandEncoder];
         
-        id<MTLTexture> srcTexture = getMTLTexture(gfxCtx()->renderTarget[g_FrameIndex]);
+        id<MTLTexture> srcTexture = getMTLTexture(gfx::renderTarget[g_FrameIndex]);
         id<MTLTexture> dstTexture = metalDrawable.texture;
         [blitEncoder copyFromTexture:srcTexture toTexture:dstTexture];
         [blitEncoder endEncoding];
         
         [mtlCommandBuffer() presentDrawable:metalDrawable];
         
-        __block dispatch_semaphore_t blockSemaphore = mtl()->framesInFlightSemaphore;
+        __block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
         [mtlCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
          {
             dispatch_semaphore_signal(blockSemaphore);
@@ -287,36 +281,36 @@ rgInt gfxDraw()
     return 0;
 }
 
-void gfxDestroy()
+void destroy()
 {
     
 }
 
-GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
+void onSizeChanged()
+{
+    
+}
+
+void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxResourceUsage usage, GfxBuffer* obj)
 {
     MTL::ResourceOptions mode = toMTLResourceOptions(usage);
     
-    GfxBuffer* bufferPtr = rgNew(GfxBuffer);
-    bufferPtr->usageMode = usage;
-    bufferPtr->size = size;
-    bufferPtr->activeIdx = 0;
-    
     if(usage == GfxResourceUsage_Static)
     {
-        rgAssert(data != NULL);
+        rgAssert(buf != NULL);
     }
     
     MTLResourceOptions options = toMTLResourceOptions(usage);
     
     for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        if(data != NULL)
+        if(buf != NULL)
         {
-            bufferPtr->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithBytes:data length:(NSUInteger)size options:options];
+            obj->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithBytes:buf length:(NSUInteger)size options:options];
         }
         else
         {
-            bufferPtr->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
+            obj->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
         }
         
         if(usage == GfxResourceUsage_Static)
@@ -324,23 +318,21 @@ GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
             break;
         }
     }
-    
-    return bufferPtr;
 }
 
-void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
+void updaterGfxBuffer(void* data, rgUInt size, rgUInt offset, GfxBuffer* buffer)
 {
     rgAssert(buffer);
     
-    if(buffer->usageMode != GfxResourceUsage_Static)
+    if(buffer->usage != GfxResourceUsage_Static)
     {
-        if(++buffer->activeIdx >= RG_MAX_FRAMES_IN_FLIGHT)
+        if(++buffer->activeSlot >= RG_MAX_FRAMES_IN_FLIGHT)
         {
-            buffer->activeIdx = 0;
+            buffer->activeSlot = 0;
         }
         
-        memcpy((rgU8*)buffer->mtlBuffers[buffer->activeIdx]->contents() + offset, data, size);
-        buffer->mtlBuffers[buffer->activeIdx]->didModifyRange(NS::Range(offset, size));
+        memcpy((rgU8*)buffer->mtlBuffers[buffer->activeSlot]->contents() + offset, data, size);
+        buffer->mtlBuffers[buffer->activeSlot]->didModifyRange(NS::Range(offset, size));
     }
     else
     {
@@ -348,19 +340,17 @@ void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
     }
 }
 
-void deleterGfxBuffer(GfxBuffer* buffer)
+void destroyerGfxBuffer(GfxBuffer* obj)
 {
     for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        buffer->mtlBuffers[i]->release();
+        obj->mtlBuffers[i]->release();
         
-        if(buffer->usageMode == GfxResourceUsage_Static)
+        if(obj->usage == GfxResourceUsage_Static)
         {
             break;
         }
     }
-    
-    rgDelete(buffer);
 }
 
 NSDictionary* macrosToNSDictionary(char const* macros)
@@ -399,10 +389,8 @@ NSDictionary* macrosToNSDictionary(char const* macros)
     return (NSDictionary*)(macroDictionary);
 }
 
-GfxGraphicsPSO* creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateDesc* renderStateDesc)
+void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
-    GfxGraphicsPSO* graphicsPSO = rgNew(GfxGraphicsPSO);
-    
     @autoreleasepool
     {
         // --- compile shader
@@ -471,7 +459,7 @@ GfxGraphicsPSO* creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateD
         // TODO TODO TODO TODO REMOVE
 
         //[getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc error:&err];
-        graphicsPSO->mtlPSO = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
+        obj->mtlPSO = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
         
         if(err)
         {
@@ -483,12 +471,7 @@ GfxGraphicsPSO* creatorGfxGraphicsPSO(GfxShaderDesc *shaderDesc, GfxRenderStateD
         [fs release];
         [vs release];
         [shaderLib release];
-
-        // copy render state info
-        graphicsPSO->renderState = *renderStateDesc;
     }
-    
-    return graphicsPSO;
 }
 
 void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
@@ -497,7 +480,7 @@ void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
     rgDelete(pso);
 }
 
-GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
+void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, GfxTexture2D* obj)
 {
     MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];
     texDesc.width = width;
@@ -518,26 +501,21 @@ GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyIm
         [mtlTexture replaceRegion:region mipmapLevel:0 withBytes:buf bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
     }
 
-    // create refobj
-    GfxTexture2D* tex2dPtr = rgNew(GfxTexture2D);
-    tex2dPtr->width = width;
-    tex2dPtr->height = height;
-    tex2dPtr->pixelFormat = format;
-    tex2dPtr->mtlTexture = (__bridge MTL::Texture*)mtlTexture;
-    name != nullptr ? strcpy(tex2dPtr->name, name) : strcpy(tex2dPtr->name, "[NoName]");
-    
-    return tex2dPtr;
+    obj->mtlTexture = (__bridge MTL::Texture*)mtlTexture;
 }
 
-void deleterGfxTexture2D(GfxTexture2D* t2d)
+void destroyerGfxTexture2D(GfxTexture2D* obj)
 {
-    t2d->mtlTexture->release();
-    rgDelete(t2d);
+    obj->mtlTexture->release();
 }
 
-void gfxHandleRenderCmd_SetViewport(void const* cmd)
+void creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget* obj)
 {
-    RenderCmd_SetViewport* setViewport = (RenderCmd_SetViewport*)cmd;
+}
+
+void handleGfxCmd_SetViewport(void const* cmd)
+{
+    GfxCmd_SetViewport* setViewport = (GfxCmd_SetViewport*)cmd;
     
     MTLViewport vp;
     vp.originX = setViewport->viewport.x;
@@ -550,9 +528,9 @@ void gfxHandleRenderCmd_SetViewport(void const* cmd)
     [mtlRenderEncoder() setViewport:vp];
 }
 
-void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
+void handleGfxCmd_SetRenderPass(void const* cmd)
 {
-    RenderCmd_SetRenderPass* setRenderPass = (RenderCmd_SetRenderPass*)cmd;
+    GfxCmd_SetRenderPass* setRenderPass = (GfxCmd_SetRenderPass*)cmd;
     GfxRenderPass* renderPass = &setRenderPass->renderPass;
     
     // create RenderCommandEncoder
@@ -560,7 +538,7 @@ void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
 
     for(rgInt c = 0; c < kMaxColorAttachments; ++c)
     {
-        if(renderPass->colorAttachments[c].texture == kUninitializedHandle)
+        if(renderPass->colorAttachments[c].texture == NULL)
         {
             continue;
         }
@@ -579,7 +557,7 @@ void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
     depthAttachmentDesc.loadAction = toMTLLoadAction(renderPass->depthStencilAttachmentLoadAction);
     depthAttachmentDesc.storeAction = toMTLStoreAction(renderPass->depthStencilAttachmentStoreAction);
 
-    mtl()->renderEncoder = [mtlCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
+    mtl->renderEncoder = [mtlCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
     
     [renderPassDesc autorelease];
     
@@ -590,58 +568,56 @@ void gfxHandleRenderCmd_SetRenderPass(void const* cmd)
     
     [mtlRenderEncoder() setDepthStencilState:dsState];
     
-    for(GfxTexture2D* tex2D : gfxCtx()->texture2dManager)
+    for(GfxTexture2D* texture2d : *gfx::bindlessManagerTexture2D)
     {
-        if(tex2D != nullptr)
+        if(texture2d != nullptr)
         {
-            [mtlRenderEncoder() useResource:(__bridge id<MTLTexture>)tex2D->mtlTexture usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];
+            [mtlRenderEncoder() useResource:(__bridge id<MTLTexture>)texture2d->mtlTexture usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];
         }
     }
     
-    [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(mtl()->largeArrayTex2DArgBuffer) offset:0 atIndex:kBindlessTextureSetBinding];
+    [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(mtl->largeArrayTex2DArgBuffer) offset:0 atIndex:kBindlessTextureSetBinding];
 }
 
-void gfxHandleRenderCmd_SetGraphicsPSO(void const* cmd)
+void handleGfxCmd_SetGraphicsPSO(void const* cmd)
 {
-    RenderCmd_SetGraphicsPSO* setGraphicsPSO = (RenderCmd_SetGraphicsPSO*)cmd;
+    GfxCmd_SetGraphicsPSO* setGraphicsPSO = (GfxCmd_SetGraphicsPSO*)cmd;
     [mtlRenderEncoder() setRenderPipelineState:toMTLRenderPipelineState(setGraphicsPSO->pso)];
 }
 
-void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
+void handleGfxCmd_DrawTexturedQuads(void const* cmd)
 {
-    RenderCmd_DrawTexturedQuads* rc = (RenderCmd_DrawTexturedQuads*)cmd;
+    GfxCmd_DrawTexturedQuads* rc = (GfxCmd_DrawTexturedQuads*)cmd;
     
     eastl::vector<SimpleVertexFormat> vertices;
     eastl::vector<SimpleInstanceParams> instanceParams;
     
     genTexturedQuadVertices(rc->quads, &vertices, &instanceParams);
     
-    if(gfxCtx()->rcTexturedQuadsVB == kUninitializedHandle)
+    if(gfx::rcTexturedQuadsVB == NULL)
     {
-        gfxCtx()->rcTexturedQuadsVB = gfxNewBuffer(nullptr, rgMEGABYTE(16), GfxResourceUsage_Stream);
+        gfx::rcTexturedQuadsVB = createBuffer("texturedQuadsVB", nullptr, rgMEGABYTE(16), GfxResourceUsage_Stream);
     }
     
-    if(gfxCtx()->rcTexturedQuadsInstParams == kUninitializedHandle)
+    if(gfx::rcTexturedQuadsInstParams == NULL)
     {
-        gfxCtx()->rcTexturedQuadsInstParams = gfxNewBuffer(nullptr, rgMEGABYTE(4), GfxResourceUsage_Stream);
+        gfx::rcTexturedQuadsInstParams = createBuffer("texturedQuadInstParams", nullptr, rgMEGABYTE(4), GfxResourceUsage_Stream);
     }
     
-    HGfxBuffer texturesQuadVB = gfxCtx()->rcTexturedQuadsVB;
-    HGfxBuffer texturedQuadInstParams = gfxCtx()->rcTexturedQuadsInstParams;
-    gfxUpdateBuffer(texturesQuadVB, &vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 0);
-    gfxUpdateBuffer(texturedQuadInstParams, &instanceParams.front(), instanceParams.size() * sizeof(SimpleInstanceParams), 0);
+    GfxBuffer* texturesQuadVB = gfx::rcTexturedQuadsVB;
+    GfxBuffer* texturedQuadInstParams = gfx::rcTexturedQuadsInstParams;
+    updateBuffer("texturedQuadsVB", &vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 0);
+    updateBuffer("texturedQuadInstParams", &instanceParams.front(), instanceParams.size() * sizeof(SimpleInstanceParams), 0);
     
     //
-    GfxCtx* ctx = gfxCtx();
-    
     struct Camera
     {
         float projection[16];
         float view[16];
     } cam;
     
-    rgFloat* orthoMatrix = toFloatPtr(ctx->orthographicMatrix);
-    rgFloat* viewMatrix = toFloatPtr(ctx->viewMatrix);
+    rgFloat* orthoMatrix = toFloatPtr(gfx::orthographicMatrix);
+    rgFloat* viewMatrix = toFloatPtr(gfx::viewMatrix);
     
     for(rgInt i = 0; i < 16; ++i)
     {
@@ -666,17 +642,17 @@ void gfxHandleRenderCmd_DrawTexturedQuads(void const* cmd)
     [mtlRenderEncoder() drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:vertices.size()/6];
 }
 
-void gfxHandleRenderCmd_DrawTriangles(void const* cmd)
+void handleGfxCmd_DrawTriangles(void const* cmd)
 {
-    RenderCmd_DrawTriangles* drawTriangles = (RenderCmd_DrawTriangles*)cmd;
+    GfxCmd_DrawTriangles* drawTriangles = (GfxCmd_DrawTriangles*)cmd;
         
-    rgAssert(drawTriangles->vertexBuffer != kUninitializedHandle);
+    rgAssert(drawTriangles->vertexBuffer != NULL);
     
     [mtlRenderEncoder() setVertexBuffer:getActiveMTLBuffer(drawTriangles->vertexBuffer)
                                  offset:drawTriangles->vertexBufferOffset
                                 atIndex:0];
     
-    if(drawTriangles->indexBuffer != kUninitializedHandle)
+    if(drawTriangles->indexBuffer != NULL)
     {
         [mtlRenderEncoder() drawIndexedPrimitives:MTLPrimitiveTypeTriangle
                                        indexCount:drawTriangles->indexCount
@@ -697,5 +673,6 @@ void gfxHandleRenderCmd_DrawTriangles(void const* cmd)
     }
 }
 
+RG_GFX_END_NAMESPACE
 RG_END_NAMESPACE
 #endif

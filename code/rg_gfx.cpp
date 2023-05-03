@@ -82,6 +82,9 @@ eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
 GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
 GfxTexture2D* depthStencilBuffer;
 
+GfxBuffer* rcTexturedQuadsVB;
+GfxBuffer* rcTexturedQuadsInstParams;
+
 Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue)
 {
     rgFloat length = 1.0f / (right - left);
@@ -124,7 +127,7 @@ rgInt initCommonStuff()
     //Matrix4 shiftZHalf = Matrix4::translation(Vector3(1.0f, -1.0f, -1000.0f / (0.1f - 1000.0f)));
     //Matrix4 scaleShiftZHalf = shiftZHalf * scaleZHalf;
     //ctx->orthographicMatrix = shiftZHalf * scaleZHalf * ctx->orthographicMatrix;
-    ctx->orthographicMatrix = makeOrthoProjection(0.0f, 720.0f, 720.0f, 0.0f, 0.1f, 1000.0f);
+    gfx::orthographicMatrix = makeOrthoProjection(0.0f, 720.0f, 720.0f, 0.0f, 0.1f, 1000.0f);
 #endif
     
     return 0;
