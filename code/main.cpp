@@ -92,6 +92,17 @@ rgInt rg::setup()
     GfxRenderTarget* mickyRT1 = gfx::findOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
     GfxRenderTarget* mickyRT2 = gfx::findRenderTarget("MickyReflectanceRT");
     //
+    GfxVertexInputDesc vertexDesc = {};
+    vertexDesc.elementsCount = 2;
+    vertexDesc.elements[0].semanticName = "POSITION";
+    vertexDesc.elements[0].semanticIndex = 0;
+    vertexDesc.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
+    vertexDesc.elements[0].slot = 0;
+    vertexDesc.elements[1].semanticName = "COLOR";
+    vertexDesc.elements[1].semanticIndex = 0;
+    vertexDesc.elements[1].format = TinyImageFormat_R32G32B32A32_SFLOAT;
+    vertexDesc.elements[1].slot = 0;
+
     GfxShaderDesc simple2dShaderDesc = {};
     simple2dShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;
     simple2dShaderDesc.vsEntryPoint = "simple2d_VS";
@@ -103,7 +114,7 @@ rgInt rg::setup()
     simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
     
-    g_GameData->simple2dPSO = gfx::createGraphicsPSO("simple_pso", &simple2dShaderDesc, &simple2dRenderStateDesc);
+    g_GameData->simple2dPSO = gfx::createGraphicsPSO("simple_pso", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
 
     //
     //GfxDescriptor desc0 = {};

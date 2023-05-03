@@ -313,7 +313,7 @@ void destroyBuffer(char const* tag)
 
 ///
 
-void allocAndFillGraphicsPSOStruct(const char* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO** obj)
+void allocAndFillGraphicsPSOStruct(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO** obj)
 {
     *obj = rgNew(GfxGraphicsPSO);
     rgAssert(tag != nullptr);
@@ -326,19 +326,19 @@ void deallocGraphicsPSOStruct(GfxGraphicsPSO* obj)
     rgDelete(obj);
 }
 
-GfxGraphicsPSO* createGraphicsPSO(const char* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
+GfxGraphicsPSO* createGraphicsPSO(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
     GfxGraphicsPSO* objPtr;
-    allocAndFillGraphicsPSOStruct(tag, shaderDesc, renderStateDesc, &objPtr);
-    creatorGfxGraphicsPSO(tag, shaderDesc, renderStateDesc, objPtr);
+    allocAndFillGraphicsPSOStruct(tag, vertexInputDesc, shaderDesc, renderStateDesc, &objPtr);
+    creatorGfxGraphicsPSO(tag, vertexInputDesc, shaderDesc, renderStateDesc, objPtr);
     gfx::registryGraphicsPSO->insert(rgCRC32(tag), objPtr);
     return objPtr;
 }
 
-GfxGraphicsPSO* findOrCreateGraphicsPSO(const char* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
+GfxGraphicsPSO* findOrCreateGraphicsPSO(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
     GfxGraphicsPSO* objPtr = gfx::registryGraphicsPSO->find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? createGraphicsPSO(tag, shaderDesc, renderStateDesc) : objPtr;
+    objPtr = (objPtr == nullptr) ? createGraphicsPSO(tag, vertexInputDesc, shaderDesc, renderStateDesc) : objPtr;
     return objPtr;
 }
 

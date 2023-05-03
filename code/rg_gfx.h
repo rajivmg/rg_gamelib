@@ -225,6 +225,19 @@ enum GfxShaderType
     GfxShaderType_Compute
 };
 
+struct GfxVertexInputDesc
+{
+    struct 
+    {
+        const char* semanticName;
+        rgUInt     semanticIndex;
+        TinyImageFormat   format;
+        rgUInt              slot;
+        rgUInt            offset;
+    } elements[8];
+    rgInt elementsCount;
+};
+
 struct GfxColorAttachementStateDesc
 {
     TinyImageFormat pixelFormat;
@@ -622,7 +635,7 @@ GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, GfxTextureUsa
 DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
 
 DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
-DeclareGfxObjectFunctions(GraphicsPSO, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
+DeclareGfxObjectFunctions(GraphicsPSO, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
 
 
 //-----------------------------------------------------------------------------

@@ -610,9 +610,9 @@ void deleterGfxTexture2D(GfxTexture2D* t2d)
 }
 
 // PSO
-void creatorGfxGraphicsPSO(char const* tag, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
+void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
-#if 0 
+#if 1 
     // empty root signature
     //{
     //    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
@@ -624,16 +624,22 @@ void creatorGfxGraphicsPSO(char const* tag, GfxShaderDesc* shaderDesc, GfxRender
     //    BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(d3d.dummyRootSignature), (void**)&(d3d.dummyRootSignature)));
     //}
 
+    // create shader
     {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-
 #if defined(_DEBUG)
         UINT shaderCompileFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
         UINT shaderCompileFlag = 0;
 #endif
+        ComPtr<ID3DBlob> vertexShader;
+        ComPtr<ID3DBlob> pixelShader;
+        ComPtr<ID3DBlob> computeShader;
 
+
+        //BreakIfFail(D3DCompileFromFile(std::mbstowcs())
+    }
+
+    {
         BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "VS_Main", "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
         BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "PS_Main", "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
 
