@@ -624,6 +624,10 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     //    BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(d3d.dummyRootSignature), (void**)&(d3d.dummyRootSignature)));
     //}
 
+    ComPtr<ID3DBlob> vertexShader;
+    ComPtr<ID3DBlob> pixelShader;
+    ComPtr<ID3DBlob> computeShader;
+
     // create shader
     {
 #if defined(_DEBUG)
@@ -631,17 +635,29 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
 #else
         UINT shaderCompileFlag = 0;
 #endif
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-        ComPtr<ID3DBlob> computeShader;
 
+        wchar_t shaderFilePath[256];
+        std::mbstowcs(shaderFilePath, shaderDesc->shaderSrcCode, 256);
+        
+        if(shaderDesc->vsEntryPoint && shaderDesc->fsEntryPoint)
+        {
+            BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->vsEntryPoint, "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
+            BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->fsEntryPoint, "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
+        }
+        else if(shaderDesc->csEntryPoint)
+        {
+            BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->csEntryPoint, "cs_5_0", shaderCompileFlag, 0, &computeShader, nullptr));
+        }
+    }
 
-        //BreakIfFail(D3DCompileFromFile(std::mbstowcs())
+    // create vertex input desc
+    {
+
     }
 
     {
-        BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "VS_Main", "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
-        BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "PS_Main", "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
+        //BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "VS_Main", "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
+        //BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "PS_Main", "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
 
         D3D12_INPUT_ELEMENT_DESC inputElementDesc[] =
         {
