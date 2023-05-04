@@ -30,6 +30,44 @@ static ComPtr<ID3D12Device> device()
     return d3d.device;
 }
 
+inline DXGI_FORMAT toDXGIFormat(TinyImageFormat fmt)
+{
+    return (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(fmt);
+}
+
+inline D3D12_COMPARISON_FUNC toD3DCompareFunc(GfxCompareFunc func)
+{
+    D3D12_COMPARISON_FUNC result = D3D12_COMPARISON_FUNC_NONE;
+    switch(func)
+    {
+    case GfxCompareFunc_Always:
+        result = D3D12_COMPARISON_FUNC_ALWAYS;
+        break;
+    case GfxCompareFunc_Never:
+        result = D3D12_COMPARISON_FUNC_NEVER;
+        break;
+    case GfxCompareFunc_Equal:
+        result = D3D12_COMPARISON_FUNC_EQUAL;
+        break;
+    case GfxCompareFunc_NotEqual:
+        result = D3D12_COMPARISON_FUNC_NOT_EQUAL;
+        break;
+    case GfxCompareFunc_Less:
+        result = D3D12_COMPARISON_FUNC_LESS;
+        break;
+    case GfxCompareFunc_LessEqual:
+        result = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        break;
+    case GfxCompareFunc_Greater:
+        result = D3D12_COMPARISON_FUNC_GREATER;
+        break;
+    case GfxCompareFunc_GreaterEqual:
+        result = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+        break;
+    }
+    return result;
+}
+
 // -----------------------------------------------
 // Helper Functions
 // -----------------------------------------------
@@ -226,22 +264,10 @@ rgInt init()
     BreakIfFail(dxgiSwapchain1.As(&d3d.dxgiSwapchain));
 
     // create swapchain RTV
-    
-    // TODO TODO TODO TODO
-    // TODO TODO TODO TODO
-    // TODO TODO TODO TODO
-    // Make handle value start from 1. Default 0 should be uninitialized handle
-
-    //HGfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
-
-    // TODO TODO TODO TODO
-    // TODO TODO TODO TODO
-    // TODO TODO TODO TODO
-
     d3d.rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RG_MAX_FRAMES_IN_FLIGHT, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-
     d3d.rtvDescriptorSize = device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(d3d.rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         ComPtr<ID3D12Resource> texResource;
@@ -260,40 +286,8 @@ rgInt init()
         gfx::renderTarget[i] = tex2d;
     }
 
-    // create depthstencil
-    //ComPtr<ID3D12Resource> dsResource;
-
-    //D3D12_CLEAR_VALUE depthStencilClearValue = {};
-    //depthStencilClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-    //depthStencilClearValue.DepthStencil = { 1.0f, 0 };
-
-    //BreakIfFail(device()->CreateCommittedResource(
-    //    &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-    //    D3D12_HEAP_FLAG_NONE,
-    //    &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, g_WindowInfo.width, g_WindowInfo.height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
-    //    D3D12_RESOURCE_STATE_DEPTH_WRITE,
-    //    &depthStencilClearValue,
-    //    IID_PPV_ARGS(&dsResource)));
-
     d3d.dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-
-    //D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
-    //dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
-    //dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    //dsDesc.Texture2D.MipSlice = 0;
-    //dsDesc.Flags = D3D12_DSV_FLAG_NONE;
-    //device()->CreateDepthStencilView(dsResource.Get(), &dsDesc, d3d.dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-    //D3D12_RESOURCE_DESC dsResdesc = dsResource->GetDesc();
     gfx::depthStencilBuffer = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureUsage_DepthStencil);
-    //GfxTexture2D* dsTex = rgNew(GfxTexture2D);
-    //strncpy(dsTex->tag, "DepthStencilTarget", 32);
-    //dsTex->width = (rgUInt)dsResdesc.Width;
-    //dsTex->height = (rgUInt)dsResdesc.Height;
-    //dsTex->usage = GfxTextureUsage_RenderTarget;
-    //dsTex->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)dsResdesc.Format);
-    //dsTex->d3dTexture = dsResource;
-    //gfxCtx()->depthStencilBuffer = gfxNewTexture2D(dsTex);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -323,6 +317,35 @@ rgInt init()
         BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(d3d.dummyRootSignature), (void**)&(d3d.dummyRootSignature)));
     }
 
+#if 1
+    GfxVertexInputDesc simpleVertexDesc = {};
+    simpleVertexDesc.elementsCount = 2;
+    simpleVertexDesc.elements[0].semanticName = "POSITION";
+    simpleVertexDesc.elements[0].semanticIndex = 0;
+    simpleVertexDesc.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
+    simpleVertexDesc.elements[0].slot = 0;
+    simpleVertexDesc.elements[0].offset = 0;
+    simpleVertexDesc.elements[1].semanticName = "COLOR";
+    simpleVertexDesc.elements[1].semanticIndex = 0;
+    simpleVertexDesc.elements[1].format = TinyImageFormat_R32G32B32A32_SFLOAT;
+    simpleVertexDesc.elements[1].slot = 0;
+    simpleVertexDesc.elements[1].offset = 12;
+
+    GfxShaderDesc simple2dShaderDesc = {};
+    simple2dShaderDesc.shaderSrcCode = "";
+    simple2dShaderDesc.vsEntryPoint = "simple2d_VS";
+    simple2dShaderDesc.fsEntryPoint = "simple2d_FS";
+    simple2dShaderDesc.macros = "RIGHT";
+
+    GfxRenderStateDesc simple2dRenderStateDesc = {};
+    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
+    simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
+    simple2dRenderStateDesc.depthWriteEnabled = true;
+    simple2dRenderStateDesc.depthCompareFunc = GfxCompareFunc_Less;
+    GfxGraphicsPSO* simplePSO = createGraphicsPSO("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    d3d.dummyPSO = simplePSO->d3dPSO;
+#else
     {
         ComPtr<ID3DBlob> vertexShader;
         ComPtr<ID3DBlob> pixelShader;
@@ -333,8 +356,8 @@ rgInt init()
         UINT shaderCompileFlag = 0;
 #endif
 
-        BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "VS_Main", "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
-        BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "PS_Main", "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
+        BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple2d.hlsl", nullptr, nullptr, "simple2d_VS", "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
+        BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple2d.hlsl", nullptr, nullptr, "simple2d_FS", "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
 
         D3D12_INPUT_ELEMENT_DESC inputElementDesc[] =
         {
@@ -361,7 +384,7 @@ rgInt init()
         psoDesc.SampleDesc.Count = 1;
         BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, __uuidof(d3d.dummyPSO), (void**)&(d3d.dummyPSO)));
     }
-    
+#endif 
     //d3d.commandAllocator = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
     //d3d.commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d.commandAllocator, d3d.dummyPSO.Get());
 
@@ -498,19 +521,20 @@ void updaterGfxBuffer(void* data, rgUInt size, rgUInt offset, GfxBuffer* buffer)
 
 }
 
-void deleterGfxBuffer(GfxBuffer* buffer)
+void destroyerGfxBuffer(GfxBuffer* obj)
 {
 
 }
 
+// RenderTarget
 void creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget* obj)
 {
 
 }
 
-void deleterGfxRenderTarget(GfxRenderTarget* ptr)
+void destroyerGfxRenderTarget(GfxRenderTarget* obj)
 {
-    rgDelete(ptr);
+
 }
 
 // Texture
@@ -604,7 +628,7 @@ void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height
     //gfxCtx()->depthStencilBuffer = gfxNewTexture2D(dsTex);
 }
 
-void deleterGfxTexture2D(GfxTexture2D* t2d)
+void destroyerGfxTexture2D(GfxTexture2D* obj)
 {
 
 }
@@ -612,17 +636,17 @@ void deleterGfxTexture2D(GfxTexture2D* t2d)
 // PSO
 void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
-#if 1 
     // empty root signature
-    //{
-    //    CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
-    //    rootSigDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    ComPtr<ID3D12RootSignature> emptyRootSig;
+    {
+        CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
+        rootSigDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-    //    ComPtr<ID3DBlob> signature;
-    //    ComPtr<ID3DBlob> error;
-    //    BreakIfFail(D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-    //    BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(d3d.dummyRootSignature), (void**)&(d3d.dummyRootSignature)));
-    //}
+        ComPtr<ID3DBlob> signature;
+        ComPtr<ID3DBlob> error;
+        BreakIfFail(D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+        BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(emptyRootSig), (void**)&(emptyRootSig)));
+    }
 
     ComPtr<ID3DBlob> vertexShader;
     ComPtr<ID3DBlob> pixelShader;
@@ -637,55 +661,90 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
 #endif
 
         wchar_t shaderFilePath[256];
-        std::mbstowcs(shaderFilePath, shaderDesc->shaderSrcCode, 256);
+        //std::mbstowcs(shaderFilePath, shaderDesc->shaderSrcCode, 256);
+        std::mbstowcs(shaderFilePath, "shaders/dx12/simple2d.hlsl", 256);
         
         if(shaderDesc->vsEntryPoint && shaderDesc->fsEntryPoint)
         {
             BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->vsEntryPoint, "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
             BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->fsEntryPoint, "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
         }
-        else if(shaderDesc->csEntryPoint)
+        else if(shaderDesc->csEntryPoint) // TODO: This is not a part of Graphics PSO
         {
             BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->csEntryPoint, "cs_5_0", shaderCompileFlag, 0, &computeShader, nullptr));
         }
     }
 
     // create vertex input desc
+    eastl::vector<D3D12_INPUT_ELEMENT_DESC> inputElementDesc;
+    inputElementDesc.reserve(vertexInputDesc->elementsCount);
     {
-
+        for(rgInt i = 0; i < vertexInputDesc->elementsCount; ++i)
+        {
+            D3D12_INPUT_ELEMENT_DESC e = {};
+            e.SemanticName = vertexInputDesc->elements[i].semanticName;
+            e.SemanticIndex = vertexInputDesc->elements[i].semanticIndex;
+            e.Format = toDXGIFormat(vertexInputDesc->elements[i].format);
+            e.InputSlot = vertexInputDesc->elements[i].slot;
+            e.AlignedByteOffset = vertexInputDesc->elements[i].offset;
+            e.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+            e.InstanceDataStepRate = 0;
+            inputElementDesc.push_back(e);
+        }
     }
 
+    // create pso
+    ComPtr<ID3D12PipelineState> pso;
     {
-        //BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "VS_Main", "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
-        //BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple.hlsl", nullptr, nullptr, "PS_Main", "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
+        D3D12_FILL_MODE fillMode = renderStateDesc->triangleFillMode == GfxTriangleFillMode_Fill ? D3D12_FILL_MODE_SOLID : D3D12_FILL_MODE_WIREFRAME;
+        D3D12_CULL_MODE cullMode = renderStateDesc->cullMode == GfxCullMode_None ? D3D12_CULL_MODE_NONE : (renderStateDesc->cullMode == GfxCullMode_Back ? D3D12_CULL_MODE_BACK : D3D12_CULL_MODE_FRONT);
+        BOOL frontCounterClockwise = renderStateDesc->winding == GfxWinding_CCW ? TRUE : FALSE;
 
-        D3D12_INPUT_ELEMENT_DESC inputElementDesc[] =
-        {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-        };
+        CD3DX12_RASTERIZER_DESC rasterDesc(D3D12_DEFAULT);
+        rasterDesc.FillMode = fillMode;
+        rasterDesc.CullMode = cullMode;
+        rasterDesc.FrontCounterClockwise = frontCounterClockwise;
+
+        BOOL depthTestEnabled = renderStateDesc->depthStencilAttachmentFormat != TinyImageFormat_UNDEFINED ? TRUE : FALSE;
+        D3D12_DEPTH_WRITE_MASK depthWriteMask = renderStateDesc->depthWriteEnabled ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+        D3D12_COMPARISON_FUNC depthComparisonFunc = toD3DCompareFunc(renderStateDesc->depthCompareFunc);
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        psoDesc.InputLayout = { inputElementDesc, rgARRAY_COUNT(inputElementDesc) };
-        psoDesc.pRootSignature = d3d.dummyRootSignature.Get();
+        psoDesc.InputLayout = { &inputElementDesc.front(), (rgUInt)inputElementDesc.size() };
+        psoDesc.pRootSignature = emptyRootSig.Get();
         psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
         psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
-        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        psoDesc.DepthStencilState.DepthEnable = FALSE;
+        psoDesc.RasterizerState = rasterDesc;
+        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // TODO: Blendstate
+        psoDesc.DepthStencilState.DepthEnable = depthTestEnabled;
+        psoDesc.DepthStencilState.DepthWriteMask = depthWriteMask;
+        psoDesc.DepthStencilState.DepthFunc = depthComparisonFunc;
         psoDesc.DepthStencilState.StencilEnable = FALSE;
         psoDesc.SampleMask = UINT_MAX;
         psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
-        //psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleDesc.Count = 1;
-        BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, __uuidof(d3d.dummyPSO), (void**)&(d3d.dummyPSO)));
+        psoDesc.DSVFormat = toDXGIFormat(renderStateDesc->depthStencilAttachmentFormat);
+        psoDesc.NumRenderTargets = 0;
+        for(rgInt i = 0; i < rgARRAY_COUNT(GfxRenderStateDesc::colorAttachments); ++i)
+        {
+            if(renderStateDesc->colorAttachments[i].pixelFormat != TinyImageFormat_UNDEFINED)
+            {
+                psoDesc.RTVFormats[i] = toDXGIFormat(renderStateDesc->colorAttachments[i].pixelFormat);
+                ++psoDesc.NumRenderTargets;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
     }
-#endif
+
+    obj->d3dPSO = pso;
 }
 
-void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
+void destroyerGfxGraphicsPSO(GfxGraphicsPSO* obj)
 {
 
 }
