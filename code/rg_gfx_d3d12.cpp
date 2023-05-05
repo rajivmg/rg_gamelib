@@ -511,7 +511,7 @@ void onSizeChanged()
 // -----------------------------------------------
 
 // Buffer
-void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxResourceUsage usage, GfxBuffer* obj)
+void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
 {
 
 }

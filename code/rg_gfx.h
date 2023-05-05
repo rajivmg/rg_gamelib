@@ -79,18 +79,18 @@ enum GfxMemoryType
 };
 
 // TODO: remove this
-enum GfxResourceUsage
-{
-    GfxResourceUsage_Static,    // Immutable, once created content cannot be modified
-    GfxResourceUsage_Dynamic,   // Content will be updated infrequently
-    GfxResourceUsage_Stream,    // Content will be updated every frame
-};
+//enum GfxResourceUsage
+//{
+//    GfxResourceUsage_Static,    // Immutable, once created content cannot be modified
+//    GfxResourceUsage_Dynamic,   // Content will be updated infrequently
+//    GfxResourceUsage_Stream,    // Content will be updated every frame
+//};
 
 struct GfxBuffer
 {
     rgChar tag[32];
     rgU32     size;
-    GfxResourceUsage usage;
+    GfxBufferUsage usage;
     rgInt activeSlot;
 #if defined(RG_D3D12_RNDR)
 #elif defined(RG_METAL_RNDR)
@@ -638,7 +638,7 @@ void            gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
 
 void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
 void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
-DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxResourceUsage usage);
+DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxBufferUsage usage);
 void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
 
 GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, GfxTextureUsage usage);

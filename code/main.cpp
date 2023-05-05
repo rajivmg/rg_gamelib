@@ -56,7 +56,7 @@ rgInt rg::setup()
 {
     g_GameData = rgNew(GameData);
 
-    GfxBuffer* b = gfx::findOrCreateBuffer("dummyBuffer", nullptr, 100, GfxResourceUsage_Dynamic);
+    GfxBuffer* b = gfx::findOrCreateBuffer("dummyBuffer", nullptr, 100, GfxBufferUsage_ConstantBuffer);
 
     GfxTexture2D* t2dptr = gfx::createTexture2D("tiny.tga", loadTexture("tiny.tga"), GfxTextureUsage_ShaderRead);
     
