@@ -75,6 +75,30 @@ rgInt rg::setup()
     //gfxDestroyBuffer("ocean_tile");
 
     /*
+    GfxBuffer* buffer;
+    GfxTexture2D* texture;
+    gfx::setVertexBuffer(buffer, 3);
+    gfx::setVertexTexture(texture, 3);
+    gfx::setFragmentBuffer(buffer, 3);
+    gfx::setFragmentTexture(texture, 3);
+    gfx::setComputeBuffer(buffer, 3);
+    gfx::setComputeTexture(texture, 3);
+    gfx::setComputeRWTexture(texture, 3);
+
+    // Layout
+    // Stage    CBV     SRV     UAV     Breakdown
+    // VS       8       8       4       PerFrame-3cbv 3srv 1uav | PerPass-3cbv 3srv 3uav | PerDraw-2cbv 2srv 0uav
+    // PS       8       16      4       PerFrame-3cbv 6srv 1uav | PerPass-3cbv 4srv 3uav | PerDraw-2cbv 6srv 0uav
+    // CS       8       16      16      PerFrame-3cbv 6srv 1uav | PerPass-3cbv 4srv 3uav | PerDraw-2cbv 6srv 0uav
+
+
+    gfx::setReadonlyBuffer(GfxStage_VS, buffer, 3, GfxUpdateFreq_PerFrame);
+    gfx::
+
+
+    */
+
+    /*
     GfxRenderTarget* mickyRT = gfxFindOrCreate<GfxRenderTarget>("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
     GfxRenderTarget* mickyRT = gfxFind<GfxRenderTarget>("MickyReflectanceRT");
     GfxRenderTarget* mickyRT = gfxFindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);

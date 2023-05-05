@@ -218,11 +218,18 @@ enum GfxTriangleFillMode
     GfxTriangleFillMode_Wireframe,
 };
 
-enum GfxShaderType
+//enum GfxShaderType
+//{
+//    GfxShaderType_Vertex,
+//    GfxShaderType_Fragment,
+//    GfxShaderType_Compute
+//};
+
+enum GfxStage
 {
-    GfxShaderType_Vertex,
-    GfxShaderType_Fragment,
-    GfxShaderType_Compute
+    GfxStage_VS,
+    GfxStage_PS,
+    GfxStage_CS,
 };
 
 struct GfxVertexInputDesc
