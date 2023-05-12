@@ -458,7 +458,7 @@ struct QuadUV
     rgFloat uvTopLeft[2];
     rgFloat uvBottomRight[2];
 };
-
+ 
 extern QuadUV defaultQuadUV;
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);

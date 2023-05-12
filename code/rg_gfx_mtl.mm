@@ -17,6 +17,7 @@ RG_BEGIN_NAMESPACE
 RG_GFX_BEGIN_NAMESPACE
 
 #include "shaders/metal/imm_shader.inl"
+#include "shaders/metal/histogram_shader.inl"
 
 gfx::Mtl* mtl = nullptr;
 
@@ -158,6 +159,43 @@ struct SimpleVertexFormat1
     simd::float4 color;
 };
 
+id<MTLComputePipelineState> histogramComputePipeline;
+///GfxTexture2D* histogramTestTexture;
+
+void testComputeAtomicsSetup()
+{
+    MTLCompileOptions* compileOptions = [[MTLCompileOptions alloc] init];
+    
+    NSError* err;
+    id<MTLLibrary> histogramLibrary = [getMTLDevice() newLibraryWithSource:[NSString stringWithUTF8String:g_HistogramShaderSrcCode] options:compileOptions error:&err];
+    if(err)
+    {
+        printf("%s\n", [[err localizedDescription]UTF8String]);
+        rgAssert(!"newLibrary error");
+    }
+    [compileOptions release];
+    
+    id<MTLFunction> computeHistogram = [histogramLibrary newFunctionWithName:@"computeHistogram_CS"];
+    
+    histogramComputePipeline = [getMTLDevice() newComputePipelineStateWithFunction:computeHistogram error:&err];
+    
+    [histogramLibrary release];
+    
+    gfx::createTexture2D("histogramTest", rg::loadTexture("histogram_test.png"), GfxTextureUsage_ShaderRead);
+    gfx::createBuffer("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxResourceUsage_Dynamic);
+}
+
+void testComputeAtomicsRun()
+{
+    id<MTLComputeCommandEncoder> computeEncoder = [mtlCommandBuffer() computeCommandEncoder];
+    [computeEncoder setComputePipelineState:histogramComputePipeline];
+    [computeEncoder setTexture:getMTLTexture(gfx::findTexture2D("histogramTest")) atIndex:0];
+    [computeEncoder setBuffer:getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:0];
+    [computeEncoder setBuffer:getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:1];
+    [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
+    [computeEncoder endEncoding];
+}
+
 rgInt init()
 {
     mtl = rgNew(gfx::Mtl);
@@ -208,6 +246,7 @@ rgInt init()
     mtl->largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[getMTLDevice() newArgumentEncoderWithArguments: @[argDesc, argDesc2]];
     mtl->largeArrayTex2DArgBuffer = createBuffer("largeArrayTex2DArgBuffer", nullptr, mtl->largeArrayTex2DArgEncoder->encodedLength(), GfxResourceUsage_Dynamic);
 
+    testComputeAtomicsSetup();
     return 0;
 }
 
@@ -246,6 +285,8 @@ rgInt draw()
             
             argBuffer->didModifyRange(NS::Range(0, argBuffer->length()));
         }
+        
+        testComputeAtomicsRun();
         
         getRenderCmdList()->draw();
         getRenderCmdList()->afterDraw();
