@@ -78,20 +78,13 @@ enum GfxMemoryType
     //GfxMemoryUsage_CPUReadWrite = (GfxMemoryUsage_CPURead | GfxMemoryUsage_CPUWrite),
 };
 
-// TODO: remove this
-//enum GfxResourceUsage
-//{
-//    GfxResourceUsage_Static,    // Immutable, once created content cannot be modified
-//    GfxResourceUsage_Dynamic,   // Content will be updated infrequently
-//    GfxResourceUsage_Stream,    // Content will be updated every frame
-//};
-
 struct GfxBuffer
 {
-    rgChar tag[32];
-    rgU32     size;
+    rgChar       tag[32];
+    rgU32           size;
     GfxBufferUsage usage;
-    rgInt activeSlot;
+    rgBool       dynamic;
+    rgInt     activeSlot;
 #if defined(RG_D3D12_RNDR)
 #elif defined(RG_METAL_RNDR)
     MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_FLIGHT];
@@ -116,12 +109,12 @@ enum GfxTextureUsage
 
 struct GfxTexture2D
 {
-    rgChar tag[32];
-    rgUInt width;
-    rgUInt height;
-    TinyImageFormat format;
-    GfxTextureUsage usage;
-    rgU32 texID;
+    rgChar          tag[32];
+    rgUInt            width;
+    rgUInt           height;
+    TinyImageFormat  format;
+    GfxTextureUsage   usage;
+    rgU32             texID;
 
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource> d3dTexture;
@@ -140,9 +133,9 @@ struct GfxTexture2D
 // ------------------
 struct GfxRenderTarget // TODO: remove this
 {
-    rgChar tag[32]; // myrendermyrendr
-    rgU32 width;
-    rgU32 height;
+    rgChar         tag[32]; // myrendermyrendr
+    rgU32            width;
+    rgU32           height;
     TinyImageFormat format;
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource> d3dRT;
@@ -167,7 +160,7 @@ enum GfxStoreAction
 
 struct GfxColorAttachmentDesc
 {
-    GfxTexture2D* texture;
+    GfxTexture2D*      texture;
     GfxLoadAction   loadAction;
     GfxStoreAction storeAction;
     rgFloat4        clearColor;
@@ -217,13 +210,6 @@ enum GfxTriangleFillMode
     GfxTriangleFillMode_Fill,
     GfxTriangleFillMode_Wireframe,
 };
-
-//enum GfxShaderType
-//{
-//    GfxShaderType_Vertex,
-//    GfxShaderType_Fragment,
-//    GfxShaderType_Compute
-//};
 
 enum GfxStage
 {
@@ -645,7 +631,7 @@ void            gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
 
 void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
 void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
-DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxBufferUsage usage);
+DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic);
 void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
 
 GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, GfxTextureUsage usage);

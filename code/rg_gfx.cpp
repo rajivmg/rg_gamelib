@@ -263,13 +263,14 @@ void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset)
     updateBuffer(rgCRC32(tag), buf, size, offset);
 }
 
-void allocAndFillBufferStruct(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer** obj)
+void allocAndFillBufferStruct(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer** obj)
 {
     *obj = rgNew(GfxBuffer);
     rgAssert(tag != nullptr);
     strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxBuffer::tag));
     (*obj)->size = size;
     (*obj)->usage = usage;
+    (*obj)->dynamic = dynamic;
     (*obj)->activeSlot = 0;
 }
 
@@ -278,19 +279,19 @@ void deallocBufferStruct(GfxBuffer* obj)
     rgDelete(obj);
 }
 
-GfxBuffer* createBuffer(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage)
+GfxBuffer* createBuffer(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic)
 {
     GfxBuffer* objPtr;
-    allocAndFillBufferStruct(tag, buf, size, usage, &objPtr);
-    creatorGfxBuffer(tag, buf, size, usage, objPtr);
+    allocAndFillBufferStruct(tag, buf, size, usage, dynamic, &objPtr);
+    creatorGfxBuffer(tag, buf, size, usage, dynamic, objPtr);
     gfx::registryBuffer->insert(rgCRC32(tag), objPtr);
     return objPtr;
 }
 
-GfxBuffer* findOrCreateBuffer(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage)
+GfxBuffer* findOrCreateBuffer(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic)
 {
     GfxBuffer* objPtr = gfx::registryBuffer->find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? createBuffer(tag, buf, size, usage) : objPtr;
+    objPtr = (objPtr == nullptr) ? createBuffer(tag, buf, size, usage, dynamic) : objPtr;
     return objPtr;
 }
 

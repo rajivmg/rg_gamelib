@@ -29,18 +29,28 @@ static id<MTLDevice> getMTLDevice()
     return (__bridge id<MTLDevice>)(mtl->device);
 }
 
-MTLResourceOptions toMTLResourceOptions(GfxResourceUsage usage)
+MTLResourceOptions toMTLResourceOptions(GfxBufferUsage usage, rgBool dynamic)
 {
+    MTLResourceOptions options = MTLResourceStorageModeManaged;
+    if(dynamic)
+    {
+        options |= MTLResourceCPUCacheModeWriteCombined;
+    }
+    return options;
+
+    /*
     // TODO: recheck the values
     switch(usage)
     {
-        case GfxResourceUsage_Static:
+        case GfxBufferUsage_VertexBuffer:
+        case GfxBufferUsage_IndexBuffer:
+        case GfxBufferUsage_StructuredBuffer:
         {
             return MTLResourceStorageModeManaged;
         } break;
             
-        case GfxResourceUsage_Dynamic:
-        case GfxResourceUsage_Stream:
+        case GfxBufferUsage_ShaderRW:
+        case GfxBufferUsage_ConstantBuffer:
         {
             return MTLResourceCPUCacheModeWriteCombined | MTLResourceStorageModeManaged;
         } break;
@@ -48,6 +58,7 @@ MTLResourceOptions toMTLResourceOptions(GfxResourceUsage usage)
         default:
             rgAssert(!"Invalid resource usage option");
     }
+     */
 }
 
 MTLTextureUsage toMTLTextureUsage(GfxTextureUsage usage)
@@ -179,10 +190,11 @@ void testComputeAtomicsSetup()
     
     histogramComputePipeline = [getMTLDevice() newComputePipelineStateWithFunction:computeHistogram error:&err];
     
+    [computeHistogram release];
     [histogramLibrary release];
     
     gfx::createTexture2D("histogramTest", rg::loadTexture("histogram_test.png"), GfxTextureUsage_ShaderRead);
-    gfx::createBuffer("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxResourceUsage_Dynamic);
+    gfx::createBuffer("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW, false);
 }
 
 void testComputeAtomicsRun()
@@ -244,7 +256,7 @@ rgInt init()
     argDesc2.dataType = MTLDataTypePointer;
     
     mtl->largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[getMTLDevice() newArgumentEncoderWithArguments: @[argDesc, argDesc2]];
-    mtl->largeArrayTex2DArgBuffer = createBuffer("largeArrayTex2DArgBuffer", nullptr, mtl->largeArrayTex2DArgEncoder->encodedLength(), GfxResourceUsage_Dynamic);
+    mtl->largeArrayTex2DArgBuffer = createBuffer("largeArrayTex2DArgBuffer", nullptr, mtl->largeArrayTex2DArgEncoder->encodedLength(), GfxBufferUsage_ConstantBuffer, true);
 
     testComputeAtomicsSetup();
     return 0;
@@ -332,16 +344,14 @@ void onSizeChanged()
     
 }
 
-void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxResourceUsage usage, GfxBuffer* obj)
+void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
 {
-    MTL::ResourceOptions mode = toMTLResourceOptions(usage);
-    
-    if(usage == GfxResourceUsage_Static)
+    if(dynamic == false && usage != GfxBufferUsage_ShaderRW)
     {
         rgAssert(buf != NULL);
     }
     
-    MTLResourceOptions options = toMTLResourceOptions(usage);
+    MTLResourceOptions options = toMTLResourceOptions(usage, dynamic);
     
     for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
@@ -354,7 +364,7 @@ void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxResourceUsage u
             obj->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
         }
         
-        if(usage == GfxResourceUsage_Static)
+        if(dynamic == false)
         {
             break;
         }
@@ -365,7 +375,7 @@ void updaterGfxBuffer(void* data, rgUInt size, rgUInt offset, GfxBuffer* buffer)
 {
     rgAssert(buffer);
     
-    if(buffer->usage != GfxResourceUsage_Static)
+    if(buffer->dynamic == true)
     {
         if(++buffer->activeSlot >= RG_MAX_FRAMES_IN_FLIGHT)
         {
@@ -387,7 +397,7 @@ void destroyerGfxBuffer(GfxBuffer* obj)
     {
         obj->mtlBuffers[i]->release();
         
-        if(obj->usage == GfxResourceUsage_Static)
+        if(obj->dynamic == false)
         {
             break;
         }
@@ -637,12 +647,12 @@ void handleGfxCmd_DrawTexturedQuads(void const* cmd)
     
     if(gfx::rcTexturedQuadsVB == NULL)
     {
-        gfx::rcTexturedQuadsVB = createBuffer("texturedQuadsVB", nullptr, rgMEGABYTE(16), GfxResourceUsage_Stream);
+        gfx::rcTexturedQuadsVB = createBuffer("texturedQuadsVB", nullptr, rgMEGABYTE(16), GfxBufferUsage_VertexBuffer, true);
     }
     
     if(gfx::rcTexturedQuadsInstParams == NULL)
     {
-        gfx::rcTexturedQuadsInstParams = createBuffer("texturedQuadInstParams", nullptr, rgMEGABYTE(4), GfxResourceUsage_Stream);
+        gfx::rcTexturedQuadsInstParams = createBuffer("texturedQuadInstParams", nullptr, rgMEGABYTE(4), GfxBufferUsage_StructuredBuffer, true);
     }
     
     GfxBuffer* texturesQuadVB = gfx::rcTexturedQuadsVB;
