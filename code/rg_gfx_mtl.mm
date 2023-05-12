@@ -193,7 +193,7 @@ void testComputeAtomicsSetup()
     [computeHistogram release];
     [histogramLibrary release];
     
-    gfx::createTexture2D("histogramTest", rg::loadTexture("histogram_test.png"), GfxTextureUsage_ShaderRead);
+    gfx::createTexture2D("histogramTest", rg::loadTexture("histogram_test.png"), false, GfxTextureUsage_ShaderRead);
     gfx::createBuffer("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW, false);
 }
 
@@ -241,9 +241,9 @@ rgInt init()
     for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         eastl::string tag = "renderTarget" + i;
-        gfx::renderTarget[i] = createTexture2D(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, GfxTextureUsage_RenderTarget);
+        gfx::renderTarget[i] = createTexture2D(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, false, GfxTextureUsage_RenderTarget);
     }
-    gfx::depthStencilBuffer = createTexture2D("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, GfxTextureUsage_DepthStencil);
+    gfx::depthStencilBuffer = createTexture2D("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, false, GfxTextureUsage_DepthStencil);
     
     MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
     argDesc.index = 0;
@@ -531,7 +531,7 @@ void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
     rgDelete(pso);
 }
 
-void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, GfxTexture2D* obj)
+void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
 {
     MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];
     texDesc.width = width;

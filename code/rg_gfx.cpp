@@ -192,7 +192,7 @@ void destroyRenderTarget(char const* tag)
 
 ///
 
-void allocAndFillTexture2DStruct(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, GfxTexture2D** obj)
+void allocAndFillTexture2DStruct(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D** obj)
 {
     *obj = rgNew(GfxTexture2D);
     rgAssert(tag != nullptr);
@@ -200,6 +200,7 @@ void allocAndFillTexture2DStruct(const char* tag, void* buf, rgUInt width, rgUIn
     (*obj)->width = width;
     (*obj)->height = height;
     (*obj)->format = format;
+    (*obj)->mipCount = genMips ? 8 : 1;
     (*obj)->usage = usage;
 }
 
@@ -208,24 +209,24 @@ void deallocTexture2DStruct(GfxTexture2D* obj)
     rgDelete(obj);
 }
 
-GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, GfxTextureUsage usage)
+GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage)
 {
-    return createTexture2D(tag, texture->buf, texture->width, texture->height, texture->format, usage);
+    return createTexture2D(tag, texture->buf, texture->width, texture->height, texture->format, genMips, usage);
 }
 
-GfxTexture2D* createTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
+GfxTexture2D* createTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage)
 {
     GfxTexture2D* objPtr;
-    allocAndFillTexture2DStruct(tag, buf, width, height, format, usage, &objPtr);
-    creatorGfxTexture2D(tag, buf, width, height, format, usage, objPtr);
+    allocAndFillTexture2DStruct(tag, buf, width, height, format, genMips, usage, &objPtr);
+    creatorGfxTexture2D(tag, buf, width, height, format, genMips, usage, objPtr);
     gfx::registryTexture2D->insert(rgCRC32(tag), objPtr);
     return objPtr;
 }
 
-GfxTexture2D* findOrCreateTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
+GfxTexture2D* findOrCreateTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage)
 {
     GfxTexture2D* objPtr = gfx::registryTexture2D->find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? createTexture2D(tag, buf, width, height, format, usage) : objPtr;
+    objPtr = (objPtr == nullptr) ? createTexture2D(tag, buf, width, height, format, genMips, usage) : objPtr;
     return objPtr;
 }
 

@@ -113,6 +113,7 @@ struct GfxTexture2D
     rgUInt            width;
     rgUInt           height;
     TinyImageFormat  format;
+    rgUInt         mipCount;
     GfxTextureUsage   usage;
     rgU32             texID;
 
@@ -634,8 +635,8 @@ void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
 DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic);
 void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
 
-GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, GfxTextureUsage usage);
-DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
+GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage);
+DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage);
 
 DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
 DeclareGfxObjectFunctions(GraphicsPSO, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
