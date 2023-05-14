@@ -287,7 +287,7 @@ rgInt init()
     }
 
     d3d.dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    gfx::depthStencilBuffer = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureUsage_DepthStencil);
+    gfx::depthStencilBuffer = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, false, GfxTextureUsage_DepthStencil);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -511,7 +511,7 @@ void onSizeChanged()
 // -----------------------------------------------
 
 // Buffer
-void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
+void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
 {
 
 }
@@ -538,7 +538,7 @@ void destroyerGfxRenderTarget(GfxRenderTarget* obj)
 }
 
 // Texture
-void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, GfxTexture2D* obj)
+void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
 {
     ComPtr<ID3D12Resource> textureResouce;
 
