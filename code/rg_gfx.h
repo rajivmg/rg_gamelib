@@ -107,6 +107,14 @@ enum GfxTextureUsage
     GfxTextureUsage_CopySrc = (1 << 4),
 };
 
+enum GfxTextureDim
+{
+    GfxTextureDim_2D,
+    GfxTextureDim_1D,
+    GfxTextureDim_3D,
+    GfxTextureDim_Buffer,
+};
+
 struct GfxTexture2D
 {
     rgChar          tag[32];
@@ -584,9 +592,20 @@ END_GFXCMD_STRUCT();
 
 struct GfxRenderCmdList
 {
-    rgByte* cmdbuffer;
-
+    void setViewport(rgFloat4 viewport);
+    void setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height);
+    void setGraphicsPSO(GfxGraphicsPSO* pso);
+    void drawTexturedQuads(TexturedQuads* quads);
 };
+
+struct GfxBlitCmdList
+{
+    void genMips(GfxTexture2D* obj);
+};
+
+GfxRenderCmdList* beginRenderPass();
+void endRenderPass();
+GfxRenderCmdList* getActiveRenderCmdList();
 
 //-----------------------------------------------------------------------------
 // STUFF BELOW OPERATE ON THE CONTENT OF GFX'CTX' DATA, IF IT DOESN'T REQUIRE
