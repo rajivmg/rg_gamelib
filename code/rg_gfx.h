@@ -581,6 +581,13 @@ END_GFXCMD_STRUCT();
 #undef BEGIN_GFXCMD_STRUCT
 #undef END_GFXCMD_STRUCT
 
+
+struct GfxRenderCmdList
+{
+    rgByte* cmdbuffer;
+
+};
+
 //-----------------------------------------------------------------------------
 // STUFF BELOW OPERATE ON THE CONTENT OF GFX'CTX' DATA, IF IT DOESN'T REQUIRE
 // ACCESS TO GFXCTX CONTENTS, DO NOT PUT IT BELOW THIS LINE.

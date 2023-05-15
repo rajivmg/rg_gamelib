@@ -99,6 +99,18 @@ rgInt rg::setup()
     */
 
     /*
+        gfx::setRenderPass();
+        gfx::genMips(GfxTexture* obj);
+        gfx::texturedQuad();
+
+        ///GfxRenderCmdList* cmdlist = gfx::getRenderCmdList("");
+        GfxRenderCmdList* cmdlist = gfx::setRenderPass();
+        cmdlist->setPipeline();
+        cmdList->setViewport();
+        cmdList->drawTexturedQuads();
+        cmdlist->endList();
+
+    /*
     GfxRenderTarget* mickyRT = gfxFindOrCreate<GfxRenderTarget>("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
     GfxRenderTarget* mickyRT = gfxFind<GfxRenderTarget>("MickyReflectanceRT");
     GfxRenderTarget* mickyRT = gfxFindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);

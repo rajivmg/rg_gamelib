@@ -60,6 +60,7 @@ typedef double      rgDouble;
 typedef bool        rgBool;
 
 typedef char        rgChar;
+typedef uint8_t     rgByte;
 
 typedef uint32_t    rgHash;
 //
