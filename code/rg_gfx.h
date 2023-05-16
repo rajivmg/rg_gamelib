@@ -611,7 +611,6 @@ struct GfxBlitCmdList
     void genMips(GfxTexture2D* obj);
 };
 
-GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag);
 
 //-----------------------------------------------------------------------------
 // STUFF BELOW OPERATE ON THE CONTENT OF GFX'CTX' DATA, IF IT DOESN'T REQUIRE
@@ -644,8 +643,11 @@ rgInt           preInit();
 rgInt           init();
 void            destroy();
 rgInt           draw();
+void            startNextFrame();
+
 void            onSizeChanged();
-void            gfxUpdateCurrentBackBufferIndex(); // TODO: Implement
+
+GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag);
 
 // Helper macros
 // ---------------

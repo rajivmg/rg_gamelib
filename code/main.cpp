@@ -109,21 +109,6 @@ rgInt rg::setup()
         cmdList->setViewport();
         cmdList->drawTexturedQuads();
         cmdlist->endList();
-
-    /*
-    GfxRenderTarget* mickyRT = gfxFindOrCreate<GfxRenderTarget>("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
-    GfxRenderTarget* mickyRT = gfxFind<GfxRenderTarget>("MickyReflectanceRT");
-    GfxRenderTarget* mickyRT = gfxFindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
-    GfxRenderTarget* mickyRT = gfxFindRenderTarget("MickyReflectanceRT");
-    GfxRenderTarget* mickyRT = gfxCtx()->FindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
-    GfxRenderTarget* mickyRT = gfxFindOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
-    
-    GfxRenderTarget* mickyRT = gfx::findOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
-    GfxRenderTarget* mickyRT = gfx::findRenderTarget("MickyReflectanceRT");
-
-    GfxRenderTarget* mickyRT = gfxNewRenderTarget("MickeyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
-    GfxRenderTarget* mickyRT = gfxRenderTarget("MickeyReflectanceRT");
-    GfxRenderTarget* mickyRT = gfxCtx()->renderTargetManager.find("MickyReflectanceRT");
     */
     GfxRenderTarget* mickyRT1 = gfx::findOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
     GfxRenderTarget* mickyRT2 = gfx::findRenderTarget("MickyReflectanceRT");
@@ -231,12 +216,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
     // - - RenderCmdPolygon
     // - RenderCmdSetPipeline
     // - - RenderCmdPolygon
-    
-    //gfxTexturedQuad();
-    RenderCmdList* cmdList = gfx::getRenderCmdList();
-    {
-        GfxCmd_SetRenderPass* rcRenderPass = cmdList->addCmd<GfxCmd_SetRenderPass>(rgRenderKey(false), 0);
-        
+
+    {        
         GfxRenderPass simple2dPass = {};
         simple2dPass.colorAttachments[0].texture = gfx::renderTarget[g_FrameIndex];
         simple2dPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
@@ -247,13 +228,11 @@ rgInt rg::updateAndDraw(rgDouble dt)
         simple2dPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         simple2dPass.clearDepth = 0.0f;
         
-        rcRenderPass->renderPass = simple2dPass;
-        
-        GfxCmd_DrawTexturedQuads* rcTerrainAndOceanQuads = cmdList->addCmd<GfxCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
-        //GfxCmd_DrawTexturedQuads* drawTexturedQuads = cmdList->addCmd<GfxCmd_DrawTexturedQuads>(rgRenderKey(true), 1);
-        //gfx::CmdDrawTexturedQuads* drawTexturedQuads = cmdList->addCmd<gfx::CmdDrawTexturedQuads>(rgRenderKey(true), 1);
-        rcTerrainAndOceanQuads->quads = &g_GameData->terrainAndOcean;
-        rcTerrainAndOceanQuads->pso = g_GameData->simple2dPSO;
+        GfxRenderCmdEncoder* renderCmdEncoder = gfx::setRenderPass(&simple2dPass, "Simple2D Pass");
+
+        renderCmdEncoder->setGraphicsPSO(g_GameData->simple2dPSO);
+        renderCmdEncoder->drawTexturedQuads(&g_GameData->terrainAndOcean);
+
         
         g_GameData->characterPortraits.resize(0);
         for(rgInt i = 0; i < 4; ++i)
@@ -268,10 +247,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         }
         pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
         
-        GfxCmd_DrawTexturedQuads* rcTexQuads = cmdList->addCmd<GfxCmd_DrawTexturedQuads>(rgRenderKey(true), 0);
-        rcTexQuads->pso = g_GameData->simple2dPSO;
-        rcTexQuads->quads = &g_GameData->characterPortraits;
-        
+        renderCmdEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
     }
     
     rgHash a = rgCRC32("hello world");
@@ -394,6 +370,7 @@ int main(int argc, char* argv[])
         rg::updateAndDraw(g_DeltaTime);
         
         gfx::draw();
+        gfx::startNextFrame();
     }
 
     gfx::destroy();
