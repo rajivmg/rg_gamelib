@@ -66,6 +66,8 @@ SDL_Window* mainWindow;
 rgUInt frameNumber;
 
 RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
+GfxRenderPass* currentRenderPass;
+GfxRenderCmdEncoder* currentRenderCmdEncoder;
 
 GfxObjectRegistry<GfxRenderTarget>* registryRenderTarget;
 GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
@@ -136,6 +138,31 @@ rgInt initCommonStuff()
 RenderCmdList* getRenderCmdList()
 {
     return graphicCmdLists[g_FrameIndex];
+}
+
+GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
+{
+    if(currentRenderPass != renderPass)
+    {
+        if(currentRenderPass != nullptr)
+        {
+            // end current render cmd list
+            currentRenderCmdEncoder->end();
+            rgDelete(currentRenderCmdEncoder);
+        }
+        // begin new cmd list
+        currentRenderCmdEncoder = rgNew(GfxRenderCmdEncoder);
+        currentRenderCmdEncoder->begin(renderPass);
+        currentRenderCmdEncoder->pushDebugTag(tag);
+
+        currentRenderPass = renderPass;
+    }
+    else
+    {
+        currentRenderCmdEncoder->pushDebugTag(tag);
+    }
+    
+    return currentRenderCmdEncoder;
 }
 // --------------------
 

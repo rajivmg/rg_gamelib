@@ -590,12 +590,20 @@ END_GFXCMD_STRUCT();
 #undef END_GFXCMD_STRUCT
 
 
-struct GfxRenderCmdList
+struct GfxRenderCmdEncoder
 {
+    void begin(GfxRenderPass* renderPass);
+    void end();
+
+    void pushDebugTag(const char* tag);
     void setViewport(rgFloat4 viewport);
     void setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height);
     void setGraphicsPSO(GfxGraphicsPSO* pso);
     void drawTexturedQuads(TexturedQuads* quads);
+
+#if defined(RG_METAL_RNDR)
+    void* renderCmdEncoder; // type: id<MTLRenderCommandEncoder>
+#endif
 };
 
 struct GfxBlitCmdList
@@ -603,9 +611,7 @@ struct GfxBlitCmdList
     void genMips(GfxTexture2D* obj);
 };
 
-GfxRenderCmdList* beginRenderPass();
-void endRenderPass();
-GfxRenderCmdList* getActiveRenderCmdList();
+GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag);
 
 //-----------------------------------------------------------------------------
 // STUFF BELOW OPERATE ON THE CONTENT OF GFX'CTX' DATA, IF IT DOESN'T REQUIRE
@@ -736,6 +742,8 @@ extern SDL_Window* mainWindow;
 extern rgUInt frameNumber;
     
 extern RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
+extern GfxRenderPass* currentRenderPass;
+extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 
 // TODO: Convert to pointer and new
 extern GfxObjectRegistry<GfxRenderTarget>* registryRenderTarget;
