@@ -363,14 +363,18 @@ void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usa
     
     for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
+        id<MTLBuffer> mtlBuffer;
         if(buf != NULL)
         {
-            obj->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithBytes:buf length:(NSUInteger)size options:options];
+            mtlBuffer = [getMTLDevice() newBufferWithBytes:buf length:(NSUInteger)size options:options];
         }
         else
         {
-            obj->mtlBuffers[i] = (__bridge MTL::Buffer*)[getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
+            mtlBuffer = [getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
         }
+        mtlBuffer.label = [NSString stringWithUTF8String:tag];
+        
+        obj->mtlBuffers[i] = (__bridge MTL::Buffer*)mtlBuffer;
         
         if(dynamic == false)
         {
@@ -480,6 +484,8 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         }
     
         MTLRenderPipelineDescriptor* psoDesc = [[MTLRenderPipelineDescriptor alloc] init];
+        psoDesc.label = [NSString stringWithUTF8String:tag];
+        
         [psoDesc setVertexFunction:vs];
         [psoDesc setFragmentFunction:fs];
         
@@ -518,13 +524,15 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         // TODO TODO TODO TODO REMOVE
 
         //[getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc error:&err];
-        obj->mtlPSO = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
+        id<MTLRenderPipelineState> pso = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
         
         if(err)
         {
             printf("%s\n", err.localizedDescription.UTF8String);
             rgAssert(!"newRenderPipelineState error");
         }
+        
+        obj->mtlPSO = pso;
         
         [psoDesc release];
         [fs release];
@@ -551,6 +559,7 @@ void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height
     texDesc.resourceOptions = toMTLResourceOptions(usage);
     
     id<MTLTexture> mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc];
+    mtlTexture.label = [NSString stringWithUTF8String:tag];
     [texDesc release];
     
     // copy the texture data
