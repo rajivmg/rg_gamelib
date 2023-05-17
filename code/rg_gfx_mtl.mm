@@ -271,11 +271,8 @@ rgInt draw()
 {
     //testComputeAtomicsRun();
     
-    //getRenderCmdList()->draw();
-    //getRenderCmdList()->afterDraw();
-
-    [gfx::mtlRenderCommandEncoder(currentRenderCmdEncoder->renderCmdEncoder) endEncoding];
-    //[mtlRenderEncoder() endEncoding];
+    // TODO: Add assert if the currentRenderCmdEncoder is not ended
+    //[gfx::mtlRenderCommandEncoder(currentRenderCmdEncoder->renderCmdEncoder) endEncoding];
     
     // blit renderTarget0 to MTLDrawable
     id<MTLBlitCommandEncoder> blitEncoder = [mtlCommandBuffer() blitCommandEncoder];
@@ -567,10 +564,6 @@ void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height
 void destroyerGfxTexture2D(GfxTexture2D* obj)
 {
     obj->mtlTexture->release();
-}
-
-void creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget* obj)
-{
 }
 
 RG_GFX_END_NAMESPACE

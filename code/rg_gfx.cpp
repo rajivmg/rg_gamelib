@@ -65,11 +65,9 @@ RG_GFX_BEGIN_NAMESPACE
 SDL_Window* mainWindow;
 rgUInt frameNumber;
 
-RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
 GfxRenderPass* currentRenderPass;
 GfxRenderCmdEncoder* currentRenderCmdEncoder;
 
-GfxObjectRegistry<GfxRenderTarget>* registryRenderTarget;
 GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 GfxObjectRegistry<GfxBuffer>* registryBuffer;
 GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
@@ -101,7 +99,6 @@ Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat
 
 rgInt preInit()
 {
-    gfx::registryRenderTarget = rgNew(GfxObjectRegistry<GfxRenderTarget>);
     gfx::registryTexture2D = rgNew(GfxObjectRegistry<GfxTexture2D>);
     gfx::registryBuffer = rgNew(GfxObjectRegistry<GfxBuffer>);
     gfx::registryGraphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
@@ -113,12 +110,6 @@ rgInt preInit()
 
 rgInt initCommonStuff()
 {
-    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
-    {
-        eastl::string tag = "graphicsCmdList" + i;
-        gfx::graphicCmdLists[i] = rgNew(RenderCmdList)(tag.c_str());
-    }
-
     gfx::orthographicMatrix = Matrix4::orthographic(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0, 0.1f, 1000.0f);
     gfx::viewMatrix = Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0));
     
@@ -133,11 +124,6 @@ rgInt initCommonStuff()
 #endif
     
     return 0;
-}
-
-RenderCmdList* getRenderCmdList()
-{
-    return graphicCmdLists[g_FrameIndex];
 }
 
 GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
@@ -165,59 +151,6 @@ GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
     return currentRenderCmdEncoder;
 }
 // --------------------
-
-void allocAndFillRenderTargetStruct(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget** obj)
-{
-    *obj = rgNew(GfxRenderTarget);
-    rgAssert(tag != nullptr);
-    strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxRenderTarget::tag));
-    (*obj)->width = width;
-    (*obj)->height = height;
-    (*obj)->format = format;
-}
-
-void deallocRenderTargetStruct(GfxRenderTarget* obj)
-{
-    rgDelete(obj);
-}
-
-GfxRenderTarget* createRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
-{
-    GfxRenderTarget* objPtr;
-    allocAndFillRenderTargetStruct(tag, width, height, format, &objPtr);
-    creatorGfxRenderTarget(tag, width, height, format, objPtr);
-    gfx::registryRenderTarget->insert(rgCRC32(tag), objPtr);
-    return objPtr;
-}
-
-GfxRenderTarget* findOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
-{
-    GfxRenderTarget* objPtr = gfx::registryRenderTarget->find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? createRenderTarget(tag, width, height, format) : objPtr;
-    return objPtr;
-}
-
-GfxRenderTarget* findRenderTarget(rgHash tagHash)
-{
-    return gfx::registryRenderTarget->find(tagHash);
-}
-
-GfxRenderTarget* findRenderTarget(char const* tag)
-{
-    return findRenderTarget(rgCRC32(tag));
-}
-
-void destroyRenderTarget(rgHash tagHash)
-{
-    gfx::registryRenderTarget->markForRemove(tagHash);
-}
-
-void destroyRenderTarget(char const* tag)
-{
-    gfx::registryRenderTarget->markForRemove(rgCRC32(tag));
-}
-
-///
 
 void allocAndFillTexture2DStruct(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D** obj)
 {

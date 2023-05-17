@@ -23,7 +23,6 @@
 #endif
 
 #include "rg.h"
-#include "rg_gfx_rendercmd.h"
 #include <EASTL/shared_ptr.h>
 #include <EASTL/hash_map.h>
 #include <EASTL/vector.h>
@@ -135,19 +134,6 @@ struct GfxTexture2D
     VmaAllocation vmaAlloc;
 #elif defined(RG_OPENGL_RNDR)
     GLuint glTexture;
-#endif
-};
-
-// RenderTarget type
-// ------------------
-struct GfxRenderTarget // TODO: remove this
-{
-    rgChar         tag[32]; // myrendermyrendr
-    rgU32            width;
-    rgU32           height;
-    TinyImageFormat format;
-#if defined(RG_D3D12_RNDR)
-    ComPtr<ID3D12Resource> d3dRT;
 #endif
 };
 
@@ -519,77 +505,6 @@ inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFlo
 // Gfx Commands
 //-----------------------------------------------------------------------------
 
-enum GfxCmdType
-{
-    GfxCmdType_SetViewport,
-    GfxCmdType_SetRenderPass,
-    GfxCmdType_SetGraphicsPSO,
-    GfxCmdType_DrawTexturedQuads,
-    GfxCmdType_DrawTriangles,
-};
-
-struct GfxCmdHeader
-{
-    GfxCmdType type;
-};
-
-// NOTE: RenderCmds are not allowed to own any resources (smartptrs)
-// Should this be allowed?? If yes, then addCmd should "new" the RenderCmd, and Flush should "delete"
-// pros vs cons?
-
-#define BEGIN_GFXCMD_STRUCT(cmdName)    struct GfxCmd_##cmdName         \
-                                        {                               \
-                                            static const GfxCmdType type = GfxCmdType_##cmdName; \
-                                            static CmdDispatchFnT* dispatchFn
-
-#define END_GFXCMD_STRUCT()             }
-
-// ---===---
-
-BEGIN_GFXCMD_STRUCT(SetViewport);
-rgFloat4 viewport;
-END_GFXCMD_STRUCT();
-
-// ---
-
-BEGIN_GFXCMD_STRUCT(SetRenderPass);
-GfxRenderPass renderPass;
-END_GFXCMD_STRUCT();
-
-// ---
-
-BEGIN_GFXCMD_STRUCT(SetGraphicsPSO);
-GfxGraphicsPSO* pso;
-END_GFXCMD_STRUCT();
-
-// ---
-
-BEGIN_GFXCMD_STRUCT(DrawTexturedQuads);
-GfxGraphicsPSO* pso;
-TexturedQuads* quads;
-END_GFXCMD_STRUCT();
-
-// ---
-
-BEGIN_GFXCMD_STRUCT(DrawTriangles);
-GfxBuffer* vertexBuffer;
-rgU32 vertexBufferOffset;
-GfxBuffer* indexBuffer;
-rgU32 indexBufferOffset;
-
-rgU32 vertexCount;
-rgU32 indexCount;
-rgU32 instanceCount;
-rgU32 baseVertex;
-rgU32 baseInstance;
-END_GFXCMD_STRUCT();
-
-// ---===---
-
-#undef BEGIN_GFXCMD_STRUCT
-#undef END_GFXCMD_STRUCT
-
-
 struct GfxRenderCmdEncoder
 {
     void begin(GfxRenderPass* renderPass);
@@ -619,12 +534,6 @@ struct GfxBlitCmdList
 
 RG_GFX_BEGIN_NAMESPACE
 
-void handleGfxCmd_SetViewport(void const* cmd);
-void handleGfxCmd_SetRenderPass(void const* cmd);
-void handleGfxCmd_SetGraphicsPSO(void const* cmd);
-void handleGfxCmd_DrawTexturedQuads(void const* cmd);
-void handleGfxCmd_DrawTriangles(void const* cmd);
-
 #ifdef RG_VULKAN_RNDR
 #define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
 #endif
@@ -633,7 +542,6 @@ void handleGfxCmd_DrawTriangles(void const* cmd);
 // General Common Stuff
 //-----------------------------------------------------------------------------
 rgInt           initCommonStuff();
-RenderCmdList*  getRenderCmdList();
 
 //-----------------------------------------------------------------------------
 // Gfx function declarations
@@ -672,7 +580,6 @@ void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
 GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage);
 DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage);
 
-DeclareGfxObjectFunctions(RenderTarget, rgU32 width, rgU32 height, TinyImageFormat format);
 DeclareGfxObjectFunctions(GraphicsPSO, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
 
 
@@ -742,13 +649,11 @@ struct GfxDescriptorBufferEncoder
 //-----------------------------------------------------------------------------
 extern SDL_Window* mainWindow;
 extern rgUInt frameNumber;
-    
-extern RenderCmdList* graphicCmdLists[RG_MAX_FRAMES_IN_FLIGHT];
+
 extern GfxRenderPass* currentRenderPass;
 extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 
 // TODO: Convert to pointer and new
-extern GfxObjectRegistry<GfxRenderTarget>* registryRenderTarget;
 extern GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 extern GfxObjectRegistry<GfxBuffer>* registryBuffer;
 extern GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;

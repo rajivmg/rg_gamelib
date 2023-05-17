@@ -110,9 +110,7 @@ rgInt rg::setup()
         cmdList->drawTexturedQuads();
         cmdlist->endList();
     */
-    GfxRenderTarget* mickyRT1 = gfx::findOrCreateRenderTarget("MickyReflectanceRT", 512, 256, TinyImageFormat_B8G8R8A8_UNORM);
-    GfxRenderTarget* mickyRT2 = gfx::findRenderTarget("MickyReflectanceRT");
-    //
+
     GfxVertexInputDesc vertexDesc = {};
     vertexDesc.elementsCount = 2;
     vertexDesc.elements[0].semanticName = "POSITION";
@@ -248,6 +246,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
         
         renderCmdEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
+        
+        renderCmdEncoder->end();
     }
     
     rgHash a = rgCRC32("hello world");
