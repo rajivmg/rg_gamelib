@@ -550,8 +550,9 @@ rgInt           initCommonStuff();
 rgInt           preInit();
 rgInt           init();
 void            destroy();
-rgInt           draw();
+//rgInt           draw();
 void            startNextFrame();
+void            endFrame();
 
 void            onSizeChanged();
 

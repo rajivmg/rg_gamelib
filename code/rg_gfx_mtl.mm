@@ -267,37 +267,6 @@ rgInt init()
     return 0;
 }
 
-rgInt draw()
-{
-    //testComputeAtomicsRun();
-    
-    // TODO: Add assert if the currentRenderCmdEncoder is not ended
-    //[gfx::mtlRenderCommandEncoder(currentRenderCmdEncoder->renderCmdEncoder) endEncoding];
-    
-    // blit renderTarget0 to MTLDrawable
-    id<MTLBlitCommandEncoder> blitEncoder = [mtlCommandBuffer() blitCommandEncoder];
-    
-    id<MTLTexture> srcTexture = getMTLTexture(gfx::renderTarget[g_FrameIndex]);
-    id<MTLTexture> dstTexture = ((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable).texture;
-    [blitEncoder copyFromTexture:srcTexture toTexture:dstTexture];
-    [blitEncoder endEncoding];
-    
-    [mtlCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
-    
-    __block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
-    [mtlCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
-     {
-        dispatch_semaphore_signal(blockSemaphore);
-    }];
-    
-    [mtlCommandBuffer() commit];
-    
-    // Autorelease pool END
-    mtl->autoReleasePool->release();
-    
-    return 0;
-}
-
 void destroy()
 {
     
@@ -306,6 +275,8 @@ void destroy()
 void startNextFrame()
 {
     dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
+    
+    g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
     
     currentRenderPass = nullptr;
     currentRenderCmdEncoder = nullptr;
@@ -343,6 +314,37 @@ void startNextFrame()
         argBuffer->didModifyRange(NS::Range(0, argBuffer->length()));
     }
     //
+}
+
+void endFrame()
+{
+    //testComputeAtomicsRun();
+    
+    // TODO: Add assert if the currentRenderCmdEncoder is not ended
+    //[gfx::mtlRenderCommandEncoder(currentRenderCmdEncoder->renderCmdEncoder) endEncoding];
+    
+    // blit renderTarget0 to MTLDrawable
+    id<MTLBlitCommandEncoder> blitEncoder = [mtlCommandBuffer() blitCommandEncoder];
+    
+    id<MTLTexture> srcTexture = getMTLTexture(gfx::renderTarget[g_FrameIndex]);
+    id<MTLTexture> dstTexture = ((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable).texture;
+    [blitEncoder copyFromTexture:srcTexture toTexture:dstTexture];
+    [blitEncoder endEncoding];
+    
+    [mtlCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
+    
+    __block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
+    [mtlCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
+     {
+        dispatch_semaphore_signal(blockSemaphore);
+    }];
+    
+    [mtlCommandBuffer() commit];
+    
+    // Autorelease pool END
+    mtl->autoReleasePool->release();
+    
+    return 0;
 }
 
 void onSizeChanged()

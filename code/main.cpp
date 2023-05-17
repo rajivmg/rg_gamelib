@@ -312,7 +312,7 @@ int main(int argc, char* argv[])
 {
     //g_GfxCtx = rgNew(GfxCtx);
     
-    g_FrameIndex = 0;
+    g_FrameIndex = -1;
 
     if(createSDLWindow() != 0)
     {
@@ -339,10 +339,7 @@ int main(int argc, char* argv[])
     while(!g_ShouldQuit)
     {
         ++gfx::frameNumber;
-        
-#if !defined(RG_D3D12_RNDR)
-        g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
-#endif
+
         Uint64 counterFrequency = SDL_GetPerformanceFrequency();
         previousPerfCounter = currentPerfCounter;
         currentPerfCounter = SDL_GetPerformanceCounter();
@@ -369,7 +366,7 @@ int main(int argc, char* argv[])
 
         gfx::startNextFrame();
         rg::updateAndDraw(g_DeltaTime);
-        gfx::draw();
+        gfx::endFrame();
     }
 
     gfx::destroy();
