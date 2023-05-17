@@ -137,6 +137,39 @@ struct GfxTexture2D
 #endif
 };
 
+// Sampler
+// ----------
+
+enum GfxSamplerAddressMode
+{
+    GfxSamplerAddressMode_Repeat,
+    GfxSamplerAddressMode_ClampToEdge,
+    GfxSamplerAddressMode_ClampToZero,
+    GfxSamplerAddressMode_ClampToBorderColor,
+};
+
+enum GfxSamplerMinMagFilter
+{
+    GfxSamplerMinMagFilter_Nearest,
+    GfxSamplerMinMagFilter_Linear,
+};
+
+enum GfxSamplerMipFilter
+{
+    GfxSamplerMipFilter_NotMipped,
+    GfxSamplerMipFilter_Nearest,
+    GfxSamplerMipFilter_Linear,
+};
+
+struct GfxSamplerState
+{
+    GfxSamplerAddressMode rstAddressMode;
+    GfxSamplerMinMagFilter  minFilter;
+    GfxSamplerMinMagFilter  magFilter;
+    GfxSamplerMipFilter     mipFilter;
+    rgBool                 anisotropy;
+};
+
 // RenderPass
 // ------------
 
