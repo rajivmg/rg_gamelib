@@ -176,7 +176,6 @@ struct SimpleVertexFormat1
 };
 
 id<MTLComputePipelineState> histogramComputePipeline;
-///GfxTexture2D* histogramTestTexture;
 
 void testComputeAtomicsSetup()
 {
@@ -270,72 +269,34 @@ rgInt init()
 
 rgInt draw()
 {
-    // TODO: move this from here..
-    dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
+    //testComputeAtomicsRun();
     
-    NS::AutoreleasePool* arp = NS::AutoreleasePool::alloc()->init();
-    // --- Autorelease pool BEGIN
-    CAMetalLayer* metalLayer = (CAMetalLayer*)mtl->layer;
-    id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
-    
-    rgAssert(metalDrawable != nullptr);
-    if(metalDrawable != nullptr)
-    {
-        mtl->commandBuffer = (__bridge id<MTLCommandBuffer>)mtl->commandQueue->commandBuffer();
-        
-        // bind all textures
-        {
-            GfxBuffer* largeArrayTex2DArgBuffer = mtl->largeArrayTex2DArgBuffer;
-            rgInt argBufferActiveIndex = largeArrayTex2DArgBuffer->activeSlot;
-            MTL::Buffer* argBuffer = largeArrayTex2DArgBuffer->mtlBuffers[argBufferActiveIndex];
-            
-            mtl->largeArrayTex2DArgEncoder->setArgumentBuffer(argBuffer, 0);
-            
-            rgSize largeArrayTex2DIndex = 0;
-            for(GfxTexture2D* texture2d : *gfx::bindlessManagerTexture2D)
-            {
-                if(texture2d != nullptr)
-                {
-                    mtl->largeArrayTex2DArgEncoder->setTexture(texture2d->mtlTexture, largeArrayTex2DIndex);
-                }
-                ++largeArrayTex2DIndex;
-            }
-            
-            argBuffer->didModifyRange(NS::Range(0, argBuffer->length()));
-        }
-        
-        testComputeAtomicsRun();
-        
-        getRenderCmdList()->draw();
-        getRenderCmdList()->afterDraw();
+    //getRenderCmdList()->draw();
+    //getRenderCmdList()->afterDraw();
 
-        [mtlRenderEncoder() endEncoding];
-        
-        // blit renderTarget0 to MTLDrawable
-        id<MTLBlitCommandEncoder> blitEncoder = [mtlCommandBuffer() blitCommandEncoder];
-        
-        id<MTLTexture> srcTexture = getMTLTexture(gfx::renderTarget[g_FrameIndex]);
-        id<MTLTexture> dstTexture = metalDrawable.texture;
-        [blitEncoder copyFromTexture:srcTexture toTexture:dstTexture];
-        [blitEncoder endEncoding];
-        
-        [mtlCommandBuffer() presentDrawable:metalDrawable];
-        
-        __block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
-        [mtlCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
-         {
-            dispatch_semaphore_signal(blockSemaphore);
-        }];
-        
-        [mtlCommandBuffer() commit];
-    }
-    else
-    {
-        rgLogError("Current mtl drawable is null");
-        // exit
-    }
-    // --- Autorelease pool END
-    arp->release();
+    [gfx::mtlRenderCommandEncoder(currentRenderCmdEncoder->renderCmdEncoder) endEncoding];
+    //[mtlRenderEncoder() endEncoding];
+    
+    // blit renderTarget0 to MTLDrawable
+    id<MTLBlitCommandEncoder> blitEncoder = [mtlCommandBuffer() blitCommandEncoder];
+    
+    id<MTLTexture> srcTexture = getMTLTexture(gfx::renderTarget[g_FrameIndex]);
+    id<MTLTexture> dstTexture = ((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable).texture;
+    [blitEncoder copyFromTexture:srcTexture toTexture:dstTexture];
+    [blitEncoder endEncoding];
+    
+    [mtlCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
+    
+    __block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
+    [mtlCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
+     {
+        dispatch_semaphore_signal(blockSemaphore);
+    }];
+    
+    [mtlCommandBuffer() commit];
+    
+    // Autorelease pool END
+    mtl->autoReleasePool->release();
     
     return 0;
 }
@@ -343,6 +304,48 @@ rgInt draw()
 void destroy()
 {
     
+}
+
+void startNextFrame()
+{
+    dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
+    
+    currentRenderPass = nullptr;
+    currentRenderCmdEncoder = nullptr;
+    
+    // Autorelease pool BEGIN
+    mtl->autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    
+    
+    CAMetalLayer* metalLayer = (CAMetalLayer*)mtl->layer;
+    id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
+    rgAssert(metalDrawable != nullptr);
+    mtl->caMetalDrawable = metalDrawable;
+    
+    mtl->commandBuffer = (__bridge id<MTLCommandBuffer>)mtl->commandQueue->commandBuffer();
+    
+    //
+    // bind all textures
+    {
+        GfxBuffer* largeArrayTex2DArgBuffer = mtl->largeArrayTex2DArgBuffer;
+        rgInt argBufferActiveIndex = largeArrayTex2DArgBuffer->activeSlot;
+        MTL::Buffer* argBuffer = largeArrayTex2DArgBuffer->mtlBuffers[argBufferActiveIndex];
+        
+        mtl->largeArrayTex2DArgEncoder->setArgumentBuffer(argBuffer, 0);
+        
+        rgSize largeArrayTex2DIndex = 0;
+        for(GfxTexture2D* texture2d : *gfx::bindlessManagerTexture2D)
+        {
+            if(texture2d != nullptr)
+            {
+                mtl->largeArrayTex2DArgEncoder->setTexture(texture2d->mtlTexture, largeArrayTex2DIndex);
+            }
+            ++largeArrayTex2DIndex;
+        }
+        
+        argBuffer->didModifyRange(NS::Range(0, argBuffer->length()));
+    }
+    //
 }
 
 void onSizeChanged()
@@ -568,166 +571,6 @@ void destroyerGfxTexture2D(GfxTexture2D* obj)
 
 void creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget* obj)
 {
-}
-
-void handleGfxCmd_SetViewport(void const* cmd)
-{
-    GfxCmd_SetViewport* setViewport = (GfxCmd_SetViewport*)cmd;
-    
-    MTLViewport vp;
-    vp.originX = setViewport->viewport.x;
-    vp.originY = setViewport->viewport.y;
-    vp.width   = setViewport->viewport.z;
-    vp.height  = setViewport->viewport.w;
-    vp.znear   = 0.0;
-    vp.zfar    = 1.0;
-    
-    [mtlRenderEncoder() setViewport:vp];
-}
-
-void handleGfxCmd_SetRenderPass(void const* cmd)
-{
-    GfxCmd_SetRenderPass* setRenderPass = (GfxCmd_SetRenderPass*)cmd;
-    GfxRenderPass* renderPass = &setRenderPass->renderPass;
-    
-    // create RenderCommandEncoder
-    MTLRenderPassDescriptor* renderPassDesc = [[MTLRenderPassDescriptor alloc] init];
-
-    for(rgInt c = 0; c < kMaxColorAttachments; ++c)
-    {
-        if(renderPass->colorAttachments[c].texture == NULL)
-        {
-            continue;
-        }
-        
-        MTLRenderPassColorAttachmentDescriptor* colorAttachmentDesc = [renderPassDesc colorAttachments][c];
-        
-        colorAttachmentDesc.texture = getMTLTexture(renderPass->colorAttachments[c].texture);
-        colorAttachmentDesc.clearColor = toMTLClearColor(&renderPass->colorAttachments[c].clearColor);
-        colorAttachmentDesc.loadAction = toMTLLoadAction(renderPass->colorAttachments[c].loadAction);
-        colorAttachmentDesc.storeAction = toMTLStoreAction(renderPass->colorAttachments[c].storeAction);
-    }
-    
-    MTLRenderPassDepthAttachmentDescriptor* depthAttachmentDesc = [renderPassDesc depthAttachment];
-    depthAttachmentDesc.texture  = getMTLTexture(renderPass->depthStencilAttachmentTexture);
-    depthAttachmentDesc.clearDepth = renderPass->clearDepth;
-    depthAttachmentDesc.loadAction = toMTLLoadAction(renderPass->depthStencilAttachmentLoadAction);
-    depthAttachmentDesc.storeAction = toMTLStoreAction(renderPass->depthStencilAttachmentStoreAction);
-
-    mtl->renderEncoder = [mtlCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
-    
-    [renderPassDesc autorelease];
-    
-    MTLDepthStencilDescriptor* depthStencilDesc = [[MTLDepthStencilDescriptor alloc] init];
-    depthStencilDesc.depthWriteEnabled = true;
-    id<MTLDepthStencilState> dsState = [getMTLDevice() newDepthStencilStateWithDescriptor:depthStencilDesc];
-    [depthStencilDesc release];
-    
-    [mtlRenderEncoder() setDepthStencilState:dsState];
-    
-    for(GfxTexture2D* texture2d : *gfx::bindlessManagerTexture2D)
-    {
-        if(texture2d != nullptr)
-        {
-            [mtlRenderEncoder() useResource:(__bridge id<MTLTexture>)texture2d->mtlTexture usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];
-        }
-    }
-    
-    [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(mtl->largeArrayTex2DArgBuffer) offset:0 atIndex:kBindlessTextureSetBinding];
-}
-
-void handleGfxCmd_SetGraphicsPSO(void const* cmd)
-{
-    GfxCmd_SetGraphicsPSO* setGraphicsPSO = (GfxCmd_SetGraphicsPSO*)cmd;
-    [mtlRenderEncoder() setRenderPipelineState:toMTLRenderPipelineState(setGraphicsPSO->pso)];
-}
-
-void handleGfxCmd_DrawTexturedQuads(void const* cmd)
-{
-    GfxCmd_DrawTexturedQuads* rc = (GfxCmd_DrawTexturedQuads*)cmd;
-    
-    eastl::vector<SimpleVertexFormat> vertices;
-    eastl::vector<SimpleInstanceParams> instanceParams;
-    
-    genTexturedQuadVertices(rc->quads, &vertices, &instanceParams);
-    
-    if(gfx::rcTexturedQuadsVB == NULL)
-    {
-        gfx::rcTexturedQuadsVB = createBuffer("texturedQuadsVB", nullptr, rgMEGABYTE(16), GfxBufferUsage_VertexBuffer, true);
-    }
-    
-    if(gfx::rcTexturedQuadsInstParams == NULL)
-    {
-        gfx::rcTexturedQuadsInstParams = createBuffer("texturedQuadInstParams", nullptr, rgMEGABYTE(4), GfxBufferUsage_StructuredBuffer, true);
-    }
-    
-    GfxBuffer* texturesQuadVB = gfx::rcTexturedQuadsVB;
-    GfxBuffer* texturedQuadInstParams = gfx::rcTexturedQuadsInstParams;
-    updateBuffer("texturedQuadsVB", &vertices.front(), vertices.size() * sizeof(SimpleVertexFormat), 0);
-    updateBuffer("texturedQuadInstParams", &instanceParams.front(), instanceParams.size() * sizeof(SimpleInstanceParams), 0);
-    
-    //
-    struct Camera
-    {
-        float projection[16];
-        float view[16];
-    } cam;
-    
-    rgFloat* orthoMatrix = toFloatPtr(gfx::orthographicMatrix);
-    rgFloat* viewMatrix = toFloatPtr(gfx::viewMatrix);
-    
-    for(rgInt i = 0; i < 16; ++i)
-    {
-        cam.projection[i] = orthoMatrix[i];
-        cam.view[i] = viewMatrix[i];
-    }
-     
-    [mtlRenderEncoder() setRenderPipelineState:toMTLRenderPipelineState(rc->pso)];
-    [mtlRenderEncoder() setVertexBytes:&cam length:sizeof(Camera) atIndex:0];
-    [mtlRenderEncoder() setFragmentBuffer:getActiveMTLBuffer(texturedQuadInstParams) offset:0 atIndex:4];
-    [mtlRenderEncoder() setVertexBuffer:getActiveMTLBuffer(texturesQuadVB) offset:0 atIndex:1];
-    [mtlRenderEncoder() setCullMode:MTLCullModeNone];
-    
-    MTLViewport viewport;
-    viewport.originX = 0;
-    viewport.originY = 0;
-    viewport.width = 720;
-    viewport.height = 720;
-    viewport.znear = 0.0;
-    viewport.zfar = 1.0;
-    [mtlRenderEncoder() setViewport:viewport];
-    [mtlRenderEncoder() drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:vertices.size()/6];
-}
-
-void handleGfxCmd_DrawTriangles(void const* cmd)
-{
-    GfxCmd_DrawTriangles* drawTriangles = (GfxCmd_DrawTriangles*)cmd;
-        
-    rgAssert(drawTriangles->vertexBuffer != NULL);
-    
-    [mtlRenderEncoder() setVertexBuffer:getActiveMTLBuffer(drawTriangles->vertexBuffer)
-                                 offset:drawTriangles->vertexBufferOffset
-                                atIndex:0];
-    
-    if(drawTriangles->indexBuffer != NULL)
-    {
-        [mtlRenderEncoder() drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-                                       indexCount:drawTriangles->indexCount
-                                        indexType:MTLIndexTypeUInt16
-                                      indexBuffer:getActiveMTLBuffer(drawTriangles->indexBuffer)
-                                indexBufferOffset:drawTriangles->indexBufferOffset
-                                    instanceCount:drawTriangles->instanceCount
-                                       baseVertex:drawTriangles->baseVertex
-                                     baseInstance:drawTriangles->baseInstance];
-    }
-    else
-    {
-        [mtlRenderEncoder() drawPrimitives:MTLPrimitiveTypeTriangle
-                               vertexStart:drawTriangles->baseVertex
-                               vertexCount:drawTriangles->vertexCount
-                             instanceCount:drawTriangles->instanceCount
-                              baseInstance:drawTriangles->baseInstance];
-    }
 }
 
 RG_GFX_END_NAMESPACE

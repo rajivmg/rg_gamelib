@@ -809,9 +809,11 @@ struct Mtl
     NS::View* view;
     MTL::Device* device;
     MTL::CommandQueue* commandQueue;
+    void* caMetalDrawable; // type: id<CAMetalDrawable>
 
     dispatch_semaphore_t framesInFlightSemaphore;
-
+    NS::AutoreleasePool* autoReleasePool;
+    
     void* renderEncoder; // type: id<MTLRenderCommandEncoder>
     void* commandBuffer; // type: id<MTLCommandBuffer>
 

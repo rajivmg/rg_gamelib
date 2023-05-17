@@ -367,10 +367,9 @@ int main(int argc, char* argv[])
             }
         }
 
-        rg::updateAndDraw(g_DeltaTime);
-        
-        gfx::draw();
         gfx::startNextFrame();
+        rg::updateAndDraw(g_DeltaTime);
+        gfx::draw();
     }
 
     gfx::destroy();
