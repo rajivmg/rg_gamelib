@@ -168,6 +168,11 @@ id<MTLRenderCommandEncoder> mtlRenderCommandEncoder(void* ptr)
     return (__bridge id<MTLRenderCommandEncoder>)ptr;
 }
 
+id<MTLRenderCommandEncoder> mtlRenderCommandEncoder()
+{
+    return (__bridge id<MTLRenderCommandEncoder>)currentRenderCmdEncoder->renderCmdEncoder;
+}
+
 struct SimpleVertexFormat1
 {
     simd::float3 position;
@@ -277,13 +282,11 @@ void startNextFrame()
     dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
     
     g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
-    
-    currentRenderPass = nullptr;
-    currentRenderCmdEncoder = nullptr;
+
+    gfx::atFrameStart();
     
     // Autorelease pool BEGIN
     mtl->autoReleasePool = NS::AutoreleasePool::alloc()->init();
-    
     
     CAMetalLayer* metalLayer = (CAMetalLayer*)mtl->layer;
     id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
@@ -322,6 +325,10 @@ void endFrame()
     
     // TODO: Add assert if the currentRenderCmdEncoder is not ended
     //[gfx::mtlRenderCommandEncoder(currentRenderCmdEncoder->renderCmdEncoder) endEncoding];
+    if(!currentRenderCmdEncoder->hasEnded)
+    {
+        currentRenderCmdEncoder->end();
+    }
     
     // blit renderTarget0 to MTLDrawable
     id<MTLBlitCommandEncoder> blitEncoder = [mtlCommandBuffer() blitCommandEncoder];
@@ -626,11 +633,13 @@ void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
     [mtlRenderEncoder setFragmentBuffer:gfx::getActiveMTLBuffer(gfx::mtl->largeArrayTex2DArgBuffer) offset:0 atIndex:gfx::kBindlessTextureSetBinding];
     
     renderCmdEncoder = (__bridge void*)mtlRenderEncoder;
+    hasEnded = false;
 }
 
 void GfxRenderCmdEncoder::end()
 {
     [gfx::mtlRenderCommandEncoder(renderCmdEncoder) endEncoding];
+    hasEnded = true;
 }
 
 void GfxRenderCmdEncoder::pushDebugTag(const char* tag)

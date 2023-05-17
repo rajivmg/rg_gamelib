@@ -126,6 +126,12 @@ rgInt initCommonStuff()
     return 0;
 }
 
+void atFrameStart()
+{
+    currentRenderPass = nullptr;
+    currentRenderCmdEncoder = nullptr;
+}
+
 GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
 {
     if(currentRenderPass != renderPass)
@@ -328,24 +334,6 @@ void destroyGraphicsPSO(char const* tag)
 }
 
 ///
-
-//GfxRenderTarget* gfxCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
-//GfxRenderTarget* gfxFindOrCreateRenderTarget(const char* tag, rgU32 width, rgU32 height, TinyImageFormat format)
-//GfxRenderTarget* gfxFindRenderTarget(rgHash tagHash)
-//GfxRenderTarget* gfxFindRenderTarget(char const* tag)
-//void gfxDestroyRenderTarget(rgHash tagHash)
-//void gfxDestroyRenderTarget(char const* tag)
-
-// ------
-
-/*
-TexturedQuad::TexturedQuad(QuadUV uv_, Vector4 posScale_, Vector4 offsetOrientation_)
-    : uv(uv_)
-    , posScale(posScale_)
-    , offsetOrientation(offsetOrientation_)
-{
-}
-*/
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, eastl::vector<SimpleInstanceParams>* instanceParams)
 {

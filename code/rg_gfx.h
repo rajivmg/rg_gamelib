@@ -518,6 +518,7 @@ struct GfxRenderCmdEncoder
 
 #if defined(RG_METAL_RNDR)
     void* renderCmdEncoder; // type: id<MTLRenderCommandEncoder>
+    rgBool hasEnded;
 #endif
 };
 
@@ -542,6 +543,7 @@ RG_GFX_BEGIN_NAMESPACE
 // General Common Stuff
 //-----------------------------------------------------------------------------
 rgInt           initCommonStuff();
+void            atFrameStart();
 
 //-----------------------------------------------------------------------------
 // Gfx function declarations
@@ -550,7 +552,6 @@ rgInt           initCommonStuff();
 rgInt           preInit();
 rgInt           init();
 void            destroy();
-//rgInt           draw();
 void            startNextFrame();
 void            endFrame();
 
@@ -651,7 +652,6 @@ struct GfxDescriptorBufferEncoder
 extern SDL_Window* mainWindow;
 extern rgUInt frameNumber;
 
-extern GfxRenderPass* currentRenderPass;
 extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 
 // TODO: Convert to pointer and new

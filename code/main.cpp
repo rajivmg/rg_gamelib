@@ -133,7 +133,7 @@ rgInt rg::setup()
     simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
     
-    g_GameData->simple2dPSO = gfx::createGraphicsPSO("simple_pso", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    gfx::createGraphicsPSO("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
 
     //
     //GfxDescriptor desc0 = {};
@@ -228,7 +228,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         GfxRenderCmdEncoder* renderCmdEncoder = gfx::setRenderPass(&simple2dPass, "Simple2D Pass");
 
-        renderCmdEncoder->setGraphicsPSO(g_GameData->simple2dPSO);
+        renderCmdEncoder->setGraphicsPSO(gfx::findGraphicsPSO("simple2d"));
         renderCmdEncoder->drawTexturedQuads(&g_GameData->terrainAndOcean);
 
         
