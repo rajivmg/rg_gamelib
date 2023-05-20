@@ -71,6 +71,7 @@ GfxRenderCmdEncoder* currentRenderCmdEncoder;
 GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 GfxObjectRegistry<GfxBuffer>* registryBuffer;
 GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
+GfxObjectRegistry<GfxSamplerState>* registrySamplerState;
 
 GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
@@ -102,6 +103,7 @@ rgInt preInit()
     gfx::registryTexture2D = rgNew(GfxObjectRegistry<GfxTexture2D>);
     gfx::registryBuffer = rgNew(GfxObjectRegistry<GfxBuffer>);
     gfx::registryGraphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
+    gfx::registrySamplerState = rgNew(GfxObjectRegistry<GfxSamplerState>);
 
     gfx::bindlessManagerTexture2D = rgNew(GfxBindlessResourceManager<GfxTexture2D>);
 
@@ -331,6 +333,61 @@ void destroyGraphicsPSO(rgHash tagHash)
 void destroyGraphicsPSO(char const* tag)
 {
     gfx::registryGraphicsPSO->markForRemove(rgCRC32(tag));
+}
+
+///
+
+void allocAndFillSamplerStateStruct(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState** obj)
+{
+    *obj = rgNew(GfxSamplerState);
+    rgAssert(tag != nullptr);
+    strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxSamplerState::tag));
+    (*obj)->rstAddressMode = rstAddressMode;
+    (*obj)->minFilter = minFilter;
+    (*obj)->magFilter = magFilter;
+    (*obj)->mipFilter = mipFilter;
+    (*obj)->anisotropy = anisotropy;
+}
+
+void deallocSamplerStateStruct(GfxSamplerState* obj)
+{
+    rgDelete(obj);
+}
+
+GfxSamplerState* createSamplerState(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy)
+{
+    GfxSamplerState* objPtr;
+    allocAndFillSamplerStateStruct(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy, &objPtr);
+    creatorGfxSamplerState(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy, objPtr);
+    gfx::registrySamplerState->insert(rgCRC32(tag), objPtr);
+    return objPtr;
+}
+
+GfxSamplerState* findOrCreateSamplerState(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy)
+{
+    GfxSamplerState* objPtr = gfx::registrySamplerState->find(rgCRC32(tag));
+    objPtr = (objPtr == nullptr) ? createSamplerState(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy) : objPtr;
+    return objPtr;
+}
+
+GfxSamplerState* findSamplerState(rgHash tagHash)
+{
+    return gfx::registrySamplerState->find(tagHash);
+}
+
+GfxSamplerState* findSamplerState(char const* tag)
+{
+    return findSamplerState(rgCRC32(tag));
+}
+
+void destroySamplerState(rgHash tagHash)
+{
+    gfx::registrySamplerState->markForRemove(tagHash);
+}
+
+void destroySamplerState(char const* tag)
+{
+    gfx::registrySamplerState->markForRemove(rgCRC32(tag));
 }
 
 ///

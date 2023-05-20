@@ -133,9 +133,9 @@ MTLPixelFormat toMTLPixelFormat(TinyImageFormat fmt)
     return (MTLPixelFormat)TinyImageFormat_ToMTLPixelFormat(fmt);
 }
 
-id<MTLTexture> getMTLTexture(GfxTexture2D* ptr)
+id<MTLTexture> getMTLTexture(GfxTexture2D* obj)
 {
-     return (__bridge id<MTLTexture>)(ptr->mtlTexture);
+     return (__bridge id<MTLTexture>)(obj->mtlTexture);
 }
 
 id<MTLBuffer> getActiveMTLBuffer(GfxBuffer* ptr)
@@ -148,27 +148,27 @@ MTLClearColor toMTLClearColor(rgFloat4* color)
     return MTLClearColorMake(color->r, color->g, color->b, color->a);
 }
 
-id<MTLRenderPipelineState> toMTLRenderPipelineState(GfxGraphicsPSO* pso)
+id<MTLRenderPipelineState> toMTLRenderPipelineState(GfxGraphicsPSO* obj)
 {
-    return (__bridge id<MTLRenderPipelineState>)(pso->mtlPSO);
+    return (__bridge id<MTLRenderPipelineState>)(obj->mtlPSO);
 }
 
-id<MTLRenderCommandEncoder> mtlRenderEncoder()
+id<MTLRenderCommandEncoder> getMTLRenderEncoder()
 {
     return (__bridge id<MTLRenderCommandEncoder>)mtl->renderEncoder;
 }
 
-id<MTLCommandBuffer> mtlCommandBuffer()
+id<MTLCommandBuffer> getMTLCommandBuffer()
 {
     return (__bridge id<MTLCommandBuffer>)mtl->commandBuffer;
 }
 
-id<MTLRenderCommandEncoder> mtlRenderCommandEncoder(void* ptr)
+id<MTLRenderCommandEncoder> asMTLRenderCommandEncoder(void* ptr)
 {
     return (__bridge id<MTLRenderCommandEncoder>)ptr;
 }
 
-id<MTLRenderCommandEncoder> mtlRenderCommandEncoder()
+id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
 {
     return (__bridge id<MTLRenderCommandEncoder>)currentRenderCmdEncoder->renderCmdEncoder;
 }
@@ -208,7 +208,7 @@ void testComputeAtomicsSetup()
 
 void testComputeAtomicsRun()
 {
-    id<MTLComputeCommandEncoder> computeEncoder = [mtlCommandBuffer() computeCommandEncoder];
+    id<MTLComputeCommandEncoder> computeEncoder = [getMTLCommandBuffer() computeCommandEncoder];
     [computeEncoder setComputePipelineState:histogramComputePipeline];
     [computeEncoder setTexture:getMTLTexture(gfx::findTexture2D("histogramTest")) atIndex:0];
     [computeEncoder setBuffer:getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:0];
@@ -331,22 +331,22 @@ void endFrame()
     }
     
     // blit renderTarget0 to MTLDrawable
-    id<MTLBlitCommandEncoder> blitEncoder = [mtlCommandBuffer() blitCommandEncoder];
+    id<MTLBlitCommandEncoder> blitEncoder = [getMTLCommandBuffer() blitCommandEncoder];
     
     id<MTLTexture> srcTexture = getMTLTexture(gfx::renderTarget[g_FrameIndex]);
     id<MTLTexture> dstTexture = ((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable).texture;
     [blitEncoder copyFromTexture:srcTexture toTexture:dstTexture];
     [blitEncoder endEncoding];
     
-    [mtlCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
+    [getMTLCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
     
     __block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
-    [mtlCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
+    [getMTLCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
      {
         dispatch_semaphore_signal(blockSemaphore);
     }];
     
-    [mtlCommandBuffer() commit];
+    [getMTLCommandBuffer() commit];
     
     // Autorelease pool END
     mtl->autoReleasePool->release();
@@ -548,10 +548,9 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     }
 }
 
-void deleterGfxGraphicsPSO(GfxGraphicsPSO* pso)
+void destroyerGfxGraphicsPSO(GfxGraphicsPSO* obj)
 {
-    [toMTLRenderPipelineState(pso) release];
-    rgDelete(pso);
+    [toMTLRenderPipelineState(obj) release];
 }
 
 void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
@@ -584,6 +583,83 @@ void destroyerGfxTexture2D(GfxTexture2D* obj)
     obj->mtlTexture->release();
 }
 
+///
+
+MTLSamplerAddressMode toMTLSamplerAddressMode(GfxSamplerAddressMode addressMode)
+{
+    MTLSamplerAddressMode result;
+    switch(addressMode)
+    {
+        case GfxSamplerAddressMode_Repeat:
+            result = MTLSamplerAddressModeRepeat;
+            break;
+        case GfxSamplerAddressMode_ClampToEdge:
+            result = MTLSamplerAddressModeClampToEdge;
+            break;
+        case GfxSamplerAddressMode_ClampToZero:
+            result = MTLSamplerAddressModeClampToZero;
+            break;
+        default:
+            rgAssert(!"Invalid sampler address mode");
+    }
+    return result;
+}
+
+MTLSamplerMinMagFilter toMTLSamplerMinMagFilter(GfxSamplerMinMagFilter filter)
+{
+    return filter == GfxSamplerMinMagFilter_Nearest ? MTLSamplerMinMagFilterNearest : MTLSamplerMinMagFilterLinear;
+}
+
+MTLSamplerMipFilter toMTLSamplerMipFilter(GfxSamplerMipFilter filter)
+{
+    MTLSamplerMipFilter result;
+    switch(filter)
+    {
+        case GfxSamplerMipFilter_NotMipped:
+            result = MTLSamplerMipFilterNotMipmapped;
+            break;
+        case GfxSamplerMipFilter_Nearest:
+            result = MTLSamplerMipFilterNearest;
+            break;
+        case GfxSamplerMipFilter_Linear:
+            result = MTLSamplerMipFilterLinear;
+            break;
+        default:
+            rgAssert(!"Invalid sample mip filter");
+    }
+    return result;
+}
+
+id<MTLSamplerState> asMTLSamplerState(void* ptr)
+{
+    return (__bridge id<MTLSamplerState>)(ptr);
+}
+
+void creatorGfxSamplerState(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
+{
+    MTLSamplerDescriptor* desc = [MTLSamplerDescriptor new];
+    desc.rAddressMode = toMTLSamplerAddressMode(rstAddressMode);
+    desc.sAddressMode = toMTLSamplerAddressMode(rstAddressMode);
+    desc.tAddressMode = toMTLSamplerAddressMode(rstAddressMode);
+    
+    desc.minFilter = toMTLSamplerMinMagFilter(minFilter);
+    desc.magFilter = toMTLSamplerMinMagFilter(magFilter);
+    desc.mipFilter = toMTLSamplerMipFilter(mipFilter);
+    desc.maxAnisotropy = anisotropy ? 16 : 1;
+
+    desc.label = [NSString stringWithUTF8String:tag];
+    
+    id<MTLSamplerState> samplerState = [getMTLDevice() newSamplerStateWithDescriptor:desc];
+    [desc release];
+    
+    obj->mtlSamplerState = (__bridge void*)samplerState;
+}
+
+void destroyerGfxSamplerState(GfxSamplerState* obj)
+{
+    [asMTLSamplerState(obj->mtlSamplerState) release];
+}
+
 RG_GFX_END_NAMESPACE
 
 void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
@@ -612,7 +688,7 @@ void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
     depthAttachmentDesc.storeAction = gfx::toMTLStoreAction(renderPass->depthStencilAttachmentStoreAction);
     depthAttachmentDesc.clearDepth  = renderPass->clearDepth;
 
-    id<MTLRenderCommandEncoder> mtlRenderEncoder = [gfx::mtlCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
+    id<MTLRenderCommandEncoder> mtlRenderEncoder = [gfx::getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
     [renderPassDesc autorelease];
     
     MTLDepthStencilDescriptor* depthStencilDesc = [[MTLDepthStencilDescriptor alloc] init];
@@ -638,13 +714,13 @@ void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
 
 void GfxRenderCmdEncoder::end()
 {
-    [gfx::mtlRenderCommandEncoder(renderCmdEncoder) endEncoding];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) endEncoding];
     hasEnded = true;
 }
 
 void GfxRenderCmdEncoder::pushDebugTag(const char* tag)
 {
-    [gfx::mtlRenderCommandEncoder(renderCmdEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
 }
 
 void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
@@ -662,12 +738,12 @@ void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat 
     vp.znear   = 0.0;
     vp.zfar    = 1.0;
     
-    [gfx::mtlRenderCommandEncoder(renderCmdEncoder) setViewport:vp];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setViewport:vp];
 }
 
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
-    [gfx::mtlRenderCommandEncoder(renderCmdEncoder) setRenderPipelineState:gfx::toMTLRenderPipelineState(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setRenderPipelineState:gfx::toMTLRenderPipelineState(pso)];
 }
 
 void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
@@ -708,12 +784,12 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         cam.view[i] = viewMatrix[i];
     }
 
-    [gfx::mtlRenderCommandEncoder(renderCmdEncoder) setVertexBytes:&cam length:sizeof(Camera) atIndex:0];
-    [gfx::mtlRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:gfx::getActiveMTLBuffer(texturedQuadInstParams) offset:0 atIndex:4];
-    [gfx::mtlRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::getActiveMTLBuffer(texturesQuadVB) offset:0 atIndex:1];
-    [gfx::mtlRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBytes:&cam length:sizeof(Camera) atIndex:0];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:gfx::getActiveMTLBuffer(texturedQuadInstParams) offset:0 atIndex:4];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::getActiveMTLBuffer(texturesQuadVB) offset:0 atIndex:1];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone];
 
-    [gfx::mtlRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:vertices.size()/6];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:vertices.size()/6];
 }
 
 RG_END_NAMESPACE

@@ -163,11 +163,17 @@ enum GfxSamplerMipFilter
 
 struct GfxSamplerState
 {
+    rgChar tag[32];
     GfxSamplerAddressMode rstAddressMode;
     GfxSamplerMinMagFilter  minFilter;
     GfxSamplerMinMagFilter  magFilter;
     GfxSamplerMipFilter     mipFilter;
     rgBool                 anisotropy;
+    
+#if defined(RG_METAL_RNDR)
+    void* mtlSamplerState;
+#else
+#endif
 };
 
 // RenderPass
@@ -617,6 +623,8 @@ DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, Tin
 
 DeclareGfxObjectFunctions(GraphicsPSO, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
 
+DeclareGfxObjectFunctions(SamplerState, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy);
+
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
@@ -691,6 +699,7 @@ extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 extern GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 extern GfxObjectRegistry<GfxBuffer>* registryBuffer;
 extern GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
+extern GfxObjectRegistry<GfxSamplerState>* registrySamplerState;
     
 extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 

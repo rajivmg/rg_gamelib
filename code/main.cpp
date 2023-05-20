@@ -135,6 +135,8 @@ rgInt rg::setup()
     
     gfx::createGraphicsPSO("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
 
+    gfx::createSamplerState("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
+    
     //
     //GfxDescriptor desc0 = {};
     //desc0.index = 0; // binding
