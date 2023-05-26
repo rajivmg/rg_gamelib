@@ -75,6 +75,8 @@ GfxObjectRegistry<GfxSamplerState>* registrySamplerState;
 
 GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
+rgU32 shaderArgsLayout[GfxShaderArgType_COUNT][GfxUpdateFreq_COUNT];
+
 Matrix4 orthographicMatrix;
 Matrix4 viewMatrix;
 
@@ -107,6 +109,30 @@ rgInt preInit()
 
     gfx::bindlessManagerTexture2D = rgNew(GfxBindlessResourceManager<GfxTexture2D>);
 
+    shaderArgsLayout[GfxShaderArgType_ConstantBuffer][GfxUpdateFreq_Frame] = 8;
+    shaderArgsLayout[GfxShaderArgType_ConstantBuffer][GfxUpdateFreq_Pass]  = 8;
+    shaderArgsLayout[GfxShaderArgType_ConstantBuffer][GfxUpdateFreq_Draw]  = 4;
+    
+    shaderArgsLayout[GfxShaderArgType_ROTexture][GfxUpdateFreq_Frame] = 4;
+    shaderArgsLayout[GfxShaderArgType_ROTexture][GfxUpdateFreq_Pass]  = 8;
+    shaderArgsLayout[GfxShaderArgType_ROTexture][GfxUpdateFreq_Draw]  = 8;
+    
+    shaderArgsLayout[GfxShaderArgType_ROBuffer][GfxUpdateFreq_Frame] = 4;
+    shaderArgsLayout[GfxShaderArgType_ROBuffer][GfxUpdateFreq_Pass]  = 8;
+    shaderArgsLayout[GfxShaderArgType_ROBuffer][GfxUpdateFreq_Draw]  = 8;
+    
+    shaderArgsLayout[GfxShaderArgType_RWTexture][GfxUpdateFreq_Frame] = 4;
+    shaderArgsLayout[GfxShaderArgType_RWTexture][GfxUpdateFreq_Pass]  = 4;
+    shaderArgsLayout[GfxShaderArgType_RWTexture][GfxUpdateFreq_Draw]  = 4;
+    
+    shaderArgsLayout[GfxShaderArgType_RWBuffer][GfxUpdateFreq_Frame] = 4;
+    shaderArgsLayout[GfxShaderArgType_RWBuffer][GfxUpdateFreq_Pass]  = 4;
+    shaderArgsLayout[GfxShaderArgType_RWBuffer][GfxUpdateFreq_Draw]  = 4;
+    
+    shaderArgsLayout[GfxShaderArgType_SamplerState][GfxUpdateFreq_Frame] = 16;
+    shaderArgsLayout[GfxShaderArgType_SamplerState][GfxUpdateFreq_Pass]  = 0;
+    shaderArgsLayout[GfxShaderArgType_SamplerState][GfxUpdateFreq_Draw]  = 0;
+    
     return 0;
 }
 
@@ -158,6 +184,39 @@ GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
     
     return currentRenderCmdEncoder;
 }
+
+// --------------------
+
+void setConstBuffer(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxBuffer* buffer)
+{
+    //setterConstBuffer(updateFreq, bindpoint, buffer);
+}
+
+void setROBuffer(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxBuffer* buffer)
+{
+    //setterROBuffer
+}
+
+void setRWBuffer(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxBuffer* buffer)
+{
+    
+}
+
+void setROTexture(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxTexture2D* texture)
+{
+    
+}
+
+void setRWTexture(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxTexture2D* texture)
+{
+    
+}
+
+void setSamplerState(rgU32 bindpoint, GfxSamplerState* samplerState)
+{
+    
+}
+
 // --------------------
 
 void allocAndFillTexture2DStruct(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D** obj)

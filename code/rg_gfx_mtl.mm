@@ -173,6 +173,52 @@ id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
     return (__bridge id<MTLRenderCommandEncoder>)currentRenderCmdEncoder->renderCmdEncoder;
 }
 
+MTLDataType toMTLDataType(GfxShaderArgType argType)
+{
+    switch(argType)
+    {
+        case GfxShaderArgType_ConstantBuffer:
+            return MTLDataTypePointer;
+            break;
+        case GfxShaderArgType_ROTexture:
+        case GfxShaderArgType_RWTexture:
+            return MTLDataTypeTexture;
+            break;
+        case GfxShaderArgType_ROBuffer:
+        case GfxShaderArgType_RWBuffer:
+            return MTLDataTypePointer;
+            break;
+        case GfxShaderArgType_SamplerState:
+            return MTLDataTypeSampler;
+            break;
+        default:
+            rgAssert(!"MTL: Invalid argType");
+            return;
+    }
+}
+
+MTLArgumentAccess toMTLArgumentAccess(GfxShaderArgType argType)
+{
+    switch(argType)
+    {
+        case GfxShaderArgType_ConstantBuffer:
+        case GfxShaderArgType_ROTexture:
+        case GfxShaderArgType_ROBuffer:
+        case GfxShaderArgType_SamplerState:
+            return MTLArgumentAccessReadOnly;
+            break;
+
+        case GfxShaderArgType_RWTexture:
+        case GfxShaderArgType_RWBuffer:
+            return MTLArgumentAccessReadWrite;
+            break;
+            
+        default:
+            rgAssert(!"MTL: Invalid argType");
+            return;
+    }
+}
+
 struct SimpleVertexFormat1
 {
     simd::float3 position;
@@ -268,6 +314,39 @@ rgInt init()
     mtl->largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[getMTLDevice() newArgumentEncoderWithArguments: @[argDesc, argDesc2]];
     mtl->largeArrayTex2DArgBuffer = createBuffer("largeArrayTex2DArgBuffer", nullptr, mtl->largeArrayTex2DArgEncoder->encodedLength(), GfxBufferUsage_ConstantBuffer, true);
 
+    //
+    NSMutableArray<MTLArgumentDescriptor*>* descriptorLayout[GfxUpdateFreq_COUNT];
+    
+    for(rgU32 frameFreq = 0; frameFreq < GfxUpdateFreq_COUNT; ++frameFreq)
+    {
+        descriptorLayout[frameFreq] = [NSMutableArray<MTLArgumentDescriptor*> new];
+        
+        rgU32 argIndex = 0;
+        for(rgU32 argType = 0; argType < (GfxShaderArgType_COUNT - 0); ++argType)
+        {
+            MTLDataType dataType = toMTLDataType((GfxShaderArgType)argType);
+            MTLArgumentAccess argAccess = toMTLArgumentAccess((GfxShaderArgType)argType);
+            for(rgU32 i = 0; i < shaderArgsLayout[argType][frameFreq]; ++i)
+            {
+                MTLArgumentDescriptor* arg = [MTLArgumentDescriptor argumentDescriptor];
+                arg.index = argIndex;
+                arg.dataType = dataType;
+                arg.access = argAccess;
+                if(argType == (rgU32)GfxShaderArgType_ROTexture
+                   || argType == (rgU32)GfxShaderArgType_RWTexture)
+                {
+                    arg.textureType = MTLTextureType2D;
+                }
+                [descriptorLayout[frameFreq] addObject:arg];
+                ++argIndex;
+            }
+        }
+        
+        mtl->argumentEncoder[frameFreq] = [getMTLDevice() newArgumentEncoderWithArguments:descriptorLayout[frameFreq]];
+    }
+    
+   //
+    
     testComputeAtomicsSetup();
     return 0;
 }
@@ -358,6 +437,7 @@ void onSizeChanged()
 {
     
 }
+
 
 void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
 {

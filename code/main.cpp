@@ -90,10 +90,67 @@ rgInt rg::setup()
     // VS       8       8       4       PerFrame-3cbv 3srv 1uav | PerPass-3cbv 3srv 3uav | PerDraw-2cbv 2srv 0uav
     // PS       8       16      4       PerFrame-3cbv 6srv 1uav | PerPass-3cbv 4srv 3uav | PerDraw-2cbv 6srv 0uav
     // CS       8       16      16      PerFrame-3cbv 6srv 1uav | PerPass-3cbv 4srv 3uav | PerDraw-2cbv 6srv 0uav
-
-
-    gfx::setReadonlyBuffer(GfxStage_VS, buffer, 3, GfxUpdateFreq_PerFrame);
-    gfx::
+    
+    struct VertexStagePerFrameArguments
+     {
+        GfxBuffer*  perFrameConstantBuffers[4];
+        GfxTexture*      perFrameROTextures[4];
+        GfxBuffer*        perFrameROBuffers[4];
+        GfxTexture*      perFrameRWTextures[1];
+        GfxBuffer*         perFrameRWBuffer[1];
+        GfxSamplerState*   perFrameSamplers[8];
+     
+         GfxBuffer*  perPassConstantBuffers[8];
+         GfxTexture*      perPassROTextures[8];
+         GfxBuffer*        perPassROBuffers[8];
+         GfxTexture*      perPassRWTextures[4];
+         GfxBuffer*         perPassRWBuffer[4];
+         GfxSamplerState*   perPassSamplers[4];
+     
+        GfxBuffer* perDrawConstantBuffers[2];
+     
+        const vsPerFrameConstantBuffers = 3;
+        const vsPerFrameROTextures = 2;
+        const vsPerFrameROBuffers  = 4;
+        const vsPerFrameRWTextures = 1;
+        const vsPerFrameRWBuffers  = 1;
+        const vsPerFrameSamplers   = 8;
+        
+         const vsPerPassConstantBuffers = 4;
+         const vsPerPassROTextures = 4;
+         const vsPerPassROBuffers  = 4;
+         const vsPerPassRWTextures = 1;
+         const vsPerPassRWBuffers  = 1;
+         const vsPerPassSamplers   = 2;
+     
+         const vsPerDrawConstantBuffers = 2;
+         const vsPerDrawROTextures = 4;
+         const vsPerDrawROBuffers  = 2;
+         const vsPerDrawRWTextures = 1;
+         const vsPerDrawRWBuffers  = 1;
+         const vsPerDrawSamplers   = 2;
+     
+        Per Stage (VS, FS)
+        -- 18 SRVs
+        -- 8  CBVs
+        15 shared SRVs
+        16 shared samplers
+        
+        cbvlimits[][][] = { {{8}, {8}, }, {4}, {4} }
+        
+        const rgU32 constBufferLimits[3][3] = { {8, 8, 8}, {3, 3, 3}, {4, 4, 4}};
+     
+        gfx::setROBuffer(GfxUpdateFreq_Frame, GfxStage_VS, 2, buffer);
+        gfx::setROBuffer(GfxUpdateFreq_Frame, GfxStage_FS, 2, buffer);
+        gfx::setROTexture(GfxUpdateFreq_Pass, GfxStage_VS, 0, texture);
+        gfx::setConstBuffer(GfxUpdateFreq_Draw, GfxStage_FS, 1, buffer);
+        gfx::setRWTexture(GfxUpdateFreq_Pass, GfxStage_FS, 0, texture);
+     }
+     
+     struct VertexStaagePerPassArguments
+     {
+        GfxTexture* texture
+     }
 
 
     */

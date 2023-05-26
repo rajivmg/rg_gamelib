@@ -248,7 +248,7 @@ enum GfxTriangleFillMode
 enum GfxStage
 {
     GfxStage_VS,
-    GfxStage_PS,
+    GfxStage_FS,
     GfxStage_CS,
 };
 
@@ -313,6 +313,28 @@ struct GfxGraphicsPSO
     void* mtlPSO; // type: id<MTLRenderPipelineState>
 #elif defined(RG_VULKAN_RNDR)
 #endif
+};
+
+// Shader Arguments
+// -----------------
+
+enum GfxUpdateFreq
+{
+    GfxUpdateFreq_Frame,
+    GfxUpdateFreq_Pass,
+    GfxUpdateFreq_Draw,
+    GfxUpdateFreq_COUNT,
+};
+
+enum GfxShaderArgType
+{
+    GfxShaderArgType_ConstantBuffer,
+    GfxShaderArgType_ROTexture,
+    GfxShaderArgType_ROBuffer,
+    GfxShaderArgType_RWTexture,
+    GfxShaderArgType_RWBuffer,
+    GfxShaderArgType_SamplerState,
+    GfxShaderArgType_COUNT,
 };
 
 //-----------------------------------------------------------------------------
@@ -608,7 +630,7 @@ GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag);
         Gfx##type* find##type(char const* tag); \
         void destroy##type(rgHash tagHash); \
         void destroy##type(char const* tag); \
-        void allocAndFill##type##Struct(const char* tag, __VA_ARGS__, Gfx##type** obj); \
+         void allocAndFill##type##Struct(const char* tag, __VA_ARGS__, Gfx##type** obj); \
         void dealloc##type##Struct(Gfx##type* obj); \
         void creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
         void destroyerGfx##type(Gfx##type* obj)
@@ -654,38 +676,23 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 // Resource Binding
 //-----------------------------------------------------------------------------
 
-enum GfxDataType
+struct ResourceBindingInfo
 {
-    GfxDataType_Buffer,
-    GfxDataType_Texture,
-    GfxDataType_Sampler,
-};
-
-enum GfxTextureType
-{
-    GfxTextureType_2D,
-    GfxTextureType_1D,
-    GfxTextureType_3D,
-};
-
-struct GfxDescriptor
-{
-    rgU32 index;
-    rgU32 arrayLength;
-    GfxDataType type;
-    GfxTextureType textureType;
-};
-
-struct GfxDescriptorBufferEncoder
-{
-#if defined(RG_D3D12_RNDR)
-#elif defined(RG_METAL_RNDR)
-    void* mtlArgEncoder; // type: id<MTLArgumentEncoder>
-#elif defined(RG_VULKAN_RNDR)
-
+#if defined(RG_METAL_RNDR)
+    void* frameArgEncoder;
+    void* passArgEncoder;
+    void* drawArgEncoder;
+    
+    void* commonArgBuffer;
 #endif
 };
 
+void setConstBuffer(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxBuffer* buffer);
+void setROBuffer(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxBuffer* buffer);
+void setRWBuffer(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxBuffer* buffer);
+void setROTexture(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxTexture2D* texture);
+void setRWTexture(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxTexture2D* texture);
+void setSamplerState(rgU32 bindpoint, GfxSamplerState* samplerState);
 
 //-----------------------------------------------------------------------------
 // Graphic Context Data
@@ -695,13 +702,14 @@ extern rgUInt frameNumber;
 
 extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 
-// TODO: Convert to pointer and new
 extern GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 extern GfxObjectRegistry<GfxBuffer>* registryBuffer;
 extern GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
 extern GfxObjectRegistry<GfxSamplerState>* registrySamplerState;
     
 extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
+
+extern rgU32 shaderArgsLayout[GfxShaderArgType_COUNT][GfxUpdateFreq_COUNT];
 
 extern Matrix4 orthographicMatrix;
 extern Matrix4 viewMatrix;
@@ -768,6 +776,7 @@ struct Mtl
     // arg buffers
     MTL::ArgumentEncoder* largeArrayTex2DArgEncoder;
     GfxBuffer* largeArrayTex2DArgBuffer;
+    void* argumentEncoder[GfxUpdateFreq_COUNT]; // type: id<MTLArgumentEncoder>
 };
 #elif defined(RG_VULKAN_RNDR)
 struct VkGfxCtx
