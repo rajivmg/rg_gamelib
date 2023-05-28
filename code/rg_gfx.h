@@ -589,8 +589,9 @@ struct GfxBlitCmdList
     {
         enum Type
         {
-            CmdType_UploadTexture,
-            CmdType_GenMips,
+            Type_UploadTexture,
+            Type_GenMips,
+            Type_CopyBufferResource,
         };
 
         Type type;
@@ -612,6 +613,7 @@ struct GfxBlitCmdList
 
     void uploadTexture(GfxTexture2D* obj);
     void genMips(GfxTexture2D* obj);
+    void copyToHeap()
 
 #if defined(RG_METAL_RNDR)
 #elif defined(RG_D3D12_RNDR)

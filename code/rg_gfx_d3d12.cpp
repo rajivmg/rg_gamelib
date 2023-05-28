@@ -516,7 +516,39 @@ void onSizeChanged()
 // Buffer
 void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
 {
+    ComPtr<ID3D12Resource> bufferResource;
 
+    rgFloat triangleVertices[] =
+    {
+        0.0f, 0.3f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+        0.4f, -0.25f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+        -0.25f, -0.1f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+
+        0.0f, 0.25f, 0.1f, 1.0f, 0.0f, 0.0f, 1.0f,
+        0.25f, -0.25f, 0.1f, 0.0f, 1.0f, 0.0f, 1.0f,
+        -0.25f, -0.25f, 0.1f, 0.0f, 0.0f, 1.0f, 1.0f
+    };
+
+    rgUInt vbSize = sizeof(triangleVertices);
+
+    BreakIfFail(device()->CreateCommittedResource(
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+        D3D12_HEAP_FLAG_NONE,
+        &CD3DX12_RESOURCE_DESC::Buffer(vbSize),
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&bufferResource)
+    ));
+
+    rgU8* vbPtr;;
+    CD3DX12_RANGE readRange(0, 0);
+    BreakIfFail(d3d.triVB->Map(0, &readRange, (void**)&vbPtr));
+    memcpy(vbPtr, triangleVertices, vbSize);
+    d3d.triVB->Unmap(0, nullptr);
+
+    d3d.triVBView.BufferLocation = d3d.triVB->GetGPUVirtualAddress();
+    d3d.triVBView.StrideInBytes = 28;
+    d3d.triVBView.SizeInBytes = vbSize;
 }
 
 void updaterGfxBuffer(void* data, rgUInt size, rgUInt offset, GfxBuffer* buffer)
