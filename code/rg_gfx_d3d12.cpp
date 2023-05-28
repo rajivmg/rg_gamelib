@@ -428,9 +428,6 @@ void destroy()
 
 rgInt draw()
 {
-    getRenderCmdList()->draw();
-    getRenderCmdList()->afterDraw();
-
     BreakIfFail(d3d.commandAllocator[g_FrameIndex]->Reset());
     BreakIfFail(d3d.commandList->Reset(d3d.commandAllocator[g_FrameIndex].Get(), d3d.dummyPSO.Get()));
 
@@ -473,6 +470,8 @@ rgInt draw()
 
 void startNextFrame()
 {
+    draw();
+
     UINT64 curValueToSignal = d3d.frameFenceValues[g_FrameIndex];
     BreakIfFail(d3d.commandQueue->Signal(d3d.frameFence.Get(), curValueToSignal));
 
@@ -487,6 +486,11 @@ void startNextFrame()
     }
 
     d3d.frameFenceValues[g_FrameIndex] = curValueToSignal + 1; // increment for next frame
+}
+
+void endFrame()
+{
+
 }
 
 void onSizeChanged()
@@ -521,17 +525,6 @@ void updaterGfxBuffer(void* data, rgUInt size, rgUInt offset, GfxBuffer* buffer)
 }
 
 void destroyerGfxBuffer(GfxBuffer* obj)
-{
-
-}
-
-// RenderTarget
-void creatorGfxRenderTarget(char const* tag, rgU32 width, rgU32 height, TinyImageFormat format, GfxRenderTarget* obj)
-{
-
-}
-
-void destroyerGfxRenderTarget(GfxRenderTarget* obj)
 {
 
 }
@@ -748,24 +741,157 @@ void destroyerGfxGraphicsPSO(GfxGraphicsPSO* obj)
 
 }
 
+void creatorGfxSamplerState(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
+{
+
+}
+
+void destroyerGfxSamplerState(GfxSamplerState* obj)
+{
+
+}
+
 // -----------------------------------------------
 // GPU Resource Creators Deleters and Modifers
 // -----------------------------------------------
 // SECTION ENDS -
 
-
-
+RG_GFX_END_NAMESPACE
 
 // SECTION BEGIN -
 // -----------------------------------------------
 // RenderCmd Handlers
 // -----------------------------------------------
 
-void handleGfxCmd_SetViewport(void const* cmd) {}
-void handleGfxCmd_SetRenderPass(void const* cmd) {}
-void handleGfxCmd_SetGraphicsPSO(void const* cmd) {}
-void handleGfxCmd_DrawTexturedQuads(void const* cmd) {}
-void handleGfxCmd_DrawTriangles(void const* cmd) {}
+void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
+{
+    //// create RenderCommandEncoder
+    //MTLRenderPassDescriptor* renderPassDesc = [[MTLRenderPassDescriptor alloc]init];
+
+    //for(rgInt c = 0; c < kMaxColorAttachments; ++c)
+    //{
+    //    if(renderPass->colorAttachments[c].texture == NULL)
+    //    {
+    //        continue;
+    //    }
+
+    //    MTLRenderPassColorAttachmentDescriptor* colorAttachmentDesc = [renderPassDesc colorAttachments][c];
+    //    GfxColorAttachmentDesc* colorAttachment = &renderPass->colorAttachments[c];
+
+    //    colorAttachmentDesc.texture = gfx::getMTLTexture(colorAttachment->texture);
+    //    colorAttachmentDesc.loadAction = gfx::toMTLLoadAction(colorAttachment->loadAction);
+    //    colorAttachmentDesc.storeAction = gfx::toMTLStoreAction(colorAttachment->storeAction);
+    //    colorAttachmentDesc.clearColor = gfx::toMTLClearColor(&colorAttachment->clearColor);
+    //}
+    //MTLRenderPassDepthAttachmentDescriptor* depthAttachmentDesc = [renderPassDesc depthAttachment];
+    //depthAttachmentDesc.texture = gfx::getMTLTexture(renderPass->depthStencilAttachmentTexture);
+    //depthAttachmentDesc.loadAction = gfx::toMTLLoadAction(renderPass->depthStencilAttachmentLoadAction);
+    //depthAttachmentDesc.storeAction = gfx::toMTLStoreAction(renderPass->depthStencilAttachmentStoreAction);
+    //depthAttachmentDesc.clearDepth = renderPass->clearDepth;
+
+    //id<MTLRenderCommandEncoder> mtlRenderEncoder = [gfx::getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
+    //[renderPassDesc autorelease] ;
+
+    //MTLDepthStencilDescriptor* depthStencilDesc = [[MTLDepthStencilDescriptor alloc]init];
+    //depthStencilDesc.depthWriteEnabled = true;
+    //id<MTLDepthStencilState> dsState = [gfx::getMTLDevice() newDepthStencilStateWithDescriptor:depthStencilDesc];
+    //[depthStencilDesc release] ;
+
+    //[mtlRenderEncoder setDepthStencilState : dsState] ;
+
+    //for(GfxTexture2D* texture2d : *gfx::bindlessManagerTexture2D)
+    //{
+    //    if(texture2d != nullptr)
+    //    {
+    //        [mtlRenderEncoder useResource : (__bridge id<MTLTexture>)texture2d->mtlTexture usage : MTLResourceUsageRead stages : MTLRenderStageVertex | MTLRenderStageFragment] ;
+    //    }
+    //}
+
+    //[mtlRenderEncoder setFragmentBuffer : gfx::getActiveMTLBuffer(gfx::mtl->largeArrayTex2DArgBuffer) offset : 0 atIndex : gfx::kBindlessTextureSetBinding] ;
+
+    //renderCmdEncoder = (__bridge void*)mtlRenderEncoder;
+    //hasEnded = false;
+}
+
+void GfxRenderCmdEncoder::end()
+{
+    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) endEncoding] ;
+    //hasEnded = true;
+}
+
+void GfxRenderCmdEncoder::pushDebugTag(const char* tag)
+{
+    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) pushDebugGroup:[NSString stringWithUTF8String : tag] ] ;
+}
+
+void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
+{
+    //setViewport(viewport.x, viewport.y, viewport.z, viewport.w);
+}
+
+void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height)
+{
+    //MTLViewport vp;
+    //vp.originX = originX;
+    //vp.originY = originY;
+    //vp.width = width;
+    //vp.height = height;
+    //vp.znear = 0.0;
+    //vp.zfar = 1.0;
+
+    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setViewport:vp] ;
+}
+
+void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
+{
+    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setRenderPipelineState:gfx::toMTLRenderPipelineState(pso)] ;
+}
+
+void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
+{
+    //eastl::vector<gfx::SimpleVertexFormat> vertices;
+    //eastl::vector<gfx::SimpleInstanceParams> instanceParams;
+
+    //genTexturedQuadVertices(quads, &vertices, &instanceParams);
+
+    //if(gfx::rcTexturedQuadsVB == NULL)
+    //{
+    //    gfx::rcTexturedQuadsVB = gfx::createBuffer("texturedQuadsVB", nullptr, rgMEGABYTE(16), GfxBufferUsage_VertexBuffer, true);
+    //}
+
+    //if(gfx::rcTexturedQuadsInstParams == NULL)
+    //{
+    //    gfx::rcTexturedQuadsInstParams = gfx::createBuffer("texturedQuadInstParams", nullptr, rgMEGABYTE(4), GfxBufferUsage_StructuredBuffer, true);
+    //}
+
+    //GfxBuffer* texturesQuadVB = gfx::rcTexturedQuadsVB;
+    //GfxBuffer* texturedQuadInstParams = gfx::rcTexturedQuadsInstParams;
+    //updateBuffer("texturedQuadsVB", &vertices.front(), vertices.size() * sizeof(gfx::SimpleVertexFormat), 0);
+    //updateBuffer("texturedQuadInstParams", &instanceParams.front(), instanceParams.size() * sizeof(gfx::SimpleInstanceParams), 0);
+
+    ////
+    //struct Camera
+    //{
+    //    float projection[16];
+    //    float view[16];
+    //} cam;
+
+    //rgFloat* orthoMatrix = toFloatPtr(gfx::orthographicMatrix);
+    //rgFloat* viewMatrix = toFloatPtr(gfx::viewMatrix);
+
+    //for(rgInt i = 0; i < 16; ++i)
+    //{
+    //    cam.projection[i] = orthoMatrix[i];
+    //    cam.view[i] = viewMatrix[i];
+    //}
+
+    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBytes:&cam length : sizeof(Camera) atIndex : 0] ;
+    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:gfx::getActiveMTLBuffer(texturedQuadInstParams) offset : 0 atIndex : 4] ;
+    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::getActiveMTLBuffer(texturesQuadVB) offset : 0 atIndex : 1] ;
+    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone] ;
+
+    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart : 0 vertexCount : 6 instanceCount : vertices.size() / 6] ;
+}
 
 // -----------------------------------------------
 // RenderCmd Handlers
@@ -773,6 +899,6 @@ void handleGfxCmd_DrawTriangles(void const* cmd) {}
 // SECTION ENDS -
 
 #undef BreakIfFail
-RG_GFX_END_NAMESPACE
+
 RG_END_NAMESPACE
 #endif

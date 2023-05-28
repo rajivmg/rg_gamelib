@@ -585,7 +585,38 @@ struct GfxRenderCmdEncoder
 
 struct GfxBlitCmdList
 {
+    struct Cmd
+    {
+        enum Type
+        {
+            CmdType_UploadTexture,
+            CmdType_GenMips,
+        };
+
+        Type type;
+        union
+        {
+            struct
+            {
+                GfxTexture2D* tex;
+                rgU32 uploadBufferOffset;
+            } uploadTexture;
+            struct
+            {
+                GfxTexture2D* tex;
+            } genMips;
+        };
+    };
+
+    eastl::vector<Cmd> cmds;
+
+    void uploadTexture(GfxTexture2D* obj);
     void genMips(GfxTexture2D* obj);
+
+#if defined(RG_METAL_RNDR)
+#elif defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Resource> d3dUploadBuffer;
+#endif
 };
 
 
