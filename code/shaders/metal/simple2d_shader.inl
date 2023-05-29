@@ -33,7 +33,15 @@ struct Camera
     float4x4 view;
 };
 
-VertexOut vertex simple2d_VS(constant Camera& camera [[buffer(0)]],
+struct FrameConstBuffer
+{
+    constant Camera* dummy0 [[id(0)]];
+    constant Camera* dummy1 [[id(1)]];
+    //constant Camera* dummy2 [[id(2)]];
+    constant Camera* camera [[id(10)]];
+};
+
+VertexOut vertex simple2d_VS(constant FrameConstBuffer* frameConstBuffer [[buffer(0)]],
                              constant Vertex2D* vertexBuffer [[buffer(1)]],
                              constant SimpleInstanceParams* instanceParams [[buffer(2)]],
                              uint vertexId [[vertex_id]],
@@ -41,7 +49,7 @@ VertexOut vertex simple2d_VS(constant Camera& camera [[buffer(0)]],
 {
     VertexOut out;
     constant Vertex2D* v = &vertexBuffer[instanceId * 6 + vertexId];
-    out.position = camera.projection * camera.view * float4(v->pos, 1.0, 1.0);
+    out.position = frameConstBuffer->camera->projection * frameConstBuffer->camera->view * float4(v->pos, 1.0, 1.0);
     out.texcoord = v->texcoord;
     out.color  = half4(v->color);
     out.instanceId = instanceId;

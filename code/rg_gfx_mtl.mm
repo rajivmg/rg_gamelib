@@ -226,6 +226,7 @@ struct SimpleVertexFormat1
     simd::float4 color;
 };
 
+// TEST ATOMIC ---------
 id<MTLComputePipelineState> histogramComputePipeline;
 
 void testComputeAtomicsSetup()
@@ -263,6 +264,16 @@ void testComputeAtomicsRun()
     [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
     [computeEncoder endEncoding];
 }
+// -------- TEST ATOMIC
+id<MTLArgumentEncoder> frameConstBufferArgEncoder;
+id<MTLBuffer> frameConstBufferArgBuffer;
+id<MTLBuffer> cameraBuffer;
+struct Camera
+{
+    float projection[16];
+    float view[16];
+};
+///
 
 rgInt init()
 {
@@ -345,7 +356,25 @@ rgInt init()
         mtl->argumentEncoder[frameFreq] = [getMTLDevice() newArgumentEncoderWithArguments:descriptorLayout[frameFreq]];
     }
     
-   //
+    //
+    MTLArgumentDescriptor* frameConstDescriptor1 = [MTLArgumentDescriptor argumentDescriptor];
+    frameConstDescriptor1.index = 0;
+    frameConstDescriptor1.dataType = MTLDataTypePointer;
+    frameConstDescriptor1.access = MTLArgumentAccessReadOnly;
+    
+    MTLArgumentDescriptor* frameConstDescriptor2 = [MTLArgumentDescriptor argumentDescriptor];
+    frameConstDescriptor2.index = 1;
+    frameConstDescriptor2.dataType = MTLDataTypePointer;
+    frameConstDescriptor2.access = MTLArgumentAccessReadOnly;
+    
+    MTLArgumentDescriptor* frameConstDescriptor = [MTLArgumentDescriptor argumentDescriptor];
+    frameConstDescriptor.index = 10;
+    frameConstDescriptor.dataType = MTLDataTypePointer;
+    frameConstDescriptor.access = MTLArgumentAccessReadOnly;
+    frameConstBufferArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments:@[frameConstDescriptor1, frameConstDescriptor2, frameConstDescriptor]];
+    frameConstBufferArgBuffer = [getMTLDevice() newBufferWithLength:[frameConstBufferArgEncoder encodedLength] options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
+    
+    cameraBuffer = [getMTLDevice() newBufferWithLength:sizeof(Camera) options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
     
     testComputeAtomicsSetup();
     return 0;
@@ -837,10 +866,29 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     {
         gfx::rcTexturedQuadsVB = gfx::createBuffer("texturedQuadsVB", nullptr, rgMEGABYTE(16), GfxBufferUsage_VertexBuffer, true);
     }
-    
+        
     if(gfx::rcTexturedQuadsInstParams == NULL)
     {
         gfx::rcTexturedQuadsInstParams = gfx::createBuffer("texturedQuadInstParams", nullptr, rgMEGABYTE(4), GfxBufferUsage_StructuredBuffer, true);
+    
+        gfx::Camera cam;
+        
+        rgFloat* orthoMatrix = toFloatPtr(gfx::orthographicMatrix);
+        rgFloat* viewMatrix = toFloatPtr(gfx::viewMatrix);
+        
+        for(rgInt i = 0; i < 16; ++i)
+        {
+            cam.projection[i] = orthoMatrix[i];
+            cam.view[i] = viewMatrix[i];
+        }
+        
+        gfx::cameraBuffer = [gfx::getMTLDevice() newBufferWithLength:sizeof(gfx::Camera) options:gfx::toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
+        gfx::Camera* p = (gfx::Camera*)[gfx::cameraBuffer contents];
+        *p = cam;
+        [gfx::cameraBuffer didModifyRange:NSMakeRange(0, sizeof(gfx::Camera))];
+        
+        [gfx::frameConstBufferArgEncoder setArgumentBuffer:gfx::frameConstBufferArgBuffer offset:0];
+        [gfx::frameConstBufferArgEncoder setBuffer:gfx::cameraBuffer offset:0 atIndex:10];
     }
     
     GfxBuffer* texturesQuadVB = gfx::rcTexturedQuadsVB;
@@ -848,23 +896,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     updateBuffer("texturedQuadsVB", &vertices.front(), vertices.size() * sizeof(gfx::SimpleVertexFormat), 0);
     updateBuffer("texturedQuadInstParams", &instanceParams.front(), instanceParams.size() * sizeof(gfx::SimpleInstanceParams), 0);
     
-    //
-    struct Camera
-    {
-        float projection[16];
-        float view[16];
-    } cam;
-    
-    rgFloat* orthoMatrix = toFloatPtr(gfx::orthographicMatrix);
-    rgFloat* viewMatrix = toFloatPtr(gfx::viewMatrix);
-    
-    for(rgInt i = 0; i < 16; ++i)
-    {
-        cam.projection[i] = orthoMatrix[i];
-        cam.view[i] = viewMatrix[i];
-    }
-
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBytes:&cam length:sizeof(Camera) atIndex:0];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::frameConstBufferArgBuffer offset:0 atIndex:0];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:gfx::getActiveMTLBuffer(texturedQuadInstParams) offset:0 atIndex:4];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::getActiveMTLBuffer(texturesQuadVB) offset:0 atIndex:1];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone];
