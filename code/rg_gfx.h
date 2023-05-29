@@ -583,7 +583,7 @@ struct GfxRenderCmdEncoder
 #endif
 };
 
-struct GfxBlitCmdList
+struct GfxBlitCmdEncoder
 {
     struct Cmd
     {
@@ -611,9 +611,10 @@ struct GfxBlitCmdList
 
     eastl::vector<Cmd> cmds;
 
+    void end();
     void uploadTexture(GfxTexture2D* obj);
     void genMips(GfxTexture2D* obj);
-    void copyToHeap()
+    void copyToHeap();
 
 #if defined(RG_METAL_RNDR)
 #elif defined(RG_D3D12_RNDR)
@@ -652,6 +653,7 @@ void            endFrame();
 void            onSizeChanged();
 
 GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag);
+GfxBlitCmdEncoder* setBlitPass(char const* tag);
 
 // Helper macros
 // ---------------
