@@ -168,6 +168,11 @@ id<MTLRenderCommandEncoder> asMTLRenderCommandEncoder(void* ptr)
     return (__bridge id<MTLRenderCommandEncoder>)ptr;
 }
 
+id<MTLBlitCommandEncoder> asMTLBlitCommandEncoder(void* ptr)
+{
+    return (__bridge id<MTLBlitCommandEncoder>)ptr;
+}
+
 id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
 {
     return (__bridge id<MTLRenderCommandEncoder>)currentRenderCmdEncoder->renderCmdEncoder;
@@ -217,6 +222,13 @@ MTLArgumentAccess toMTLArgumentAccess(GfxShaderArgType argType)
             rgAssert(!"MTL: Invalid argType");
             return;
     }
+}
+
+GfxTexture2D createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
+{
+    GfxTexture2D texture2d;
+    texture2d.mtlTexture = (__bridge MTL::Texture*)drawable.texture;
+    return texture2d;
 }
 
 struct SimpleVertexFormat1
@@ -439,12 +451,20 @@ void endFrame()
     }
     
     // blit renderTarget0 to MTLDrawable
+    /*
     id<MTLBlitCommandEncoder> blitEncoder = [getMTLCommandBuffer() blitCommandEncoder];
     
     id<MTLTexture> srcTexture = getMTLTexture(gfx::renderTarget[g_FrameIndex]);
     id<MTLTexture> dstTexture = ((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable).texture;
     [blitEncoder copyFromTexture:srcTexture toTexture:dstTexture];
     [blitEncoder endEncoding];
+    */
+    
+    GfxTexture2D drawableTexture2D = createGfxTexture2DFromMTLDrawable((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable);
+    GfxBlitCmdEncoder* blitCmdEncoder = gfx::setBlitPass("CopyRTtoMTLDrawable");
+    blitCmdEncoder->copyTexture(gfx::renderTarget[g_FrameIndex],
+                                &drawableTexture2D, 0, 0, 1);
+    blitCmdEncoder->end();
     
     [getMTLCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
     
@@ -771,6 +791,8 @@ void destroyerGfxSamplerState(GfxSamplerState* obj)
 
 RG_GFX_END_NAMESPACE
 
+using namespace gfx;
+
 void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
 {
     // create RenderCommandEncoder
@@ -903,6 +925,40 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone];
 
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:vertices.size()/6];
+}
+
+// -------------------------------------------
+
+void GfxBlitCmdEncoder::begin()
+{
+    id<MTLBlitCommandEncoder> blitCmdEncoder = [getMTLCommandBuffer() blitCommandEncoder];
+    mtlBlitCommandEncoder = (__bridge void*)blitCmdEncoder;
+    hasEnded = false;
+}
+
+void GfxBlitCmdEncoder::end()
+{
+    rgAssert(!hasEnded);
+    [asMTLBlitCommandEncoder(mtlBlitCommandEncoder) endEncoding];
+    hasEnded = true;
+}
+
+void GfxBlitCmdEncoder::pushDebugTag(const char* tag)
+{
+    [asMTLBlitCommandEncoder(mtlBlitCommandEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
+}
+
+void GfxBlitCmdEncoder::genMips(GfxTexture2D* srcTexture)
+{
+    [asMTLBlitCommandEncoder(mtlBlitCommandEncoder) generateMipmapsForTexture:getMTLTexture(srcTexture)];
+}
+
+void GfxBlitCmdEncoder::copyTexture(GfxTexture2D* srcTexture, GfxTexture2D* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount)
+{
+    id<MTLTexture> src = getMTLTexture(srcTexture);
+    id<MTLTexture> dst = getMTLTexture(dstTexture);
+    
+    [asMTLBlitCommandEncoder(mtlBlitCommandEncoder) copyFromTexture:src sourceSlice:0 sourceLevel:srcMipLevel toTexture:dst destinationSlice:0 destinationLevel:dstMipLevel sliceCount:1 levelCount:mipLevelCount];
 }
 
 RG_END_NAMESPACE

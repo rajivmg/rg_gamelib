@@ -611,12 +611,15 @@ struct GfxBlitCmdEncoder
 
     eastl::vector<Cmd> cmds;
 
+    void begin();
     void end();
-    void uploadTexture(GfxTexture2D* obj);
-    void genMips(GfxTexture2D* obj);
-    void copyToHeap();
+    void pushDebugTag(const char* tag);
+    void genMips(GfxTexture2D* srcTexture);
+    void copyTexture(GfxTexture2D* srcTexture, GfxTexture2D* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount);
 
 #if defined(RG_METAL_RNDR)
+    void* mtlBlitCommandEncoder; // type: id<MTLBlitCommandEncoder>
+    rgBool hasEnded;
 #elif defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource> d3dUploadBuffer;
 #endif
@@ -736,6 +739,7 @@ extern SDL_Window* mainWindow;
 extern rgUInt frameNumber;
 
 extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
+extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 
 extern GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 extern GfxObjectRegistry<GfxBuffer>* registryBuffer;

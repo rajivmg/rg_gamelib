@@ -67,6 +67,7 @@ rgUInt frameNumber;
 
 GfxRenderPass* currentRenderPass;
 GfxRenderCmdEncoder* currentRenderCmdEncoder;
+GfxBlitCmdEncoder* currentBlitCmdEncoder;
 
 GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 GfxObjectRegistry<GfxBuffer>* registryBuffer;
@@ -183,6 +184,25 @@ GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
     }
     
     return currentRenderCmdEncoder;
+}
+
+GfxBlitCmdEncoder* setBlitPass(char const* tag)
+{
+    if(currentBlitCmdEncoder != nullptr)
+    {
+        if(!currentBlitCmdEncoder->hasEnded)
+        {
+            currentBlitCmdEncoder->end();
+        }
+        
+        rgDelete(currentBlitCmdEncoder);
+    }
+    
+    currentBlitCmdEncoder = rgNew(GfxBlitCmdEncoder);
+    currentBlitCmdEncoder->begin();
+    currentBlitCmdEncoder->pushDebugTag(tag);
+    
+    return currentBlitCmdEncoder;
 }
 
 // --------------------
