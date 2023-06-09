@@ -287,6 +287,72 @@ struct Camera
 };
 ///
 
+struct AllocationResult
+{
+    void* ptr;
+    rgU32 offset;
+};
+
+class FrameAllocator
+{
+public:
+    FrameAllocator(id<MTLDevice> device_, rgU32 capacity_, MTLResourceOptions resourceOptions_)
+    {
+        offset = 0;
+        capacity = capacity_;
+        buffer = [device_ newBufferWithLength:capacity options:resourceOptions_];
+        bufferPtr = (rgU8*)[buffer contents];
+    }
+    
+    ~FrameAllocator()
+    {
+        [buffer release];
+    }
+    
+    void reset()
+    {
+        offset = 0;
+    }
+    
+    AllocationResult allocate(char const* tag, rgU32 size)
+    {
+        rgAssert(offset + size <= capacity);
+
+        void* ptr = (bufferPtr + offset);
+        
+        AllocationResult result;
+        result.offset = offset;
+        result.ptr = ptr;
+
+        rgU32 alignment = 4;
+        offset += (size + alignment - 1) & ~(alignment - 1);
+        
+        return result;
+    }
+    
+    id<MTLBuffer> mtlBuffer()
+    {
+        return buffer;
+    }
+    
+protected:
+    rgU32 offset;
+    rgU32 capacity;
+    id<MTLBuffer> buffer;
+    rgU8* bufferPtr;
+};
+
+static FrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
+static id<MTLHeap> bindlessTextureHeap;
+static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
+static id<MTLBuffer> bindlessTextureArgBuffer;
+
+
+FrameAllocator* getFrameAllocator()
+{
+    return frameAllocators[g_FrameIndex];
+}
+
 rgInt init()
 {
     mtl = rgNew(gfx::Mtl);
@@ -317,78 +383,103 @@ rgInt init()
     // TODO TODO TODO TODO
     // TODO TODO TODO TODO
     
-    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    @autoreleasepool
     {
-        eastl::string tag = "renderTarget" + i;
-        gfx::renderTarget[i] = createTexture2D(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, false, GfxTextureUsage_RenderTarget);
-    }
-    gfx::depthStencilBuffer = createTexture2D("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, false, GfxTextureUsage_DepthStencil);
-    
-    MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
-    argDesc.index = 0;
-    argDesc.dataType = MTLDataTypeTexture;
-    argDesc.arrayLength = 99999;
-    argDesc.textureType = MTLTextureType2D;
-    
-    MTLArgumentDescriptor* argDesc2 = [MTLArgumentDescriptor argumentDescriptor];
-    argDesc2.index = 90001;
-    argDesc2.dataType = MTLDataTypePointer;
-    
-    mtl->largeArrayTex2DArgEncoder = (__bridge MTL::ArgumentEncoder*)[getMTLDevice() newArgumentEncoderWithArguments: @[argDesc, argDesc2]];
-    mtl->largeArrayTex2DArgBuffer = createBuffer("largeArrayTex2DArgBuffer", nullptr, mtl->largeArrayTex2DArgEncoder->encodedLength(), GfxBufferUsage_ConstantBuffer, true);
-
-    //
-    NSMutableArray<MTLArgumentDescriptor*>* descriptorLayout[GfxUpdateFreq_COUNT];
-    
-    for(rgU32 frameFreq = 0; frameFreq < GfxUpdateFreq_COUNT; ++frameFreq)
-    {
-        descriptorLayout[frameFreq] = [NSMutableArray<MTLArgumentDescriptor*> new];
-        
-        rgU32 argIndex = 0;
-        for(rgU32 argType = 0; argType < (GfxShaderArgType_COUNT - 0); ++argType)
+        // Initialize frame buffer allocators
+        MTLResourceOptions frameBuffersResourceOptions = MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined | MTLResourceHazardTrackingModeTracked;
+        for(rgS32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
         {
-            MTLDataType dataType = toMTLDataType((GfxShaderArgType)argType);
-            MTLArgumentAccess argAccess = toMTLArgumentAccess((GfxShaderArgType)argType);
-            for(rgU32 i = 0; i < shaderArgsLayout[argType][frameFreq]; ++i)
-            {
-                MTLArgumentDescriptor* arg = [MTLArgumentDescriptor argumentDescriptor];
-                arg.index = argIndex;
-                arg.dataType = dataType;
-                arg.access = argAccess;
-                if(argType == (rgU32)GfxShaderArgType_ROTexture
-                   || argType == (rgU32)GfxShaderArgType_RWTexture)
-                {
-                    arg.textureType = MTLTextureType2D;
-                }
-                [descriptorLayout[frameFreq] addObject:arg];
-                ++argIndex;
-            }
+            frameAllocators[i] = rgNew(FrameAllocator)(getMTLDevice(), rgMEGABYTE(16), frameBuffersResourceOptions);
         }
         
-        mtl->argumentEncoder[frameFreq] = [getMTLDevice() newArgumentEncoderWithArguments:descriptorLayout[frameFreq]];
+        // Initialize memory for bindless textures
+        MTLHeapDescriptor* bindlessTextureHeapDesc = [MTLHeapDescriptor new];
+        bindlessTextureHeapDesc.type = MTLHeapTypeAutomatic;
+        bindlessTextureHeapDesc.storageMode = MTLStorageModeShared;
+        bindlessTextureHeapDesc.cpuCacheMode = MTLCPUCacheModeDefaultCache;
+        bindlessTextureHeapDesc.hazardTrackingMode = MTLHazardTrackingModeTracked;
+        bindlessTextureHeapDesc.size = rgMEGABYTE(128);
+        bindlessTextureHeap = [getMTLDevice() newHeapWithDescriptor:bindlessTextureHeapDesc];
+        // TODO: is manual release of descriptor needed?
+        
+        // Create render targets
+        for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            eastl::string tag = "renderTarget";
+            gfx::renderTarget[i] = createTexture2D(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, false, GfxTextureUsage_RenderTarget);
+        }
+        gfx::depthStencilBuffer = createTexture2D("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, false, GfxTextureUsage_DepthStencil);
+        
+        
+        // Create bindless texture argument encoder and buffer
+        MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
+        argDesc.index = 0;
+        argDesc.dataType = MTLDataTypeTexture;
+        argDesc.arrayLength = 99999;
+        argDesc.textureType = MTLTextureType2D;
+        argDesc.access = MTLArgumentAccessReadOnly;
+        
+        bindlessTextureArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments: @[argDesc]];
+        bindlessTextureArgBuffer  = [getMTLDevice() newBufferWithLength:[bindlessTextureArgEncoder encodedLength]
+                                                                options:MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined | MTLResourceHazardTrackingModeTracked];
+        [bindlessTextureArgEncoder setArgumentBuffer:bindlessTextureArgBuffer offset:0];
+        
+        // Create a common argument encoder for all rendering needs
+        NSMutableArray<MTLArgumentDescriptor*>* descriptorLayout[GfxUpdateFreq_COUNT];
+        
+        for(rgU32 frameFreq = 0; frameFreq < GfxUpdateFreq_COUNT; ++frameFreq)
+        {
+            descriptorLayout[frameFreq] = [NSMutableArray<MTLArgumentDescriptor*> new];
+            
+            rgU32 argIndex = 0;
+            for(rgU32 argType = 0; argType < (GfxShaderArgType_COUNT - 0); ++argType)
+            {
+                MTLDataType dataType = toMTLDataType((GfxShaderArgType)argType);
+                MTLArgumentAccess argAccess = toMTLArgumentAccess((GfxShaderArgType)argType);
+                for(rgU32 i = 0; i < shaderArgsLayout[argType][frameFreq]; ++i)
+                {
+                    MTLArgumentDescriptor* arg = [MTLArgumentDescriptor argumentDescriptor];
+                    arg.index = argIndex;
+                    arg.dataType = dataType;
+                    arg.access = argAccess;
+                    if(argType == (rgU32)GfxShaderArgType_ROTexture
+                       || argType == (rgU32)GfxShaderArgType_RWTexture)
+                    {
+                        arg.textureType = MTLTextureType2D;
+                    }
+                    [descriptorLayout[frameFreq] addObject:arg];
+                    ++argIndex;
+                }
+            }
+            
+            mtl->argumentEncoder[frameFreq] = [getMTLDevice() newArgumentEncoderWithArguments:descriptorLayout[frameFreq]];
+        }
+        
+        // Test argument encoder layout issues
+#if 1
+        MTLArgumentDescriptor* frameConstDescriptor1 = [MTLArgumentDescriptor argumentDescriptor];
+        frameConstDescriptor1.index = 0;
+        frameConstDescriptor1.dataType = MTLDataTypePointer;
+        frameConstDescriptor1.access = MTLArgumentAccessReadOnly;
+        
+        MTLArgumentDescriptor* frameConstDescriptor2 = [MTLArgumentDescriptor argumentDescriptor];
+        frameConstDescriptor2.index = 1;
+        frameConstDescriptor2.dataType = MTLDataTypePointer;
+        frameConstDescriptor2.access = MTLArgumentAccessReadOnly;
+        
+        MTLArgumentDescriptor* frameConstDescriptor3 = [MTLArgumentDescriptor argumentDescriptor];
+        frameConstDescriptor3.index = 10;
+        frameConstDescriptor3.dataType = MTLDataTypePointer;
+        frameConstDescriptor3.access = MTLArgumentAccessReadOnly;
+        frameConstBufferArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments:@[frameConstDescriptor1, frameConstDescriptor2, frameConstDescriptor3]];
+        frameConstBufferArgBuffer = [getMTLDevice() newBufferWithLength:[frameConstBufferArgEncoder encodedLength] options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
+#endif
+
+        // TODO: allocate in frame allocator per frame
+        cameraBuffer = [getMTLDevice() newBufferWithLength:sizeof(Camera) options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
+        
+        testComputeAtomicsSetup();
     }
-    
-    //
-    MTLArgumentDescriptor* frameConstDescriptor1 = [MTLArgumentDescriptor argumentDescriptor];
-    frameConstDescriptor1.index = 0;
-    frameConstDescriptor1.dataType = MTLDataTypePointer;
-    frameConstDescriptor1.access = MTLArgumentAccessReadOnly;
-    
-    MTLArgumentDescriptor* frameConstDescriptor2 = [MTLArgumentDescriptor argumentDescriptor];
-    frameConstDescriptor2.index = 1;
-    frameConstDescriptor2.dataType = MTLDataTypePointer;
-    frameConstDescriptor2.access = MTLArgumentAccessReadOnly;
-    
-    MTLArgumentDescriptor* frameConstDescriptor = [MTLArgumentDescriptor argumentDescriptor];
-    frameConstDescriptor.index = 10;
-    frameConstDescriptor.dataType = MTLDataTypePointer;
-    frameConstDescriptor.access = MTLArgumentAccessReadOnly;
-    frameConstBufferArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments:@[frameConstDescriptor1, frameConstDescriptor2, frameConstDescriptor]];
-    frameConstBufferArgBuffer = [getMTLDevice() newBufferWithLength:[frameConstBufferArgEncoder encodedLength] options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
-    
-    cameraBuffer = [getMTLDevice() newBufferWithLength:sizeof(Camera) options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
-    
-    testComputeAtomicsSetup();
     return 0;
 }
 
@@ -396,6 +487,8 @@ void destroy()
 {
     
 }
+
+AllocationResult bindlessTextureArgBufferAlloc;
 
 void startNextFrame()
 {
@@ -405,8 +498,12 @@ void startNextFrame()
 
     gfx::atFrameStart();
     
+    // Reset finished frame allocator
+    // TODO: Move this as common gfx class
+    frameAllocators[getFinishedFrameIndex()]->reset();
+    
     // Autorelease pool BEGIN
-    mtl->autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    mtl->autoReleasePool = NS::AutoreleasePool::alloc()->init(); // TODO: replace this with something better
     
     CAMetalLayer* metalLayer = (CAMetalLayer*)mtl->layer;
     id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
@@ -414,29 +511,6 @@ void startNextFrame()
     mtl->caMetalDrawable = metalDrawable;
     
     mtl->commandBuffer = (__bridge id<MTLCommandBuffer>)mtl->commandQueue->commandBuffer();
-    
-    //
-    // bind all textures
-    {
-        GfxBuffer* largeArrayTex2DArgBuffer = mtl->largeArrayTex2DArgBuffer;
-        rgInt argBufferActiveIndex = largeArrayTex2DArgBuffer->activeSlot;
-        MTL::Buffer* argBuffer = largeArrayTex2DArgBuffer->mtlBuffers[argBufferActiveIndex];
-        
-        mtl->largeArrayTex2DArgEncoder->setArgumentBuffer(argBuffer, 0);
-        
-        rgSize largeArrayTex2DIndex = 0;
-        for(GfxTexture2D* texture2d : *gfx::bindlessManagerTexture2D)
-        {
-            if(texture2d != nullptr)
-            {
-                mtl->largeArrayTex2DArgEncoder->setTexture(texture2d->mtlTexture, largeArrayTex2DIndex);
-            }
-            ++largeArrayTex2DIndex;
-        }
-        
-        argBuffer->didModifyRange(NS::Range(0, argBuffer->length()));
-    }
-    //
 }
 
 void endFrame()
@@ -444,22 +518,12 @@ void endFrame()
     //testComputeAtomicsRun();
     
     // TODO: Add assert if the currentRenderCmdEncoder is not ended
-    //[gfx::mtlRenderCommandEncoder(currentRenderCmdEncoder->renderCmdEncoder) endEncoding];
     if(!currentRenderCmdEncoder->hasEnded)
     {
         currentRenderCmdEncoder->end();
     }
     
-    // blit renderTarget0 to MTLDrawable
-    /*
-    id<MTLBlitCommandEncoder> blitEncoder = [getMTLCommandBuffer() blitCommandEncoder];
-    
-    id<MTLTexture> srcTexture = getMTLTexture(gfx::renderTarget[g_FrameIndex]);
-    id<MTLTexture> dstTexture = ((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable).texture;
-    [blitEncoder copyFromTexture:srcTexture toTexture:dstTexture];
-    [blitEncoder endEncoding];
-    */
-    
+    // blit renderTarget to MTLDrawable
     GfxTexture2D drawableTexture2D = createGfxTexture2DFromMTLDrawable((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable);
     GfxBlitCmdEncoder* blitCmdEncoder = gfx::setBlitPass("CopyRTtoMTLDrawable");
     blitCmdEncoder->copyTexture(gfx::renderTarget[g_FrameIndex],
@@ -487,6 +551,10 @@ void onSizeChanged()
     
 }
 
+void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr)
+{
+    [bindlessTextureArgEncoder setTexture:getMTLTexture(ptr) atIndex:slot];
+}
 
 void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
 {
@@ -689,11 +757,12 @@ void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height
     texDesc.height = height;
     texDesc.pixelFormat = toMTLPixelFormat(format);
     texDesc.textureType = MTLTextureType2D;
-    texDesc.storageMode = MTLStorageModeManaged;
+    texDesc.storageMode = MTLStorageModeShared;
     texDesc.usage = toMTLTextureUsage(usage);
-    texDesc.resourceOptions = toMTLResourceOptions(usage);
+    //texDesc.resourceOptions = toMTLResourceOptions(usage);
     
-    id<MTLTexture> mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc];
+    //id<MTLTexture> mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc];
+    id<MTLTexture> mtlTexture = [bindlessTextureHeap newTextureWithDescriptor:texDesc];
     mtlTexture.label = [NSString stringWithUTF8String:tag];
     [texDesc release];
     
@@ -829,15 +898,8 @@ void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
     
     [mtlRenderEncoder setDepthStencilState:dsState];
     
-    for(GfxTexture2D* texture2d : *gfx::bindlessManagerTexture2D)
-    {
-        if(texture2d != nullptr)
-        {
-            [mtlRenderEncoder useResource:(__bridge id<MTLTexture>)texture2d->mtlTexture usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];
-        }
-    }
-    
-    [mtlRenderEncoder setFragmentBuffer:gfx::getActiveMTLBuffer(gfx::mtl->largeArrayTex2DArgBuffer) offset:0 atIndex:gfx::kBindlessTextureSetBinding];
+    [mtlRenderEncoder useHeap:bindlessTextureHeap stages:MTLRenderStageFragment];
+    [mtlRenderEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     
     renderCmdEncoder = (__bridge void*)mtlRenderEncoder;
     hasEnded = false;
@@ -879,6 +941,12 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 
 void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 {
+    if(quads->size() < 1)
+    {
+        return;
+        rgAssert("No textured quads to draw");
+    }
+    
     eastl::vector<gfx::SimpleVertexFormat> vertices;
     eastl::vector<gfx::SimpleInstanceParams> instanceParams;
     
@@ -913,12 +981,21 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         [gfx::frameConstBufferArgEncoder setBuffer:gfx::cameraBuffer offset:0 atIndex:10];
     }
     
+    // TODO: use FrameAllocators
+    // TODO: use FrameAllocators
+    // TODO: use FrameAllocators
+    
     GfxBuffer* texturesQuadVB = gfx::rcTexturedQuadsVB;
     GfxBuffer* texturedQuadInstParams = gfx::rcTexturedQuadsInstParams;
     updateBuffer("texturedQuadsVB", &vertices.front(), vertices.size() * sizeof(gfx::SimpleVertexFormat), 0);
     updateBuffer("texturedQuadInstParams", &instanceParams.front(), instanceParams.size() * sizeof(gfx::SimpleInstanceParams), 0);
     
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::cameraBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::frameConstBufferArgBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::getActiveMTLBuffer(texturesQuadVB) usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::getActiveMTLBuffer(texturedQuadInstParams) usage:MTLResourceUsageRead stages: MTLRenderStageFragment];
+    
+    
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::frameConstBufferArgBuffer offset:0 atIndex:0];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:gfx::getActiveMTLBuffer(texturedQuadInstParams) offset:0 atIndex:4];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::getActiveMTLBuffer(texturesQuadVB) offset:0 atIndex:1];

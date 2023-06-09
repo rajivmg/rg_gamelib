@@ -341,6 +341,10 @@ enum GfxShaderArgType
 // Gfx Helper Classes
 //-----------------------------------------------------------------------------
 
+namespace gfx {
+void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr);
+}
+
 template <typename Type>
 struct GfxBindlessResourceManager
 {
@@ -381,6 +385,9 @@ struct GfxBindlessResourceManager
     void _setResourcePtrInSlot(rgU32 slot, Type* ptr)
     {
         resources[slot] = ptr;
+        gfx::setterBindlessResource(slot, ptr);
+        // TODO: make sure we're not updating a resource in flight
+        // this should be implictly handled from _releaseSlot
     }
 
     rgU32 _getSlotOfResourcePtr(Type* ptr)
@@ -477,6 +484,64 @@ struct GfxObjectRegistry
     }
 };
 
+// ---
+/*
+struct GfxAllocationResult
+{
+    void* ptr;
+    rgU32 offset;
+};
+
+class GfxFrameAllocator
+{
+public:
+    GfxFrameAllocator(rgU32 capacity_)
+    {
+        offset = 0;
+        capacity = capacity_;
+        
+        creatorFrameAllocator(capacity);
+    }
+    
+    ~GfxFrameAllocator()
+    {
+        [buffer release];
+    }
+    
+    void reset()
+    {
+        offset = 0;
+    }
+    
+    GfxAllocationResult allocate(char const* tag, rgU32 size)
+    {
+        rgAssert(offset + size <= capacity);
+
+        void* ptr = (bufferPtr + offset);
+        
+        GfxAllocationResult result;
+        result.offset = offset;
+        result.ptr = ptr;
+
+        rgU32 alignment = 4;
+        offset += (size + alignment - 1) & ~(alignment - 1);
+        
+        return result;
+    }
+    
+    id<MTLBuffer> mtlBuffer()
+    {
+        return buffer;
+    }
+    
+protected:
+    rgU32 offset;
+    rgU32 capacity;
+    id<MTLBuffer> buffer;
+    rgU8* bufferPtr;
+};
+ */
+
 //-----------------------------------------------------------------------------
 // Texture & Utils
 //-----------------------------------------------------------------------------
@@ -534,33 +599,11 @@ struct TexturedQuad
     rgFloat4 offsetOrientation;
 #endif
 
-    GfxTexture2D* tex;
+    rgU32 texID;
 };
 typedef eastl::vector<TexturedQuad> TexturedQuads;
 
-// Is this possible? this will be deleted by the time RenderCmd is processed
-// TODO: remove this
-template <rgSize N>
-using InplaceTexturedQuads = eastl::fixed_vector<TexturedQuad, N>;
-
-inline void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
-{
-    TexturedQuad& q = quadList->push_back();
-    q.uv = uv;
-    q.posSize = posSize;
-    q.offsetOrientation = offsetOrientation;
-    q.tex = tex;
-}
-
-template <rgSize N>
-inline void pushTexturedQuad(InplaceTexturedQuads<N>* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
-{
-    TexturedQuad& q = quadList->push_back();
-    q.uv = uv;
-    q.posSize = posSize;
-    q.offsetOrientation = offsetOrientation;
-    q.tex = tex;
-}
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex);
 
 //-----------------------------------------------------------------------------
 // Gfx Commands
@@ -642,6 +685,7 @@ RG_GFX_BEGIN_NAMESPACE
 //-----------------------------------------------------------------------------
 rgInt           initCommonStuff();
 void            atFrameStart();
+rgInt           getFinishedFrameIndex();
 
 //-----------------------------------------------------------------------------
 // Gfx function declarations
@@ -679,6 +723,7 @@ DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxBufferUsage usage, r
 void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
 
 GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage);
+void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr);
 DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage);
 
 DeclareGfxObjectFunctions(GraphicsPSO, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
@@ -813,8 +858,6 @@ struct Mtl
     void* commandBuffer; // type: id<MTLCommandBuffer>
 
     // arg buffers
-    MTL::ArgumentEncoder* largeArrayTex2DArgEncoder;
-    GfxBuffer* largeArrayTex2DArgBuffer;
     void* argumentEncoder[GfxUpdateFreq_COUNT]; // type: id<MTLArgumentEncoder>
 };
 #elif defined(RG_VULKAN_RNDR)

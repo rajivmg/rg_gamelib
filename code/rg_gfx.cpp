@@ -60,6 +60,15 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture
     return createQuadUV(xPx, yPx, widthPx, heightPx, refTexture->width, refTexture->height);
 }
 
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
+{
+    TexturedQuad& q = quadList->push_back();
+    q.uv = uv;
+    q.posSize = posSize;
+    q.offsetOrientation = offsetOrientation;
+    q.texID = gfx::bindlessManagerTexture2D->getBindlessIndex(tex);
+}
+
 RG_GFX_BEGIN_NAMESPACE
 
 SDL_Window* mainWindow;
@@ -159,6 +168,15 @@ void atFrameStart()
 {
     currentRenderPass = nullptr;
     currentRenderCmdEncoder = nullptr;
+    
+    // TODO: reset unused frame allocator
+}
+
+rgInt getFinishedFrameIndex()
+{
+    rgInt finishedFrameIndex = g_FrameIndex - RG_MAX_FRAMES_IN_FLIGHT + 1;
+    finishedFrameIndex = finishedFrameIndex < 0 ? (RG_MAX_FRAMES_IN_FLIGHT + finishedFrameIndex) : finishedFrameIndex;
+    return finishedFrameIndex;
 }
 
 GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
@@ -526,7 +544,7 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         vertices->push_back(v[2]);
         
         SimpleInstanceParams instParam;
-        instParam.texID = gfx::bindlessManagerTexture2D->getBindlessIndex(t.tex);
+        instParam.texID = t.texID;
         instanceParams->push_back(instParam);
     }
 }

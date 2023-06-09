@@ -62,7 +62,12 @@ fragment half4 simple2d_FS(VertexOut fragIn [[stage_in]],
 {
     //return half4(1.0, 0.0, 1.0, 1.0);
     constexpr sampler pointSampler(filter::nearest);
-    float4 color = frameResources.textures2d[instanceParams[fragIn.instanceId].texID].sample(pointSampler, fragIn.texcoord);
+    texture2d<float> myTexture = frameResources.textures2d[instanceParams[fragIn.instanceId].texID];
+    float4 color = float4(1.0, 0.0, 1.0, 1.0);
+    if(!is_null_texture(myTexture))
+    {
+        color = myTexture.sample(pointSampler, fragIn.texcoord);
+    }
     return half4(color);
 }
 

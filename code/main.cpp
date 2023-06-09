@@ -75,87 +75,6 @@ rgInt rg::setup()
     //gfxDestroyBuffer("ocean_tile");
 
     /*
-    GfxBuffer* buffer;
-    GfxTexture2D* texture;
-    gfx::setVertexBuffer(buffer, 3);
-    gfx::setVertexTexture(texture, 3);
-    gfx::setFragmentBuffer(buffer, 3);
-    gfx::setFragmentTexture(texture, 3);
-    gfx::setComputeBuffer(buffer, 3);
-    gfx::setComputeTexture(texture, 3);
-    gfx::setComputeRWTexture(texture, 3);
-
-    // Layout
-    // Stage    CBV     SRV     UAV     Breakdown
-    // VS       8       8       4       PerFrame-3cbv 3srv 1uav | PerPass-3cbv 3srv 3uav | PerDraw-2cbv 2srv 0uav
-    // PS       8       16      4       PerFrame-3cbv 6srv 1uav | PerPass-3cbv 4srv 3uav | PerDraw-2cbv 6srv 0uav
-    // CS       8       16      16      PerFrame-3cbv 6srv 1uav | PerPass-3cbv 4srv 3uav | PerDraw-2cbv 6srv 0uav
-    
-    struct VertexStagePerFrameArguments
-     {
-        GfxBuffer*  perFrameConstantBuffers[4];
-        GfxTexture*      perFrameROTextures[4];
-        GfxBuffer*        perFrameROBuffers[4];
-        GfxTexture*      perFrameRWTextures[1];
-        GfxBuffer*         perFrameRWBuffer[1];
-        GfxSamplerState*   perFrameSamplers[8];
-     
-         GfxBuffer*  perPassConstantBuffers[8];
-         GfxTexture*      perPassROTextures[8];
-         GfxBuffer*        perPassROBuffers[8];
-         GfxTexture*      perPassRWTextures[4];
-         GfxBuffer*         perPassRWBuffer[4];
-         GfxSamplerState*   perPassSamplers[4];
-     
-        GfxBuffer* perDrawConstantBuffers[2];
-     
-        const vsPerFrameConstantBuffers = 3;
-        const vsPerFrameROTextures = 2;
-        const vsPerFrameROBuffers  = 4;
-        const vsPerFrameRWTextures = 1;
-        const vsPerFrameRWBuffers  = 1;
-        const vsPerFrameSamplers   = 8;
-        
-         const vsPerPassConstantBuffers = 4;
-         const vsPerPassROTextures = 4;
-         const vsPerPassROBuffers  = 4;
-         const vsPerPassRWTextures = 1;
-         const vsPerPassRWBuffers  = 1;
-         const vsPerPassSamplers   = 2;
-     
-         const vsPerDrawConstantBuffers = 2;
-         const vsPerDrawROTextures = 4;
-         const vsPerDrawROBuffers  = 2;
-         const vsPerDrawRWTextures = 1;
-         const vsPerDrawRWBuffers  = 1;
-         const vsPerDrawSamplers   = 2;
-     
-        Per Stage (VS, FS)
-        -- 18 SRVs
-        -- 8  CBVs
-        15 shared SRVs
-        16 shared samplers
-        
-        cbvlimits[][][] = { {{8}, {8}, }, {4}, {4} }
-        
-        const rgU32 constBufferLimits[3][3] = { {8, 8, 8}, {3, 3, 3}, {4, 4, 4}};
-     
-        gfx::setROBuffer(GfxUpdateFreq_Frame, GfxStage_VS, 2, buffer);
-        gfx::setROBuffer(GfxUpdateFreq_Frame, GfxStage_FS, 2, buffer);
-        gfx::setROTexture(GfxUpdateFreq_Pass, GfxStage_VS, 0, texture);
-        gfx::setConstBuffer(GfxUpdateFreq_Draw, GfxStage_FS, 1, buffer);
-        gfx::setRWTexture(GfxUpdateFreq_Pass, GfxStage_FS, 0, texture);
-     }
-     
-     struct VertexStaagePerPassArguments
-     {
-        GfxTexture* texture
-     }
-
-
-    */
-
-    /*
         gfx::setRenderPass();
         gfx::genMips(GfxTexture* obj);
         gfx::texturedQuad();
@@ -193,21 +112,6 @@ rgInt rg::setup()
     gfx::createGraphicsPSO("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
 
     gfx::createSamplerState("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
-    
-    //
-    //GfxDescriptor desc0 = {};
-    //desc0.index = 0; // binding
-    //desc0.type = GfxDataType_Texture;
-    //desc0.arrayLength = 64000;
-    //desc0.textureType = GfxTextureType_2D;
-
-    //GfxDescriptor desc1 = {};
-    //desc1.index = 64000; // binding
-    //desc1.type = GfxDataType_Sampler;
-    //desc1.arrayLength = 6;
-    //
-    //GfxDescriptor* desc[] = {&desc0, &desc1};
-    //gfxNewDescriptorBuffer()
 
     //
     
@@ -216,7 +120,7 @@ rgInt rg::setup()
         {
             for(rgInt x = -50; x < 50; ++x)
             {
-                pushTexturedQuad(&g_GameData->terrainAndOcean, defaultQuadUV, {(rgFloat)x, (rgFloat)y, 64.0f, 64.0f}, {0, 0, 0, 0}, g_GameData->oceanTileTexture);
+//                pushTexturedQuad(&g_GameData->terrainAndOcean, defaultQuadUV, {(rgFloat)x, (rgFloat)y, 64.0f, 64.0f}, {0, 0, 0, 0}, g_GameData->oceanTileTexture);
             }
         }
          //g_GameData->terrainAndOcean
@@ -262,17 +166,6 @@ rgInt rg::updateAndDraw(rgDouble dt)
 
     eastl::vector<QuadUV> quadUVs;
     quadUVs.push_back(fullQuadUV);
-
-    //printf("%f\n", quadUVs.back().uvBottomRight[1]);
-    
-    // TODO:
-    // - RenderCmdSetRenderPass
-    // - RenderCmdSetPipeline
-    // - RenderCmdSetViewport
-    // - - RenderCmdPolygon <- This is independent of Pipeline.. thought pipeline Vertex attrib and other req. settings must be compatible
-    // - - RenderCmdPolygon
-    // - RenderCmdSetPipeline
-    // - - RenderCmdPolygon
 
     {        
         GfxRenderPass simple2dPass = {};
@@ -327,9 +220,7 @@ rgInt createSDLWindow()
 {
     g_WindowInfo.width = 720;
     g_WindowInfo.height = 720;
-    
-    //rgUInt windowWidth = 720;
-    //rgUInt windowHeight = 720;
+
     Uint32 windowFlags = 0;
     
 #if defined(RG_VULKAN_RNDR)
@@ -369,8 +260,6 @@ rgInt createSDLWindow()
 
 int main(int argc, char* argv[])
 {
-    //g_GfxCtx = rgNew(GfxCtx);
-    
     g_FrameIndex = -1;
 
     if(createSDLWindow() != 0)
