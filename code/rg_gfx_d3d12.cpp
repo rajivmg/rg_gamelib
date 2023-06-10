@@ -140,6 +140,8 @@ void waitForGpu()
     BreakIfFail(d3d.commandQueue->Signal(d3d.frameFence.Get(), d3d.frameFenceValues[g_FrameIndex]));
     BreakIfFail(d3d.frameFence->SetEventOnCompletion(d3d.frameFenceValues[g_FrameIndex], d3d.frameFenceEvent));
     ::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
+
+    d3d.frameFenceValues[g_FrameIndex] += 1;
 }
 
 // https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Fullscreen/src/D3D12Fullscreen.cpp
@@ -284,7 +286,7 @@ rgInt init()
         d3d.commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
     }
 
-    d3d.commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d.commandAllocator[g_FrameIndex], nullptr);
+    d3d.commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d.commandAllocator[0], nullptr);
 
     ///// 
     // empty root signature
@@ -298,7 +300,6 @@ rgInt init()
         BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(d3d.dummyRootSignature), (void**)&(d3d.dummyRootSignature)));
     }
 
-#if 1
     GfxVertexInputDesc simpleVertexDesc = {};
     simpleVertexDesc.elementsCount = 2;
     simpleVertexDesc.elements[0].semanticName = "POSITION";
@@ -326,48 +327,6 @@ rgInt init()
     simple2dRenderStateDesc.depthCompareFunc = GfxCompareFunc_Less;
     GfxGraphicsPSO* simplePSO = createGraphicsPSO("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
     d3d.dummyPSO = simplePSO->d3dPSO;
-#else
-    {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-        UINT shaderCompileFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-        UINT shaderCompileFlag = 0;
-#endif
-
-        BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple2d.hlsl", nullptr, nullptr, "simple2d_VS", "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
-        BreakIfFail(D3DCompileFromFile(L"shaders/dx12/simple2d.hlsl", nullptr, nullptr, "simple2d_FS", "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
-
-        D3D12_INPUT_ELEMENT_DESC inputElementDesc[] =
-        {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-        };
-
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        psoDesc.InputLayout = { inputElementDesc, rgARRAY_COUNT(inputElementDesc) };
-        psoDesc.pRootSignature = d3d.dummyRootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
-        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        psoDesc.DepthStencilState.DepthEnable = TRUE;
-        psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-        psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-        psoDesc.DepthStencilState.StencilEnable = FALSE;
-        psoDesc.SampleMask = UINT_MAX;
-        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
-        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-        psoDesc.SampleDesc.Count = 1;
-        BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, __uuidof(d3d.dummyPSO), (void**)&(d3d.dummyPSO)));
-    }
-#endif 
-    //d3d.commandAllocator = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
-    //d3d.commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d.commandAllocator, d3d.dummyPSO.Get());
 
     {
         rgFloat triangleVertices[] =
@@ -405,16 +364,22 @@ rgInt init()
     }
 
     {
-        BreakIfFail(device()->CreateFence(d3d.frameFenceValues[g_FrameIndex], D3D12_FENCE_FLAG_NONE, __uuidof(d3d.frameFence), (void**)&(d3d.frameFence)));
-        d3d.frameFenceValues[g_FrameIndex]++;
-
+        // Create a fence with initial value 0 which is equal to d3d.nextFrameFenceValues[g_FrameIndex=0]
+        BreakIfFail(device()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(d3d.frameFence), (void**)&(d3d.frameFence)));
+        
+        // Create an framefence event
         d3d.frameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
         if(d3d.frameFenceEvent == nullptr)
         {
             BreakIfFail(HRESULT_FROM_WIN32(::GetLastError()));
         }
 
-        waitForGpu();
+        //// when the command queue has finished its work, signal 1 to frameFence
+        //BreakIfFail(d3d.commandQueue->Signal(d3d.frameFence.Get(), 1));
+
+        //// Wait until the event is triggered
+        //BreakIfFail(d3d.frameFence->SetEventOnCompletion(1, d3d.frameFenceEvent));
+        //::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
     }
 
     return 0;
@@ -463,21 +428,16 @@ rgInt draw()
     d3d.commandQueue->ExecuteCommandLists(1, commandLists);
     BreakIfFail(d3d.dxgiSwapchain->Present(1, 0));
 
-    startNextFrame();
-
     return 0;
 }
 
 void startNextFrame()
 {
-    draw();
-
-    UINT64 curValueToSignal = d3d.frameFenceValues[g_FrameIndex];
-    BreakIfFail(d3d.commandQueue->Signal(d3d.frameFence.Get(), curValueToSignal));
+    UINT64 prevFrameFenceValue = (g_FrameIndex != -1) ? d3d.frameFenceValues[g_FrameIndex] : 0;
 
     g_FrameIndex = d3d.dxgiSwapchain->GetCurrentBackBufferIndex();
 
-    // check if next frame's fence value is reached, meaning we can reuse its framebuffer
+    // check if this next frame is finised on the GPU
     UINT64 nextFrameFenceValueToWaitFor = d3d.frameFenceValues[g_FrameIndex];
     while(d3d.frameFence->GetCompletedValue() < nextFrameFenceValueToWaitFor)
     {
@@ -485,12 +445,16 @@ void startNextFrame()
         WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
     }
 
-    d3d.frameFenceValues[g_FrameIndex] = curValueToSignal + 1; // increment for next frame
+    // This frame fence value is one more than prev frame fence value
+    d3d.frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
+
+    draw();
 }
 
 void endFrame()
 {
-
+    UINT64 fenceValueToSignal = d3d.frameFenceValues[g_FrameIndex];
+    BreakIfFail(d3d.commandQueue->Signal(d3d.frameFence.Get(), fenceValueToSignal));
 }
 
 void onSizeChanged()
@@ -512,6 +476,10 @@ void onSizeChanged()
 // -----------------------------------------------
 // GPU Resource Creators Deleters and Modifers
 // -----------------------------------------------
+
+void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr)
+{
+}
 
 // Buffer
 void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
@@ -923,6 +891,40 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone] ;
 
     //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart : 0 vertexCount : 6 instanceCount : vertices.size() / 6] ;
+}
+
+// -------------------------------------------
+
+void GfxBlitCmdEncoder::begin()
+{
+    //id<MTLBlitCommandEncoder> blitCmdEncoder = [getMTLCommandBuffer() blitCommandEncoder];
+    //mtlBlitCommandEncoder = (__bridge void*)blitCmdEncoder;
+    //hasEnded = false;
+}
+
+void GfxBlitCmdEncoder::end()
+{
+    //rgAssert(!hasEnded);
+    //[asMTLBlitCommandEncoder(mtlBlitCommandEncoder) endEncoding] ;
+    //hasEnded = true;
+}
+
+void GfxBlitCmdEncoder::pushDebugTag(const char* tag)
+{
+    //[asMTLBlitCommandEncoder(mtlBlitCommandEncoder) pushDebugGroup:[NSString stringWithUTF8String : tag] ] ;
+}
+
+void GfxBlitCmdEncoder::genMips(GfxTexture2D* srcTexture)
+{
+    //[asMTLBlitCommandEncoder(mtlBlitCommandEncoder) generateMipmapsForTexture:getMTLTexture(srcTexture)] ;
+}
+
+void GfxBlitCmdEncoder::copyTexture(GfxTexture2D* srcTexture, GfxTexture2D* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount)
+{
+    //id<MTLTexture> src = getMTLTexture(srcTexture);
+    //id<MTLTexture> dst = getMTLTexture(dstTexture);
+
+    //[asMTLBlitCommandEncoder(mtlBlitCommandEncoder) copyFromTexture:src sourceSlice : 0 sourceLevel : srcMipLevel toTexture : dst destinationSlice : 0 destinationLevel : dstMipLevel sliceCount : 1 levelCount : mipLevelCount] ;
 }
 
 // -----------------------------------------------
