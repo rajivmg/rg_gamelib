@@ -172,11 +172,15 @@ void atFrameStart()
     // TODO: reset unused frame allocator
 }
 
+// TODO: rename -> getCompletedFrameIndex
 rgInt getFinishedFrameIndex()
 {
-    rgInt finishedFrameIndex = g_FrameIndex - RG_MAX_FRAMES_IN_FLIGHT + 1;
-    finishedFrameIndex = finishedFrameIndex < 0 ? (RG_MAX_FRAMES_IN_FLIGHT + finishedFrameIndex) : finishedFrameIndex;
-    return finishedFrameIndex;
+    rgInt completedFrameIndex = g_FrameIndex - RG_MAX_FRAMES_IN_FLIGHT + 1;
+    completedFrameIndex = completedFrameIndex < 0 ? (RG_MAX_FRAMES_IN_FLIGHT + completedFrameIndex) : completedFrameIndex;
+
+    checkerWaitTillFrameCompleted(completedFrameIndex);
+
+    return completedFrameIndex;
 }
 
 GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)

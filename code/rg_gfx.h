@@ -343,6 +343,7 @@ enum GfxShaderArgType
 
 namespace gfx {
 void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr);
+void checkerWaitTillFrameCompleted(rgInt frameIndex);
 }
 
 template <typename Type>

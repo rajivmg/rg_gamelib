@@ -431,6 +431,17 @@ rgInt draw()
     return 0;
 }
 
+void checkerWaitTillFrameCompleted(rgInt frameIndex)
+{
+    rgAssert(frameIndex >= 0);
+    UINT64 valueToWaitFor = d3d.frameFenceValues[frameIndex];
+    while(d3d.frameFence->GetCompletedValue() < valueToWaitFor)
+    {
+        BreakIfFail(d3d.frameFence->SetEventOnCompletion(valueToWaitFor, d3d.frameFenceEvent));
+        ::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
+    }
+}
+
 void startNextFrame()
 {
     UINT64 prevFrameFenceValue = (g_FrameIndex != -1) ? d3d.frameFenceValues[g_FrameIndex] : 0;
@@ -442,7 +453,7 @@ void startNextFrame()
     while(d3d.frameFence->GetCompletedValue() < nextFrameFenceValueToWaitFor)
     {
         BreakIfFail(d3d.frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, d3d.frameFenceEvent));
-        WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
+        ::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
     }
 
     // This frame fence value is one more than prev frame fence value
