@@ -289,14 +289,33 @@ rgInt init()
     d3d.commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d.commandAllocator[0], nullptr);
 
     ///// 
-    // empty root signature
+    // Create common root signature
     {
-        CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
-        rootSigDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-        
+        CD3DX12_ROOT_PARAMETER commonRootParams[GfxShaderArgType_COUNT];
+
+        for(rgU32 frameFreq = 0; frameFreq < GfxUpdateFreq_COUNT; ++frameFreq)
+        {
+            rgU32 argIndex = 0;
+            for(rgU32 argType = 0; argType < (GfxShaderArgType_COUNT - 0); ++argType)
+            {
+                commonRootParams[(GfxShaderArgType)argType];
+                for(rgU32 i = 0; i < shaderArgsLayout[argType][frameFreq]; ++i)
+                {
+
+                    ++argIndex;
+                }
+            }
+        }
+
+        //CD3DX12_ROOT_PARAMETER commonRootParams[GfxShaderArgType_COUNT];
+        //commonRootParams[GfxShaderArgType_ConstantBuffer].InitAsConstantBufferView(0)
+
+        CD3DX12_ROOT_SIGNATURE_DESC commonRootSigDesc;
+        commonRootSigDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
-        BreakIfFail(D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+        BreakIfFail(D3D12SerializeRootSignature(&commonRootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
         BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(d3d.dummyRootSignature), (void**)&(d3d.dummyRootSignature)));
     }
 
@@ -394,10 +413,12 @@ void destroy()
 rgInt draw()
 {
     BreakIfFail(d3d.commandAllocator[g_FrameIndex]->Reset());
-    BreakIfFail(d3d.commandList->Reset(d3d.commandAllocator[g_FrameIndex].Get(), d3d.dummyPSO.Get()));
+    BreakIfFail(d3d.commandList->Reset(d3d.commandAllocator[g_FrameIndex].Get(), NULL));
 
     ID3D12GraphicsCommandList* commandList = d3d.commandList.Get();
     commandList->SetGraphicsRootSignature(d3d.dummyRootSignature.Get());
+
+    commandList->SetPipelineState(d3d.dummyPSO.Get());
 
     CD3DX12_VIEWPORT vp(0.0f, 0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height);
     commandList->RSSetViewports(1, &vp);
