@@ -167,7 +167,11 @@ rgInt initCommonStuff()
 void atFrameStart()
 {
     currentRenderPass = nullptr;
-    currentRenderCmdEncoder = nullptr;
+    if(currentRenderCmdEncoder != nullptr)
+    {
+        rgDelete(currentRenderCmdEncoder);
+        currentRenderCmdEncoder = nullptr;
+    }
     
     // TODO: reset unused frame allocator
 }
