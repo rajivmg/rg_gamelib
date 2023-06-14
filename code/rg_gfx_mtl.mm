@@ -347,6 +347,9 @@ static id<MTLHeap> bindlessTextureHeap;
 static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
 static id<MTLBuffer> bindlessTextureArgBuffer;
 
+static id<MTLSharedEvent> frameFenceEvent;
+static MTLSharedEventListener* frameFenceEventListener;
+static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 
 FrameAllocator* getFrameAllocator()
 {
@@ -385,6 +388,11 @@ rgInt init()
     
     @autoreleasepool
     {
+        // Crate frame sync events
+        frameFenceEvent = [getMTLDevice() newSharedEvent];
+        dispatch_queue_t frameFenceDispatchQueue = dispatch_queue_create("rg.gamelib.mtl.frameFenceDispatchQueue", NULL);
+        frameFenceEventListener = [[MTLSharedEventListener alloc] initWithDispatchQueue:frameFenceDispatchQueue];
+        
         // Initialize frame buffer allocators
         MTLResourceOptions frameBuffersResourceOptions = MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined | MTLResourceHazardTrackingModeTracked;
         for(rgS32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
@@ -492,10 +500,23 @@ AllocationResult bindlessTextureArgBufferAlloc;
 
 void startNextFrame()
 {
-    dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
+    //dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
+    
+    rgU64 prevFrameFenceValue = (g_FrameIndex != -1) ? frameFenceValues[g_FrameIndex] : 0;
     
     g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
+    
+    // check if this next frame is finised on the GPU
+    rgU64 nextFrameFenceValueToWaitFor = frameFenceValues[g_FrameIndex];
+    while(frameFenceEvent.signaledValue < nextFrameFenceValueToWaitFor)
+    {
+        //BreakIfFail(d3d.frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, d3d.frameFenceEvent));
+        //::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
+    }
 
+    // This frame fence value is one more than prev frame fence value
+    frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
+    
     gfx::atFrameStart();
     
     // Reset finished frame allocator
@@ -532,11 +553,14 @@ void endFrame()
     
     [getMTLCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
     
-    __block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
-    [getMTLCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
-     {
-        dispatch_semaphore_signal(blockSemaphore);
-    }];
+    //__block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
+    //[getMTLCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
+    //{
+    //    dispatch_semaphore_signal(blockSemaphore);
+    //}];
+    
+    rgU64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
+    [getMTLCommandBuffer() encodeSignalEvent:frameFenceEvent value:fenceValueToSignal];
     
     [getMTLCommandBuffer() commit];
     
@@ -554,6 +578,11 @@ void onSizeChanged()
 void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr)
 {
     [bindlessTextureArgEncoder setTexture:getMTLTexture(ptr) atIndex:slot];
+}
+
+void checkerWaitTillFrameCompleted(rgInt frameIndex)
+{
+    
 }
 
 void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
