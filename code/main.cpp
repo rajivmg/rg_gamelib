@@ -160,7 +160,7 @@ rgInt rg::setup()
 
 rgInt rg::updateAndDraw(rgDouble dt)
 {
-    rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
+    //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
 
     QuadUV fullQuadUV = createQuadUV(0, 0, 512, 512, 512, 512);
 

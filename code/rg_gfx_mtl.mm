@@ -349,6 +349,7 @@ static id<MTLBuffer> bindlessTextureArgBuffer;
 
 static id<MTLSharedEvent> frameFenceEvent;
 static MTLSharedEventListener* frameFenceEventListener;
+dispatch_queue_t frameFenceDispatchQueue;
 static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 
 FrameAllocator* getFrameAllocator()
@@ -371,6 +372,7 @@ rgInt init()
     mtlLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     mtlLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_FLIGHT;
     mtlLayer.framebufferOnly = false;
+    //mtlLayer.displaySyncEnabled = false;
     //
 
     mtl->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
@@ -390,7 +392,7 @@ rgInt init()
     {
         // Crate frame sync events
         frameFenceEvent = [getMTLDevice() newSharedEvent];
-        dispatch_queue_t frameFenceDispatchQueue = dispatch_queue_create("rg.gamelib.mtl.frameFenceDispatchQueue", NULL);
+        frameFenceDispatchQueue = dispatch_queue_create("rg.gamelib.mtl.frameFenceDispatchQueue", NULL);
         frameFenceEventListener = [[MTLSharedEventListener alloc] initWithDispatchQueue:frameFenceDispatchQueue];
         
         // Initialize frame buffer allocators
@@ -918,6 +920,7 @@ void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
     depthAttachmentDesc.clearDepth  = renderPass->clearDepth;
 
     id<MTLRenderCommandEncoder> mtlRenderEncoder = [gfx::getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
+    rgAssert(mtlRenderEncoder != nil);
     [renderPassDesc autorelease];
     
     MTLDepthStencilDescriptor* depthStencilDesc = [[MTLDepthStencilDescriptor alloc] init];
