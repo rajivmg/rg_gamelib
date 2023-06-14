@@ -290,15 +290,46 @@ rgInt init()
 
     ///// 
     // Create common root signature
-    {
-        CD3DX12_ROOT_PARAMETER commonRootParams[GfxShaderArgType_COUNT];
+    eastl::vector<CD3DX12_ROOT_PARAMETER> commonRootParams;
 
+    //commonRootParams[GfxShaderArgType_ConstantBuffer].InitAsConstantBufferView
+    
+    {
         for(rgU32 frameFreq = 0; frameFreq < GfxUpdateFreq_COUNT; ++frameFreq)
         {
-            rgU32 argIndex = 0;
-            for(rgU32 argType = 0; argType < (GfxShaderArgType_COUNT - 0); ++argType)
+            for(rgU32 type = 0; type < (GfxShaderArgType_COUNT - 0); ++type)
             {
-                commonRootParams[(GfxShaderArgType)argType];
+                rgU32 argIndex = 0;
+                commonRootParams.emplace_back();
+
+                GfxShaderArgType argType = (GfxShaderArgType)type;
+                switch(argType)
+                {
+                    case GfxShaderArgType_ConstantBuffer:
+                    {
+                        commonRootParams.back().InitAsConstantBufferView(argIndex, (UINT)frameFreq, D3D12_SHADER_VISIBILITY_ALL);
+                    } break;
+                    
+                    case GfxShaderArgType_ROTexture:
+                    case GfxShaderArgType_ROBuffer:
+                    {
+                        commonRootParams.back().InitAsShaderResourceView(argIndex, (UINT)frameFreq, D3D12_SHADER_VISIBILITY_ALL);
+                    } break;
+
+                    case GfxShaderArgType_RWTexture:
+                    case GfxShaderArgType_RWBuffer:
+                    {
+                        commonRootParams.back().InitAsUnorderedAccessView(argIndex, (UINT)frameFreq, D3D12_SHADER_VISIBILITY_ALL);
+                    } break;
+
+                    case GfxShaderArgType_SamplerState:
+                    {
+                        //commonRootParams.back().Init
+                    } break;
+                }
+
+
+
                 for(rgU32 i = 0; i < shaderArgsLayout[argType][frameFreq]; ++i)
                 {
 
@@ -306,9 +337,8 @@ rgInt init()
                 }
             }
         }
-
-        //CD3DX12_ROOT_PARAMETER commonRootParams[GfxShaderArgType_COUNT];
-        //commonRootParams[GfxShaderArgType_ConstantBuffer].InitAsConstantBufferView(0)
+        
+        // ----
 
         CD3DX12_ROOT_SIGNATURE_DESC commonRootSigDesc;
         commonRootSigDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
