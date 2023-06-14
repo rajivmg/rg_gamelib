@@ -349,7 +349,7 @@ static id<MTLBuffer> bindlessTextureArgBuffer;
 
 static id<MTLSharedEvent> frameFenceEvent;
 static MTLSharedEventListener* frameFenceEventListener;
-dispatch_queue_t frameFenceDispatchQueue;
+static dispatch_queue_t frameFenceDispatchQueue;
 static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 
 FrameAllocator* getFrameAllocator()
@@ -512,6 +512,8 @@ void startNextFrame()
     rgU64 nextFrameFenceValueToWaitFor = frameFenceValues[g_FrameIndex];
     while(frameFenceEvent.signaledValue < nextFrameFenceValueToWaitFor)
     {
+        // This means we have no free backbuffers. we must wait
+        
         //BreakIfFail(d3d.frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, d3d.frameFenceEvent));
         //::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
     }
@@ -584,7 +586,13 @@ void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr)
 
 void checkerWaitTillFrameCompleted(rgInt frameIndex)
 {
-    
+    rgAssert(frameIndex >= 0);
+    rgU64 valueToWaitFor = frameFenceValues[frameIndex];
+    while(frameFenceEvent.signaledValue < valueToWaitFor)
+    {
+        // TODO: cpu friendly way to wait
+        int ans = 42;
+    }
 }
 
 void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
