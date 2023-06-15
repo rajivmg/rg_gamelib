@@ -12,6 +12,7 @@
 #include <QuartzCore/CAMetalLayer.h>
 
 #include <sstream>
+#include <string>
 
 RG_BEGIN_NAMESPACE
 RG_GFX_BEGIN_NAMESPACE
@@ -289,8 +290,9 @@ struct Camera
 
 struct AllocationResult
 {
-    void* ptr;
     rgU32 offset;
+    void* ptr;
+    id<MTLBuffer> parentBuffer;
 };
 
 class FrameAllocator
@@ -323,10 +325,18 @@ public:
         AllocationResult result;
         result.offset = offset;
         result.ptr = ptr;
+        result.parentBuffer = buffer;
 
         rgU32 alignment = 4;
         offset += (size + alignment - 1) & ~(alignment - 1);
         
+        return result;
+    }
+    
+    AllocationResult allocate(char const* tag, rgU32 size, void* initialData)
+    {
+        AllocationResult result = allocate(tag, size);
+        memcpy(result.ptr, initialData, size);
         return result;
     }
     
@@ -376,17 +386,6 @@ rgInt init()
     //
 
     mtl->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
-
-    // TODO TODO TODO TODO
-    // TODO TODO TODO TODO
-    // TODO TODO TODO TODO
-    // Make handle value start from 1. Default 0 should be uninitialized handle
-    
-    //GfxTexture2D t2dptr = gfxNewTexture2D(rg::loadTexture("T.tga"), GfxTextureUsage_ShaderRead);
-    
-    // TODO TODO TODO TODO
-    // TODO TODO TODO TODO
-    // TODO TODO TODO TODO
     
     @autoreleasepool
     {
@@ -415,7 +414,8 @@ rgInt init()
         // Create render targets
         for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
         {
-            eastl::string tag = "renderTarget";
+            std::string tag = "renderTarget" + std::to_string(i);
+            
             gfx::renderTarget[i] = createTexture2D(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, false, GfxTextureUsage_RenderTarget);
         }
         gfx::depthStencilBuffer = createTexture2D("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, false, GfxTextureUsage_DepthStencil);
@@ -992,11 +992,11 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     
     genTexturedQuadVertices(quads, &vertices, &instanceParams);
     
+#if 0
     if(gfx::rcTexturedQuadsVB == NULL)
     {
         gfx::rcTexturedQuadsVB = gfx::createBuffer("texturedQuadsVB", nullptr, rgMEGABYTE(16), GfxBufferUsage_VertexBuffer, true);
     }
-        
     if(gfx::rcTexturedQuadsInstParams == NULL)
     {
         gfx::rcTexturedQuadsInstParams = gfx::createBuffer("texturedQuadInstParams", nullptr, rgMEGABYTE(4), GfxBufferUsage_StructuredBuffer, true);
@@ -1020,25 +1020,53 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         [gfx::frameConstBufferArgEncoder setArgumentBuffer:gfx::frameConstBufferArgBuffer offset:0];
         [gfx::frameConstBufferArgEncoder setBuffer:gfx::cameraBuffer offset:0 atIndex:10];
     }
-    
-    // TODO: use FrameAllocators
-    // TODO: use FrameAllocators
-    // TODO: use FrameAllocators
-    
     GfxBuffer* texturesQuadVB = gfx::rcTexturedQuadsVB;
     GfxBuffer* texturedQuadInstParams = gfx::rcTexturedQuadsInstParams;
     updateBuffer("texturedQuadsVB", &vertices.front(), vertices.size() * sizeof(gfx::SimpleVertexFormat), 0);
     updateBuffer("texturedQuadInstParams", &instanceParams.front(), instanceParams.size() * sizeof(gfx::SimpleInstanceParams), 0);
     
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::cameraBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::frameConstBufferArgBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::getActiveMTLBuffer(texturesQuadVB) usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::getActiveMTLBuffer(texturedQuadInstParams) usage:MTLResourceUsageRead stages: MTLRenderStageFragment];
+#else
+    gfx::AllocationResult vertexBufAllocation = gfx::getFrameAllocator()->allocate("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(gfx::SimpleVertexFormat), vertices.data());
+    gfx::AllocationResult instanceParamsAllocation = gfx::getFrameAllocator()->allocate("instanceParamsBuf", (rgU32)instanceParams.size() * sizeof(gfx::SimpleInstanceParams), instanceParams.data());
+    
+
+    // TODO: rework this
+    rgBool runOnce = false;
+    if(runOnce == false)
+    {
+        runOnce = true;
+        
+        gfx::Camera cam;
+        rgFloat* orthoMatrix = toFloatPtr(gfx::orthographicMatrix);
+        rgFloat* viewMatrix = toFloatPtr(gfx::viewMatrix);
+        for(rgInt i = 0; i < 16; ++i)
+        {
+            cam.projection[i] = orthoMatrix[i];
+            cam.view[i] = viewMatrix[i];
+        }
+        
+        gfx::Camera* p = (gfx::Camera*)[gfx::cameraBuffer contents];
+        *p = cam;
+        [gfx::cameraBuffer didModifyRange:NSMakeRange(0, sizeof(gfx::Camera))];
+    }
+    [gfx::frameConstBufferArgEncoder setArgumentBuffer:gfx::frameConstBufferArgBuffer offset:0];
+    [gfx::frameConstBufferArgEncoder setBuffer:gfx::cameraBuffer offset:0 atIndex:10];
+    // --
+#endif
+    
+    // TODO: use FrameAllocators
+    // TODO: use FrameAllocators
+    // TODO: use FrameAllocators
+    
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::cameraBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::frameConstBufferArgBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
     
     
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::frameConstBufferArgBuffer offset:0 atIndex:0];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:gfx::getActiveMTLBuffer(texturedQuadInstParams) offset:0 atIndex:4];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::getActiveMTLBuffer(texturesQuadVB) offset:0 atIndex:1];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:instanceParamsAllocation.parentBuffer offset:instanceParamsAllocation.offset atIndex:4];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:1];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone];
 
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:vertices.size()/6];

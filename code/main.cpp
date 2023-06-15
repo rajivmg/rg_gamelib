@@ -161,12 +161,6 @@ rgInt rg::setup()
 rgInt rg::updateAndDraw(rgDouble dt)
 {
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
-
-    QuadUV fullQuadUV = createQuadUV(0, 0, 512, 512, 512, 512);
-
-    eastl::vector<QuadUV> quadUVs;
-    quadUVs.push_back(fullQuadUV);
-
     {        
         GfxRenderPass simple2dPass = {};
         simple2dPass.colorAttachments[0].texture = gfx::renderTarget[g_FrameIndex];
@@ -183,7 +177,6 @@ rgInt rg::updateAndDraw(rgDouble dt)
         renderCmdEncoder->setGraphicsPSO(gfx::findGraphicsPSO("simple2d"));
         renderCmdEncoder->drawTexturedQuads(&g_GameData->terrainAndOcean);
 
-        
         g_GameData->characterPortraits.resize(0);
         for(rgInt i = 0; i < 4; ++i)
         {
