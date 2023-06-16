@@ -74,19 +74,6 @@ rgInt rg::setup()
     
     //gfxDestroyBuffer("ocean_tile");
 
-    /*
-        gfx::setRenderPass();
-        gfx::genMips(GfxTexture* obj);
-        gfx::texturedQuad();
-
-        ///GfxRenderCmdList* cmdlist = gfx::getRenderCmdList("");
-        GfxRenderCmdList* cmdlist = gfx::setRenderPass();
-        cmdlist->setPipeline();
-        cmdList->setViewport();
-        cmdList->drawTexturedQuads();
-        cmdlist->endList();
-    */
-
     GfxVertexInputDesc vertexDesc = {};
     vertexDesc.elementCount = 3;
     vertexDesc.elements[0].semanticName = "POSITION";
@@ -205,6 +192,19 @@ rgInt rg::updateAndDraw(rgDouble dt)
         renderCmdEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
         
         renderCmdEncoder->end();
+        
+        GfxRenderPass myWorld3dPass = {};
+        myWorld3dPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+        myWorld3dPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
+        myWorld3dPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+        myWorld3dPass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
+        myWorld3dPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
+        myWorld3dPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
+        
+        //GfxRenderCmdEncoder* myWorld3dRenderEncoder = gfx::setRenderPass(&myWorld3dPass, "MyWorld3D");
+        //myWorld3dRenderEncoder->setGraphicsPSO("myWorld3d");
+        //myWorld3dRenderEncoder->drawTriangles();
+        //myWorld3dRenderEncoder->end();
     }
     
     rgHash a = rgCRC32("hello world");

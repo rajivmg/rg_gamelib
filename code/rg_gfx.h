@@ -351,6 +351,7 @@ enum GfxShaderArgType
 namespace gfx {
 void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr);
 void checkerWaitTillFrameCompleted(rgInt frameIndex);
+GfxGraphicsPSO* findGraphicsPSO(char const* tag);
 }
 
 template <typename Type>
@@ -611,9 +612,18 @@ struct GfxRenderCmdEncoder
 
     void pushDebugTag(const char* tag);
     void popDebugTag();
+    
     void setViewport(rgFloat4 viewport);
     void setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height);
+    
     void setGraphicsPSO(GfxGraphicsPSO* pso);
+    void setGraphicsPSO(char const* tag)
+    {
+        GfxGraphicsPSO* ptr = gfx::findGraphicsPSO(tag);
+        rgAssert(ptr != NULL);
+        setGraphicsPSO(ptr);
+    }
+    
     void drawTexturedQuads(TexturedQuads* quads);
 
 #if defined(RG_METAL_RNDR)
@@ -682,6 +692,8 @@ RG_GFX_BEGIN_NAMESPACE
 rgInt           initCommonStuff();
 void            atFrameStart();
 rgInt           getFinishedFrameIndex();
+GfxTexture2D*   getCurrentRenderTargetColorBuffer();
+GfxTexture2D*   getRenderTargetDepthBuffer();
 
 //-----------------------------------------------------------------------------
 // Gfx function declarations

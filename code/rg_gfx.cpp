@@ -96,9 +96,6 @@ eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
 GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
 GfxTexture2D* depthStencilBuffer;
 
-GfxBuffer* rcTexturedQuadsVB;
-GfxBuffer* rcTexturedQuadsInstParams;
-
 Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue)
 {
     rgFloat length = 1.0f / (right - left);
@@ -188,6 +185,16 @@ rgInt getFinishedFrameIndex()
     return completedFrameIndex;
 }
 
+GfxTexture2D* getCurrentRenderTargetColorBuffer()
+{
+    return gfx::renderTarget[g_FrameIndex];
+}
+
+GfxTexture2D* getRenderTargetDepthBuffer()
+{
+    return gfx::depthStencilBuffer;
+}
+
 GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
 {
     if(currentRenderPass != renderPass)
@@ -195,7 +202,10 @@ GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
         if(currentRenderPass != nullptr)
         {
             // end current render cmd list
-            currentRenderCmdEncoder->end();
+            if(!currentRenderCmdEncoder->hasEnded)
+            {
+                currentRenderCmdEncoder->end();
+            }
             rgDelete(currentRenderCmdEncoder);
         }
         // begin new cmd list
