@@ -32,34 +32,12 @@ static id<MTLDevice> getMTLDevice()
 
 MTLResourceOptions toMTLResourceOptions(GfxBufferUsage usage, rgBool dynamic)
 {
-    MTLResourceOptions options = MTLResourceStorageModeManaged;
+    MTLResourceOptions options = MTLResourceStorageModeShared | MTLResourceHazardTrackingModeTracked;
     if(dynamic)
     {
         options |= MTLResourceCPUCacheModeWriteCombined;
     }
     return options;
-
-    /*
-    // TODO: recheck the values
-    switch(usage)
-    {
-        case GfxBufferUsage_VertexBuffer:
-        case GfxBufferUsage_IndexBuffer:
-        case GfxBufferUsage_StructuredBuffer:
-        {
-            return MTLResourceStorageModeManaged;
-        } break;
-            
-        case GfxBufferUsage_ShaderRW:
-        case GfxBufferUsage_ConstantBuffer:
-        {
-            return MTLResourceCPUCacheModeWriteCombined | MTLResourceStorageModeManaged;
-        } break;
-            
-        default:
-            rgAssert(!"Invalid resource usage option");
-    }
-     */
 }
 
 MTLTextureUsage toMTLTextureUsage(GfxTextureUsage usage)
@@ -73,32 +51,20 @@ MTLTextureUsage toMTLTextureUsage(GfxTextureUsage usage)
     
     if(usage == GfxTextureUsage_ShaderReadWrite)
     {
-        result |= MTLTextureUsageShaderWrite;
+        result = MTLTextureUsageShaderWrite | MTLTextureUsageShaderRead;
     }
     
     if(usage == GfxTextureUsage_RenderTarget)
     {
-        result |= MTLTextureUsageRenderTarget;
+        result = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
     }
     
     if(usage == GfxTextureUsage_DepthStencil)
     {
-        result |= MTLTextureUsageRenderTarget;
+        result = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
     }
     
     return result;
-}
-
-MTLResourceUsage toMTLResourceOptions(GfxTextureUsage usage)
-{
-    MTLResourceOptions options = MTLStorageModeManaged;
-    
-    if(usage == GfxTextureUsage_ShaderReadWrite)
-    {
-        options |= MTLResourceCPUCacheModeWriteCombined;
-    }
-
-    return options;
 }
 
 MTLLoadAction toMTLLoadAction(GfxLoadAction action)
@@ -278,6 +244,7 @@ void testComputeAtomicsRun()
     [computeEncoder endEncoding];
 }
 // -------- TEST ATOMIC
+
 id<MTLArgumentEncoder> frameConstBufferArgEncoder;
 id<MTLBuffer> frameConstBufferArgBuffer;
 id<MTLBuffer> cameraBuffer;
@@ -303,6 +270,7 @@ public:
         offset = 0;
         capacity = capacity_;
         buffer = [device_ newBufferWithLength:capacity options:resourceOptions_];
+        buffer.label = @"FrameAllocator";
         bufferPtr = (rgU8*)[buffer contents];
     }
     
@@ -329,6 +297,8 @@ public:
 
         rgU32 alignment = 4;
         offset += (size + alignment - 1) & ~(alignment - 1);
+        
+        [buffer addDebugMarker:[NSString stringWithUTF8String:tag] range:NSMakeRange(result.offset, (offset - result.offset))];
         
         return result;
     }
@@ -474,14 +444,11 @@ rgInt init()
         
         MTLArgumentDescriptor* frameConstDescriptor2 = [MTLArgumentDescriptor argumentDescriptor];
         frameConstDescriptor2.index = 1;
-        frameConstDescriptor2.dataType = MTLDataTypePointer;
+        frameConstDescriptor2.dataType = MTLDataTypeTexture;
+        frameConstDescriptor2.textureType = MTLTextureType2D;
         frameConstDescriptor2.access = MTLArgumentAccessReadOnly;
-        
-        MTLArgumentDescriptor* frameConstDescriptor3 = [MTLArgumentDescriptor argumentDescriptor];
-        frameConstDescriptor3.index = 10;
-        frameConstDescriptor3.dataType = MTLDataTypePointer;
-        frameConstDescriptor3.access = MTLArgumentAccessReadOnly;
-        frameConstBufferArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments:@[frameConstDescriptor1, frameConstDescriptor2, frameConstDescriptor3]];
+
+        frameConstBufferArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments:@[frameConstDescriptor1]];
         frameConstBufferArgBuffer = [getMTLDevice() newBufferWithLength:[frameConstBufferArgEncoder encodedLength] options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
 #endif
 
@@ -551,8 +518,7 @@ void endFrame()
     // blit renderTarget to MTLDrawable
     GfxTexture2D drawableTexture2D = createGfxTexture2DFromMTLDrawable((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable);
     GfxBlitCmdEncoder* blitCmdEncoder = gfx::setBlitPass("CopyRTtoMTLDrawable");
-    blitCmdEncoder->copyTexture(gfx::renderTarget[g_FrameIndex],
-                                &drawableTexture2D, 0, 0, 1);
+    blitCmdEncoder->copyTexture(gfx::renderTarget[g_FrameIndex], &drawableTexture2D, 0, 0, 1);
     blitCmdEncoder->end();
     
     [getMTLCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
@@ -901,7 +867,7 @@ RG_GFX_END_NAMESPACE
 
 using namespace gfx;
 
-void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
+void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 {
     // create RenderCommandEncoder
     MTLRenderPassDescriptor* renderPassDesc = [[MTLRenderPassDescriptor alloc] init];
@@ -929,6 +895,8 @@ void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
 
     id<MTLRenderCommandEncoder> mtlRenderEncoder = [gfx::getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
     rgAssert(mtlRenderEncoder != nil);
+    [mtlRenderEncoder pushDebugGroup:[NSString stringWithUTF8String:tag]];
+    
     [renderPassDesc autorelease];
     
     MTLDepthStencilDescriptor* depthStencilDesc = [[MTLDepthStencilDescriptor alloc] init];
@@ -954,6 +922,11 @@ void GfxRenderCmdEncoder::end()
 void GfxRenderCmdEncoder::pushDebugTag(const char* tag)
 {
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
+}
+
+void GfxRenderCmdEncoder::popDebugTag()
+{
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) popDebugGroup];
 }
 
 void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
@@ -992,42 +965,6 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     
     genTexturedQuadVertices(quads, &vertices, &instanceParams);
     
-#if 0
-    if(gfx::rcTexturedQuadsVB == NULL)
-    {
-        gfx::rcTexturedQuadsVB = gfx::createBuffer("texturedQuadsVB", nullptr, rgMEGABYTE(16), GfxBufferUsage_VertexBuffer, true);
-    }
-    if(gfx::rcTexturedQuadsInstParams == NULL)
-    {
-        gfx::rcTexturedQuadsInstParams = gfx::createBuffer("texturedQuadInstParams", nullptr, rgMEGABYTE(4), GfxBufferUsage_StructuredBuffer, true);
-    
-        gfx::Camera cam;
-        
-        rgFloat* orthoMatrix = toFloatPtr(gfx::orthographicMatrix);
-        rgFloat* viewMatrix = toFloatPtr(gfx::viewMatrix);
-        
-        for(rgInt i = 0; i < 16; ++i)
-        {
-            cam.projection[i] = orthoMatrix[i];
-            cam.view[i] = viewMatrix[i];
-        }
-        
-        gfx::cameraBuffer = [gfx::getMTLDevice() newBufferWithLength:sizeof(gfx::Camera) options:gfx::toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
-        gfx::Camera* p = (gfx::Camera*)[gfx::cameraBuffer contents];
-        *p = cam;
-        [gfx::cameraBuffer didModifyRange:NSMakeRange(0, sizeof(gfx::Camera))];
-        
-        [gfx::frameConstBufferArgEncoder setArgumentBuffer:gfx::frameConstBufferArgBuffer offset:0];
-        [gfx::frameConstBufferArgEncoder setBuffer:gfx::cameraBuffer offset:0 atIndex:10];
-    }
-    GfxBuffer* texturesQuadVB = gfx::rcTexturedQuadsVB;
-    GfxBuffer* texturedQuadInstParams = gfx::rcTexturedQuadsInstParams;
-    updateBuffer("texturedQuadsVB", &vertices.front(), vertices.size() * sizeof(gfx::SimpleVertexFormat), 0);
-    updateBuffer("texturedQuadInstParams", &instanceParams.front(), instanceParams.size() * sizeof(gfx::SimpleInstanceParams), 0);
-    
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::getActiveMTLBuffer(texturesQuadVB) usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::getActiveMTLBuffer(texturedQuadInstParams) usage:MTLResourceUsageRead stages: MTLRenderStageFragment];
-#else
     gfx::AllocationResult vertexBufAllocation = gfx::getFrameAllocator()->allocate("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(gfx::SimpleVertexFormat), vertices.data());
     gfx::AllocationResult instanceParamsAllocation = gfx::getFrameAllocator()->allocate("instanceParamsBuf", (rgU32)instanceParams.size() * sizeof(gfx::SimpleInstanceParams), instanceParams.data());
     
@@ -1049,12 +986,11 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         
         gfx::Camera* p = (gfx::Camera*)[gfx::cameraBuffer contents];
         *p = cam;
-        [gfx::cameraBuffer didModifyRange:NSMakeRange(0, sizeof(gfx::Camera))];
+        //[gfx::cameraBuffer didModifyRange:NSMakeRange(0, sizeof(gfx::Camera))];
     }
     [gfx::frameConstBufferArgEncoder setArgumentBuffer:gfx::frameConstBufferArgBuffer offset:0];
-    [gfx::frameConstBufferArgEncoder setBuffer:gfx::cameraBuffer offset:0 atIndex:10];
+    [gfx::frameConstBufferArgEncoder setBuffer:gfx::cameraBuffer offset:0 atIndex:0];
     // --
-#endif
     
     // TODO: use FrameAllocators
     // TODO: use FrameAllocators
@@ -1062,7 +998,6 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::cameraBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::frameConstBufferArgBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
-    
     
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::frameConstBufferArgBuffer offset:0 atIndex:0];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:instanceParamsAllocation.parentBuffer offset:instanceParamsAllocation.offset atIndex:4];

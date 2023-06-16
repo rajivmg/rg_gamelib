@@ -199,13 +199,13 @@ GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
         }
         // begin new cmd list
         currentRenderCmdEncoder = rgNew(GfxRenderCmdEncoder);
-        currentRenderCmdEncoder->begin(renderPass);
-        currentRenderCmdEncoder->pushDebugTag(tag);
+        currentRenderCmdEncoder->begin(tag, renderPass);
 
         currentRenderPass = renderPass;
     }
     else
     {
+        rgAssert(!"Wrong usage");
         currentRenderCmdEncoder->pushDebugTag(tag);
     }
     

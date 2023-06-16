@@ -612,10 +612,11 @@ void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFl
 
 struct GfxRenderCmdEncoder
 {
-    void begin(GfxRenderPass* renderPass);
+    void begin(char const* tag, GfxRenderPass* renderPass);
     void end();
 
     void pushDebugTag(const char* tag);
+    void popDebugTag();
     void setViewport(rgFloat4 viewport);
     void setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height);
     void setGraphicsPSO(GfxGraphicsPSO* pso);
