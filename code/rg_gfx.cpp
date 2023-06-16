@@ -64,7 +64,8 @@ void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFl
 {
     TexturedQuad& q = quadList->push_back();
     q.uv = uv;
-    q.posSize = posSize;
+    q.pos = {posSize.x, posSize.y, 1.0f};
+    q.size = posSize.zw;
     q.offsetOrientation = offsetOrientation;
     q.texID = gfx::bindlessManagerTexture2D->getBindlessIndex(tex);
 }
@@ -507,8 +508,9 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         SimpleVertexFormat v[4];
         // 0 - 1
         // 3 - 2
-        v[0].pos[0] = t.posSize.x;
-        v[0].pos[1] = t.posSize.y;
+        v[0].pos[0] = t.pos.x;
+        v[0].pos[1] = t.pos.y;
+        v[0].pos[2] = t.pos.z;
         v[0].texcoord[0] = t.uv.uvTopLeft[0];
         v[0].texcoord[1] = t.uv.uvTopLeft[1];
         v[0].color[0] = 1.0f;
@@ -516,8 +518,9 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         v[0].color[2] = 1.0f;
         v[0].color[3] = 1.0f;
         
-        v[1].pos[0] = t.posSize.x + t.posSize.z;
-        v[1].pos[1] = t.posSize.y;
+        v[1].pos[0] = t.pos.x + t.size.x;
+        v[1].pos[1] = t.pos.y;
+        v[1].pos[2] = t.pos.z;
         v[1].texcoord[0] = t.uv.uvBottomRight[0];
         v[1].texcoord[1] = t.uv.uvTopLeft[1];
         v[1].color[0] = 1.0f;
@@ -525,8 +528,9 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         v[1].color[2] = 1.0f;
         v[1].color[3] = 1.0f;
         
-        v[2].pos[0] = t.posSize.x + t.posSize.z;
-        v[2].pos[1] = t.posSize.y + t.posSize.w;
+        v[2].pos[0] = t.pos.x + t.size.x;
+        v[2].pos[1] = t.pos.y + t.size.y;
+        v[2].pos[2] = t.pos.z;
         v[2].texcoord[0] = t.uv.uvBottomRight[0];
         v[2].texcoord[1] = t.uv.uvBottomRight[1];
         v[2].color[0] = 1.0f;
@@ -534,8 +538,9 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         v[2].color[2] = 1.0f;
         v[2].color[3] = 1.0f;
         
-        v[3].pos[0] = t.posSize.x;
-        v[3].pos[1] = t.posSize.y + t.posSize.w;
+        v[3].pos[0] = t.pos.x;
+        v[3].pos[1] = t.pos.y + t.size.y;
+        v[3].pos[2] = t.pos.z;
         v[3].texcoord[0] = t.uv.uvTopLeft[0];
         v[3].texcoord[1] = t.uv.uvBottomRight[1];
         v[3].color[0] = 1.0f;

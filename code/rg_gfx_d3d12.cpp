@@ -357,7 +357,7 @@ rgInt init()
     simpleVertexDesc.elements[0].slot = 0;
     simpleVertexDesc.elements[0].offset = 0;
     simpleVertexDesc.elements[1].semanticName = "COLOR";
-    simpleVertexDesc.elements[1].semanticIndex = 0;
+    simpleVertexDesc.elements[1].semanticIndex = 1;
     simpleVertexDesc.elements[1].format = TinyImageFormat_R32G32B32A32_SFLOAT;
     simpleVertexDesc.elements[1].slot = 0;
     simpleVertexDesc.elements[1].offset = 12;

@@ -86,6 +86,16 @@ void _rgLogImpl(char const* fmt, ...);
 #define rgLogWarn(...) SDL_LogWarn(SDL_LOG_CATEGORY_TEST, __VA_ARGS__)
 #define rgLogError(...) SDL_LogError(SDL_LOG_CATEGORY_TEST, __VA_ARGS__)
 
+union rgFloat2
+{
+    rgFloat v[2];
+    struct
+    {
+        rgFloat x;
+        rgFloat y;
+    };
+};
+
 union rgFloat4
 {
     rgFloat v[4];
@@ -102,6 +112,11 @@ union rgFloat4
         rgFloat g;
         rgFloat b;
         rgFloat a;
+    };
+    struct
+    {
+        rgFloat2 xy;
+        rgFloat2 zw;
     };
 };
 

@@ -5,6 +5,7 @@
 
 #include <EASTL/fixed_vector.h>
 #include <EASTL/string.h>
+#include <EASTL/hash_map.h>
 
 #import <Metal/Metal.h>
 #import <Metal/MTLArgumentEncoder.h>
@@ -189,6 +190,29 @@ MTLArgumentAccess toMTLArgumentAccess(GfxShaderArgType argType)
             rgAssert(!"MTL: Invalid argType");
             return;
     }
+}
+
+MTLVertexFormat toMTLVertexFormat(TinyImageFormat fmt)
+{
+    MTLVertexFormat result = MTLVertexFormatInvalid;
+    switch(fmt)
+    {
+        case TinyImageFormat_R32G32B32A32_SFLOAT:
+            result = MTLVertexFormatFloat4;
+            break;
+        case TinyImageFormat_R32G32B32_SFLOAT:
+            result = MTLVertexFormatFloat3;
+            break;
+        case TinyImageFormat_R32G32_SFLOAT:
+            result = MTLVertexFormatFloat2;
+            break;
+        case TinyImageFormat_R8G8B8A8_SRGB:
+            result = MTLVertexFormatUChar4Normalized_BGRA;
+        default:
+            rgAssert(!"Not implemented");
+            break;
+    }
+    return result;
 }
 
 GfxTexture2D createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
@@ -726,14 +750,40 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
             psoDesc.depthAttachmentPixelFormat = toMTLPixelFormat(renderStateDesc->depthStencilAttachmentFormat);
         }
         
+        // vertex attributes
+        MTLVertexDescriptor* vertexDescriptor = [MTLVertexDescriptor vertexDescriptor];
+        eastl::hash_map<rgUInt, eastl::pair<rgUInt, GfxVertexStepFunction>> layoutSet;
+        for(rgInt a = 0; a < vertexInputDesc->elementCount; ++a)
+        {
+            vertexDescriptor.attributes[a].format = toMTLVertexFormat(vertexInputDesc->elements[a].format);
+            vertexDescriptor.attributes[a].offset = vertexInputDesc->elements[a].offset;
+            
+            rgUInt bufferIndex = vertexInputDesc->elements[a].bufferIndex;
+            if(layoutSet.count(bufferIndex) == 0)
+            {
+                layoutSet[bufferIndex].first = 0;
+            }
+            layoutSet[bufferIndex].first = layoutSet[bufferIndex].first + (TinyImageFormat_BitSizeOfBlock(vertexInputDesc->elements[a].format) / 8);
+            layoutSet[bufferIndex].second = vertexInputDesc->elements[a].stepFunction;
+            
+            vertexDescriptor.attributes[a].bufferIndex = bufferIndex;
+        }
+        for(auto& layout : layoutSet)
+        {
+            vertexDescriptor.layouts[layout.first].stepRate = 1;
+            vertexDescriptor.layouts[layout.first].stride = layout.second.first;
+            vertexDescriptor.layouts[layout.first].stepFunction = layout.second.second == GfxVertexStepFunction_PerInstance ? MTLVertexStepFunctionPerInstance : MTLVertexStepFunctionPerVertex;
+        }
+        psoDesc.vertexDescriptor = vertexDescriptor;
+        
         // TODO TODO TODO TODO REMOVE
         // TODO TODO TODO TODO REMOVE
-        MTLAutoreleasedRenderPipelineReflection reflectionInfo;
+        //MTLAutoreleasedRenderPipelineReflection reflectionInfo;
         // TODO TODO TODO TODO REMOVE
         // TODO TODO TODO TODO REMOVE
 
-        //[getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc error:&err];
-        id<MTLRenderPipelineState> pso = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
+        id<MTLRenderPipelineState> pso = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc error:&err];
+        //id<MTLRenderPipelineState> pso = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
         
         if(err)
         {
@@ -743,6 +793,7 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         
         obj->mtlPSO = pso;
         
+        // TODO: release vertexDescriptor??
         [psoDesc release];
         [fs release];
         [vs release];
@@ -1001,10 +1052,10 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::frameConstBufferArgBuffer offset:0 atIndex:0];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:instanceParamsAllocation.parentBuffer offset:instanceParamsAllocation.offset atIndex:4];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:1];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone];
 
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6 instanceCount:vertices.size()/6];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:vertices.size() instanceCount:1];
 }
 
 // -------------------------------------------

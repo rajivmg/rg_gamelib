@@ -252,6 +252,12 @@ enum GfxStage
     GfxStage_CS,
 };
 
+enum GfxVertexStepFunction
+{
+    GfxVertexStepFunction_PerVertex,
+    GfxVertexStepFunction_PerInstance,
+};
+
 struct GfxVertexInputDesc
 {
     struct 
@@ -259,10 +265,11 @@ struct GfxVertexInputDesc
         const char* semanticName;
         rgUInt     semanticIndex;
         TinyImageFormat   format;
-        rgUInt              slot;
+        rgUInt       bufferIndex;
         rgUInt            offset;
+        GfxVertexStepFunction stepFunction;
     } elements[8];
-    rgInt elementsCount;
+    rgInt elementCount;
 };
 
 struct GfxColorAttachementStateDesc
@@ -584,23 +591,10 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture
 struct TexturedQuad
 {
     QuadUV uv;
-#if 0
-    Vector2 pos;   // <-- Combine these two?
-    Vector2 scale; // <-- ^^^^^^^ Vector4
-#else
-    //Vector4 posScale;
-    rgFloat4 posSize;
-#endif
-
-#if 0
-    Vector2 offset;
-    rgFloat orientationRad;
-#else
-    //Vector4 offsetOrientation;
-    rgFloat4 offsetOrientation;
-#endif
-
     rgU32 texID;
+    rgFloat3 pos;
+    rgFloat4 offsetOrientation;
+    rgFloat2 size;
 };
 typedef eastl::vector<TexturedQuad> TexturedQuads;
 
@@ -744,7 +738,7 @@ struct ImmVertexFormat_ // TODO: remove
 
 struct SimpleVertexFormat
 {
-    rgFloat pos[2];
+    rgFloat pos[3];
     rgFloat texcoord[2];
     rgFloat color[4];
 };
