@@ -11,6 +11,10 @@
 
 #include "shaders/metal/simple2d_shader.inl"
 
+#include "../3rdparty/obj2header/bunny_model.h"
+const rgUInt bunnyModelIndexCount = sizeof(bunnyModelIndices)/sizeof(bunnyModelIndices[0]);
+const rgUInt bunnyModelVertexCount = sizeof(bunnyModelVertices)/sizeof(bunnyModelVertices[0]);
+
 // TODO:
 // 2. Add rgLogDebug() rgLogError()
 // 3. Then use the suitable rgLogXXX() version in VKDbgReportCallback Function based on msgType 
@@ -109,6 +113,38 @@ rgInt rg::setup()
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
     
     gfx::createGraphicsPSO("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    
+    //
+    GfxVertexInputDesc modelVertexDesc = {};
+    modelVertexDesc.elementCount = 3;
+    modelVertexDesc.elements[0].semanticName = "POSITION";
+    modelVertexDesc.elements[0].semanticIndex = 0;
+    modelVertexDesc.elements[0].offset = 0;
+    modelVertexDesc.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
+    modelVertexDesc.elements[0].bufferIndex = 21;
+    modelVertexDesc.elements[0].stepFunction = GfxVertexStepFunction_PerVertex;
+    
+    modelVertexDesc.elements[1].semanticName = "NORMAL";
+    modelVertexDesc.elements[1].semanticIndex = 1;
+    modelVertexDesc.elements[1].offset = 12;
+    modelVertexDesc.elements[1].format = TinyImageFormat_R32G32B32_SFLOAT;
+    modelVertexDesc.elements[1].bufferIndex = 21;
+    modelVertexDesc.elements[1].stepFunction = GfxVertexStepFunction_PerVertex;
+    
+    modelVertexDesc.elements[2].semanticName = "TEXCOORD";
+    modelVertexDesc.elements[2].semanticIndex = 2;
+    modelVertexDesc.elements[2].offset = 24;
+    modelVertexDesc.elements[2].format = TinyImageFormat_R32G32_SFLOAT;
+    modelVertexDesc.elements[2].bufferIndex = 21;
+    modelVertexDesc.elements[2].stepFunction = GfxVertexStepFunction_PerVertex;
+
+    GfxShaderDesc modelShaderDesc = {};
+    modelShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;
+    modelShaderDesc.vsEntryPoint = "simple2d_VS";
+    modelShaderDesc.fsEntryPoint = "simple2d_FS";
+    modelShaderDesc.macros = "RIGHT";
+    
+    //
 
     gfx::createSamplerState("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
 
@@ -203,7 +239,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         //GfxRenderCmdEncoder* myWorld3dRenderEncoder = gfx::setRenderPass(&myWorld3dPass, "MyWorld3D");
         //myWorld3dRenderEncoder->setGraphicsPSO("myWorld3d");
-        //myWorld3dRenderEncoder->drawTriangles();
+        //myWorld3dRenderEncoder->drawTriangles(bunnyModelVertices, bunnyModelVertexCount, bunnyModelIndices, bunnyModelIndexCount);
         //myWorld3dRenderEncoder->end();
     }
     
