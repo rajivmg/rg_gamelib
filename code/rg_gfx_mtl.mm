@@ -128,7 +128,7 @@ id<MTLDepthStencilState> getMTLDepthStencilState(GfxGraphicsPSO* obj)
 
 MTLWinding getMTLWinding(GfxGraphicsPSO* obj)
 {
-   return (obj->cullMode == GfxWinding_CCW) : MTLWindingCounterClockwise ? MTLWindingClockwise;
+   return (obj->winding == GfxWinding_CCW) ? MTLWindingCounterClockwise : MTLWindingClockwise;
 }
 
 MTLCullMode getMTLCullMode(GfxGraphicsPSO* obj)
@@ -820,7 +820,7 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
 
         // vertex attributes
         MTLVertexDescriptor* vertexDescriptor = [MTLVertexDescriptor vertexDescriptor];
-        eastl::hash_map<rgUInt, eastl::pair<rgUInt, GfxVertexStepFunction>> layoutSet;
+        eastl::hash_map<rgUInt, eastl::pair<rgUInt, GfxVertexStepFunc>> layoutSet;
         for(rgInt a = 0; a < vertexInputDesc->elementCount; ++a)
         {
             vertexDescriptor.attributes[a].format = toMTLVertexFormat(vertexInputDesc->elements[a].format);
@@ -832,7 +832,7 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
                 layoutSet[bufferIndex].first = 0;
             }
             layoutSet[bufferIndex].first = layoutSet[bufferIndex].first + (TinyImageFormat_BitSizeOfBlock(vertexInputDesc->elements[a].format) / 8);
-            layoutSet[bufferIndex].second = vertexInputDesc->elements[a].stepFunction;
+            layoutSet[bufferIndex].second = vertexInputDesc->elements[a].stepFunc;
             
             vertexDescriptor.attributes[a].bufferIndex = bufferIndex;
         }
@@ -840,7 +840,7 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         {
             vertexDescriptor.layouts[layout.first].stepRate = 1;
             vertexDescriptor.layouts[layout.first].stride = layout.second.first;
-            vertexDescriptor.layouts[layout.first].stepFunction = layout.second.second == GfxVertexStepFunction_PerInstance ? MTLVertexStepFunctionPerInstance : MTLVertexStepFunctionPerVertex;
+            vertexDescriptor.layouts[layout.first].stepFunction = layout.second.second == GfxVertexStepFunc_PerInstance ? MTLVertexStepFunctionPerInstance : MTLVertexStepFunctionPerVertex;
         }
         psoDesc.vertexDescriptor = vertexDescriptor;
         
@@ -1063,7 +1063,7 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setRenderPipelineState:gfx::getMTLRenderPipelineState(pso)];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setDepthStencilState:gfx::getMTLDepthStencilState(pso)];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFrontFaceWinding:gfx::getMTLWinding(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFrontFacingWinding:gfx::getMTLWinding(pso)];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:gfx::getMTLCullMode(pso)];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setTriangleFillMode:gfx::getMTLTriangleFillMode(pso)];
 }
