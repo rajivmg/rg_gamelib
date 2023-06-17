@@ -1139,27 +1139,51 @@ Matrix4 makePerspectiveProjection(rgFloat fovDeg, rgFloat aspect, rgFloat nearVa
         Vector4(0.0f, 0.0f, -nearValue * zScale, 0.0f));
 }
 
+void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4& srcMatrix)
+{
+    rgFloat const* ptr = toFloatPtr(srcMatrix);
+    for(rgInt i = 0; i < 16; ++i)
+    {
+        dstArray[i] = ptr[i];
+    }
+}
+
 void GfxRenderCmdEncoder::drawBunny()
 {
     gfx::AllocationResult vertexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyVertexBuf", (rgU32)bunnyModelVertexCount * sizeof(Obj2HeaderModelVertex), (void*)bunnyModelVertices);
     gfx::AllocationResult indexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyIndexBuf", (rgU32)bunnyModelIndexCount * sizeof(rgU32), (void*)bunnyModelIndices);
     
+    // camera
     struct
     {
         rgFloat projectionPerspective[16];
         rgFloat viewCamera[16];  
     } cameraParams;
 
-    rgFloat const* temp1 = toFloatPtr(Matrix4::perspective(90.0f, 1.0f, 0.01f, 1000.0f));//toFloatPtr(makePerspectiveProjection(90.0f, 1.0f, 0.1f, 1000.0f));
+    /*rgFloat const* temp1 = toFloatPtr(Matrix4::perspective(90.0f, 1.0f, 0.01f, 1000.0f));//toFloatPtr(makePerspectiveProjection(90.0f, 1.0f, 0.1f, 1000.0f));
     rgFloat const* temp2 = toFloatPtr(Matrix4::lookAt(Point3(-0.0f, 1.0f, 1.2f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
     for(rgInt i = 0; i < 16; ++i)
     {
         cameraParams.projectionPerspective[i] = temp1[i];
         cameraParams.viewCamera[i] = temp2[i];
-    }
-    
+    }*/
+    copyMatrix4ToFloatArray(cameraParams.projectionPerspective, Matrix4::perspective(90.0f, 1.0f, 0.01f, 1000.0f));
+    copyMatrix4ToFloatArray(cameraParams.viewCamera, Matrix4::lookAt(Point3(-0.0f, 1.0f, 1.2f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
+
+    // instance
+    struct
+    {
+        rgFloat worldXform[16];
+        rgFloat invTposeWorldXform[16];
+    } instanceParams[1];
+
+    instanceParams[0].worldXform = Matrix4::rotateY(sinf(g_Time * 0.3f));
+    instanceParams[0].invTposeWorldXform = Matrix::transpose(Matrix::inverse(instanceParams[0].worldXform));
+
     id<MTLRenderCommandEncoder> rce = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
     [rce setVertexBytes:&cameraParams length:sizeof(cameraParams) atIndex:0];
+    [rce setVertexBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
+    [rce setFragmentBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
     [rce setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];
     [rce drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:bunnyModelIndexCount indexType:MTLIndexTypeUInt32 indexBuffer:indexBufAllocation.parentBuffer indexBufferOffset:indexBufAllocation.offset instanceCount:1];
 }
