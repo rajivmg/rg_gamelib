@@ -242,7 +242,7 @@ enum GfxWinding
 enum GfxTriangleFillMode
 {
     GfxTriangleFillMode_Fill,
-    GfxTriangleFillMode_Wireframe,
+    GfxTriangleFillMode_Lines,
 };
 
 enum GfxStage
@@ -252,22 +252,22 @@ enum GfxStage
     GfxStage_CS,
 };
 
-enum GfxVertexStepFunction
+enum GfxVertexStepFunc
 {
-    GfxVertexStepFunction_PerVertex,
-    GfxVertexStepFunction_PerInstance,
+    GfxVertexStepFunc_PerVertex,
+    GfxVertexStepFunc_PerInstance,
 };
 
 struct GfxVertexInputDesc
 {
     struct 
     {
-        const char* semanticName;
-        rgUInt     semanticIndex;
-        TinyImageFormat   format;
-        rgUInt       bufferIndex;
-        rgUInt            offset;
-        GfxVertexStepFunction stepFunction;
+        const char*   semanticName;
+        rgUInt       semanticIndex;
+        TinyImageFormat     format;
+        rgUInt         bufferIndex;
+        rgUInt              offset;
+        GfxVertexStepFunc stepFunc;
     } elements[8];
     rgInt elementCount;
 };
@@ -312,12 +312,14 @@ struct GfxShaderDesc
 struct GfxGraphicsPSO
 {
     rgChar tag[32];
-    // TODO: No vertex attrib, only index attrib. Shader fetch vertex data from buffers directly.
-    GfxRenderStateDesc renderState;
+    GfxCullMode cullMode;
+    GfxWinding winding;
+    GfxTriangleFillMode triangleFillMode;
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
     void* mtlPSO; // type: id<MTLRenderPipelineState>
+    void* mtlDepthStencilState; // type: id<MTLDepthStencilState>
 #elif defined(RG_VULKAN_RNDR)
 #endif
 };

@@ -116,9 +116,38 @@ MTLClearColor toMTLClearColor(rgFloat4* color)
     return MTLClearColorMake(color->r, color->g, color->b, color->a);
 }
 
-id<MTLRenderPipelineState> toMTLRenderPipelineState(GfxGraphicsPSO* obj)
+id<MTLRenderPipelineState> getMTLRenderPipelineState(GfxGraphicsPSO* obj)
 {
     return (__bridge id<MTLRenderPipelineState>)(obj->mtlPSO);
+}
+
+id<MTLDepthStencilState> getMTLDepthStencilState(GfxGraphicsPSO* obj)
+{
+    return (__bridge id<MTLDepthStencilState>)(obj->mtlDepthStencilState);
+}
+
+MTLWinding getMTLWinding(GfxGraphicsPSO* obj)
+{
+   return (obj->cullMode == GfxWinding_CCW) : MTLWindingCounterClockwise ? MTLWindingClockwise;
+}
+
+MTLCullMode getMTLCullMode(GfxGraphicsPSO* obj)
+{
+    MTLCullMode result = MTLCullModeNone;
+    if(obj->cullMode == GfxCullMode_Front)
+    {
+        result = MTLCullModeFront;
+    }
+    else if(obj->cullMode == GfxCullMode_Back)
+    {
+        result = MTLCullModeBack;
+    }
+    return result;
+}
+
+MTLTriangleFillMode getMTLTriangleFillMode(GfxGraphicsPSO* obj)
+{
+    return (obj->triangleFillMode == GfxTriangleFillMode_Fill) ? MTLTriangleFillModeFill : MTLTriangleFillModeLines;
 }
 
 id<MTLRenderCommandEncoder> getMTLRenderEncoder()
@@ -211,6 +240,39 @@ MTLVertexFormat toMTLVertexFormat(TinyImageFormat fmt)
         default:
             rgAssert(!"Not implemented");
             break;
+    }
+    return result;
+}
+
+MTLCompareFunction toMTLCompareFunction(GfxCompareFunc func)
+{
+    MTLCompareFunction result = MTLCompareFunctionLess;
+    switch(func)
+    {
+    case GfxCompareFunc_Always:
+        result = MTLCompareFunctionAlways;
+        break;
+    case GfxCompareFunc_Never:
+        result = MTLCompareFunctionNever;
+        break;
+    case GfxCompareFunc_Equal:
+        result = MTLCompareFunctionEqual;
+        break;
+    case GfxCompareFunc_NotEqual:
+        result = MTLCompareFunctionNotEqual;
+        break;
+    case GfxCompareFunc_Less:
+        result = MTLCompareFunctionLess;
+        break;
+    case GfxCompareFunc_LessEqual:
+        result = MTLCompareFunctionLessEqual;
+        break;
+    case GfxCompareFunc_Greater:
+        result = MTLCompareFunctionGreater;
+        break;
+    case GfxCompareFunc_GreaterEqual:
+        result = MTLCompareFunctionGreaterEqual;
+        break;
     }
     return result;
 }
@@ -749,7 +811,13 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         {
             psoDesc.depthAttachmentPixelFormat = toMTLPixelFormat(renderStateDesc->depthStencilAttachmentFormat);
         }
-        
+
+        MTLDepthStencilDescriptor* depthStencilDesc = [[MTLDepthStencilDescriptor alloc] init];
+        depthStencilDesc.depthWriteEnabled = renderStateDesc->depthWriteEnabled;
+        depthStencilDesc.depthCompareFunction = toMTLCompareFunction(renderStateDesc->depthCompareFunc);
+        obj->mtlDepthStencilState = [gfx::getMTLDevice() newDepthStencilStateWithDescriptor:depthStencilDesc];
+        [depthStencilDesc release];
+
         // vertex attributes
         MTLVertexDescriptor* vertexDescriptor = [MTLVertexDescriptor vertexDescriptor];
         eastl::hash_map<rgUInt, eastl::pair<rgUInt, GfxVertexStepFunction>> layoutSet;
@@ -803,7 +871,7 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
 
 void destroyerGfxGraphicsPSO(GfxGraphicsPSO* obj)
 {
-    [toMTLRenderPipelineState(obj) release];
+    [getMTLRenderPipelineState(obj) release];
 }
 
 void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
@@ -949,14 +1017,7 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
     [mtlRenderEncoder pushDebugGroup:[NSString stringWithUTF8String:tag]];
     
     [renderPassDesc autorelease];
-    
-    MTLDepthStencilDescriptor* depthStencilDesc = [[MTLDepthStencilDescriptor alloc] init];
-    depthStencilDesc.depthWriteEnabled = true;
-    id<MTLDepthStencilState> dsState = [gfx::getMTLDevice() newDepthStencilStateWithDescriptor:depthStencilDesc];
-    [depthStencilDesc release];
-    
-    [mtlRenderEncoder setDepthStencilState:dsState];
-    
+
     [mtlRenderEncoder useHeap:bindlessTextureHeap stages:MTLRenderStageFragment];
     [mtlRenderEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     
@@ -1000,7 +1061,11 @@ void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat 
 
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setRenderPipelineState:gfx::toMTLRenderPipelineState(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setRenderPipelineState:gfx::getMTLRenderPipelineState(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setDepthStencilState:gfx::getMTLDepthStencilState(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFrontFaceWinding:gfx::getMTLWinding(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:gfx::getMTLCullMode(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setTriangleFillMode:gfx::getMTLTriangleFillMode(pso)];
 }
 
 void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)

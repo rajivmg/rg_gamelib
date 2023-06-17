@@ -407,7 +407,9 @@ void allocAndFillGraphicsPSOStruct(const char* tag, GfxVertexInputDesc* vertexIn
     *obj = rgNew(GfxGraphicsPSO);
     rgAssert(tag != nullptr);
     strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxGraphicsPSO::tag));
-    (*obj)->renderState = *renderStateDesc;
+    (*obj)->cullMode = renderStateDesc->cullMode;
+    (*obj)->winding = renderStateDesc->winding;
+    (*obj)->triangleFillMode = renderStateDesc->triangleFillMode;
 }
 
 void deallocGraphicsPSOStruct(GfxGraphicsPSO* obj)

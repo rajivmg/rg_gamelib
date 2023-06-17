@@ -116,28 +116,28 @@ rgInt rg::setup()
     gfx::createGraphicsPSO("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
     
     //
-    GfxVertexInputDesc modelVertexDesc = {};
-    modelVertexDesc.elementCount = 3;
-    modelVertexDesc.elements[0].semanticName = "POSITION";
-    modelVertexDesc.elements[0].semanticIndex = 0;
-    modelVertexDesc.elements[0].offset = 0;
-    modelVertexDesc.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
-    modelVertexDesc.elements[0].bufferIndex = 21;
-    modelVertexDesc.elements[0].stepFunction = GfxVertexStepFunction_PerVertex;
+    GfxVertexInputDesc vertexPos3fNor3fTexcoord2f = {};
+    vertexPos3fNor3fTexcoord2f.elementCount = 3;
+    vertexPos3fNor3fTexcoord2f.elements[0].semanticName = "POSITION";
+    vertexPos3fNor3fTexcoord2f.elements[0].semanticIndex = 0;
+    vertexPos3fNor3fTexcoord2f.elements[0].offset = 0;
+    vertexPos3fNor3fTexcoord2f.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
+    vertexPos3fNor3fTexcoord2f.elements[0].bufferIndex = 21;
+    vertexPos3fNor3fTexcoord2f.elements[0].stepFunction = GfxVertexStepFunction_PerVertex;
     
-    modelVertexDesc.elements[1].semanticName = "NORMAL";
-    modelVertexDesc.elements[1].semanticIndex = 1;
-    modelVertexDesc.elements[1].offset = 12;
-    modelVertexDesc.elements[1].format = TinyImageFormat_R32G32B32_SFLOAT;
-    modelVertexDesc.elements[1].bufferIndex = 21;
-    modelVertexDesc.elements[1].stepFunction = GfxVertexStepFunction_PerVertex;
+    vertexPos3fNor3fTexcoord2f.elements[1].semanticName = "NORMAL";
+    vertexPos3fNor3fTexcoord2f.elements[1].semanticIndex = 1;
+    vertexPos3fNor3fTexcoord2f.elements[1].offset = 12;
+    vertexPos3fNor3fTexcoord2f.elements[1].format = TinyImageFormat_R32G32B32_SFLOAT;
+    vertexPos3fNor3fTexcoord2f.elements[1].bufferIndex = 21;
+    vertexPos3fNor3fTexcoord2f.elements[1].stepFunction = GfxVertexStepFunction_PerVertex;
     
-    modelVertexDesc.elements[2].semanticName = "TEXCOORD";
-    modelVertexDesc.elements[2].semanticIndex = 2;
-    modelVertexDesc.elements[2].offset = 24;
-    modelVertexDesc.elements[2].format = TinyImageFormat_R32G32_SFLOAT;
-    modelVertexDesc.elements[2].bufferIndex = 21;
-    modelVertexDesc.elements[2].stepFunction = GfxVertexStepFunction_PerVertex;
+    vertexPos3fNor3fTexcoord2f.elements[2].semanticName = "TEXCOORD";
+    vertexPos3fNor3fTexcoord2f.elements[2].semanticIndex = 2;
+    vertexPos3fNor3fTexcoord2f.elements[2].offset = 24;
+    vertexPos3fNor3fTexcoord2f.elements[2].format = TinyImageFormat_R32G32_SFLOAT;
+    vertexPos3fNor3fTexcoord2f.elements[2].bufferIndex = 21;
+    vertexPos3fNor3fTexcoord2f.elements[2].stepFunction = GfxVertexStepFunction_PerVertex;
 
     GfxShaderDesc principledBrdfShaderDesc = {};
     principledBrdfShaderDesc.shaderSrcCode = g_PrincipledBrdfShaderSrcCode;
@@ -145,6 +145,14 @@ rgInt rg::setup()
     principledBrdfShaderDesc.fsEntryPoint = "fsPrincipledBrdf";
     principledBrdfShaderDesc.macros = "LEFT";
     
+    GfxRenderStateDesc world3dRenderState = {};
+    world3dRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    world3dRenderState.colorAttachments[0].blendingEnabled = true;
+    world3dRenderState.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
+    world3dRenderState.depthWriteEnabled = true;
+    world3dRenderState.depthCompareFunc = GfxCompareFunc_LessEqual;
+    world3dRenderState.cullMode = GfxCullMode_None;
+
     //
 
     gfx::createSamplerState("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
