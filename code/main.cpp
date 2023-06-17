@@ -10,6 +10,7 @@
 #include "game/game.h"
 
 #include "shaders/metal/simple2d_shader.inl"
+#include "shaders/metal/principledbrdf_shader.inl"
 
 #include "../3rdparty/obj2header/bunny_model.h"
 const rgUInt bunnyModelIndexCount = sizeof(bunnyModelIndices)/sizeof(bunnyModelIndices[0]);
@@ -138,11 +139,11 @@ rgInt rg::setup()
     modelVertexDesc.elements[2].bufferIndex = 21;
     modelVertexDesc.elements[2].stepFunction = GfxVertexStepFunction_PerVertex;
 
-    GfxShaderDesc modelShaderDesc = {};
-    modelShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;
-    modelShaderDesc.vsEntryPoint = "simple2d_VS";
-    modelShaderDesc.fsEntryPoint = "simple2d_FS";
-    modelShaderDesc.macros = "RIGHT";
+    GfxShaderDesc principledBrdfShaderDesc = {};
+    principledBrdfShaderDesc.shaderSrcCode = g_PrincipledBrdfShaderSrcCode;
+    principledBrdfShaderDesc.vsEntryPoint = "vsPrincipledBrdf";
+    principledBrdfShaderDesc.fsEntryPoint = "fsPrincipledBrdf";
+    principledBrdfShaderDesc.macros = "LEFT";
     
     //
 

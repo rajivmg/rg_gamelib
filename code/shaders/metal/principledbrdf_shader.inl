@@ -1,4 +1,4 @@
-static char const* g_Simple2DShaderSrcCode = R"foo(
+static char const* g_PrincipledBrdfShaderSrcCode = R"foo(
 #include <metal_stdlib>
 using namespace metal;
 
@@ -38,7 +38,7 @@ struct BindlessResources
     array<texture2d<float>, 99999> textures2d [[id(0)]];
 };
 
-VertexOut vertex simple2d_VS(constant DescSpace0& descSpace0 [[buffer(0)]],
+VertexOut vertex vsPrincipledBrdf(constant DescSpace0& descSpace0 [[buffer(0)]],
                              constant SimpleInstanceParams* instanceParams [[buffer(2)]],
                              SimpleVertexIn in [[stage_in]],
                              uint vertexId [[vertex_id]],
@@ -52,7 +52,7 @@ VertexOut vertex simple2d_VS(constant DescSpace0& descSpace0 [[buffer(0)]],
     return out;
 }
 
-fragment half4 simple2d_FS(VertexOut fragIn [[stage_in]],
+fragment half4 fsPrincipledBrdf(VertexOut fragIn [[stage_in]],
                            constant SimpleInstanceParams* instanceParams [[buffer(4)]],
                            device BindlessResources& bindlessResources [[buffer(7)]])
 {
