@@ -234,7 +234,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         }
         pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
         
-        textured2dRenderEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
+        //textured2dRenderEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
         textured2dRenderEncoder->end();
 
         // Draw bunny to quick implement lighting models
