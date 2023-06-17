@@ -20,8 +20,8 @@ struct VertexShaderOut
 
 struct InstanceParams
 {
-    float4x4 modelXform;
-    float4x4 invTposModelXform;
+    float4x4 worldXform;
+    float4x4 invTposWorldXform;
 };
 
 struct CameraParams
@@ -47,20 +47,20 @@ VertexShaderOut vertex vsPrincipledBrdf(constant CameraParams& cameraParams [[bu
                                         uint vertexId      [[vertex_id]],
                                         uint instanceId    [[instance_id]])
 {
-    InstanceParams* instance = &instanceParams[instanceId];
-    float3 worldPos = instance.worldXform * float4(in.position, 1.0);
-    float3 normal = normalize(invTposModelXform * float4(in.normal, 1.0));
+    constant InstanceParams& instance = instanceParams[instanceId];
+    float3 worldPos = (instance.worldXform * float4(in.position, 1.0)).xyz;
+    float3 normal = normalize((instance.invTposWorldXform * float4(in.normal, 1.0)).xyz);
 
-    float3 distributionCoeff(2.0, 1.5, 1.0);
-    float3 lightPos(0.4f, 1.0f, 1.2f);
-    float atten = attenuate(distance(worldPos, lightPos), 0.2, distributionCoeff);
+    float3 distributionCoeff(2.0, 3.0, 0.1);
+    float3 lightPos(0.0f, 1.0f, 1.2f);
+    float atten = attenuate(distance(worldPos, lightPos), 2.2, distributionCoeff);
     float3 lightDir = normalize(lightPos - worldPos);
 
     float nDotL = max(0.0, dot(normal, lightDir));
     float lightCoeff = atten * nDotL;
 
     VertexShaderOut out;
-    out.position = cameraParams.projectionPerspective * cameraParams.viewCamera * worldPos;
+    out.position = cameraParams.projectionPerspective * cameraParams.viewCamera * float4(worldPos, 1.0);
     out.normal = normal;
     out.texcoord = in.texcoord;
     out.vertexLightCoeff = lightCoeff;
@@ -71,9 +71,10 @@ VertexShaderOut vertex vsPrincipledBrdf(constant CameraParams& cameraParams [[bu
 fragment half4 fsPrincipledBrdf(constant InstanceParams* instanceParams  [[buffer(1)]],
                                 VertexShaderOut in [[stage_in]])
 {
-    float4 color = float4(0.5, 0.3, 1.0, 1.0);
+    half4 color(1.0, 0.1, 0.1, 1.0);
     //float4 color = float4(in.normal, 1.0);
-    return half4(color * in.vertexLightCoeff);
+    //return half4(color + (float4(1.0, 1.0, 1.0, 1.0) * in.vertexLightCoeff));
+    return half4(color.rgb * (half)in.vertexLightCoeff, 1.0h);
 }
 
 )foo";

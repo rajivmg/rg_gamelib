@@ -1139,7 +1139,7 @@ Matrix4 makePerspectiveProjection(rgFloat fovDeg, rgFloat aspect, rgFloat nearVa
         Vector4(0.0f, 0.0f, -nearValue * zScale, 0.0f));
 }
 
-void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4& srcMatrix)
+void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
 {
     rgFloat const* ptr = toFloatPtr(srcMatrix);
     for(rgInt i = 0; i < 16; ++i)
@@ -1177,8 +1177,9 @@ void GfxRenderCmdEncoder::drawBunny()
         rgFloat invTposeWorldXform[16];
     } instanceParams[1];
 
-    instanceParams[0].worldXform = Matrix4::rotateY(sinf(g_Time * 0.3f));
-    instanceParams[0].invTposeWorldXform = Matrix::transpose(Matrix::inverse(instanceParams[0].worldXform));
+    Matrix4 xform = Matrix4(Transform3::rotationY(sinf(g_Time * 0.3f)));
+    copyMatrix4ToFloatArray(instanceParams[0].worldXform, xform);
+    copyMatrix4ToFloatArray(instanceParams[0].invTposeWorldXform, transpose(inverse(xform)));
 
     id<MTLRenderCommandEncoder> rce = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
     [rce setVertexBytes:&cameraParams length:sizeof(cameraParams) atIndex:0];
