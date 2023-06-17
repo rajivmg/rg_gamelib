@@ -1141,8 +1141,8 @@ Matrix4 makePerspectiveProjection(rgFloat fovDeg, rgFloat aspect, rgFloat nearVa
 
 void GfxRenderCmdEncoder::drawBunny()
 {
-    gfx::AllocationResult vertexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyVertexBuf", (rgU32)bunnyModelVertexCount * sizeof(Obj2HeaderModelVertex), bunnyModelVertices);
-    gfx::AllocationResult indexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyIndexBuf", (rgU32)bunnyModelIndexCount * sizeof(rgU32), bunnyModelIndices);
+    gfx::AllocationResult vertexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyVertexBuf", (rgU32)bunnyModelVertexCount * sizeof(Obj2HeaderModelVertex), (void*)bunnyModelVertices);
+    gfx::AllocationResult indexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyIndexBuf", (rgU32)bunnyModelIndexCount * sizeof(rgU32), (void*)bunnyModelIndices);
     
     struct
     {
@@ -1150,17 +1150,18 @@ void GfxRenderCmdEncoder::drawBunny()
         rgFloat viewCamera[16];  
     } cameraParams;
 
-    rgFloat* temp1 = toFloatPtr(makePerspectiveProjection(90.0f, 1.0f, 0.1f, 1000.0f));
-    rgFloat* temp2 = toFloatPtr(Matrix4::identity());
+    rgFloat const* temp1 = toFloatPtr(makePerspectiveProjection(90.0f, 1.0f, 0.1f, 1000.0f));
+    rgFloat const* temp2 = toFloatPtr(Matrix4::identity());
     for(rgInt i = 0; i < 16; ++i)
     {
         cameraParams.projectionPerspective[i] = temp1[i];
         cameraParams.viewCamera[i] = temp2[i];
     }
     
-    id<MTLRenderCommandEncoder> rce = gfx::asMTLRenderCommandEncoder(gfx::renderCmdEncoder);
-    [rce setVertexBytes:&cameraParams length:sizeof(CameraParams) atIndex:0];
+    id<MTLRenderCommandEncoder> rce = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
+    [rce setVertexBytes:&cameraParams length:sizeof(cameraParams) atIndex:0];
     [rce setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];
+    [rce drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:bunnyModelIndexCount indexType:MTLIndexTypeUInt32 indexBuffer:indexBufAllocation.parentBuffer indexBufferOffset:indexBufAllocation.offset instanceCount:1];
 }
 
 // -------------------------------------------

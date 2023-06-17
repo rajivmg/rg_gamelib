@@ -29,11 +29,6 @@ struct CameraParams
     float4x4 viewCamera;
 };
 
-struct DescSpace0
-{
-    constant CommonFrameParams* commonFrameParams [[id(0)]];
-};
-
 struct BindlessResources
 {
     array<texture2d<float>, 1000> textures2d [[id(0)]];
@@ -47,7 +42,7 @@ VertexShaderOut vertex vsPrincipledBrdf(constant CameraParams& cameraParams [[bu
 {
     //InstanceParams* instance = &instanceParams[instanceId];
     VertexShaderOut out;
-    out.position = cameraParams->projectionPerspective * cameraParams->viewCamera * float4(in.position, 1.0);
+    out.position = cameraParams.projectionPerspective * cameraParams.viewCamera * float4(in.position, 1.0);
     out.normal = in.normal; // TODO: transform 
     out.texcoord = in.texcoord;
     out.instanceId = instanceId;
@@ -57,7 +52,7 @@ VertexShaderOut vertex vsPrincipledBrdf(constant CameraParams& cameraParams [[bu
 fragment half4 fsPrincipledBrdf(constant InstanceParams* instanceParams  [[buffer(1)]],
                                 VertexShaderOut in [[stage_in]])
 {
-    float4 color = float4(1.0, 0.0, 1.0, 1.0);
+    //float4 color = float4(1.0, 0.0, 1.0, 1.0);
     float4 color = float4(in.normal, 1.0);
     return half4(color);
 }
