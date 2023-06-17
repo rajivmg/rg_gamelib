@@ -627,6 +627,7 @@ struct GfxRenderCmdEncoder
     }
     
     void drawTexturedQuads(TexturedQuads* quads);
+    void drawBunny();
 
 #if defined(RG_METAL_RNDR)
     void* renderCmdEncoder; // type: id<MTLRenderCommandEncoder>

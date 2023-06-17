@@ -1108,10 +1108,6 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     [gfx::frameConstBufferArgEncoder setBuffer:gfx::cameraBuffer offset:0 atIndex:0];
     // --
     
-    // TODO: use FrameAllocators
-    // TODO: use FrameAllocators
-    // TODO: use FrameAllocators
-    
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::cameraBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::frameConstBufferArgBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
     
@@ -1121,6 +1117,50 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone];
 
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:vertices.size() instanceCount:1];
+}
+
+// TODO: replace with generalized modular functions
+#include "../3rdparty/obj2header/bunny_model.h"
+const rgUInt bunnyModelIndexCount = sizeof(bunnyModelIndices)/sizeof(bunnyModelIndices[0]);
+const rgUInt bunnyModelVertexCount = sizeof(bunnyModelVertices)/sizeof(bunnyModelVertices[0]);
+
+Matrix4 makePerspectiveProjection(rgFloat fovDeg, rgFloat aspect, rgFloat nearValue, rgFloat farValue)
+{
+    // NOTE: In Metal NDC
+
+    float angle = (0.5 * fovDeg) * (M_PI / 180.0f); // deg to rad
+    float yScale = 1.0f / tanf(angle);
+    float xScale = yScale / aspect;
+    float zScale = farValue / (farValue - nearValue);
+
+    return Matrix4(Vector4(xScale, 0.0f, 0.0f, 0.0f),
+        Vector4(0.0f, yScale, 0.0f, 0.0f),
+        Vector4(0.0f, 0.0f, zScale, 1.0f),
+        Vector4(0.0f, 0.0f, -nearValue * zScale, 0.0f));
+}
+
+void GfxRenderCmdEncoder::drawBunny()
+{
+    gfx::AllocationResult vertexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyVertexBuf", (rgU32)bunnyModelVertexCount * sizeof(Obj2HeaderModelVertex), bunnyModelVertices);
+    gfx::AllocationResult indexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyIndexBuf", (rgU32)bunnyModelIndexCount * sizeof(rgU32), bunnyModelIndices);
+    
+    struct
+    {
+        rgFloat projectionPerspective[16];
+        rgFloat viewCamera[16];  
+    } cameraParams;
+
+    rgFloat* temp1 = toFloatPtr(makePerspectiveProjection(90.0f, 1.0f, 0.1f, 1000.0f));
+    rgFloat* temp2 = toFloatPtr(Matrix4::identity());
+    for(rgInt i = 0; i < 16; ++i)
+    {
+        cameraParams.projectionPerspective[i] = temp1[i];
+        cameraParams.viewCamera[i] = temp2[i];
+    }
+    
+    id<MTLRenderCommandEncoder> rce = gfx::asMTLRenderCommandEncoder(gfx::renderCmdEncoder);
+    [rce setVertexBytes:&cameraParams length:sizeof(CameraParams) atIndex:0];
+    [rce setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];
 }
 
 // -------------------------------------------

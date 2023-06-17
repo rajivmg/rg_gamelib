@@ -2,30 +2,31 @@ static char const* g_PrincipledBrdfShaderSrcCode = R"foo(
 #include <metal_stdlib>
 using namespace metal;
 
-struct SimpleVertexIn
+struct Obj2HeaderModelVertex
 {
-    float3 pos [[attribute(0)]];
-    float2 texcoord [[attribute(1)]];
-    float4 color [[attribute(2)]];
+    float3 position     [[attribute(0)]];
+    float3 normal       [[attribute(1)]];
+    float2 texcoord     [[attribute(2)]];
 };
 
-struct VertexOut
+struct VertexShaderOut
 {
-    float4 position [[position]];
+    float4 position     [[position]];
+    float3 normal;
     float2 texcoord;
-    half4 color;
-    uint instanceId [[flat]];
+    uint instanceId         [[flat]];
 };
 
-struct SimpleInstanceParams
+struct InstanceParams
 {
+    float4x4 modelXform;
     uint texID;
 };
 
-struct CommonFrameParams
+struct CameraParams
 {
-    float4x4 cameraProjection2d;
-    float4x4 cameraView2d;
+    float4x4 projectionPerspective;
+    float4x4 viewCamera;
 };
 
 struct DescSpace0
@@ -35,34 +36,29 @@ struct DescSpace0
 
 struct BindlessResources
 {
-    array<texture2d<float>, 99999> textures2d [[id(0)]];
+    array<texture2d<float>, 1000> textures2d [[id(0)]];
 };
 
-VertexOut vertex vsPrincipledBrdf(constant DescSpace0& descSpace0 [[buffer(0)]],
-                             constant SimpleInstanceParams* instanceParams [[buffer(2)]],
-                             SimpleVertexIn in [[stage_in]],
-                             uint vertexId [[vertex_id]],
-                             uint instanceId [[instance_id]])
+VertexShaderOut vertex vsPrincipledBrdf(constant CameraParams& cameraParams [[buffer(0)]],
+                                        constant InstanceParams* instanceParams  [[buffer(1)]],
+                                        Obj2HeaderModelVertex in                 [[stage_in]],
+                                        uint vertexId      [[vertex_id]],
+                                        uint instanceId    [[instance_id]])
 {
-    VertexOut out;
-    out.position = descSpace0.commonFrameParams->cameraProjection2d * descSpace0.commonFrameParams->cameraView2d * float4(in.pos, 1.0);
+    //InstanceParams* instance = &instanceParams[instanceId];
+    VertexShaderOut out;
+    out.position = cameraParams->projectionPerspective * cameraParams->viewCamera * float4(in.position, 1.0);
+    out.normal = in.normal; // TODO: transform 
     out.texcoord = in.texcoord;
-    out.color  = half4(in.color);
-    out.instanceId = vertexId / 6;
+    out.instanceId = instanceId;
     return out;
 }
 
-fragment half4 fsPrincipledBrdf(VertexOut fragIn [[stage_in]],
-                           constant SimpleInstanceParams* instanceParams [[buffer(4)]],
-                           device BindlessResources& bindlessResources [[buffer(7)]])
+fragment half4 fsPrincipledBrdf(constant InstanceParams* instanceParams  [[buffer(1)]],
+                                VertexShaderOut in [[stage_in]])
 {
-    constexpr sampler pointSampler(filter::nearest);
-    texture2d<float> myTexture = bindlessResources.textures2d[instanceParams[fragIn.instanceId].texID];
     float4 color = float4(1.0, 0.0, 1.0, 1.0);
-    if(!is_null_texture(myTexture))
-    {
-        color = myTexture.sample(pointSampler, fragIn.texcoord);
-    }
+    float4 color = float4(in.normal, 1.0);
     return half4(color);
 }
 

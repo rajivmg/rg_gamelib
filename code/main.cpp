@@ -12,10 +12,6 @@
 #include "shaders/metal/simple2d_shader.inl"
 #include "shaders/metal/principledbrdf_shader.inl"
 
-#include "../3rdparty/obj2header/bunny_model.h"
-const rgUInt bunnyModelIndexCount = sizeof(bunnyModelIndices)/sizeof(bunnyModelIndices[0]);
-const rgUInt bunnyModelVertexCount = sizeof(bunnyModelVertices)/sizeof(bunnyModelVertices[0]);
-
 // TODO:
 // 2. Add rgLogDebug() rgLogError()
 // 3. Then use the suitable rgLogXXX() version in VKDbgReportCallback Function based on msgType 
@@ -151,8 +147,10 @@ rgInt rg::setup()
     world3dRenderState.colorAttachments[0].blendingEnabled = true;
     world3dRenderState.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
     world3dRenderState.depthWriteEnabled = true;
-    world3dRenderState.depthCompareFunc = GfxCompareFunc_LessEqual;
+    world3dRenderState.depthCompareFunc = GfxCompareFunc_Less;
     world3dRenderState.cullMode = GfxCullMode_None;
+
+    gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
 
     //
 
@@ -217,10 +215,10 @@ rgInt rg::updateAndDraw(rgDouble dt)
         simple2dPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         simple2dPass.clearDepth = 0.0f;
         
-        GfxRenderCmdEncoder* renderCmdEncoder = gfx::setRenderPass(&simple2dPass, "Simple2D Pass");
+        GfxRenderCmdEncoder* textured2dRenderEncoder = gfx::setRenderPass(&simple2dPass, "Simple2D Pass");
 
-        renderCmdEncoder->setGraphicsPSO(gfx::findGraphicsPSO("simple2d"));
-        renderCmdEncoder->drawTexturedQuads(&g_GameData->terrainAndOcean);
+        textured2dRenderEncoder->setGraphicsPSO(gfx::findGraphicsPSO("simple2d"));
+        textured2dRenderEncoder->drawTexturedQuads(&g_GameData->terrainAndOcean);
 
         g_GameData->characterPortraits.resize(0);
         for(rgInt i = 0; i < 4; ++i)
@@ -235,10 +233,12 @@ rgInt rg::updateAndDraw(rgDouble dt)
         }
         pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
         
-        renderCmdEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
-        
-        renderCmdEncoder->end();
-        
+        textured2dRenderEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
+        textured2dRenderEncoder->end();
+
+        // Draw bunny to quick implement lighting models
+        // TODO: Use drawTriangles() and bindBuffer() bindTexture() functions ...
+        // ... when the prototype is done.
         GfxRenderPass myWorld3dPass = {};
         myWorld3dPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
         myWorld3dPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
@@ -247,10 +247,10 @@ rgInt rg::updateAndDraw(rgDouble dt)
         myWorld3dPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         myWorld3dPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        //GfxRenderCmdEncoder* myWorld3dRenderEncoder = gfx::setRenderPass(&myWorld3dPass, "MyWorld3D");
-        //myWorld3dRenderEncoder->setGraphicsPSO("myWorld3d");
-        //myWorld3dRenderEncoder->drawTriangles(bunnyModelVertices, bunnyModelVertexCount, bunnyModelIndices, bunnyModelIndexCount);
-        //myWorld3dRenderEncoder->end();
+        GfxRenderCmdEncoder* myWorld3dRenderEncoder = gfx::setRenderPass(&myWorld3dPass, "MyWorld3D");
+        myWorld3dRenderEncoder->setGraphicsPSO("principledBrdf");
+        myWorld3dRenderEncoder->drawBunny();
+        myWorld3dRenderEncoder->end();
     }
     
     rgHash a = rgCRC32("hello world");
