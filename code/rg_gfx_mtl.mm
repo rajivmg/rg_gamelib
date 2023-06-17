@@ -1150,8 +1150,8 @@ void GfxRenderCmdEncoder::drawBunny()
         rgFloat viewCamera[16];  
     } cameraParams;
 
-    rgFloat const* temp1 = toFloatPtr(makePerspectiveProjection(90.0f, 1.0f, 0.1f, 1000.0f));
-    rgFloat const* temp2 = toFloatPtr(Matrix4::identity());
+    rgFloat const* temp1 = toFloatPtr(Matrix4::perspective(90.0f, 1.0f, 0.01f, 1000.0f));//toFloatPtr(makePerspectiveProjection(90.0f, 1.0f, 0.1f, 1000.0f));
+    rgFloat const* temp2 = toFloatPtr(Matrix4::lookAt(Point3(-0.0f, 1.0f, 1.2f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
     for(rgInt i = 0; i < 16; ++i)
     {
         cameraParams.projectionPerspective[i] = temp1[i];

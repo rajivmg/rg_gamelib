@@ -147,8 +147,9 @@ rgInt rg::setup()
     world3dRenderState.colorAttachments[0].blendingEnabled = true;
     world3dRenderState.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
     world3dRenderState.depthWriteEnabled = true;
-    world3dRenderState.depthCompareFunc = GfxCompareFunc_Less;
-    world3dRenderState.cullMode = GfxCullMode_None;
+    world3dRenderState.depthCompareFunc = GfxCompareFunc_LessEqual;
+    world3dRenderState.winding = GfxWinding_CCW;
+    world3dRenderState.cullMode = GfxCullMode_Back;
 
     gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
 
@@ -213,7 +214,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         simple2dPass.depthStencilAttachmentTexture = gfx::depthStencilBuffer;
         simple2dPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
         simple2dPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
-        simple2dPass.clearDepth = 0.0f;
+        simple2dPass.clearDepth = 1.0f;
         
         GfxRenderCmdEncoder* textured2dRenderEncoder = gfx::setRenderPass(&simple2dPass, "Simple2D Pass");
 
