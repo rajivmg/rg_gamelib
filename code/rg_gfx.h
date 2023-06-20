@@ -697,6 +697,7 @@ void            atFrameStart();
 rgInt           getFinishedFrameIndex();
 GfxTexture2D*   getCurrentRenderTargetColorBuffer();
 GfxTexture2D*   getRenderTargetDepthBuffer();
+Matrix4         createPerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
 
 //-----------------------------------------------------------------------------
 // Gfx function declarations

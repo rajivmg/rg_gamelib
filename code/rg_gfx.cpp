@@ -108,6 +108,18 @@ Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat
                    Vector4(-((right + left) * length), -((top +bottom) * height), -nearValue * depth, 1.0f));
 }
 
+Matrix4 createPerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane)
+{
+#if defined(RG_METAL_RNDR) || defined(RG_D3D12_RNDR)
+    return  Matrix4(Vector4(focalLength, 0.0f, 0.0f, 0.0f),
+                    Vector4(0.0f, focalLength * aspectRatio, 0.0f, 0.0f),
+                    Vector4(0.0f, 0.0f, -farPlane/(farPlane - nearPlane), -1.0f),
+                    Vector4(0.0f, 0.0f, (-farPlane * nearPlane)/(farPlane - nearPlane), 0.0f));
+#else
+    rgAssert(!"Not defined");
+#endif
+}
+
 rgInt preInit()
 {
     gfx::registryTexture2D = rgNew(GfxObjectRegistry<GfxTexture2D>);

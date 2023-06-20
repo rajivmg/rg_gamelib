@@ -1160,14 +1160,7 @@ void GfxRenderCmdEncoder::drawBunny()
         rgFloat viewCamera[16];  
     } cameraParams;
 
-    /*rgFloat const* temp1 = toFloatPtr(Matrix4::perspective(90.0f, 1.0f, 0.01f, 1000.0f));//toFloatPtr(makePerspectiveProjection(90.0f, 1.0f, 0.1f, 1000.0f));
-    rgFloat const* temp2 = toFloatPtr(Matrix4::lookAt(Point3(-0.0f, 1.0f, 1.2f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
-    for(rgInt i = 0; i < 16; ++i)
-    {
-        cameraParams.projectionPerspective[i] = temp1[i];
-        cameraParams.viewCamera[i] = temp2[i];
-    }*/
-    copyMatrix4ToFloatArray(cameraParams.projectionPerspective, Matrix4::perspective(90.0f, 1.0f, 0.01f, 1000.0f));
+    copyMatrix4ToFloatArray(cameraParams.projectionPerspective, createPerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f));
     copyMatrix4ToFloatArray(cameraParams.viewCamera, Matrix4::lookAt(Point3(-0.0f, 1.0f, 1.2f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
 
     // instance
@@ -1177,7 +1170,7 @@ void GfxRenderCmdEncoder::drawBunny()
         rgFloat invTposeWorldXform[16];
     } instanceParams[1];
 
-    Matrix4 xform = Matrix4(Transform3::rotationY(sinf(g_Time * 0.3f)));
+    Matrix4 xform = Matrix4(Transform3::rotationY(sinf(g_Time * 0.1f)));
     copyMatrix4ToFloatArray(instanceParams[0].worldXform, xform);
     copyMatrix4ToFloatArray(instanceParams[0].invTposeWorldXform, transpose(inverse(xform)));
 

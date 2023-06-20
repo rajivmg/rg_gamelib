@@ -149,7 +149,7 @@ rgInt rg::setup()
     world3dRenderState.depthWriteEnabled = true;
     world3dRenderState.depthCompareFunc = GfxCompareFunc_LessEqual;
     world3dRenderState.winding = GfxWinding_CCW;
-    world3dRenderState.cullMode = GfxCullMode_Back;
+    world3dRenderState.cullMode = GfxCullMode_None;
 
     gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
 
