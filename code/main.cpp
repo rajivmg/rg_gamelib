@@ -85,14 +85,14 @@ rgInt rg::setup()
     vertexDesc.elements[0].stepFunc = GfxVertexStepFunc_PerVertex;
     
     vertexDesc.elements[1].semanticName = "TEXCOORD";
-    vertexDesc.elements[1].semanticIndex = 1;
+    vertexDesc.elements[1].semanticIndex = 0;
     vertexDesc.elements[1].offset = 12;
     vertexDesc.elements[1].format = TinyImageFormat_R32G32_SFLOAT;
     vertexDesc.elements[1].bufferIndex = 21;
     vertexDesc.elements[1].stepFunc = GfxVertexStepFunc_PerVertex;
     
     vertexDesc.elements[2].semanticName = "COLOR";
-    vertexDesc.elements[2].semanticIndex = 2;
+    vertexDesc.elements[2].semanticIndex = 0;
     vertexDesc.elements[2].offset = 20;
     vertexDesc.elements[2].format = TinyImageFormat_R32G32B32A32_SFLOAT;
     vertexDesc.elements[2].bufferIndex = 21;

@@ -350,16 +350,16 @@ rgInt init()
     }
 
     GfxVertexInputDesc simpleVertexDesc = {};
-    simpleVertexDesc.elementsCount = 2;
+    simpleVertexDesc.elementCount = 2;
     simpleVertexDesc.elements[0].semanticName = "POSITION";
     simpleVertexDesc.elements[0].semanticIndex = 0;
     simpleVertexDesc.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
-    simpleVertexDesc.elements[0].slot = 0;
+    simpleVertexDesc.elements[0].bufferIndex = 0;
     simpleVertexDesc.elements[0].offset = 0;
     simpleVertexDesc.elements[1].semanticName = "COLOR";
-    simpleVertexDesc.elements[1].semanticIndex = 1;
+    simpleVertexDesc.elements[1].semanticIndex = 0;
     simpleVertexDesc.elements[1].format = TinyImageFormat_R32G32B32A32_SFLOAT;
-    simpleVertexDesc.elements[1].slot = 0;
+    simpleVertexDesc.elements[1].bufferIndex = 0;
     simpleVertexDesc.elements[1].offset = 12;
 
     GfxShaderDesc simple2dShaderDesc = {};
@@ -731,15 +731,15 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
 
     // create vertex input desc
     eastl::vector<D3D12_INPUT_ELEMENT_DESC> inputElementDesc;
-    inputElementDesc.reserve(vertexInputDesc->elementsCount);
+    inputElementDesc.reserve(vertexInputDesc->elementCount);
     {
-        for(rgInt i = 0; i < vertexInputDesc->elementsCount; ++i)
+        for(rgInt i = 0; i < vertexInputDesc->elementCount; ++i)
         {
             D3D12_INPUT_ELEMENT_DESC e = {};
             e.SemanticName = vertexInputDesc->elements[i].semanticName;
             e.SemanticIndex = vertexInputDesc->elements[i].semanticIndex;
             e.Format = toDXGIFormat(vertexInputDesc->elements[i].format);
-            e.InputSlot = vertexInputDesc->elements[i].slot;
+            e.InputSlot = vertexInputDesc->elements[i].bufferIndex;
             e.AlignedByteOffset = vertexInputDesc->elements[i].offset;
             e.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
             e.InstanceDataStepRate = 0;
@@ -825,7 +825,7 @@ RG_GFX_END_NAMESPACE
 // RenderCmd Handlers
 // -----------------------------------------------
 
-void GfxRenderCmdEncoder::begin(GfxRenderPass* renderPass)
+void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 {
     //// create RenderCommandEncoder
     //MTLRenderPassDescriptor* renderPassDesc = [[MTLRenderPassDescriptor alloc]init];
@@ -953,6 +953,11 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone] ;
 
     //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart : 0 vertexCount : 6 instanceCount : vertices.size() / 6] ;
+}
+
+void GfxRenderCmdEncoder::drawBunny()
+{
+
 }
 
 // -------------------------------------------

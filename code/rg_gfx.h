@@ -629,9 +629,9 @@ struct GfxRenderCmdEncoder
     void drawTexturedQuads(TexturedQuads* quads);
     void drawBunny();
 
+    rgBool hasEnded;
 #if defined(RG_METAL_RNDR)
     void* renderCmdEncoder; // type: id<MTLRenderCommandEncoder>
-    rgBool hasEnded;
 #endif
 };
 
