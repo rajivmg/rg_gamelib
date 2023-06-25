@@ -38,6 +38,10 @@ source_group("Box2D" FILES ${BOX2D_SRC_FILES})
 
 set(GLEW_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/glew-2.2.0)
 
+set(DXC_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/dxc_preview_2023_06_21)
+set(DXC_INCLUDE_DIR ${DXC_ROOT_DIR}/inc)
+set(DXC_LIB_DIR ${DXC_ROOT_DIR}/lib)
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if(WIN32)
@@ -63,9 +67,10 @@ if(WIN32)
         include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc/Vulkan-Headers/include)
         add_compile_definitions(RG_VULKAN_RNDR VK_NO_PROTOTYPES)
     elseif(D3D12)
-        include_directories(${CMAKE_SOURCE_DIR}/3rdparty/DirectX-Headers-1.610.0/include/directx)
+        include_directories(${CMAKE_SOURCE_DIR}/3rdparty/DirectX-Headers-1.610.0/include/directx ${DXC_INCLUDE_DIR})
+        link_directories(${DXC_LIB_DIR})
         add_compile_definitions(RG_D3D12_RNDR)
-        set(GRAPHICS_LIBS D3d12.lib d3dcompiler.lib DXGI.lib)
+        set(GRAPHICS_LIBS D3d12.lib d3dcompiler.lib DXGI.lib dxcompiler.lib)
     else()
         include_directories(${GLEW_ROOT_DIR}/include)
         add_compile_definitions(RG_OPENGL_RNDR GLEW_STATIC)
@@ -79,9 +84,9 @@ if(WIN32)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd /DDEBUG")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /DNDEBUG")
 
-    # !!!!!!! TODO FIX AUTO Copy
     # copy dlls to executable's folder
-    file(GLOB DLL_FILES "${3RD_PARTY_DIR}/dll/*.dll")
+    set(DLLS_FOLDER_TO_COPY debug "${3RD_PARTY_DIR}/dll/debug/*.dll" optimized "${3RD_PARTY_DIR}/dll/release/*.dll")
+    file(GLOB DLL_FILES ${DLLS_FOLDER_TO_COPY} "${DXC_ROOT_DIR}/bin/x64/*.dll")
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Release NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
