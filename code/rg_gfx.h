@@ -30,10 +30,10 @@
 
 #define RG_MAX_FRAMES_IN_FLIGHT 3
 
-#define RG_GFX_BEGIN_NAMESPACE namespace gfx {
-#define RG_GFX_END_NAMESPACE }
+#define RG_BEGIN_GFX_NAMESPACE namespace gfx {
+#define RG_END_GFX_NAMESPACE }
 
-RG_BEGIN_NAMESPACE
+RG_BEGIN_RG_NAMESPACE
 
 static const rgU32 kInvalidValue = ~(0x0);
 static const rgU32 kUninitializedValue = 0;
@@ -307,6 +307,15 @@ struct GfxShaderDesc
     char const* fsEntryPoint;
     char const* csEntryPoint;
     char const* macros;
+};
+
+struct GfxShaderLibrary
+{
+#if defined(RG_D3D12_RNDR)
+    ComPtr<ID3DBlob> d3dShaderBlob;
+#elif defined(RG_METAL_RNDR)
+    void* mtlLibData; // type: dispatch_data_t
+#endif
 };
 
 struct GfxGraphicsPSO
@@ -683,7 +692,7 @@ struct GfxBlitCmdEncoder
 // ACCESS TO GFXCTX CONTENTS, DO NOT PUT IT BELOW THIS LINE.
 //-----------------------------------------------------------------------------
 
-RG_GFX_BEGIN_NAMESPACE
+RG_BEGIN_GFX_NAMESPACE
 
 #ifdef RG_VULKAN_RNDR
 #define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
@@ -802,6 +811,7 @@ extern GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 extern GfxObjectRegistry<GfxBuffer>* registryBuffer;
 extern GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
 extern GfxObjectRegistry<GfxSamplerState>* registrySamplerState;
+extern GfxObjectRegistry<GfxShaderLibrary>* registryShaderLibrary;
     
 extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
@@ -915,7 +925,7 @@ struct GL
 } gl;
 #endif
 
-RG_GFX_END_NAMESPACE
-RG_END_NAMESPACE
+RG_END_GFX_NAMESPACE
+RG_END_RG_NAMESPACE
 
 #endif

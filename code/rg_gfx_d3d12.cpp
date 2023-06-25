@@ -1,8 +1,8 @@
 #if defined(RG_D3D12_RNDR)
 #include "rg_gfx.h"
 
-RG_BEGIN_NAMESPACE
-RG_GFX_BEGIN_NAMESPACE
+RG_BEGIN_RG_NAMESPACE
+RG_BEGIN_GFX_NAMESPACE
 
 D3d d3d; // TODO: Make this a pointer
 
@@ -818,7 +818,7 @@ void destroyerGfxSamplerState(GfxSamplerState* obj)
 // -----------------------------------------------
 // SECTION ENDS -
 
-RG_GFX_END_NAMESPACE
+RG_END_GFX_NAMESPACE
 
 // SECTION BEGIN -
 // -----------------------------------------------
@@ -1001,5 +1001,5 @@ void GfxBlitCmdEncoder::copyTexture(GfxTexture2D* srcTexture, GfxTexture2D* dstT
 
 #undef BreakIfFail
 
-RG_END_NAMESPACE
+RG_END_RG_NAMESPACE
 #endif

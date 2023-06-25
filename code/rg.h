@@ -8,8 +8,8 @@
 #include <vectormath/vectormath.hpp>
 #include <compile_time_crc.h>
 
-#define RG_BEGIN_NAMESPACE namespace rg {
-#define RG_END_NAMESPACE }
+#define RG_BEGIN_RG_NAMESPACE namespace rg {
+#define RG_END_RG_NAMESPACE }
 
 /*
 typedef int64_t     S64;
@@ -167,7 +167,7 @@ RG_INLINE void rgPrintImplementation(const char* varName, rgFloat3& a)
 
 extern rgBool g_ShouldQuit;
 
-RG_BEGIN_NAMESPACE
+RG_BEGIN_RG_NAMESPACE
 struct PhysicSystem;
 
 struct FileData
@@ -186,7 +186,7 @@ struct WindowInfo
     rgUInt height;
 };
 
-RG_END_NAMESPACE
+RG_END_RG_NAMESPACE
 
 extern rgDouble g_DeltaTime;
 extern rgDouble g_Time;
@@ -207,7 +207,7 @@ void _rgLogImpl(char const* fmt, ...)
     va_end(argList);
 }
 
-RG_BEGIN_NAMESPACE
+RG_BEGIN_RG_NAMESPACE
 
 FileData readFile(const char* filepath)
 {
@@ -267,7 +267,7 @@ void freeFileData(FileData* fd)
     rgFree(fd->data);
 }
 
-RG_END_NAMESPACE
+RG_END_RG_NAMESPACE
 
 #endif // RG_H_IMPLEMENTATION
 #endif // __RG_H__

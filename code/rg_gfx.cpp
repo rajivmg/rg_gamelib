@@ -7,7 +7,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-RG_BEGIN_NAMESPACE
+RG_BEGIN_RG_NAMESPACE
 
 // --- Game Graphics APIs
 QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
@@ -70,7 +70,7 @@ void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFl
     q.texID = gfx::bindlessManagerTexture2D->getBindlessIndex(tex);
 }
 
-RG_GFX_BEGIN_NAMESPACE
+RG_BEGIN_GFX_NAMESPACE
 
 SDL_Window* mainWindow;
 rgUInt frameNumber;
@@ -586,5 +586,5 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
     }
 }
 
-RG_GFX_END_NAMESPACE
-RG_END_NAMESPACE
+RG_END_GFX_NAMESPACE
+RG_END_RG_NAMESPACE
