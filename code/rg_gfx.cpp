@@ -83,6 +83,7 @@ GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 GfxObjectRegistry<GfxBuffer>* registryBuffer;
 GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
 GfxObjectRegistry<GfxSamplerState>* registrySamplerState;
+GfxObjectRegistry<GfxShaderLibrary>* registryShaderLibrary;
 
 GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
@@ -518,6 +519,34 @@ void destroySamplerState(rgHash tagHash)
 void destroySamplerState(char const* tag)
 {
     gfx::registrySamplerState->markForRemove(rgCRC32(tag));
+}
+
+//
+
+GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char const* entryPoint, char const* defines)
+{
+    auto getStageStr = [](GfxStage s) -> const char*
+    {
+        switch(s)
+        {
+            case GfxStage_VS:
+                return "vs";
+                break;
+            case GfxStage_FS:
+                return "fs";
+                break;
+            case GfxStage_CS:
+                return "cs";
+                break;
+        }
+    };
+
+    rgHash hash = rgCRC32(filename);
+    hash = rgCRC32(getStageStr(stage), 2, hash);
+    hash = rgCRC32(entryPoint, strlen(entryPoint), hash);
+    hash = rgCRC32(defines, strlen(defines), hash);
+
+
 }
 
 ///
