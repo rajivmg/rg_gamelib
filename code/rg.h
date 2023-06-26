@@ -186,6 +186,8 @@ struct WindowInfo
     rgUInt height;
 };
 
+char* getPrefPath();
+
 RG_END_RG_NAMESPACE
 
 extern rgDouble g_DeltaTime;

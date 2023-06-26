@@ -7,6 +7,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include "dxcapi.h"
+
 RG_BEGIN_RG_NAMESPACE
 
 // --- Game Graphics APIs
@@ -523,7 +525,7 @@ void destroySamplerState(char const* tag)
 
 //
 
-GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char const* entryPoint, char const* defines)
+GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
 {
     auto getStageStr = [](GfxStage s) -> const char*
     {
@@ -539,14 +541,83 @@ GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char
                 return "cs";
                 break;
         }
+        return nullptr;
+    };
+
+    auto checkHR = [&](HRESULT hr) -> void
+    {
+        if(FAILED(hr))
+        {
+            rgAssert(!"Operation failed");
+        }
     };
 
     rgHash hash = rgCRC32(filename);
     hash = rgCRC32(getStageStr(stage), 2, hash);
-    hash = rgCRC32(entryPoint, strlen(entryPoint), hash);
+    hash = rgCRC32(entrypoint, strlen(entrypoint), hash);
     hash = rgCRC32(defines, strlen(defines), hash);
 
+    // entrypoint
+    eastl::vector<LPCWSTR> dxcArgs;
+    dxcArgs.push_back(L"-E");
 
+    wchar_t entrypointWide[256];
+    std::mbstowcs(entrypointWide, entrypoint, 256);
+    dxcArgs.push_back(entrypointWide);
+
+    // shader model
+    dxcArgs.push_back(L"-T");
+    if(stage == GfxStage_VS)
+    {
+        dxcArgs.push_back(L"vs_6_0");
+    }
+    else if(stage == GfxStage_FS)
+    {
+        dxcArgs.push_back(L"ps_6_0");
+    }
+    else if(stage == GfxStage_CS)
+    {
+        dxcArgs.push_back(L"cs_6_0");
+    }
+
+    // generate debug symbols
+    wchar_t debugSymPath[320];
+    wchar_t prefPath[256];
+    std::mbstowcs(prefPath, rg::getPrefPath(), 256);
+    wcsncpy(debugSymPath, prefPath, 320);
+    wcsncat(debugSymPath, L"/shaderpdb", 10);
+
+    dxcArgs.push_back(L"-Zi");
+    dxcArgs.push_back(L"-Fd");
+    dxcArgs.push_back(debugSymPath);
+
+    // defines
+    //dxcArgs.push_back(L"-D");
+    // todo;
+
+    DxcBuffer shaderSource;
+    rg::FileData shaderFileData = rg::readFile(filename);
+    shaderSource.Ptr = shaderFileData.data;
+    shaderSource.Size = shaderFileData.dataSize;
+    shaderSource.Encoding = 0;
+
+    // util and include handler
+    ComPtr<IDxcUtils> utils;
+    checkHR(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(utils.ReleaseAndGetAddressOf())));
+    ComPtr<IDxcIncludeHandler> includeHandler;
+    checkHR(utils->CreateDefaultIncludeHandler(includeHandler.ReleaseAndGetAddressOf()));
+
+    // compiler
+    ComPtr<IDxcCompiler3> compiler3;
+    checkHR(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler3)));
+
+    ComPtr<IDxcResult> result;
+    checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), includeHandler.Get(), IID_PPV_ARGS(&result)));
+
+    ComPtr<IDxcBlob> shaderBlob;
+    checkHR(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr));
+
+    return nullptr;
 }
 
 ///
