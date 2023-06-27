@@ -270,8 +270,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
 
 rgInt createSDLWindow()
 {
-    g_WindowInfo.width = 720;
-    g_WindowInfo.height = 720;
+    g_WindowInfo.width = 1056;
+    g_WindowInfo.height = 594;
 
     Uint32 windowFlags = 0;
     
