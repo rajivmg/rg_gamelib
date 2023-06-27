@@ -302,11 +302,11 @@ struct GfxRenderStateDesc
 
 struct GfxShaderDesc
 {
-    char const* shaderSrcCode;
-    char const* vsEntryPoint;
-    char const* fsEntryPoint;
-    char const* csEntryPoint;
-    char const* macros;
+    char const* shaderSrc;
+    char const* vsEntrypoint;
+    char const* fsEntrypoint;
+    char const* csEntrypoint;
+    char const* defines;
 };
 
 struct GfxShaderLibrary
@@ -751,7 +751,8 @@ DeclareGfxObjectFunctions(GraphicsPSO, GfxVertexInputDesc* vertexInputDesc, GfxS
 
 DeclareGfxObjectFunctions(SamplerState, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy);
 
-GfxShaderLibrary* makeShaderLibrary(char const* filename, GfxStage stage, char const* entrypoint, char const* defines);
+// TODO: Move this to rg_gfx_shaderbuilder.cpp
+GfxShaderLibrary makeShaderLibrary(char const* filename, GfxStage stage, char const* entrypoint, char const* defines);
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format

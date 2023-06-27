@@ -363,10 +363,10 @@ rgInt init()
     simpleVertexDesc.elements[1].offset = 12;
 
     GfxShaderDesc simple2dShaderDesc = {};
-    simple2dShaderDesc.shaderSrcCode = "";
-    simple2dShaderDesc.vsEntryPoint = "simple2d_VS";
-    simple2dShaderDesc.fsEntryPoint = "simple2d_FS";
-    simple2dShaderDesc.macros = "RIGHT";
+    simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
+    simple2dShaderDesc.vsEntrypoint = "vsSimple2d";
+    simple2dShaderDesc.fsEntrypoint = "fsSimple2d";
+    simple2dShaderDesc.defines = "RIGHT";
 
     GfxRenderStateDesc simple2dRenderStateDesc = {};
     simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
@@ -715,17 +715,19 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
 #endif
 
         wchar_t shaderFilePath[256];
-        //std::mbstowcs(shaderFilePath, shaderDesc->shaderSrcCode, 256);
-        std::mbstowcs(shaderFilePath, "shaders/dx12/simple2d.hlsl", 256);
+        //std::mbstowcs(shaderFilePath, shaderDesc->shaderSrc, 256);
+        std::mbstowcs(shaderFilePath, "simple2d.hlsl", 256);
         
-        if(shaderDesc->vsEntryPoint && shaderDesc->fsEntryPoint)
+        if(shaderDesc->vsEntrypoint && shaderDesc->fsEntrypoint)
         {
-            BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->vsEntryPoint, "vs_5_0", shaderCompileFlag, 0, &vertexShader, nullptr));
-            BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->fsEntryPoint, "ps_5_0", shaderCompileFlag, 0, &pixelShader, nullptr));
+            GfxShaderLibrary vsLib = gfx::makeShaderLibrary(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, nullptr);
+            GfxShaderLibrary fsLib = gfx::makeShaderLibrary(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, nullptr);
+            vertexShader = vsLib.d3dShaderBlob;
+            pixelShader = fsLib.d3dShaderBlob;
         }
-        else if(shaderDesc->csEntryPoint) // TODO: This is not a part of Graphics PSO
+        else if(shaderDesc->csEntrypoint) // TODO: This is not a part of Graphics PSO
         {
-            BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->csEntryPoint, "cs_5_0", shaderCompileFlag, 0, &computeShader, nullptr));
+            BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->csEntrypoint, "cs_5_0", shaderCompileFlag, 0, &computeShader, nullptr));
         }
     }
 
@@ -793,6 +795,10 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         }
 
         BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
+
+        // explicitly release shaders
+        vertexShader->Release();
+        pixelShader->Release();
     }
 
     obj->d3dPSO = pso;

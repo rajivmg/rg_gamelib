@@ -4,7 +4,7 @@ struct PSInput
     float4 color : COLOR;
 };
 
-PSInput simple2d_VS(float4 position : POSITION, float4 color : COLOR)
+PSInput vsSimple2d(float4 position : POSITION, float4 color : COLOR)
 {
     PSInput result;
 
@@ -14,7 +14,7 @@ PSInput simple2d_VS(float4 position : POSITION, float4 color : COLOR)
     return result;
 }
 
-float4 simple2d_FS(PSInput input) : SV_TARGET
+float4 fsSimple2d(PSInput input) : SV_TARGET
 {
     return input.color;
 }

@@ -99,10 +99,10 @@ rgInt rg::setup()
     vertexDesc.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
     GfxShaderDesc simple2dShaderDesc = {};
-    simple2dShaderDesc.shaderSrcCode = g_Simple2DShaderSrcCode;
-    simple2dShaderDesc.vsEntryPoint = "simple2d_VS";
-    simple2dShaderDesc.fsEntryPoint = "simple2d_FS";
-    simple2dShaderDesc.macros = "RIGHT";
+    simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
+    simple2dShaderDesc.vsEntrypoint = "vsSimple2d";
+    simple2dShaderDesc.fsEntrypoint = "fsSimple2d";
+    simple2dShaderDesc.defines = "RIGHT";
     
     GfxRenderStateDesc simple2dRenderStateDesc = {};
     simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
@@ -137,10 +137,10 @@ rgInt rg::setup()
     vertexPos3fNor3fTexcoord2f.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
     GfxShaderDesc principledBrdfShaderDesc = {};
-    principledBrdfShaderDesc.shaderSrcCode = g_PrincipledBrdfShaderSrcCode;
-    principledBrdfShaderDesc.vsEntryPoint = "vsPrincipledBrdf";
-    principledBrdfShaderDesc.fsEntryPoint = "fsPrincipledBrdf";
-    principledBrdfShaderDesc.macros = "LEFT";
+    principledBrdfShaderDesc.shaderSrc = g_PrincipledBrdfShaderSrcCode;
+    principledBrdfShaderDesc.vsEntrypoint = "vsPrincipledBrdf";
+    principledBrdfShaderDesc.fsEntrypoint = "fsPrincipledBrdf";
+    principledBrdfShaderDesc.defines = "LEFT";
     
     GfxRenderStateDesc world3dRenderState = {};
     world3dRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
@@ -156,7 +156,7 @@ rgInt rg::setup()
     //
 
     gfx::createSamplerState("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
-    gfx::makeShaderLibrary("simple2d.hlsl", GfxStage_VS, "simple2d_VS", "LEFT RIGHT GREEN_MONKEY");
+    gfx::makeShaderLibrary("simple2d.hlsl", GfxStage_VS, "vsSimple2d", "LEFT RIGHT GREEN_MONKEY");
     //
     
     {

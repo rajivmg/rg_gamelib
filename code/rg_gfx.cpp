@@ -528,7 +528,8 @@ void destroySamplerState(char const* tag)
 
 //
 
-GfxShaderLibrary* makeShaderLibrary(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
+// TODO: Move this to rg_gfx_shaderbuilder.cpp
+GfxShaderLibrary makeShaderLibrary(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
 {
     auto getStageStr = [](GfxStage s) -> const char*
     {
@@ -555,10 +556,16 @@ GfxShaderLibrary* makeShaderLibrary(char const* filename, GfxStage stage, char c
         }
     };
 
+    rgAssert(filename);
+    rgAssert(entrypoint);
+
     rgHash hash = rgCRC32(filename);
     hash = rgCRC32(getStageStr(stage), 2, hash);
     hash = rgCRC32(entrypoint, strlen(entrypoint), hash);
-    hash = rgCRC32(defines, strlen(defines), hash);
+    if(defines != nullptr)
+    {
+        hash = rgCRC32(defines, strlen(defines), hash);
+    }
 
     // entrypoint
     eastl::vector<LPCWSTR> dxcArgs;
@@ -637,9 +644,11 @@ GfxShaderLibrary* makeShaderLibrary(char const* filename, GfxStage stage, char c
 #else
 #error Shader root path not provided
 #endif
-    strcat(filepath, filename);
+    strncat(filepath, filename, 490);
 
     rg::FileData shaderFileData = rg::readFile(filepath);
+    rgAssert(shaderFileData.isValid);
+
     DxcBuffer shaderSource;
     shaderSource.Ptr = shaderFileData.data;
     shaderSource.Size = shaderFileData.dataSize;
@@ -669,7 +678,12 @@ GfxShaderLibrary* makeShaderLibrary(char const* filename, GfxStage stage, char c
     ComPtr<IDxcBlob> shaderBlob;
     checkHR(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr));
 
-    return nullptr;
+    GfxShaderLibrary library;
+#if defined(RG_D3D12_RNDR)
+    // TODO: is this the right way.. RISK: memory leak
+    shaderBlob.CopyTo(__uuidof(ID3DBlob), (void**)&library.d3dShaderBlob);
+#endif
+    return library;
 }
 
 ///
