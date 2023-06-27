@@ -151,12 +151,12 @@ rgInt rg::setup()
     world3dRenderState.winding = GfxWinding_CCW;
     world3dRenderState.cullMode = GfxCullMode_None;
 
-    gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
+    //gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
 
     //
 
     gfx::createSamplerState("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
-    gfx::createShaderLibrary("../code/shaders/dx12/simple2d.hlsl", GfxStage_VS, "simple2d_VS", "LEFT RIGHT GREEN_MONKEY");
+    gfx::makeShaderLibrary("simple2d.hlsl", GfxStage_VS, "simple2d_VS", "LEFT RIGHT GREEN_MONKEY");
     //
     
     {

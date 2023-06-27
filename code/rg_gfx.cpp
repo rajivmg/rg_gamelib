@@ -528,7 +528,7 @@ void destroySamplerState(char const* tag)
 
 //
 
-GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
+GfxShaderLibrary* makeShaderLibrary(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
 {
     auto getStageStr = [](GfxStage s) -> const char*
     {
@@ -629,8 +629,18 @@ GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char
         }
     }
 
+    char filepath[512];
+#if defined(RG_D3D12_RNDR)
+    strcpy(filepath, "../code/shaders/");
+#elif defined(RG_METAL_RNDR)
+    strcpy(filepath, "../code/shaders/metal/");
+#else
+#error Shader root path not provided
+#endif
+    strcat(filepath, filename);
+
+    rg::FileData shaderFileData = rg::readFile(filepath);
     DxcBuffer shaderSource;
-    rg::FileData shaderFileData = rg::readFile(filename);
     shaderSource.Ptr = shaderFileData.data;
     shaderSource.Size = shaderFileData.dataSize;
     shaderSource.Encoding = 0;
@@ -648,6 +658,13 @@ GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char
 
     ComPtr<IDxcResult> result;
     checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), includeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
+
+    ComPtr<IDxcBlobUtf8> errorMsg;
+    result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errorMsg), nullptr);
+    if(errorMsg && errorMsg->GetStringLength())
+    {
+        rgLogError("***Shader Compile Warn/Error(%s, %s),Defines:%s***\n%s", filename, entrypoint, defines, errorMsg->GetStringPointer());
+    }
 
     ComPtr<IDxcBlob> shaderBlob;
     checkHR(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr));
