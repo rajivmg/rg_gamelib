@@ -15,8 +15,8 @@
 #include <sstream>
 #include <string>
 
-RG_BEGIN_NAMESPACE
-RG_GFX_BEGIN_NAMESPACE
+RG_BEGIN_RG_NAMESPACE
+RG_BEGIN_GFX_NAMESPACE
 
 #include "shaders/metal/imm_shader.inl"
 #include "shaders/metal/histogram_shader.inl"
@@ -982,7 +982,7 @@ void destroyerGfxSamplerState(GfxSamplerState* obj)
     [asMTLSamplerState(obj->mtlSamplerState) release];
 }
 
-RG_GFX_END_NAMESPACE
+RG_END_GFX_NAMESPACE
 
 using namespace gfx;
 
@@ -1216,5 +1216,5 @@ void GfxBlitCmdEncoder::copyTexture(GfxTexture2D* srcTexture, GfxTexture2D* dstT
     [asMTLBlitCommandEncoder(mtlBlitCommandEncoder) copyFromTexture:src sourceSlice:0 sourceLevel:srcMipLevel toTexture:dst destinationSlice:0 destinationLevel:dstMipLevel sliceCount:1 levelCount:mipLevelCount];
 }
 
-RG_END_NAMESPACE
+RG_END_RG_NAMESPACE
 #endif

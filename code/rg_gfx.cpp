@@ -7,6 +7,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#ifndef _WIN32
+#include "ComPtr.hpp"
+#endif
 #include "dxcapi.h"
 
 RG_BEGIN_RG_NAMESPACE
@@ -603,9 +606,10 @@ GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char
 
     // util and include handler
     ComPtr<IDxcUtils> utils;
-    checkHR(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(utils.ReleaseAndGetAddressOf())));
+    checkHR(DxcCreateInstance(CLSID_DxcUtils, __uuidof(IDxcUtils), (void**)&utils));
     ComPtr<IDxcIncludeHandler> includeHandler;
-    checkHR(utils->CreateDefaultIncludeHandler(includeHandler.ReleaseAndGetAddressOf()));
+    IDxcIncludeHandler* pIncludeHandler = includeHandler.Get();
+    checkHR(utils->CreateDefaultIncludeHandler(&pIncludeHandler));
 
     // compiler
     ComPtr<IDxcCompiler3> compiler3;
