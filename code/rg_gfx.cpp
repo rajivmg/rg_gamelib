@@ -595,8 +595,39 @@ GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char
     dxcArgs.push_back(debugSymPath);
 
     // defines
-    //dxcArgs.push_back(L"-D");
-    // todo;
+    eastl::vector<eastl::wstring> defineArgs;
+    if(defines != nullptr)
+    {
+        char const* definesCursorA = defines;
+        char const* definesCursorB = definesCursorA;
+        while(*definesCursorB != '\0')
+        {
+            definesCursorB = definesCursorB + 1;
+            if(*definesCursorB == ' ' || *definesCursorB == '\0')
+            {
+                if(definesCursorB == '\0' && (definesCursorA == definesCursorB))
+                {
+                    break;
+                }
+
+                wchar_t d[256];
+                wchar_t wterm = 0;
+                rgUPtr lenWithoutNull = definesCursorB - definesCursorA;
+                std::mbstowcs(d, definesCursorA, lenWithoutNull);
+                wcsncpy(&d[lenWithoutNull], &wterm, 1);
+                defineArgs.push_back(eastl::wstring(d));
+                definesCursorA = definesCursorB + 1;
+            }
+        }
+        if(defineArgs.size() > 0)
+        {
+            dxcArgs.push_back(L"-D");
+            for(auto& s : defineArgs)
+            {
+                dxcArgs.push_back(s.c_str());
+            }
+        }
+    }
 
     DxcBuffer shaderSource;
     rg::FileData shaderFileData = rg::readFile(filename);
