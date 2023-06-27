@@ -605,7 +605,7 @@ GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char
             definesCursorB = definesCursorB + 1;
             if(*definesCursorB == ' ' || *definesCursorB == '\0')
             {
-                if(definesCursorB == '\0' && (definesCursorA == definesCursorB))
+                if(*definesCursorB == '\0' && (definesCursorA == definesCursorB))
                 {
                     break;
                 }
@@ -644,10 +644,10 @@ GfxShaderLibrary* createShaderLibrary(char const* filename, GfxStage stage, char
 
     // compiler
     ComPtr<IDxcCompiler3> compiler3;
-    checkHR(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&compiler3)));
+    checkHR(DxcCreateInstance(CLSID_DxcCompiler, __uuidof(IDxcCompiler3), (void**)&compiler3));
 
     ComPtr<IDxcResult> result;
-    checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), includeHandler.Get(), IID_PPV_ARGS(&result)));
+    checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), includeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
 
     ComPtr<IDxcBlob> shaderBlob;
     checkHR(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr));

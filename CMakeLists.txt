@@ -112,7 +112,7 @@ elseif(APPLE)
     find_library(SDL2 SDL2 REQUIRED)
 
     set(EASTL_LIBRARY ${EASTL_ROOT_DIR}/build-apple/libEASTL.a)
-    set(DXC_LIBRARY ${DXC_LIB_DIR}/arm64/dxcompiler.lib)
+    set(DXC_LIBRARY ${DXC_LIB_DIR}/arm64/libdxcompiler.dylib)
 
     # set source files
     file(GLOB SRC_FILES "code/*.cpp" "code/*.mm" "code/*.h" "code/shaders/metal/*.inl")
