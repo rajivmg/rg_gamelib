@@ -695,7 +695,13 @@ void destroyerGfxTexture2D(GfxTexture2D* obj)
 }
 
 // PSO
-ComPtr<IDxcBlob> buildShaderBlob(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
+struct BuildShaderResult
+{
+    ComPtr<IDxcBlob> shaderBlob;
+    ComPtr<ID3D12ShaderReflection> shaderReflection;
+};
+
+BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
 {
     auto getStageStr = [](GfxStage s) -> const char*
     {
@@ -807,14 +813,16 @@ ComPtr<IDxcBlob> buildShaderBlob(char const* filename, GfxStage stage, char cons
         }
     }
 
+    // create default include handler
+    ComPtr<IDxcUtils> utils;
+    checkHR(DxcCreateInstance(CLSID_DxcUtils, __uuidof(IDxcUtils), (void**)&utils));
+    ComPtr<IDxcIncludeHandler> includeHandler;
+    IDxcIncludeHandler* pIncludeHandler = includeHandler.Get();
+    checkHR(utils->CreateDefaultIncludeHandler(&pIncludeHandler));
+
+    // load shader file
     char filepath[512];
-#if defined(RG_D3D12_RNDR)
     strcpy(filepath, "../code/shaders/");
-#elif defined(RG_METAL_RNDR)
-    strcpy(filepath, "../code/shaders/metal/");
-#else
-#error Shader root path not provided
-#endif
     strncat(filepath, filename, 490);
 
     rg::FileData shaderFileData = rg::readFile(filepath);
@@ -825,20 +833,14 @@ ComPtr<IDxcBlob> buildShaderBlob(char const* filename, GfxStage stage, char cons
     shaderSource.Size = shaderFileData.dataSize;
     shaderSource.Encoding = 0;
 
-    // util and include handler
-    ComPtr<IDxcUtils> utils;
-    checkHR(DxcCreateInstance(CLSID_DxcUtils, __uuidof(IDxcUtils), (void**)&utils));
-    ComPtr<IDxcIncludeHandler> includeHandler;
-    IDxcIncludeHandler* pIncludeHandler = includeHandler.Get();
-    checkHR(utils->CreateDefaultIncludeHandler(&pIncludeHandler));
-
-    // compiler
+    // compile shader
     ComPtr<IDxcCompiler3> compiler3;
     checkHR(DxcCreateInstance(CLSID_DxcCompiler, __uuidof(IDxcCompiler3), (void**)&compiler3));
 
     ComPtr<IDxcResult> result;
     checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), includeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
 
+    // process errors
     ComPtr<IDxcBlobUtf8> errorMsg;
     result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errorMsg), nullptr);
     if(errorMsg && errorMsg->GetStringLength())
@@ -846,26 +848,52 @@ ComPtr<IDxcBlob> buildShaderBlob(char const* filename, GfxStage stage, char cons
         rgLogError("***Shader Compile Warn/Error(%s, %s),Defines:%s***\n%s", filename, entrypoint, defines, errorMsg->GetStringPointer());
     }
 
+    //ComPtr<IDxcBlob> shaderHashBlob;
+    //checkHR(result->GetOutput(DXC_OUT_SHADER_HASH, IID_PPV_ARGS(&shaderHashBlob), nullptr));
+    //DxcShaderHash* shaderHashBuffer = (DxcShaderHash*)shaderHashBlob->GetBufferPointer();
+    
+    // write pdb to preferred write path
     ComPtr<IDxcBlob> shaderPdbBlob;
     ComPtr<IDxcBlobUtf16> shaderPdbPath;
     checkHR(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&shaderPdbBlob), shaderPdbPath.GetAddressOf()));
 
-    ComPtr<IDxcBlob> shaderHashBlob;
-    checkHR(result->GetOutput(DXC_OUT_SHADER_HASH, IID_PPV_ARGS(&shaderHashBlob), nullptr));
-    DxcShaderHash* shaderHashBuffer = (DxcShaderHash*)shaderHashBlob->GetBufferPointer();
-    
     char pdbFilepath[512];
     wcstombs(pdbFilepath, shaderPdbPath->GetStringPointer(), 512);
     rg::writeFile(pdbFilepath, shaderPdbBlob->GetBufferPointer(), shaderPdbBlob->GetBufferSize());
 
+    // shader blob
     ComPtr<IDxcBlob> shaderBlob;
     checkHR(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr));
 
-    return shaderBlob;
+    // reflection information
+    ComPtr<IDxcBlob> shaderReflectionBlob;
+    checkHR(result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&shaderReflectionBlob), nullptr));
+
+    DxcBuffer shaderReflectionBuffer;
+    shaderReflectionBuffer.Ptr = shaderReflectionBlob->GetBufferPointer();
+    shaderReflectionBuffer.Size = shaderReflectionBlob->GetBufferSize();
+    shaderReflectionBuffer.Encoding = 0;
+
+    ComPtr<ID3D12ShaderReflection> shaderReflection;
+    utils->CreateReflection(&shaderReflectionBuffer, IID_PPV_ARGS(&shaderReflection));
+
+    BuildShaderResult output;
+    output.shaderBlob = shaderBlob;
+    output.shaderReflection = shaderReflection;
+
+    return output;
 }
 
 void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
+    // compile shader
+    BuildShaderResult vertexShader, pixelShader;
+    if(shaderDesc->vsEntrypoint && shaderDesc->fsEntrypoint)
+    {
+        vertexShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines);
+        pixelShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines);
+    }
+
     // empty root signature
     ComPtr<ID3D12RootSignature> emptyRootSig;
     {
@@ -878,19 +906,6 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(emptyRootSig), (void**)&(emptyRootSig)));
     }
 
-
-    // create shader
-#if defined(_DEBUG)
-    UINT shaderCompileFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-    UINT shaderCompileFlag = 0;
-#endif
-    ComPtr<IDxcBlob> vertexShader, pixelShader;
-    if(shaderDesc->vsEntrypoint && shaderDesc->fsEntrypoint)
-    {
-        vertexShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, nullptr);
-        pixelShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, nullptr);
-    }
 
     // create vertex input desc
     eastl::vector<D3D12_INPUT_ELEMENT_DESC> inputElementDesc;
@@ -914,59 +929,62 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
 
     // create pso
     ComPtr<ID3D12PipelineState> pso;
+    D3D12_FILL_MODE fillMode = renderStateDesc->triangleFillMode == GfxTriangleFillMode_Fill ? D3D12_FILL_MODE_SOLID : D3D12_FILL_MODE_WIREFRAME;
+    D3D12_CULL_MODE cullMode = renderStateDesc->cullMode == GfxCullMode_None ? D3D12_CULL_MODE_NONE : (renderStateDesc->cullMode == GfxCullMode_Back ? D3D12_CULL_MODE_BACK : D3D12_CULL_MODE_FRONT);
+    BOOL frontCounterClockwise = renderStateDesc->winding == GfxWinding_CCW ? TRUE : FALSE;
+
+    CD3DX12_RASTERIZER_DESC rasterDesc(D3D12_DEFAULT);
+    rasterDesc.FillMode = fillMode;
+    rasterDesc.CullMode = cullMode;
+    rasterDesc.FrontCounterClockwise = frontCounterClockwise;
+
+    BOOL depthTestEnabled = renderStateDesc->depthStencilAttachmentFormat != TinyImageFormat_UNDEFINED ? TRUE : FALSE;
+    D3D12_DEPTH_WRITE_MASK depthWriteMask = renderStateDesc->depthWriteEnabled ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+    D3D12_COMPARISON_FUNC depthComparisonFunc = toD3DCompareFunc(renderStateDesc->depthCompareFunc);
+
+    // d3d12 pso create start
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    psoDesc.InputLayout = { &inputElementDesc.front(), (rgUInt)inputElementDesc.size() };
+    psoDesc.pRootSignature = emptyRootSig.Get();
+
+    // shaders
+    psoDesc.VS.pShaderBytecode = vertexShader.shaderBlob->GetBufferPointer();
+    psoDesc.VS.BytecodeLength = vertexShader.shaderBlob->GetBufferSize();
+    psoDesc.PS.pShaderBytecode = pixelShader.shaderBlob->GetBufferPointer();
+    psoDesc.PS.BytecodeLength = pixelShader.shaderBlob->GetBufferSize();
+
+    // render state
+    psoDesc.RasterizerState = rasterDesc;
+    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // TODO: Blendstate
+    psoDesc.DepthStencilState.DepthEnable = depthTestEnabled;
+    psoDesc.DepthStencilState.DepthWriteMask = depthWriteMask;
+    psoDesc.DepthStencilState.DepthFunc = depthComparisonFunc;
+    psoDesc.DepthStencilState.StencilEnable = FALSE;
+    psoDesc.SampleMask = UINT_MAX;
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.SampleDesc.Count = 1;
+    psoDesc.DSVFormat = toDXGIFormat(renderStateDesc->depthStencilAttachmentFormat);
+
+    // pso rendertarget
+    psoDesc.NumRenderTargets = 0;
+    for(rgInt i = 0; i < rgARRAY_COUNT(GfxRenderStateDesc::colorAttachments); ++i)
     {
-        D3D12_FILL_MODE fillMode = renderStateDesc->triangleFillMode == GfxTriangleFillMode_Fill ? D3D12_FILL_MODE_SOLID : D3D12_FILL_MODE_WIREFRAME;
-        D3D12_CULL_MODE cullMode = renderStateDesc->cullMode == GfxCullMode_None ? D3D12_CULL_MODE_NONE : (renderStateDesc->cullMode == GfxCullMode_Back ? D3D12_CULL_MODE_BACK : D3D12_CULL_MODE_FRONT);
-        BOOL frontCounterClockwise = renderStateDesc->winding == GfxWinding_CCW ? TRUE : FALSE;
-
-        CD3DX12_RASTERIZER_DESC rasterDesc(D3D12_DEFAULT);
-        rasterDesc.FillMode = fillMode;
-        rasterDesc.CullMode = cullMode;
-        rasterDesc.FrontCounterClockwise = frontCounterClockwise;
-
-        BOOL depthTestEnabled = renderStateDesc->depthStencilAttachmentFormat != TinyImageFormat_UNDEFINED ? TRUE : FALSE;
-        D3D12_DEPTH_WRITE_MASK depthWriteMask = renderStateDesc->depthWriteEnabled ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
-        D3D12_COMPARISON_FUNC depthComparisonFunc = toD3DCompareFunc(renderStateDesc->depthCompareFunc);
-
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        psoDesc.InputLayout = { &inputElementDesc.front(), (rgUInt)inputElementDesc.size() };
-        psoDesc.pRootSignature = emptyRootSig.Get();
-
-        psoDesc.VS.pShaderBytecode = vertexShader->GetBufferPointer();
-        psoDesc.VS.BytecodeLength = vertexShader->GetBufferSize();
-        psoDesc.PS.pShaderBytecode = pixelShader->GetBufferPointer();
-        psoDesc.PS.BytecodeLength = pixelShader->GetBufferSize();
-
-        psoDesc.RasterizerState = rasterDesc;
-        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // TODO: Blendstate
-        psoDesc.DepthStencilState.DepthEnable = depthTestEnabled;
-        psoDesc.DepthStencilState.DepthWriteMask = depthWriteMask;
-        psoDesc.DepthStencilState.DepthFunc = depthComparisonFunc;
-        psoDesc.DepthStencilState.StencilEnable = FALSE;
-        psoDesc.SampleMask = UINT_MAX;
-        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.SampleDesc.Count = 1;
-        psoDesc.DSVFormat = toDXGIFormat(renderStateDesc->depthStencilAttachmentFormat);
-        psoDesc.NumRenderTargets = 0;
-        for(rgInt i = 0; i < rgARRAY_COUNT(GfxRenderStateDesc::colorAttachments); ++i)
+        if(renderStateDesc->colorAttachments[i].pixelFormat != TinyImageFormat_UNDEFINED)
         {
-            if(renderStateDesc->colorAttachments[i].pixelFormat != TinyImageFormat_UNDEFINED)
-            {
-                psoDesc.RTVFormats[i] = toDXGIFormat(renderStateDesc->colorAttachments[i].pixelFormat);
-                ++psoDesc.NumRenderTargets;
-            }
-            else
-            {
-                break;
-            }
+            psoDesc.RTVFormats[i] = toDXGIFormat(renderStateDesc->colorAttachments[i].pixelFormat);
+            ++psoDesc.NumRenderTargets;
         }
-
-        BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
-
-        // explicitly release shaders
-        vertexShader->Release();
-        pixelShader->Release();
+        else
+        {
+            break;
+        }
     }
+
+    BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
+
+    // explicitly release shaders
+    vertexShader.shaderBlob->Release();
+    pixelShader.shaderBlob->Release();
 
     obj->d3dPSO = pso;
 }
