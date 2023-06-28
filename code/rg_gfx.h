@@ -751,9 +751,6 @@ DeclareGfxObjectFunctions(GraphicsPSO, GfxVertexInputDesc* vertexInputDesc, GfxS
 
 DeclareGfxObjectFunctions(SamplerState, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy);
 
-// TODO: Move this to rg_gfx_shaderbuilder.cpp
-GfxShaderLibrary makeShaderLibrary(char const* filename, GfxStage stage, char const* entrypoint, char const* defines);
-
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
 //-----------------------------------------------------------------------------

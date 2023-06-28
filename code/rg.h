@@ -179,6 +179,7 @@ struct FileData
 
 FileData readFile(const char* filepath);
 void     freeFileData(FileData* fd);
+rgBool   writeFile(char const* filepath, void* bufferPtr, rgU32 bufferSizeInBytes);
 
 struct WindowInfo
 {
@@ -267,6 +268,32 @@ FileData readFile(const char* filepath)
 void freeFileData(FileData* fd)
 {
     rgFree(fd->data);
+}
+
+rgBool writeFile(char const* filepath, void* bufferPtr, rgU32 bufferSizeInBytes)
+{
+    // Open file for writing
+    SDL_RWops* fp = SDL_RWFromFile(filepath, "wb");
+
+    // If file is opened
+    if(fp != 0)
+    {
+        size_t bytesWritten = SDL_RWwrite(fp, bufferPtr, sizeof(rgU8), bufferSizeInBytes);
+        if(bytesWritten != (size_t)bufferSizeInBytes)
+        {
+            rgLogError("Can't write file %s completely\n", filepath);
+            return false;
+        }
+
+        SDL_RWclose(fp);
+    }
+    // If file can't be opened
+    else
+    {
+        rgLogError("Can't open file %s for writing\n", filepath);
+        return false;
+    }
+    return true;
 }
 
 RG_END_RG_NAMESPACE

@@ -156,7 +156,6 @@ rgInt rg::setup()
     //
 
     gfx::createSamplerState("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
-    gfx::makeShaderLibrary("simple2d.hlsl", GfxStage_VS, "vsSimple2d", "LEFT RIGHT GREEN_MONKEY");
     //
     
     {

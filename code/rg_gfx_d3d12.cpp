@@ -1,6 +1,13 @@
 #if defined(RG_D3D12_RNDR)
 #include "rg_gfx.h"
 
+#ifndef _WIN32
+#include "ComPtr.hpp"
+#endif
+#include "dxcapi.h"
+
+#include <EASTL/string.h>
+
 RG_BEGIN_RG_NAMESPACE
 RG_BEGIN_GFX_NAMESPACE
 
@@ -688,6 +695,175 @@ void destroyerGfxTexture2D(GfxTexture2D* obj)
 }
 
 // PSO
+ComPtr<IDxcBlob> buildShaderBlob(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
+{
+    auto getStageStr = [](GfxStage s) -> const char*
+    {
+        switch(s)
+        {
+        case GfxStage_VS:
+            return "vs";
+            break;
+        case GfxStage_FS:
+            return "fs";
+            break;
+        case GfxStage_CS:
+            return "cs";
+            break;
+        }
+        return nullptr;
+    };
+
+    auto checkHR = [&](HRESULT hr) -> void
+    {
+        if(FAILED(hr))
+        {
+            rgAssert(!"Operation failed");
+        }
+    };
+
+    rgAssert(filename);
+    rgAssert(entrypoint);
+
+    rgHash hash = rgCRC32(filename);
+    hash = rgCRC32(getStageStr(stage), 2, hash);
+    hash = rgCRC32(entrypoint, strlen(entrypoint), hash);
+    if(defines != nullptr)
+    {
+        hash = rgCRC32(defines, strlen(defines), hash);
+    }
+
+    // entrypoint
+    eastl::vector<LPCWSTR> dxcArgs;
+    dxcArgs.push_back(L"-E");
+
+    wchar_t entrypointWide[256];
+    std::mbstowcs(entrypointWide, entrypoint, 256);
+    dxcArgs.push_back(entrypointWide);
+
+    // shader model
+    dxcArgs.push_back(L"-T");
+    if(stage == GfxStage_VS)
+    {
+        dxcArgs.push_back(L"vs_6_0");
+    }
+    else if(stage == GfxStage_FS)
+    {
+        dxcArgs.push_back(L"ps_6_0");
+    }
+    else if(stage == GfxStage_CS)
+    {
+        dxcArgs.push_back(L"cs_6_0");
+    }
+
+    // generate debug symbols
+    wchar_t debugSymPath[512];
+    wchar_t prefPath[256];
+    wchar_t hashWString[128];
+    _ultow(hash, hashWString, 16);
+    std::mbstowcs(prefPath, rg::getPrefPath(), 256);
+    wcsncpy(debugSymPath, prefPath, 280);
+    //wcsncat(debugSymPath, L"shaderpdb\\", 10);
+    wcsncat(debugSymPath, hashWString, 120);
+    wcsncat(debugSymPath, L".bin", 8);
+    // TODO: check there is no file with same name
+
+    dxcArgs.push_back(L"-Zi");
+    dxcArgs.push_back(L"-Fd");
+    dxcArgs.push_back(debugSymPath);
+
+    // defines
+    eastl::vector<eastl::wstring> defineArgs;
+    if(defines != nullptr)
+    {
+        char const* definesCursorA = defines;
+        char const* definesCursorB = definesCursorA;
+        while(*definesCursorB != '\0')
+        {
+            definesCursorB = definesCursorB + 1;
+            if(*definesCursorB == ' ' || *definesCursorB == '\0')
+            {
+                if(*definesCursorB == '\0' && (definesCursorA == definesCursorB))
+                {
+                    break;
+                }
+
+                wchar_t d[256];
+                wchar_t wterm = 0;
+                rgUPtr lenWithoutNull = definesCursorB - definesCursorA;
+                std::mbstowcs(d, definesCursorA, lenWithoutNull);
+                wcsncpy(&d[lenWithoutNull], &wterm, 1);
+                defineArgs.push_back(eastl::wstring(d));
+                definesCursorA = definesCursorB + 1;
+            }
+        }
+        if(defineArgs.size() > 0)
+        {
+            dxcArgs.push_back(L"-D");
+            for(auto& s : defineArgs)
+            {
+                dxcArgs.push_back(s.c_str());
+            }
+        }
+    }
+
+    char filepath[512];
+#if defined(RG_D3D12_RNDR)
+    strcpy(filepath, "../code/shaders/");
+#elif defined(RG_METAL_RNDR)
+    strcpy(filepath, "../code/shaders/metal/");
+#else
+#error Shader root path not provided
+#endif
+    strncat(filepath, filename, 490);
+
+    rg::FileData shaderFileData = rg::readFile(filepath);
+    rgAssert(shaderFileData.isValid);
+
+    DxcBuffer shaderSource;
+    shaderSource.Ptr = shaderFileData.data;
+    shaderSource.Size = shaderFileData.dataSize;
+    shaderSource.Encoding = 0;
+
+    // util and include handler
+    ComPtr<IDxcUtils> utils;
+    checkHR(DxcCreateInstance(CLSID_DxcUtils, __uuidof(IDxcUtils), (void**)&utils));
+    ComPtr<IDxcIncludeHandler> includeHandler;
+    IDxcIncludeHandler* pIncludeHandler = includeHandler.Get();
+    checkHR(utils->CreateDefaultIncludeHandler(&pIncludeHandler));
+
+    // compiler
+    ComPtr<IDxcCompiler3> compiler3;
+    checkHR(DxcCreateInstance(CLSID_DxcCompiler, __uuidof(IDxcCompiler3), (void**)&compiler3));
+
+    ComPtr<IDxcResult> result;
+    checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), includeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
+
+    ComPtr<IDxcBlobUtf8> errorMsg;
+    result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errorMsg), nullptr);
+    if(errorMsg && errorMsg->GetStringLength())
+    {
+        rgLogError("***Shader Compile Warn/Error(%s, %s),Defines:%s***\n%s", filename, entrypoint, defines, errorMsg->GetStringPointer());
+    }
+
+    ComPtr<IDxcBlob> shaderPdbBlob;
+    ComPtr<IDxcBlobUtf16> shaderPdbPath;
+    checkHR(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&shaderPdbBlob), shaderPdbPath.GetAddressOf()));
+
+    ComPtr<IDxcBlob> shaderHashBlob;
+    checkHR(result->GetOutput(DXC_OUT_SHADER_HASH, IID_PPV_ARGS(&shaderHashBlob), nullptr));
+    DxcShaderHash* shaderHashBuffer = (DxcShaderHash*)shaderHashBlob->GetBufferPointer();
+    
+    char pdbFilepath[512];
+    wcstombs(pdbFilepath, shaderPdbPath->GetStringPointer(), 512);
+    rg::writeFile(pdbFilepath, shaderPdbBlob->GetBufferPointer(), shaderPdbBlob->GetBufferSize());
+
+    ComPtr<IDxcBlob> shaderBlob;
+    checkHR(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr));
+
+    return shaderBlob;
+}
+
 void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     // empty root signature
@@ -702,33 +878,18 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(emptyRootSig), (void**)&(emptyRootSig)));
     }
 
-    ComPtr<ID3DBlob> vertexShader;
-    ComPtr<ID3DBlob> pixelShader;
-    ComPtr<ID3DBlob> computeShader;
 
     // create shader
-    {
 #if defined(_DEBUG)
-        UINT shaderCompileFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+    UINT shaderCompileFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
-        UINT shaderCompileFlag = 0;
+    UINT shaderCompileFlag = 0;
 #endif
-
-        wchar_t shaderFilePath[256];
-        //std::mbstowcs(shaderFilePath, shaderDesc->shaderSrc, 256);
-        std::mbstowcs(shaderFilePath, "simple2d.hlsl", 256);
-        
-        if(shaderDesc->vsEntrypoint && shaderDesc->fsEntrypoint)
-        {
-            GfxShaderLibrary vsLib = gfx::makeShaderLibrary(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, nullptr);
-            GfxShaderLibrary fsLib = gfx::makeShaderLibrary(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, nullptr);
-            vertexShader = vsLib.d3dShaderBlob;
-            pixelShader = fsLib.d3dShaderBlob;
-        }
-        else if(shaderDesc->csEntrypoint) // TODO: This is not a part of Graphics PSO
-        {
-            BreakIfFail(D3DCompileFromFile((LPCWSTR)shaderFilePath, nullptr, nullptr, (LPCSTR)shaderDesc->csEntrypoint, "cs_5_0", shaderCompileFlag, 0, &computeShader, nullptr));
-        }
+    ComPtr<IDxcBlob> vertexShader, pixelShader;
+    if(shaderDesc->vsEntrypoint && shaderDesc->fsEntrypoint)
+    {
+        vertexShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, nullptr);
+        pixelShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, nullptr);
     }
 
     // create vertex input desc
@@ -737,14 +898,16 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     {
         for(rgInt i = 0; i < vertexInputDesc->elementCount; ++i)
         {
+            auto& elementDesc = vertexInputDesc->elements[i];
             D3D12_INPUT_ELEMENT_DESC e = {};
-            e.SemanticName = vertexInputDesc->elements[i].semanticName;
-            e.SemanticIndex = vertexInputDesc->elements[i].semanticIndex;
-            e.Format = toDXGIFormat(vertexInputDesc->elements[i].format);
-            e.InputSlot = vertexInputDesc->elements[i].bufferIndex;
-            e.AlignedByteOffset = vertexInputDesc->elements[i].offset;
-            e.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-            e.InstanceDataStepRate = 0;
+            e.SemanticName = elementDesc.semanticName;
+            e.SemanticIndex = elementDesc.semanticIndex;
+            e.Format = toDXGIFormat(elementDesc.format);
+            e.InputSlot = elementDesc.bufferIndex;
+            e.AlignedByteOffset = elementDesc.offset;
+            e.InputSlotClass = elementDesc.stepFunc == GfxVertexStepFunc_PerInstance ?
+                D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+            e.InstanceDataStepRate = elementDesc.stepFunc == GfxVertexStepFunc_PerInstance ? 1 : 0;
             inputElementDesc.push_back(e);
         }
     }
@@ -768,8 +931,12 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = { &inputElementDesc.front(), (rgUInt)inputElementDesc.size() };
         psoDesc.pRootSignature = emptyRootSig.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+
+        psoDesc.VS.pShaderBytecode = vertexShader->GetBufferPointer();
+        psoDesc.VS.BytecodeLength = vertexShader->GetBufferSize();
+        psoDesc.PS.pShaderBytecode = pixelShader->GetBufferPointer();
+        psoDesc.PS.BytecodeLength = pixelShader->GetBufferSize();
+
         psoDesc.RasterizerState = rasterDesc;
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT); // TODO: Blendstate
         psoDesc.DepthStencilState.DepthEnable = depthTestEnabled;
