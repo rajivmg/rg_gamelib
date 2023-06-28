@@ -5,6 +5,7 @@
 #include "ComPtr.hpp"
 #endif
 #include "dxcapi.h"
+#include "d3d12shader.h"
 
 #include <EASTL/string.h>
 
@@ -884,15 +885,47 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
     return output;
 }
 
+void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vector<D3D12_ROOT_PARAMETER1>& rootParameters, eastl::hash_map<eastl::string, rgU32>& shadersParamMap)
+{
+    D3D12_SHADER_DESC shaderDesc = { 0 };
+    shaderReflection->GetDesc(&shaderDesc);
+    for(rgU32 i = 0; i < shaderDesc.BoundResources; ++i)
+    {
+        D3D12_SHADER_INPUT_BIND_DESC shaderInputBindDesc = { 0 };
+        BreakIfFail(shaderReflection->GetResourceBindingDesc(i, &shaderInputBindDesc));
+        switch(shaderInputBindDesc.Type)
+        {
+            case D3D_SIT_CBUFFER:
+            {
+                shadersParamMap[eastl::string(shaderInputBindDesc.Name)] = (rgU32)rootParameters.size();
+                
+                D3D12_ROOT_PARAMETER rp = {};
+                rp.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+                // TODO: https://rtarun9.github.io/blogs/shader_reflection/
+                // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html
+
+                ID3D12ShaderReflectionConstantBuffer* shaderReflectionConstBuffer = shaderReflection->GetConstantBufferByIndex(i);
+                D3D12_SHADER_BUFFER_DESC constBufferDesc = { 0 };
+                shaderReflectionConstBuffer->GetDesc(&constBufferDesc);
+            } break;
+        }
+    }
+}
+
 void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     // compile shader
-    BuildShaderResult vertexShader, pixelShader;
+    BuildShaderResult vertexShader, fragmentShader;
     if(shaderDesc->vsEntrypoint && shaderDesc->fsEntrypoint)
     {
         vertexShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines);
-        pixelShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines);
+        fragmentShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines);
     }
+
+    // do shader reflection
+    eastl::vector<D3D12_ROOT_PARAMETER1> rootParameters;
+    reflectShader(vertexShader.shaderReflection, rootParameters, obj->shadersParamMap);
+    reflectShader(fragmentShader.shaderReflection, rootParameters, obj->shadersParamMap);
 
     // empty root signature
     ComPtr<ID3D12RootSignature> emptyRootSig;
@@ -950,8 +983,8 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     // shaders
     psoDesc.VS.pShaderBytecode = vertexShader.shaderBlob->GetBufferPointer();
     psoDesc.VS.BytecodeLength = vertexShader.shaderBlob->GetBufferSize();
-    psoDesc.PS.pShaderBytecode = pixelShader.shaderBlob->GetBufferPointer();
-    psoDesc.PS.BytecodeLength = pixelShader.shaderBlob->GetBufferSize();
+    psoDesc.PS.pShaderBytecode = fragmentShader.shaderBlob->GetBufferPointer();
+    psoDesc.PS.BytecodeLength = fragmentShader.shaderBlob->GetBufferSize();
 
     // render state
     psoDesc.RasterizerState = rasterDesc;
@@ -984,7 +1017,7 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
 
     // explicitly release shaders
     vertexShader.shaderBlob->Release();
-    pixelShader.shaderBlob->Release();
+    fragmentShader.shaderBlob->Release();
 
     obj->d3dPSO = pso;
 }

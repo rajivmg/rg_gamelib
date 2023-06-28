@@ -25,6 +25,7 @@
 #include "rg.h"
 #include <EASTL/shared_ptr.h>
 #include <EASTL/hash_map.h>
+#include <EASTL/string.h>
 #include <EASTL/vector.h>
 #include <EASTL/fixed_vector.h>
 
@@ -325,6 +326,7 @@ struct GfxGraphicsPSO
     GfxWinding winding;
     GfxTriangleFillMode triangleFillMode;
 #if defined(RG_D3D12_RNDR)
+    eastl::hash_map<eastl::string, rgU32> shadersParamMap;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
     void* mtlPSO; // type: id<MTLRenderPipelineState>
