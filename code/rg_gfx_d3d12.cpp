@@ -358,17 +358,22 @@ rgInt init()
     }
 
     GfxVertexInputDesc simpleVertexDesc = {};
-    simpleVertexDesc.elementCount = 2;
+    simpleVertexDesc.elementCount = 3;
     simpleVertexDesc.elements[0].semanticName = "POSITION";
     simpleVertexDesc.elements[0].semanticIndex = 0;
     simpleVertexDesc.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
     simpleVertexDesc.elements[0].bufferIndex = 0;
     simpleVertexDesc.elements[0].offset = 0;
-    simpleVertexDesc.elements[1].semanticName = "COLOR";
+    simpleVertexDesc.elements[1].semanticName = "TEXCOORD";
     simpleVertexDesc.elements[1].semanticIndex = 0;
-    simpleVertexDesc.elements[1].format = TinyImageFormat_R32G32B32A32_SFLOAT;
+    simpleVertexDesc.elements[1].format = TinyImageFormat_R32G32_SFLOAT;
     simpleVertexDesc.elements[1].bufferIndex = 0;
     simpleVertexDesc.elements[1].offset = 12;
+    simpleVertexDesc.elements[2].semanticName = "COLOR";
+    simpleVertexDesc.elements[2].semanticIndex = 0;
+    simpleVertexDesc.elements[2].format = TinyImageFormat_R32G32B32A32_SFLOAT;
+    simpleVertexDesc.elements[2].bufferIndex = 0;
+    simpleVertexDesc.elements[2].offset = 20;
 
     GfxShaderDesc simple2dShaderDesc = {};
     simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
@@ -388,13 +393,13 @@ rgInt init()
     {
         rgFloat triangleVertices[] =
         {
-            0.0f, 0.3f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.4f, -0.25f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            -0.25f, -0.1f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.0f, 0.3f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.4f, -0.25f, 0.0f, 0.9f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
+            -0.25f, -0.1f, 0.0f, 0.0f, 0.3f, 1.0f, 0.0f, 0.0f, 1.0f,
 
-            0.0f, 0.25f, 0.1f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.25f, -0.25f, 0.1f, 0.0f, 1.0f, 0.0f, 1.0f,
-            -0.25f, -0.25f, 0.1f, 0.0f, 0.0f, 1.0f, 1.0f
+            0.0f, 0.25f, 0.1f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.25f, -0.25f, 0.1f, 0.9f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
+            -0.25f, -0.25f, 0.1f, 0.0f, 0.3f, 0.0f, 0.0f, 1.0f, 1.0f
         };
 
         rgUInt vbSize = sizeof(triangleVertices);
@@ -416,7 +421,7 @@ rgInt init()
         d3d.triVB->Unmap(0, nullptr);
 
         d3d.triVBView.BufferLocation = d3d.triVB->GetGPUVirtualAddress();
-        d3d.triVBView.StrideInBytes = 28;
+        d3d.triVBView.StrideInBytes = 36;
         d3d.triVBView.SizeInBytes = vbSize;
     }
 
@@ -454,7 +459,7 @@ rgInt draw()
     BreakIfFail(d3d.commandList->Reset(d3d.commandAllocator[g_FrameIndex].Get(), NULL));
 
     ID3D12GraphicsCommandList* commandList = d3d.commandList.Get();
-    commandList->SetGraphicsRootSignature(d3d.dummyRootSignature.Get());
+    //commandList->SetGraphicsRootSignature(d3d.dummyRootSignature.Get());
 
     commandList->SetPipelineState(d3d.dummyPSO.Get());
 
@@ -558,13 +563,13 @@ void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usa
 
     rgFloat triangleVertices[] =
     {
-        0.0f, 0.3f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-        0.4f, -0.25f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-        -0.25f, -0.1f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.0f, 0.3f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.4f, -0.25f, 0.0f, 0.9f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
+            -0.25f, -0.1f, 0.0f, 0.0f, 0.3f, 1.0f, 0.0f, 0.0f, 1.0f,
 
-        0.0f, 0.25f, 0.1f, 1.0f, 0.0f, 0.0f, 1.0f,
-        0.25f, -0.25f, 0.1f, 0.0f, 1.0f, 0.0f, 1.0f,
-        -0.25f, -0.25f, 0.1f, 0.0f, 0.0f, 1.0f, 1.0f
+            0.0f, 0.25f, 0.1f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.25f, -0.25f, 0.1f, 0.9f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
+            -0.25f, -0.25f, 0.1f, 0.0f, 0.3f, 0.0f, 0.0f, 1.0f, 1.0f
     };
 
     rgUInt vbSize = sizeof(triangleVertices);
@@ -585,7 +590,7 @@ void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usa
     d3d.triVB->Unmap(0, nullptr);
 
     d3d.triVBView.BufferLocation = d3d.triVB->GetGPUVirtualAddress();
-    d3d.triVBView.StrideInBytes = 28;
+    d3d.triVBView.StrideInBytes = 36;
     d3d.triVBView.SizeInBytes = vbSize;
 }
 
@@ -885,10 +890,14 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
     return output;
 }
 
-void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vector<D3D12_ROOT_PARAMETER1>& rootParameters, eastl::hash_map<eastl::string, rgU32>& shadersParamMap)
+void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, rgU32>& shadersParamMap)
 {
     D3D12_SHADER_DESC shaderDesc = { 0 };
     shaderReflection->GetDesc(&shaderDesc);
+
+    //eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> cbvSrvUavDescTableRanges;
+    //eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> samplerDescTableRanges;
+
     for(rgU32 i = 0; i < shaderDesc.BoundResources; ++i)
     {
         D3D12_SHADER_INPUT_BIND_DESC shaderInputBindDesc = { 0 };
@@ -897,16 +906,53 @@ void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vecto
         {
             case D3D_SIT_CBUFFER:
             {
-                shadersParamMap[eastl::string(shaderInputBindDesc.Name)] = (rgU32)rootParameters.size();
+                //shadersParamMap[eastl::string(shaderInputBindDesc.Name)] = (rgU32)rootParameters.size();
                 
-                D3D12_ROOT_PARAMETER rp = {};
-                rp.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+                CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
+                    shaderInputBindDesc.BindCount,
+                    shaderInputBindDesc.BindPoint,
+                    shaderInputBindDesc.Space,
+                    D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+                cbvSrvUavDescTableRanges.push_back(descriptorRange);
+
+                //ID3D12ShaderReflectionConstantBuffer* shaderReflectionConstBuffer = shaderReflection->GetConstantBufferByIndex(i);
+                //D3D12_SHADER_BUFFER_DESC constBufferDesc = { 0 };
+                //shaderReflectionConstBuffer->GetDesc(&constBufferDesc);
+            } break;
+
+            case D3D_SIT_TEXTURE:
+            {
+                //shadersParamMap[eastl::string(shaderInputBindDesc.Name)] = (rgU32)rootParameters.size();
+
+                CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                    shaderInputBindDesc.BindCount ? shaderInputBindDesc.BindCount : 65536,
+                    shaderInputBindDesc.BindPoint,
+                    shaderInputBindDesc.Space,
+                    D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+
+                cbvSrvUavDescTableRanges.push_back(descriptorRange);
+
+                //D3D12_ROOT_PARAMETER1 rp = {};
+                //rp.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+                //rp.Descriptor.ShaderRegister = shaderInputBindDesc.BindPoint;
+                //rp.Descriptor.RegisterSpace = shaderInputBindDesc.Space;
+                //rp.Descriptor.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE;
+
                 // TODO: https://rtarun9.github.io/blogs/shader_reflection/
                 // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html
 
-                ID3D12ShaderReflectionConstantBuffer* shaderReflectionConstBuffer = shaderReflection->GetConstantBufferByIndex(i);
-                D3D12_SHADER_BUFFER_DESC constBufferDesc = { 0 };
-                shaderReflectionConstBuffer->GetDesc(&constBufferDesc);
+
+            } break;
+
+            case D3D_SIT_SAMPLER:
+            {
+                CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
+                    shaderInputBindDesc.BindCount,
+                    shaderInputBindDesc.BindPoint,
+                    shaderInputBindDesc.Space,
+                    D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+                samplerDescTableRanges.push_back(descriptorRange);
             } break;
         }
     }
@@ -924,19 +970,49 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
 
     // do shader reflection
     eastl::vector<D3D12_ROOT_PARAMETER1> rootParameters;
-    reflectShader(vertexShader.shaderReflection, rootParameters, obj->shadersParamMap);
-    reflectShader(fragmentShader.shaderReflection, rootParameters, obj->shadersParamMap);
+    eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> cbvSrvUavDescTableRanges;
+    eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> samplerDescTableRanges;
 
-    // empty root signature
-    ComPtr<ID3D12RootSignature> emptyRootSig;
+    reflectShader(vertexShader.shaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->shadersParamMap);
+    reflectShader(fragmentShader.shaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->shadersParamMap);
+
+    if(cbvSrvUavDescTableRanges.size() > 0)
     {
-        CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
-        rootSigDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        D3D12_ROOT_PARAMETER1 rootParameter = {};
+        rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        rootParameter.DescriptorTable.NumDescriptorRanges = (UINT)cbvSrvUavDescTableRanges.size();
+        rootParameter.DescriptorTable.pDescriptorRanges = cbvSrvUavDescTableRanges.data();
+        rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        rootParameters.push_back(rootParameter);
+    }
+
+    if(samplerDescTableRanges.size() > 0)
+    {
+        D3D12_ROOT_PARAMETER1 rootParameter = {};
+        rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        rootParameter.DescriptorTable.NumDescriptorRanges = (UINT)samplerDescTableRanges.size();
+        rootParameter.DescriptorTable.pDescriptorRanges = samplerDescTableRanges.data();
+        rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        rootParameters.push_back(rootParameter);
+    }
+
+    // create root signature
+    ComPtr<ID3D12RootSignature> rootSig;
+    {
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc((UINT)rootParameters.size(),
+            rootParameters.data(),
+            0,
+            nullptr,
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
-        BreakIfFail(D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-        BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(emptyRootSig), (void**)&(emptyRootSig)));
+        BreakIfFail(D3D12SerializeVersionedRootSignature(&rootSigDesc, &signature, &error));
+        if(error)
+        {
+            rgLogError("RootSignature serialization error: %s", error->GetBufferPointer());
+        }
+        BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(rootSig), (void**)&(rootSig)));
     }
 
 
@@ -978,7 +1054,7 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     // d3d12 pso create start
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
     psoDesc.InputLayout = { &inputElementDesc.front(), (rgUInt)inputElementDesc.size() };
-    psoDesc.pRootSignature = emptyRootSig.Get();
+    psoDesc.pRootSignature = rootSig.Get();
 
     // shaders
     psoDesc.VS.pShaderBytecode = vertexShader.shaderBlob->GetBufferPointer();
