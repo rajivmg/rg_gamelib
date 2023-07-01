@@ -187,48 +187,51 @@ ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(D3D12_COMMAND_LIST_T
     return commandList;
 }
 
-struct ResourceUploader
-{
-    struct Resource
-    {
-        enum Type
-        {
-            Type_Texture,
-            Type_Buffer,
-        };
+//struct ResourceUploader
+//{
+//    struct Resource
+//    {
+//        enum Type
+//        {
+//            Type_Texture,
+//            Type_Buffer,
+//        };
+//
+//        Type type;
+//        rgU32 uploadBufferOffset;
+//        union
+//        {
+//            GfxTexture2D* texture;
+//            GfxBuffer* buffer;
+//        };
+//    };
+//
+//    ResourceUploader(rgU32 uploadHeapSizeInBytes)
+//        : uploadHeapSize(uploadHeapSizeInBytes)
+//    {
+//        BreakIfFail(device()->CreateCommittedResource(
+//            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+//            D3D12_HEAP_FLAG_NONE,
+//            &CD3DX12_RESOURCE_DESC::Buffer(uploadHeapSize),
+//            D3D12_RESOURCE_STATE_GENERIC_READ,
+//            nullptr,
+//            IID_PPV_ARGS(&uploadHeap)
+//        ));
+//
+//        CD3DX12_RANGE range(0, 0);
+//        uploadHeap->Map(0, &range, (void**)&uploadHeapPtr);
+//    }
+//
+//    void uploadBuffer();
+//
+//    eastl::vector<Resource> resources;
+//    ComPtr<ID3D12Resource> uploadHeap;
+//    rgU8* uploadHeapPtr;
+//    rgU32 uploadHeapSize;
+//};
 
-        Type type;
-        rgU32 uploadBufferOffset;
-        union
-        {
-            GfxTexture2D* texture;
-            GfxBuffer* buffer;
-        };
-    };
-
-    ResourceUploader(rgU32 uploadHeapSizeInBytes)
-        : uploadHeapSize(uploadHeapSizeInBytes)
-    {
-        BreakIfFail(device()->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(uploadHeapSize),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&uploadHeap)
-        ));
-
-        CD3DX12_RANGE range(0, 0);
-        uploadHeap->Map(0, &range, (void**)&uploadHeapPtr);
-    }
-
-    void uploadBuffer();
-
-    eastl::vector<Resource> resources;
-    ComPtr<ID3D12Resource> uploadHeap;
-    rgU8* uploadHeapPtr;
-    rgU32 uploadHeapSize;
-};
+// TODO: Create a frameallocator and use it as upload heap for texture and buffers
+// https://learn.microsoft.com/en-us/windows/win32/direct3d12/upload-and-readback-of-texture-data
 
 // SECTION BEGIN -
 // -----------------------------------------------
