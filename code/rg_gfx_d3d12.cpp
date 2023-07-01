@@ -389,6 +389,7 @@ rgInt init()
     simple2dRenderStateDesc.depthCompareFunc = GfxCompareFunc_Less;
     GfxGraphicsPSO* simplePSO = createGraphicsPSO("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
     d3d.dummyPSO = simplePSO->d3dPSO;
+    d3d.dummyRootSignature = simplePSO->d3dRootSignature;
 
     {
         rgFloat triangleVertices[] =
@@ -459,7 +460,7 @@ rgInt draw()
     BreakIfFail(d3d.commandList->Reset(d3d.commandAllocator[g_FrameIndex].Get(), NULL));
 
     ID3D12GraphicsCommandList* commandList = d3d.commandList.Get();
-    //commandList->SetGraphicsRootSignature(d3d.dummyRootSignature.Get());
+    commandList->SetGraphicsRootSignature(d3d.dummyRootSignature.Get());
 
     commandList->SetPipelineState(d3d.dummyPSO.Get());
 
@@ -1014,7 +1015,7 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         }
         BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(rootSig), (void**)&(rootSig)));
     }
-
+    obj->d3dRootSignature = rootSig;
 
     // create vertex input desc
     eastl::vector<D3D12_INPUT_ELEMENT_DESC> inputElementDesc;

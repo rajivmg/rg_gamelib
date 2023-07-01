@@ -327,6 +327,7 @@ struct GfxGraphicsPSO
     GfxTriangleFillMode triangleFillMode;
 #if defined(RG_D3D12_RNDR)
     eastl::hash_map<eastl::string, rgU32> shadersParamMap;
+    ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
     void* mtlPSO; // type: id<MTLRenderPipelineState>
