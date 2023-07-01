@@ -162,6 +162,7 @@ enum GfxSamplerMipFilter
     GfxSamplerMipFilter_Linear,
 };
 
+// TODO: rename to GfxSampler
 struct GfxSamplerState
 {
     rgChar tag[32];
@@ -339,28 +340,6 @@ struct GfxGraphicsPSO
     void* mtlDepthStencilState; // type: id<MTLDepthStencilState>
 #elif defined(RG_VULKAN_RNDR)
 #endif
-};
-
-// Shader Arguments
-// -----------------
-
-enum GfxUpdateFreq
-{
-    GfxUpdateFreq_Frame,
-    GfxUpdateFreq_Pass,
-    GfxUpdateFreq_Draw,
-    GfxUpdateFreq_COUNT,
-};
-
-enum GfxShaderArgType
-{
-    GfxShaderArgType_ConstantBuffer,
-    GfxShaderArgType_ROTexture,
-    GfxShaderArgType_ROBuffer,
-    GfxShaderArgType_RWTexture,
-    GfxShaderArgType_RWBuffer,
-    GfxShaderArgType_SamplerState,
-    GfxShaderArgType_COUNT,
 };
 
 //-----------------------------------------------------------------------------
@@ -788,24 +767,6 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 //-----------------------------------------------------------------------------
 // Resource Binding
 //-----------------------------------------------------------------------------
-
-struct ResourceBindingInfo
-{
-#if defined(RG_METAL_RNDR)
-    void* frameArgEncoder;
-    void* passArgEncoder;
-    void* drawArgEncoder;
-    
-    void* commonArgBuffer;
-#endif
-};
-
-void setConstBuffer(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxBuffer* buffer);
-void setROBuffer(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxBuffer* buffer);
-void setRWBuffer(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxBuffer* buffer);
-void setROTexture(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxTexture2D* texture);
-void setRWTexture(GfxUpdateFreq updateFreq, rgU32 bindpoint, GfxTexture2D* texture);
-void setSamplerState(rgU32 bindpoint, GfxSamplerState* samplerState);
 
 //-----------------------------------------------------------------------------
 // Graphic Context Data
