@@ -187,6 +187,49 @@ ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(D3D12_COMMAND_LIST_T
     return commandList;
 }
 
+struct ResourceUploader
+{
+    struct Resource
+    {
+        enum Type
+        {
+            Type_Texture,
+            Type_Buffer,
+        };
+
+        Type type;
+        rgU32 uploadBufferOffset;
+        union
+        {
+            GfxTexture2D* texture;
+            GfxBuffer* buffer;
+        };
+    };
+
+    ResourceUploader(rgU32 uploadHeapSizeInBytes)
+        : uploadHeapSize(uploadHeapSizeInBytes)
+    {
+        BreakIfFail(device()->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(uploadHeapSize),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&uploadHeap)
+        ));
+
+        CD3DX12_RANGE range(0, 0);
+        uploadHeap->Map(0, &range, (void**)&uploadHeapPtr);
+    }
+
+    void uploadBuffer();
+
+    eastl::vector<Resource> resources;
+    ComPtr<ID3D12Resource> uploadHeap;
+    rgU8* uploadHeapPtr;
+    rgU32 uploadHeapSize;
+};
+
 // SECTION BEGIN -
 // -----------------------------------------------
 // GFX Functions
@@ -826,13 +869,10 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
     return output;
 }
 
-void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, rgU32>& shadersParamMap)
+void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, GfxGraphicsPSO::ResourceInfo>& resourceInfo)
 {
     D3D12_SHADER_DESC shaderDesc = { 0 };
     shaderReflection->GetDesc(&shaderDesc);
-
-    //eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> cbvSrvUavDescTableRanges;
-    //eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> samplerDescTableRanges;
 
     for(rgU32 i = 0; i < shaderDesc.BoundResources; ++i)
     {
@@ -841,48 +881,42 @@ void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vecto
         switch(shaderInputBindDesc.Type)
         {
             case D3D_SIT_CBUFFER:
+            case D3D_SIT_TEXTURE:
             {
-                //shadersParamMap[eastl::string(shaderInputBindDesc.Name)] = (rgU32)rootParameters.size();
+                GfxGraphicsPSO::ResourceInfo info;
+                info.type = shaderInputBindDesc.Type;
+                info.offsetInDescTable = (rgU16)cbvSrvUavDescTableRanges.size();
+                resourceInfo[shaderInputBindDesc.Name] = info;
+
+                D3D12_DESCRIPTOR_RANGE_TYPE descRangeType = shaderInputBindDesc.Type == D3D_SIT_CBUFFER ?
+                    D3D12_DESCRIPTOR_RANGE_TYPE_CBV : D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+
+                // zero means bindless
+                rgU32 bindCount = shaderInputBindDesc.BindCount ? shaderInputBindDesc.BindCount : 65536;
                 
-                CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
-                    shaderInputBindDesc.BindCount,
+                CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(descRangeType,
+                    bindCount, 
                     shaderInputBindDesc.BindPoint,
                     shaderInputBindDesc.Space,
                     D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
                 cbvSrvUavDescTableRanges.push_back(descriptorRange);
+
+                // TODO: https://rtarun9.github.io/blogs/shader_reflection/
+                // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html
 
                 //ID3D12ShaderReflectionConstantBuffer* shaderReflectionConstBuffer = shaderReflection->GetConstantBufferByIndex(i);
                 //D3D12_SHADER_BUFFER_DESC constBufferDesc = { 0 };
                 //shaderReflectionConstBuffer->GetDesc(&constBufferDesc);
             } break;
 
-            case D3D_SIT_TEXTURE:
-            {
-                //shadersParamMap[eastl::string(shaderInputBindDesc.Name)] = (rgU32)rootParameters.size();
-
-                CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-                    shaderInputBindDesc.BindCount ? shaderInputBindDesc.BindCount : 65536,
-                    shaderInputBindDesc.BindPoint,
-                    shaderInputBindDesc.Space,
-                    D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-
-                cbvSrvUavDescTableRanges.push_back(descriptorRange);
-
-                //D3D12_ROOT_PARAMETER1 rp = {};
-                //rp.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-                //rp.Descriptor.ShaderRegister = shaderInputBindDesc.BindPoint;
-                //rp.Descriptor.RegisterSpace = shaderInputBindDesc.Space;
-                //rp.Descriptor.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE;
-
-                // TODO: https://rtarun9.github.io/blogs/shader_reflection/
-                // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html
-
-
-            } break;
-
             case D3D_SIT_SAMPLER:
             {
+                GfxGraphicsPSO::ResourceInfo info;
+                info.type = shaderInputBindDesc.Type;
+                info.offsetInDescTable = (rgU16)samplerDescTableRanges.size();
+                resourceInfo[shaderInputBindDesc.Name] = info;
+
                 CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
                     shaderInputBindDesc.BindCount,
                     shaderInputBindDesc.BindPoint,
@@ -909,8 +943,8 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> cbvSrvUavDescTableRanges;
     eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> samplerDescTableRanges;
 
-    reflectShader(vertexShader.shaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->shadersParamMap);
-    reflectShader(fragmentShader.shaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->shadersParamMap);
+    reflectShader(vertexShader.shaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo);
+    reflectShader(fragmentShader.shaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo);
 
     if(cbvSrvUavDescTableRanges.size() > 0)
     {

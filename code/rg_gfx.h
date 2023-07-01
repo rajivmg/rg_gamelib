@@ -326,7 +326,12 @@ struct GfxGraphicsPSO
     GfxWinding winding;
     GfxTriangleFillMode triangleFillMode;
 #if defined(RG_D3D12_RNDR)
-    eastl::hash_map<eastl::string, rgU32> shadersParamMap;
+    struct ResourceInfo // TODO: --> ?? GfxResourceBindingInfo with per api info
+    {
+        D3D_SHADER_INPUT_TYPE type;
+        rgU16 offsetInDescTable;
+    };
+    eastl::hash_map<eastl::string, ResourceInfo> d3dResourceInfo; // TODO: reserve a big enough space
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
