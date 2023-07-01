@@ -14,6 +14,9 @@ RG_BEGIN_GFX_NAMESPACE
 
 D3d d3d; // TODO: Make this a pointer
 
+ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
+ComPtr<ID3D12GraphicsCommandList> commandList;
+
 // SECTION BEGIN -
 // -----------------------------------------------
 // Helper Functions
@@ -291,71 +294,10 @@ rgInt init()
 
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        d3d.commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+        commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
     }
 
-    d3d.commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, d3d.commandAllocator[0], nullptr);
-
-    ///// 
-    // Create common root signature
-    eastl::vector<CD3DX12_ROOT_PARAMETER> commonRootParams;
-
-    //commonRootParams[GfxShaderArgType_ConstantBuffer].InitAsConstantBufferView
-    
-    {
-        for(rgU32 frameFreq = 0; frameFreq < GfxUpdateFreq_COUNT; ++frameFreq)
-        {
-            for(rgU32 type = 0; type < (GfxShaderArgType_COUNT - 0); ++type)
-            {
-                rgU32 argIndex = 0;
-                commonRootParams.emplace_back();
-
-                GfxShaderArgType argType = (GfxShaderArgType)type;
-                switch(argType)
-                {
-                    case GfxShaderArgType_ConstantBuffer:
-                    {
-                        commonRootParams.back().InitAsConstantBufferView(argIndex, (UINT)frameFreq, D3D12_SHADER_VISIBILITY_ALL);
-                    } break;
-                    
-                    case GfxShaderArgType_ROTexture:
-                    case GfxShaderArgType_ROBuffer:
-                    {
-                        commonRootParams.back().InitAsShaderResourceView(argIndex, (UINT)frameFreq, D3D12_SHADER_VISIBILITY_ALL);
-                    } break;
-
-                    case GfxShaderArgType_RWTexture:
-                    case GfxShaderArgType_RWBuffer:
-                    {
-                        commonRootParams.back().InitAsUnorderedAccessView(argIndex, (UINT)frameFreq, D3D12_SHADER_VISIBILITY_ALL);
-                    } break;
-
-                    case GfxShaderArgType_SamplerState:
-                    {
-                        //commonRootParams.back().Init
-                    } break;
-                }
-
-
-
-                for(rgU32 i = 0; i < shaderArgsLayout[argType][frameFreq]; ++i)
-                {
-
-                    ++argIndex;
-                }
-            }
-        }
-        
-        // ----
-
-        CD3DX12_ROOT_SIGNATURE_DESC commonRootSigDesc;
-        commonRootSigDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-        ComPtr<ID3DBlob> signature;
-        ComPtr<ID3DBlob> error;
-        BreakIfFail(D3D12SerializeRootSignature(&commonRootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-        BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(d3d.dummyRootSignature), (void**)&(d3d.dummyRootSignature)));
-    }
+    commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator[0], nullptr);
 
     GfxVertexInputDesc simpleVertexDesc = {};
     simpleVertexDesc.elementCount = 3;
@@ -436,13 +378,6 @@ rgInt init()
         {
             BreakIfFail(HRESULT_FROM_WIN32(::GetLastError()));
         }
-
-        //// when the command queue has finished its work, signal 1 to frameFence
-        //BreakIfFail(d3d.commandQueue->Signal(d3d.frameFence.Get(), 1));
-
-        //// Wait until the event is triggered
-        //BreakIfFail(d3d.frameFence->SetEventOnCompletion(1, d3d.frameFenceEvent));
-        //::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
     }
 
     return 0;
@@ -456,10 +391,6 @@ void destroy()
 
 rgInt draw()
 {
-    BreakIfFail(d3d.commandAllocator[g_FrameIndex]->Reset());
-    BreakIfFail(d3d.commandList->Reset(d3d.commandAllocator[g_FrameIndex].Get(), NULL));
-
-    ID3D12GraphicsCommandList* commandList = d3d.commandList.Get();
     commandList->SetGraphicsRootSignature(d3d.dummyRootSignature.Get());
 
     commandList->SetPipelineState(d3d.dummyPSO.Get());
@@ -489,7 +420,7 @@ rgInt draw()
 
     BreakIfFail(commandList->Close());
 
-    ID3D12CommandList* commandLists[] = { d3d.commandList.Get() };
+    ID3D12CommandList* commandLists[] = { commandList.Get() };
     d3d.commandQueue->ExecuteCommandLists(1, commandLists);
     BreakIfFail(d3d.dxgiSwapchain->Present(1, 0));
 
@@ -523,6 +454,10 @@ void startNextFrame()
 
     // This frame fence value is one more than prev frame fence value
     d3d.frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
+
+    // Reset command allocator and command list
+    BreakIfFail(commandAllocator[g_FrameIndex]->Reset());
+    BreakIfFail(commandList->Reset(commandAllocator[g_FrameIndex].Get(), NULL));
 
     draw();
 }
@@ -1121,6 +1056,8 @@ void destroyerGfxSamplerState(GfxSamplerState* obj)
 
 RG_END_GFX_NAMESPACE
 
+using namespace gfx;
+
 // SECTION BEGIN -
 // -----------------------------------------------
 // RenderCmd Handlers
@@ -1194,20 +1131,14 @@ void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
 
 void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height)
 {
-    //MTLViewport vp;
-    //vp.originX = originX;
-    //vp.originY = originY;
-    //vp.width = width;
-    //vp.height = height;
-    //vp.znear = 0.0;
-    //vp.zfar = 1.0;
-
-    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setViewport:vp] ;
+    //CD3DX12_VIEWPORT vp(originX, originY, width, height);
+    //commandList->RSSetViewports(1, &vp);
 }
 
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
-    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setRenderPipelineState:gfx::toMTLRenderPipelineState(pso)] ;
+    //commandList->SetGraphicsRootSignature(pso->d3dRootSignature.Get());
+    //commandList->SetPipelineState(pso->d3dPSO.Get());
 }
 
 void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)

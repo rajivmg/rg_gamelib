@@ -629,6 +629,8 @@ struct GfxRenderCmdEncoder
     
     void setViewport(rgFloat4 viewport);
     void setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height);
+
+    void setScissor(); // TODO
     
     void setGraphicsPSO(GfxGraphicsPSO* pso);
     void setGraphicsPSO(char const* tag)
@@ -852,9 +854,6 @@ struct D3d
 
     ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
     rgUInt cbvSrvUavDescriptorSize;
-
-    ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
-    ComPtr<ID3D12GraphicsCommandList> commandList;
 
     ComPtr<ID3D12Fence> frameFence;
     UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
