@@ -78,6 +78,9 @@ enum GfxMemoryType
     //GfxMemoryUsage_CPUReadWrite = (GfxMemoryUsage_CPURead | GfxMemoryUsage_CPUWrite),
 };
 
+// TODO: remove the concept of dynamic buffer
+// GfxBuffer will always be for static data,
+// dynamic data can be stored in FrameAllocator
 struct GfxBuffer
 {
     rgChar       tag[32];
