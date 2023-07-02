@@ -233,6 +233,81 @@ ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(D3D12_COMMAND_LIST_T
 // TODO: Create a frameallocator and use it as upload heap for texture and buffers
 // https://learn.microsoft.com/en-us/windows/win32/direct3d12/upload-and-readback-of-texture-data
 
+struct AllocationResult
+{
+    rgU32 offset;
+    void* ptr;
+    // TODO: SRV, UAV, CBV
+    //id<MTLBuffer> parentBuffer; 
+};
+
+class FrameAllocator
+{
+public:
+    FrameAllocator(rgU32 uploadHeapSizeInBytes)
+        : uploadHeapSize(uploadHeapSizeInBytes)
+    {
+        offset = 0;
+
+        BreakIfFail(device()->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(uploadHeapSize),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&uploadHeap)
+        ));
+
+        CD3DX12_RANGE range(0, 0);
+        uploadHeap->Map(0, &range, (void**)&uploadHeapPtr);
+    }
+
+    ~FrameAllocator()
+    {
+        uploadHeap->Release();
+    }
+
+    void reset()
+    {
+        offset = 0;
+    }
+
+    AllocationResult allocate(char const* tag, rgU32 size)
+    {
+        rgAssert(offset + size <= capacity);
+
+        //void* ptr = (bufferPtr + offset);
+
+        AllocationResult result;
+        result.offset = offset;
+        //result.ptr = ptr;
+        //result.parentBuffer = buffer;
+
+        rgU32 alignment = 4;
+        offset += (size + alignment - 1) & ~(alignment - 1);
+
+        //[buffer addDebugMarker : [NSString stringWithUTF8String : tag] range : NSMakeRange(result.offset, (offset - result.offset))] ;
+
+        return result;
+    }
+
+    AllocationResult allocate(char const* tag, rgU32 size, void* initialData)
+    {
+        AllocationResult result = allocate(tag, size);
+        memcpy(result.ptr, initialData, size);
+        return result;
+    }
+
+protected:
+    rgU32 offset;
+    rgU32 capacity;
+    ComPtr<ID3D12Resource> uploadHeap;
+    rgU8* uploadHeapPtr;
+    rgU32 uploadHeapSize;
+};
+
+static FrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
+
 // SECTION BEGIN -
 // -----------------------------------------------
 // GFX Functions
