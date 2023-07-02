@@ -1,3 +1,4 @@
+#define MAX_INSTANCES 1024
 
 struct Vertex2D
 {
@@ -15,7 +16,7 @@ struct VertexOut
 
 struct SimpleInstanceParams
 {
-    uint texID;
+    uint texIds[MAX_INSTANCES];
 };
 
 struct Camera
@@ -24,11 +25,9 @@ struct Camera
     float4x4 view2d;
 };
 
-#define MAX_INSTANCES 2048
-
 ConstantBuffer<Camera> camera : register(b0, space0);
-ConstantBuffer<SimpleInstanceParams> instanceParams[MAX_INSTANCES] : register(b1, space0);
-Texture2D<float4> bindlessTexture2D[] : register(t0, space4);
+ConstantBuffer<SimpleInstanceParams> instanceParams : register(b1, space0);
+Texture2D<float4> bindlessTexture2D[] : register(t0, space0);
 
 SamplerState simpleSampler : register(s0, space0);
 
@@ -38,16 +37,15 @@ VertexOut vsSimple2d(in Vertex2D v, uint instanceId : SV_INSTANCEID)
     output.position = mul(camera.projection2d, mul(camera.view2d, float4(v.pos, 1.0)));
     output.texcoord = v.texcoord;
     output.color  = half4(v.color);
-    output.instanceId = instanceId; //vertexId / 6;
+    output.instanceId = instanceId;
     return output;
 }
 
 half4 fsSimple2d(in VertexOut f) : SV_TARGET
 {
-    // return f.color;
-    Texture2D<float4> myTexture = bindlessTexture2D[instanceParams[f.instanceId].texID];
-    float4 color = float4(1.0, 0.0, 1.0, 1.0);
-    color = myTexture.Sample(simpleSampler, f.texcoord);
+    //return f.color;
+    uint texIndex = instanceParams.texIds[f.instanceId];
+    half4 color = bindlessTexture2D[texIndex].Sample(simpleSampler, f.texcoord);
     return half4(color);
 }
 

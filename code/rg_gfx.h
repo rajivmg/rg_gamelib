@@ -788,8 +788,6 @@ extern GfxObjectRegistry<GfxShaderLibrary>* registryShaderLibrary;
     
 extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
-extern rgU32 shaderArgsLayout[GfxShaderArgType_COUNT][GfxUpdateFreq_COUNT];
-
 extern Matrix4 orthographicMatrix;
 extern Matrix4 viewMatrix;
     

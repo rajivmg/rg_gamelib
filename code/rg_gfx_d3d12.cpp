@@ -265,7 +265,7 @@ rgInt init()
 
     // create device
     ComPtr<IDXGIAdapter1> hardwareAdapter;
-    getHardwareAdapter(d3d.dxgiFactory.Get(), &hardwareAdapter, false);
+    getHardwareAdapter(d3d.dxgiFactory.Get(), &hardwareAdapter, true);
     BreakIfFail(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), (void**)&(d3d.device)));
     
     // create command queue
