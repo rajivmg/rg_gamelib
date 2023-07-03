@@ -42,6 +42,10 @@ set(DXC_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/dxc_preview_2023_06_21)
 set(DXC_INCLUDE_DIR ${DXC_ROOT_DIR}/inc)
 set(DXC_LIB_DIR ${DXC_ROOT_DIR}/lib)
 
+set(SPIRVCROSS_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/SPIRV-Cross)
+file(GLOB_RECURSE SPIRVCROSS_SRC_FILES "${SPIRVCROSS_ROOT_DIR}/*.cpp" "${SPIRVCROSS_ROOT_DIR}/*.hpp" "${SPIRVCROSS_ROOT_DIR}/*.h")
+source_group("SPIRV-Cross" FILES ${SPIRVCROSS_SRC_FILES})
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if(WIN32)
@@ -122,7 +126,9 @@ elseif(APPLE)
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${3RD_PARTY_DIR}/inc/metal-cpp ${3RD_PARTY_DIR}/inc/metal-cpp-extensions ${DXC_INCLUDE_DIR})
     link_directories(${DXC_LIB_DIR}/arm64)
 
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${SHADER_SRC_FILES} ${BOX2D_SRC_FILES})
+    include_directories(${SPIRVCROSS_ROOT_DIR})
+    
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${SHADER_SRC_FILES} ${BOX2D_SRC_FILES} ${SPIRVCROSS_SRC_FILES})
     target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2} ${EASTL_LIBRARY} ${DXC_LIBRARY})
 
     set_source_files_properties(${SHADER_SRC_FILES} PROPERTIES LANGUAGE METAL)

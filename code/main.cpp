@@ -100,7 +100,7 @@ rgInt rg::setup()
 
     GfxShaderDesc simple2dShaderDesc = {};
 #if defined(RG_METAL_RNDR)
-    simple2dShaderDesc.shaderSrc = g_Simple2DShaderSrcCode;
+    simple2dShaderDesc.shaderSrc = "simple2d.hlsl";//g_Simple2DShaderSrcCode;
 #else
     simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
 #endif
