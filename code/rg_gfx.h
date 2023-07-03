@@ -846,9 +846,6 @@ struct Mtl
     
     void* renderEncoder; // type: id<MTLRenderCommandEncoder>
     void* commandBuffer; // type: id<MTLCommandBuffer>
-
-    // arg buffers
-    void* argumentEncoder[GfxUpdateFreq_COUNT]; // type: id<MTLArgumentEncoder>
 };
 #elif defined(RG_VULKAN_RNDR)
 struct VkGfxCtx

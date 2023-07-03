@@ -183,8 +183,8 @@ rgBool   writeFile(char const* filepath, void* bufferPtr, rgU32 bufferSizeInByte
 
 struct WindowInfo
 {
-    rgUInt width;
-    rgUInt height;
+    rgFloat width;
+    rgFloat height;
 };
 
 char* getPrefPath();

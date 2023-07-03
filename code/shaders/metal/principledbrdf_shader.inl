@@ -52,7 +52,7 @@ VertexShaderOut vertex vsPrincipledBrdf(constant CameraParams& cameraParams [[bu
     float3 normal = normalize((instance.invTposWorldXform * float4(in.normal, 1.0)).xyz);
 
     float3 distributionCoeff(2.0, 3.0, 0.1);
-    float3 lightPos(0.0f, 1.0f, 1.2f);
+    float3 lightPos(0.0f, 1.0f, -1.2f);
     float atten = attenuate(distance(worldPos, lightPos), 2.2, distributionCoeff);
     float3 lightDir = normalize(lightPos - worldPos);
 

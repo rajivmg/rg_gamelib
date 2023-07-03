@@ -175,52 +175,6 @@ id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
     return (__bridge id<MTLRenderCommandEncoder>)currentRenderCmdEncoder->renderCmdEncoder;
 }
 
-MTLDataType toMTLDataType(GfxShaderArgType argType)
-{
-    switch(argType)
-    {
-        case GfxShaderArgType_ConstantBuffer:
-            return MTLDataTypePointer;
-            break;
-        case GfxShaderArgType_ROTexture:
-        case GfxShaderArgType_RWTexture:
-            return MTLDataTypeTexture;
-            break;
-        case GfxShaderArgType_ROBuffer:
-        case GfxShaderArgType_RWBuffer:
-            return MTLDataTypePointer;
-            break;
-        case GfxShaderArgType_SamplerState:
-            return MTLDataTypeSampler;
-            break;
-        default:
-            rgAssert(!"MTL: Invalid argType");
-            return;
-    }
-}
-
-MTLArgumentAccess toMTLArgumentAccess(GfxShaderArgType argType)
-{
-    switch(argType)
-    {
-        case GfxShaderArgType_ConstantBuffer:
-        case GfxShaderArgType_ROTexture:
-        case GfxShaderArgType_ROBuffer:
-        case GfxShaderArgType_SamplerState:
-            return MTLArgumentAccessReadOnly;
-            break;
-
-        case GfxShaderArgType_RWTexture:
-        case GfxShaderArgType_RWBuffer:
-            return MTLArgumentAccessReadWrite;
-            break;
-            
-        default:
-            rgAssert(!"MTL: Invalid argType");
-            return;
-    }
-}
-
 MTLVertexFormat toMTLVertexFormat(TinyImageFormat fmt)
 {
     MTLVertexFormat result = MTLVertexFormatInvalid;
@@ -490,37 +444,6 @@ rgInt init()
                                                                 options:MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined | MTLResourceHazardTrackingModeTracked];
         [bindlessTextureArgEncoder setArgumentBuffer:bindlessTextureArgBuffer offset:0];
         
-        // Create a common argument encoder for all rendering needs
-        NSMutableArray<MTLArgumentDescriptor*>* descriptorLayout[GfxUpdateFreq_COUNT];
-        
-        for(rgU32 frameFreq = 0; frameFreq < GfxUpdateFreq_COUNT; ++frameFreq)
-        {
-            descriptorLayout[frameFreq] = [NSMutableArray<MTLArgumentDescriptor*> new];
-            
-            rgU32 argIndex = 0;
-            for(rgU32 argType = 0; argType < (GfxShaderArgType_COUNT - 0); ++argType)
-            {
-                MTLDataType dataType = toMTLDataType((GfxShaderArgType)argType);
-                MTLArgumentAccess argAccess = toMTLArgumentAccess((GfxShaderArgType)argType);
-                for(rgU32 i = 0; i < shaderArgsLayout[argType][frameFreq]; ++i)
-                {
-                    MTLArgumentDescriptor* arg = [MTLArgumentDescriptor argumentDescriptor];
-                    arg.index = argIndex;
-                    arg.dataType = dataType;
-                    arg.access = argAccess;
-                    if(argType == (rgU32)GfxShaderArgType_ROTexture
-                       || argType == (rgU32)GfxShaderArgType_RWTexture)
-                    {
-                        arg.textureType = MTLTextureType2D;
-                    }
-                    [descriptorLayout[frameFreq] addObject:arg];
-                    ++argIndex;
-                }
-            }
-            
-            mtl->argumentEncoder[frameFreq] = [getMTLDevice() newArgumentEncoderWithArguments:descriptorLayout[frameFreq]];
-        }
-        
         // Test argument encoder layout issues
 #if 1
         MTLArgumentDescriptor* frameConstDescriptor1 = [MTLArgumentDescriptor argumentDescriptor];
@@ -752,14 +675,14 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     @autoreleasepool
     {
         // --- compile shader
-        NSDictionary* shaderMacros = macrosToNSDictionary(shaderDesc->macros);
+        NSDictionary* shaderMacros = macrosToNSDictionary(shaderDesc->defines);
         
         MTLCompileOptions* compileOptions = [[MTLCompileOptions alloc] init];
         [compileOptions setPreprocessorMacros:shaderMacros];
         [shaderMacros autorelease];
         
         NSError* err;
-        id<MTLLibrary> shaderLib = [getMTLDevice() newLibraryWithSource:[NSString stringWithUTF8String:shaderDesc->shaderSrcCode] options:compileOptions error:&err];
+        id<MTLLibrary> shaderLib = [getMTLDevice() newLibraryWithSource:[NSString stringWithUTF8String:shaderDesc->shaderSrc] options:compileOptions error:&err];
         if(err)
         {
             printf("%s\n", [[err localizedDescription]UTF8String]);
@@ -769,13 +692,13 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     
         // --- create PSO
         id<MTLFunction> vs, fs;
-        if(shaderDesc->vsEntryPoint)
+        if(shaderDesc->vsEntrypoint)
         {
-            vs = [shaderLib newFunctionWithName:[NSString stringWithUTF8String: shaderDesc->vsEntryPoint]];
+            vs = [shaderLib newFunctionWithName:[NSString stringWithUTF8String: shaderDesc->vsEntrypoint]];
         }
-        if(shaderDesc->fsEntryPoint)
+        if(shaderDesc->fsEntrypoint)
         {
-            fs = [shaderLib newFunctionWithName:[NSString stringWithUTF8String: shaderDesc->fsEntryPoint]];
+            fs = [shaderLib newFunctionWithName:[NSString stringWithUTF8String: shaderDesc->fsEntrypoint]];
         }
     
         MTLRenderPipelineDescriptor* psoDesc = [[MTLRenderPipelineDescriptor alloc] init];
@@ -1161,7 +1084,7 @@ void GfxRenderCmdEncoder::drawBunny()
     } cameraParams;
 
     copyMatrix4ToFloatArray(cameraParams.projectionPerspective, createPerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f));
-    copyMatrix4ToFloatArray(cameraParams.viewCamera, Matrix4::lookAt(Point3(-0.0f, 1.0f, 1.2f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
+    copyMatrix4ToFloatArray(cameraParams.viewCamera, Matrix4::lookAt(Point3(0.0f, 1.0f, -1.2f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
 
     // instance
     struct
@@ -1170,7 +1093,7 @@ void GfxRenderCmdEncoder::drawBunny()
         rgFloat invTposeWorldXform[16];
     } instanceParams[1];
 
-    Matrix4 xform = Matrix4(Transform3::rotationY(sinf(g_Time * 0.1f)));
+    Matrix4 xform = Matrix4(Transform3::rotationY(sinf(g_Time * 0.5f + 2.0f))).setTranslation(Vector3(0.0f, 0.0f, 0.5f));
     copyMatrix4ToFloatArray(instanceParams[0].worldXform, xform);
     copyMatrix4ToFloatArray(instanceParams[0].invTposeWorldXform, transpose(inverse(xform)));
 

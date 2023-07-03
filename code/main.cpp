@@ -99,7 +99,11 @@ rgInt rg::setup()
     vertexDesc.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
     GfxShaderDesc simple2dShaderDesc = {};
+#if defined(RG_METAL_RNDR)
+    simple2dShaderDesc.shaderSrc = g_Simple2DShaderSrcCode;
+#else
     simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
+#endif
     simple2dShaderDesc.vsEntrypoint = "vsSimple2d";
     simple2dShaderDesc.fsEntrypoint = "fsSimple2d";
     simple2dShaderDesc.defines = "RIGHT";
@@ -151,8 +155,9 @@ rgInt rg::setup()
     world3dRenderState.winding = GfxWinding_CCW;
     world3dRenderState.cullMode = GfxCullMode_None;
 
-    //gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
-
+#if defined(RG_METAL_RNDR)
+    gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
+#endif
     //
 
     gfx::createSamplerState("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
@@ -233,7 +238,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         }
         pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
         
-        //textured2dRenderEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
+        textured2dRenderEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
         textured2dRenderEncoder->end();
 
         // Draw bunny to quick implement lighting models
@@ -269,8 +274,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
 
 rgInt createSDLWindow()
 {
-    g_WindowInfo.width = 1056;
-    g_WindowInfo.height = 594;
+    g_WindowInfo.width = 1056.0f;
+    g_WindowInfo.height = 594.0f;
 
     Uint32 windowFlags = 0;
     

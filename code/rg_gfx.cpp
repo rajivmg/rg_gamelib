@@ -143,7 +143,7 @@ rgInt initCommonStuff()
     //Matrix4 shiftZHalf = Matrix4::translation(Vector3(1.0f, -1.0f, -1000.0f / (0.1f - 1000.0f)));
     //Matrix4 scaleShiftZHalf = shiftZHalf * scaleZHalf;
     //ctx->orthographicMatrix = shiftZHalf * scaleZHalf * ctx->orthographicMatrix;
-    gfx::orthographicMatrix = makeOrthoProjection(0.0f, 720.0f, 720.0f, 0.0f, 0.1f, 1000.0f);
+    gfx::orthographicMatrix = makeOrthoProjection(0.0f, g_WindowInfo.width, g_WindowInfo.height, 0.0f, 0.1f, 1000.0f);
 #endif
     
     return 0;
