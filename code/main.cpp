@@ -156,7 +156,7 @@ rgInt rg::setup()
     world3dRenderState.cullMode = GfxCullMode_None;
 
 #if defined(RG_METAL_RNDR)
-    gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
+    //gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
 #endif
     //
 

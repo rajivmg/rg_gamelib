@@ -21,6 +21,7 @@
 
 #include "spirv_cross.hpp"
 #include "spirv_parser.hpp"
+#include "spirv_msl.hpp"
 
 RG_BEGIN_RG_NAMESPACE
 RG_BEGIN_GFX_NAMESPACE
@@ -646,7 +647,7 @@ struct BuildShaderResult
 
 };
 
-BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
+id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
 {
     auto getStageStr = [](GfxStage s) -> const char*
     {
@@ -678,10 +679,10 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
 
     rgHash hash = rgCRC32(filename);
     hash = rgCRC32(getStageStr(stage), 2, hash);
-    hash = rgCRC32(entrypoint, strlen(entrypoint), hash);
+    hash = rgCRC32(entrypoint, (rgU32)strlen(entrypoint), hash);
     if(defines != nullptr)
     {
-        hash = rgCRC32(defines, strlen(defines), hash);
+        hash = rgCRC32(defines, (rgU32)strlen(defines), hash);
     }
 
     // entrypoint
@@ -709,6 +710,8 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
 
     // generate SPIRV
     dxcArgs.push_back(L"-spirv");
+    dxcArgs.push_back(L"-fspv-target-env=vulkan1.1");
+    dxcArgs.push_back(L"-fvk-use-dx-layout");
 
     // defines
     eastl::vector<eastl::wstring> defineArgs;
@@ -783,16 +786,77 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
     // shader blob
     ComPtr<IDxcBlob> shaderBlob;
     checkHR(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr));
+    rgAssert(shaderBlob->GetBufferSize());
     
+    // Convert spirv to msl
     uint32_t* spvPtr = (uint32_t*)shaderBlob->GetBufferPointer();
     size_t spvWordCount = (size_t)(shaderBlob->GetBufferSize()/4);
     
     spirv_cross::Parser spirvParser(spvPtr, spvWordCount);
     spirvParser.parse();
     
-    BuildShaderResult output;
+    spirv_cross::CompilerMSL::Options mslOptions;
+    mslOptions.platform = spirv_cross::CompilerMSL::Options::Platform::iOS;
+    mslOptions.set_msl_version(2, 3, 0);
+    mslOptions.texture_buffer_native = true;
+    mslOptions.argument_buffers = true;
+    mslOptions.argument_buffers_tier = spirv_cross::CompilerMSL::Options::ArgumentBuffersTier::Tier2;
+    mslOptions.enable_decoration_binding = true;
 
-    return output;
+    spirv_cross::CompilerMSL msl(spirvParser.get_parsed_ir());
+    msl.set_msl_options(mslOptions);
+    
+    // handle unsized texture array
+    spirv_cross::MSLResourceBinding bindlessTextureBinding;
+    bindlessTextureBinding.basetype = spirv_cross::SPIRType::Image;
+    bindlessTextureBinding.desc_set = 3;
+    bindlessTextureBinding.binding = 0;
+    bindlessTextureBinding.count = 65536;
+    
+    bindlessTextureBinding.stage = spv::ExecutionModelVertex;
+    msl.add_msl_resource_binding(bindlessTextureBinding);
+    bindlessTextureBinding.stage = spv::ExecutionModelFragment;
+    msl.add_msl_resource_binding(bindlessTextureBinding);
+    bindlessTextureBinding.stage = spv::ExecutionModelKernel;
+    msl.add_msl_resource_binding(bindlessTextureBinding);
+    
+    std::string mslShaderSource = msl.compile();
+    
+    // perform reflection
+    spirv_cross::ShaderResources shaderResources = msl.get_shader_resources();
+    for(auto& r : shaderResources.uniform_buffers)
+    {
+        printf("(%d, %03d) %03d %s\n", msl.get_decoration(r.id, spv::DecorationDescriptorSet), msl.get_decoration(r.id, spv::DecorationBinding), r.id, msl.get_name(r.id).c_str());
+    }
+    for(auto& r : shaderResources.storage_buffers) // RW Bigger than CBuffer like StructuredBuffer
+    {
+        printf("(%d, %03d) %03d %s\n", msl.get_decoration(r.id, spv::DecorationDescriptorSet), msl.get_decoration(r.id, spv::DecorationBinding), r.id, msl.get_name(r.id).c_str());
+    }
+    for(auto& r : shaderResources.separate_images)
+    {
+        printf("(%d, %03d) %03d %s\n", msl.get_decoration(r.id, spv::DecorationDescriptorSet), msl.get_decoration(r.id, spv::DecorationBinding), r.id, msl.get_name(r.id).c_str());
+    }
+    for(auto& r : shaderResources.separate_samplers)
+    {
+        printf("(%d, %03d) %03d %s\n", msl.get_decoration(r.id, spv::DecorationDescriptorSet), msl.get_decoration(r.id, spv::DecorationBinding), r.id, msl.get_name(r.id).c_str());
+    }
+    
+    NSError* err;
+    MTLCompileOptions* compileOptions = [[MTLCompileOptions alloc] init];
+    id<MTLLibrary> shaderLibrary = [getMTLDevice() newLibraryWithSource:[NSString stringWithUTF8String:mslShaderSource.c_str()] options:compileOptions error:&err];
+    [compileOptions release];
+     
+    if(err)
+    {
+        printf("Shader Library Compilation Error:\n%s\n", [[err localizedDescription]UTF8String]);
+        rgAssert(!"newLibraryWithSource error");
+    }
+    
+    id<MTLFunction> shaderFunction = [shaderLibrary newFunctionWithName:[NSString stringWithUTF8String: entrypoint]];
+    
+    return shaderFunction;
+
+    // TODO: release shader lib
 }
 
 NSDictionary* macrosToNSDictionary(char const* macros)
@@ -835,32 +899,15 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
 {
     @autoreleasepool
     {
-        // --- compile shader
-        NSDictionary* shaderMacros = macrosToNSDictionary(shaderDesc->defines);
-        
-        MTLCompileOptions* compileOptions = [[MTLCompileOptions alloc] init];
-        [compileOptions setPreprocessorMacros:shaderMacros];
-        [shaderMacros autorelease];
-        
-        NSError* err;
-        id<MTLLibrary> shaderLib = [getMTLDevice() newLibraryWithSource:[NSString stringWithUTF8String:shaderDesc->shaderSrc] options:compileOptions error:&err];
-        if(err)
-        {
-            printf("%s\n", [[err localizedDescription]UTF8String]);
-            rgAssert(!"newLibrary error");
-        }
-        [compileOptions release];
-    
         // --- create PSO
         id<MTLFunction> vs, fs;
         if(shaderDesc->vsEntrypoint)
         {
-            BuildShaderResult r = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines);
-            vs = [shaderLib newFunctionWithName:[NSString stringWithUTF8String: shaderDesc->vsEntrypoint]];
+            vs = buildShader(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines);
         }
         if(shaderDesc->fsEntrypoint)
         {
-            fs = [shaderLib newFunctionWithName:[NSString stringWithUTF8String: shaderDesc->fsEntrypoint]];
+            fs = buildShader(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines);
         }
     
         MTLRenderPipelineDescriptor* psoDesc = [[MTLRenderPipelineDescriptor alloc] init];
@@ -935,6 +982,7 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         // TODO TODO TODO TODO REMOVE
         // TODO TODO TODO TODO REMOVE
 
+        NSError* err;
         id<MTLRenderPipelineState> pso = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc error:&err];
         //id<MTLRenderPipelineState> pso = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
         
@@ -950,7 +998,7 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         [psoDesc release];
         [fs release];
         [vs release];
-        [shaderLib release];
+        //[shaderLib release];
     }
 }
 
