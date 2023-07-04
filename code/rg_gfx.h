@@ -165,7 +165,6 @@ enum GfxSamplerMipFilter
     GfxSamplerMipFilter_Linear,
 };
 
-// TODO: rename to GfxSampler
 struct GfxSamplerState
 {
     rgChar tag[32];
@@ -339,6 +338,19 @@ struct GfxGraphicsPSO
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
+    struct ResourceInfo
+    {
+        enum Type
+        {
+            Type_ConstantBuffer,
+            Type_Texture2D,
+            Type_Sampler,
+        };
+        Type type;
+        rgU16 binding;
+        rgU16 set;
+    };
+    eastl::hash_map<eastl::string, ResourceInfo> mtlResourceInfo;
     void* mtlPSO; // type: id<MTLRenderPipelineState>
     void* mtlDepthStencilState; // type: id<MTLDepthStencilState>
 #elif defined(RG_VULKAN_RNDR)

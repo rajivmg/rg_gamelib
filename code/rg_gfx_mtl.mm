@@ -647,7 +647,7 @@ struct BuildShaderResult
 
 };
 
-id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
+id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, GfxGraphicsPSO* obj)
 {
     auto getStageStr = [](GfxStage s) -> const char*
     {
@@ -826,19 +826,51 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     spirv_cross::ShaderResources shaderResources = msl.get_shader_resources();
     for(auto& r : shaderResources.uniform_buffers)
     {
-        printf("(%d, %03d) %03d %s\n", msl.get_decoration(r.id, spv::DecorationDescriptorSet), msl.get_decoration(r.id, spv::DecorationBinding), r.id, msl.get_name(r.id).c_str());
+        uint32_t binding = msl.get_decoration(r.id, spv::DecorationBinding);
+        uint32_t set = msl.get_decoration(r.id, spv::DecorationDescriptorSet);
+        std::string name = msl.get_name(r.id);
+        printf("(%d, %03d) %03d %s\n", set, binding, r.id, name.c_str());
+        GfxGraphicsPSO::ResourceInfo resInfo;
+        resInfo.type = GfxGraphicsPSO::ResourceInfo::Type_ConstantBuffer;
+        resInfo.binding = binding;
+        resInfo.set = set;
+        obj->mtlResourceInfo[eastl::string(name.c_str())] = resInfo;
     }
     for(auto& r : shaderResources.storage_buffers) // RW Bigger than CBuffer like StructuredBuffer
     {
-        printf("(%d, %03d) %03d %s\n", msl.get_decoration(r.id, spv::DecorationDescriptorSet), msl.get_decoration(r.id, spv::DecorationBinding), r.id, msl.get_name(r.id).c_str());
+        uint32_t binding = msl.get_decoration(r.id, spv::DecorationBinding);
+        uint32_t set = msl.get_decoration(r.id, spv::DecorationDescriptorSet);
+        std::string name = msl.get_name(r.id);
+        printf("(%d, %03d) %03d %s\n", set, binding, r.id, name.c_str());
+        GfxGraphicsPSO::ResourceInfo resInfo;
+        resInfo.type = GfxGraphicsPSO::ResourceInfo::Type_ConstantBuffer;
+        resInfo.binding = binding;
+        resInfo.set = set;
+        obj->mtlResourceInfo[eastl::string(name.c_str())] = resInfo;
     }
     for(auto& r : shaderResources.separate_images)
     {
-        printf("(%d, %03d) %03d %s\n", msl.get_decoration(r.id, spv::DecorationDescriptorSet), msl.get_decoration(r.id, spv::DecorationBinding), r.id, msl.get_name(r.id).c_str());
+        uint32_t binding = msl.get_decoration(r.id, spv::DecorationBinding);
+        uint32_t set = msl.get_decoration(r.id, spv::DecorationDescriptorSet);
+        std::string name = msl.get_name(r.id);
+        printf("(%d, %03d) %03d %s\n", set, binding, r.id, name.c_str());
+        GfxGraphicsPSO::ResourceInfo resInfo;
+        resInfo.type = GfxGraphicsPSO::ResourceInfo::Type_Texture2D;
+        resInfo.binding = binding;
+        resInfo.set = set;
+        obj->mtlResourceInfo[eastl::string(name.c_str())] = resInfo;
     }
     for(auto& r : shaderResources.separate_samplers)
     {
-        printf("(%d, %03d) %03d %s\n", msl.get_decoration(r.id, spv::DecorationDescriptorSet), msl.get_decoration(r.id, spv::DecorationBinding), r.id, msl.get_name(r.id).c_str());
+        uint32_t binding = msl.get_decoration(r.id, spv::DecorationBinding);
+        uint32_t set = msl.get_decoration(r.id, spv::DecorationDescriptorSet);
+        std::string name = msl.get_name(r.id);
+        printf("(%d, %03d) %03d %s\n", set, binding, r.id, name.c_str());
+        GfxGraphicsPSO::ResourceInfo resInfo;
+        resInfo.type = GfxGraphicsPSO::ResourceInfo::Type_Sampler;
+        resInfo.binding = binding;
+        resInfo.set = set;
+        obj->mtlResourceInfo[eastl::string(name.c_str())] = resInfo;
     }
     
     NSError* err;
@@ -903,11 +935,11 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
         id<MTLFunction> vs, fs;
         if(shaderDesc->vsEntrypoint)
         {
-            vs = buildShader(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines);
+            vs = buildShader(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines, obj);
         }
         if(shaderDesc->fsEntrypoint)
         {
-            fs = buildShader(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines);
+            fs = buildShader(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines, obj);
         }
     
         MTLRenderPipelineDescriptor* psoDesc = [[MTLRenderPipelineDescriptor alloc] init];
