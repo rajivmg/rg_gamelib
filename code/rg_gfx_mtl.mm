@@ -34,10 +34,41 @@ gfx::Mtl* mtl = nullptr;
 static const rgU32 kBindlessTextureSetBinding = 7;
 static const rgU32 kFrameParamsSetBinding = 6;
 
+//////////////////////////////////////////////////////////////////////////////
+//
+// Helper Functions
+//
+
 static id<MTLDevice> getMTLDevice()
 {
     return (__bridge id<MTLDevice>)(mtl->device);
 }
+
+id<MTLRenderCommandEncoder> getMTLRenderEncoder()
+{
+    return (__bridge id<MTLRenderCommandEncoder>)mtl->renderEncoder;
+}
+
+id<MTLCommandBuffer> getMTLCommandBuffer()
+{
+    return (__bridge id<MTLCommandBuffer>)mtl->commandBuffer;
+}
+
+id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
+{
+    return (__bridge id<MTLRenderCommandEncoder>)currentRenderCmdEncoder->renderCmdEncoder;
+}
+
+id<MTLRenderCommandEncoder> asMTLRenderCommandEncoder(void* ptr)
+{
+    return (__bridge id<MTLRenderCommandEncoder>)ptr;
+}
+
+id<MTLBlitCommandEncoder> asMTLBlitCommandEncoder(void* ptr)
+{
+    return (__bridge id<MTLBlitCommandEncoder>)ptr;
+}
+
 
 MTLResourceOptions toMTLResourceOptions(GfxBufferUsage usage, rgBool dynamic)
 {
@@ -158,31 +189,6 @@ MTLTriangleFillMode getMTLTriangleFillMode(GfxGraphicsPSO* obj)
     return (obj->triangleFillMode == GfxTriangleFillMode_Fill) ? MTLTriangleFillModeFill : MTLTriangleFillModeLines;
 }
 
-id<MTLRenderCommandEncoder> getMTLRenderEncoder()
-{
-    return (__bridge id<MTLRenderCommandEncoder>)mtl->renderEncoder;
-}
-
-id<MTLCommandBuffer> getMTLCommandBuffer()
-{
-    return (__bridge id<MTLCommandBuffer>)mtl->commandBuffer;
-}
-
-id<MTLRenderCommandEncoder> asMTLRenderCommandEncoder(void* ptr)
-{
-    return (__bridge id<MTLRenderCommandEncoder>)ptr;
-}
-
-id<MTLBlitCommandEncoder> asMTLBlitCommandEncoder(void* ptr)
-{
-    return (__bridge id<MTLBlitCommandEncoder>)ptr;
-}
-
-id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
-{
-    return (__bridge id<MTLRenderCommandEncoder>)currentRenderCmdEncoder->renderCmdEncoder;
-}
-
 MTLVertexFormat toMTLVertexFormat(TinyImageFormat fmt)
 {
     MTLVertexFormat result = MTLVertexFormatInvalid;
@@ -246,62 +252,64 @@ GfxTexture2D createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
     return texture2d;
 }
 
-struct SimpleVertexFormat1
-{
-    simd::float3 position;
-    simd::float2 texcoord;
-    simd::float4 color;
-};
+// 
+// SamplerState related helpers
+//
 
-// TEST ATOMIC ---------
-id<MTLComputePipelineState> histogramComputePipeline;
-
-void testComputeAtomicsSetup()
+MTLSamplerAddressMode toMTLSamplerAddressMode(GfxSamplerAddressMode addressMode)
 {
-    MTLCompileOptions* compileOptions = [[MTLCompileOptions alloc] init];
-    
-    NSError* err;
-    id<MTLLibrary> histogramLibrary = [getMTLDevice() newLibraryWithSource:[NSString stringWithUTF8String:g_HistogramShaderSrcCode] options:compileOptions error:&err];
-    if(err)
+    MTLSamplerAddressMode result;
+    switch(addressMode)
     {
-        printf("%s\n", [[err localizedDescription]UTF8String]);
-        rgAssert(!"newLibrary error");
+        case GfxSamplerAddressMode_Repeat:
+            result = MTLSamplerAddressModeRepeat;
+            break;
+        case GfxSamplerAddressMode_ClampToEdge:
+            result = MTLSamplerAddressModeClampToEdge;
+            break;
+        case GfxSamplerAddressMode_ClampToZero:
+            result = MTLSamplerAddressModeClampToZero;
+            break;
+        default:
+            rgAssert(!"Invalid sampler address mode");
     }
-    [compileOptions release];
-    
-    id<MTLFunction> computeHistogram = [histogramLibrary newFunctionWithName:@"computeHistogram_CS"];
-    
-    histogramComputePipeline = [getMTLDevice() newComputePipelineStateWithFunction:computeHistogram error:&err];
-    
-    [computeHistogram release];
-    [histogramLibrary release];
-    
-    gfx::createTexture2D("histogramTest", rg::loadTexture("histogram_test.png"), false, GfxTextureUsage_ShaderRead);
-    gfx::createBuffer("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW, false);
+    return result;
 }
 
-void testComputeAtomicsRun()
+MTLSamplerMinMagFilter toMTLSamplerMinMagFilter(GfxSamplerMinMagFilter filter)
 {
-    id<MTLComputeCommandEncoder> computeEncoder = [getMTLCommandBuffer() computeCommandEncoder];
-    [computeEncoder setComputePipelineState:histogramComputePipeline];
-    [computeEncoder setTexture:getMTLTexture(gfx::findTexture2D("histogramTest")) atIndex:0];
-    [computeEncoder setBuffer:getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:0];
-    //[computeEncoder setTexture:(id<MTLTexture>)getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) atIndex:1];
-    [computeEncoder setBuffer:getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:1];
-    [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
-    [computeEncoder endEncoding];
+    return filter == GfxSamplerMinMagFilter_Nearest ? MTLSamplerMinMagFilterNearest : MTLSamplerMinMagFilterLinear;
 }
-// -------- TEST ATOMIC
 
-id<MTLArgumentEncoder> frameConstBufferArgEncoder;
-id<MTLBuffer> frameConstBufferArgBuffer;
-id<MTLBuffer> cameraBuffer;
-struct Camera
+MTLSamplerMipFilter toMTLSamplerMipFilter(GfxSamplerMipFilter filter)
 {
-    float projection[16];
-    float view[16];
-};
-///
+    MTLSamplerMipFilter result;
+    switch(filter)
+    {
+        case GfxSamplerMipFilter_NotMipped:
+            result = MTLSamplerMipFilterNotMipmapped;
+            break;
+        case GfxSamplerMipFilter_Nearest:
+            result = MTLSamplerMipFilterNearest;
+            break;
+        case GfxSamplerMipFilter_Linear:
+            result = MTLSamplerMipFilterLinear;
+            break;
+        default:
+            rgAssert(!"Invalid sample mip filter");
+    }
+    return result;
+}
+
+id<MTLSamplerState> asMTLSamplerState(void* ptr)
+{
+    return (__bridge id<MTLSamplerState>)(ptr);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Frame allocator
+//
 
 struct AllocationResult
 {
@@ -370,21 +378,94 @@ protected:
     rgU8* bufferPtr;
 };
 
-static FrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
-static id<MTLHeap> bindlessTextureHeap;
-static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
-static id<MTLBuffer> bindlessTextureArgBuffer;
-
-static id<MTLSharedEvent> frameFenceEvent;
-static MTLSharedEventListener* frameFenceEventListener;
-static dispatch_queue_t frameFenceDispatchQueue;
-static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
-static GfxGraphicsPSO* boundGraphicsPSO;
-
 FrameAllocator* getFrameAllocator()
 {
     return frameAllocators[g_FrameIndex];
 }
+
+struct SimpleVertexFormat1
+{
+    simd::float3 position;
+    simd::float2 texcoord;
+    simd::float4 color;
+};
+
+// TEST ATOMIC ---------
+id<MTLComputePipelineState> histogramComputePipeline;
+
+void testComputeAtomicsSetup()
+{
+    MTLCompileOptions* compileOptions = [[MTLCompileOptions alloc] init];
+    
+    NSError* err;
+    id<MTLLibrary> histogramLibrary = [getMTLDevice() newLibraryWithSource:[NSString stringWithUTF8String:g_HistogramShaderSrcCode] options:compileOptions error:&err];
+    if(err)
+    {
+        printf("%s\n", [[err localizedDescription]UTF8String]);
+        rgAssert(!"newLibrary error");
+    }
+    [compileOptions release];
+    
+    id<MTLFunction> computeHistogram = [histogramLibrary newFunctionWithName:@"computeHistogram_CS"];
+    
+    histogramComputePipeline = [getMTLDevice() newComputePipelineStateWithFunction:computeHistogram error:&err];
+    
+    [computeHistogram release];
+    [histogramLibrary release];
+    
+    gfx::createTexture2D("histogramTest", rg::loadTexture("histogram_test.png"), false, GfxTextureUsage_ShaderRead);
+    gfx::createBuffer("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW, false);
+}
+
+void testComputeAtomicsRun()
+{
+    id<MTLComputeCommandEncoder> computeEncoder = [getMTLCommandBuffer() computeCommandEncoder];
+    [computeEncoder setComputePipelineState:histogramComputePipeline];
+    [computeEncoder setTexture:getMTLTexture(gfx::findTexture2D("histogramTest")) atIndex:0];
+    [computeEncoder setBuffer:getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:0];
+    //[computeEncoder setTexture:(id<MTLTexture>)getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) atIndex:1];
+    [computeEncoder setBuffer:getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:1];
+    [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
+    [computeEncoder endEncoding];
+}
+// -------- TEST ATOMIC
+
+id<MTLArgumentEncoder> frameConstBufferArgEncoder;
+id<MTLBuffer> frameConstBufferArgBuffer;
+id<MTLBuffer> cameraBuffer;
+struct Camera
+{
+    float projection[16];
+    float view[16];
+};
+///
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// MTL backend variables - states info, obj instances etc
+//
+
+static FrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
+
+static id<MTLHeap> bindlessTextureHeap;
+static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
+static id<MTLBuffer> bindlessTextureArgBuffer;
+static AllocationResult bindlessTextureArgBufferAlloc; // TODO: Needed here?
+
+// Fencing and sync variables
+static id<MTLSharedEvent> frameFenceEvent;
+static MTLSharedEventListener* frameFenceEventListener;
+static dispatch_queue_t frameFenceDispatchQueue; // TODO: Needed at all/here?
+static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+
+// Current state
+static GfxGraphicsPSO* boundGraphicsPSO;
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Implement Gfx backend functions
+//
 
 rgInt init()
 {
@@ -483,8 +564,6 @@ void destroy()
     
 }
 
-AllocationResult bindlessTextureArgBufferAlloc;
-
 void startNextFrame()
 {
     //dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
@@ -579,6 +658,11 @@ void checkerWaitTillFrameCompleted(rgInt frameIndex)
     }
 }
 
+//////////////////////////////////////////////////////////////////////////////
+//
+// GfxBuffer Implementation
+//
+
 void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
 {
     if(dynamic == false && usage != GfxBufferUsage_ShaderRW)
@@ -643,10 +727,10 @@ void destroyerGfxBuffer(GfxBuffer* obj)
     }
 }
 
-struct BuildShaderResult
-{
-
-};
+//////////////////////////////////////////////////////////////////////////////
+//
+// GfxGraphicsPSO Implementation
+//
 
 id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, GfxGraphicsPSO* obj)
 {
@@ -761,7 +845,7 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     strcpy(filepath, "../code/shaders/");
     strncat(filepath, filename, 490);
 
-    rg::FileData shaderFileData = rg::readFile(filepath);
+    rg::FileData shaderFileData = rg::readFile(filepath); // TODO: destructor deleter for FileData
     rgAssert(shaderFileData.isValid);
 
     DxcBuffer shaderSource;
@@ -775,6 +859,8 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
 
     ComPtr<IDxcResult> result;
     checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), includeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
+
+    rg::freeFileData(&shaderFileData);
 
     // process errors
     ComPtr<IDxcBlobUtf8> errorMsg;
@@ -791,7 +877,7 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     
     // Convert spirv to msl
     uint32_t* spvPtr = (uint32_t*)shaderBlob->GetBufferPointer();
-    size_t spvWordCount = (size_t)(shaderBlob->GetBufferSize()/4);
+    size_t spvWordCount = (size_t)(shaderBlob->GetBufferSize()/sizeof(uint32_t));
     
     spirv_cross::Parser spirvParser(spvPtr, spvWordCount);
     spirvParser.parse();
@@ -892,47 +978,11 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     // TODO: release shader lib
 }
 
-NSDictionary* macrosToNSDictionary(char const* macros)
-{
-    // TODO: Remember to free macroDictionary
-    NSMutableDictionary *macroDictionary = [[NSMutableDictionary alloc] init];
-    
-    char const* cursor = macros;
-    std::stringstream macrostring;
-    while(1)
-    {
-        if(*cursor == ' ' || *cursor == ',' || *cursor == '\0')
-        {
-            if(macrostring.str().length() > 0)
-            {
-                [macroDictionary setValue:@"1" forKey:[NSString stringWithUTF8String:macrostring.str().c_str()]];
-                macrostring.str(std::string());
-            }
-            if(*cursor == '\0')
-            {
-                break;
-            }
-            //ppDict->dictionary(NS::UInteger(1), NS::String::string(macro.str().c_str(), NS::UTF8StringEncoding));
-        }
-        else
-        {
-            macrostring.put(*cursor);
-        }
-        ++cursor;
-    }
-    
-    //NSLog(@"PreprocessorDict Keys: %@\n", [macroDictionary allKeys]);
-    //NSLog(@"PreprocessorDict Vals: %@\n", [macroDictionary allValues]);
-    NSLog(@"PreprocessorDict KeyVals: %@\n", macroDictionary);
-    
-    return (NSDictionary*)(macroDictionary);
-}
-
 void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     @autoreleasepool
     {
-        // --- create PSO
+        // create PSO
         id<MTLFunction> vs, fs;
         if(shaderDesc->vsEntrypoint)
         {
@@ -1008,16 +1058,9 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
             vertexDescriptor.layouts[layout.first].stepFunction = layout.second.second == GfxVertexStepFunc_PerInstance ? MTLVertexStepFunctionPerInstance : MTLVertexStepFunctionPerVertex;
         }
         psoDesc.vertexDescriptor = vertexDescriptor;
-        
-        // TODO TODO TODO TODO REMOVE
-        // TODO TODO TODO TODO REMOVE
-        //MTLAutoreleasedRenderPipelineReflection reflectionInfo;
-        // TODO TODO TODO TODO REMOVE
-        // TODO TODO TODO TODO REMOVE
 
         NSError* err;
         id<MTLRenderPipelineState> pso = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc error:&err];
-        //id<MTLRenderPipelineState> pso = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc options:MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo reflection:&reflectionInfo error:&err];
         
         if(err)
         {
@@ -1039,6 +1082,11 @@ void destroyerGfxGraphicsPSO(GfxGraphicsPSO* obj)
 {
     [getMTLRenderPipelineState(obj) release];
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// GfxTexture2D Implementation
+//
 
 void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
 {
@@ -1071,57 +1119,10 @@ void destroyerGfxTexture2D(GfxTexture2D* obj)
     obj->mtlTexture->release();
 }
 
-///
-
-MTLSamplerAddressMode toMTLSamplerAddressMode(GfxSamplerAddressMode addressMode)
-{
-    MTLSamplerAddressMode result;
-    switch(addressMode)
-    {
-        case GfxSamplerAddressMode_Repeat:
-            result = MTLSamplerAddressModeRepeat;
-            break;
-        case GfxSamplerAddressMode_ClampToEdge:
-            result = MTLSamplerAddressModeClampToEdge;
-            break;
-        case GfxSamplerAddressMode_ClampToZero:
-            result = MTLSamplerAddressModeClampToZero;
-            break;
-        default:
-            rgAssert(!"Invalid sampler address mode");
-    }
-    return result;
-}
-
-MTLSamplerMinMagFilter toMTLSamplerMinMagFilter(GfxSamplerMinMagFilter filter)
-{
-    return filter == GfxSamplerMinMagFilter_Nearest ? MTLSamplerMinMagFilterNearest : MTLSamplerMinMagFilterLinear;
-}
-
-MTLSamplerMipFilter toMTLSamplerMipFilter(GfxSamplerMipFilter filter)
-{
-    MTLSamplerMipFilter result;
-    switch(filter)
-    {
-        case GfxSamplerMipFilter_NotMipped:
-            result = MTLSamplerMipFilterNotMipmapped;
-            break;
-        case GfxSamplerMipFilter_Nearest:
-            result = MTLSamplerMipFilterNearest;
-            break;
-        case GfxSamplerMipFilter_Linear:
-            result = MTLSamplerMipFilterLinear;
-            break;
-        default:
-            rgAssert(!"Invalid sample mip filter");
-    }
-    return result;
-}
-
-id<MTLSamplerState> asMTLSamplerState(void* ptr)
-{
-    return (__bridge id<MTLSamplerState>)(ptr);
-}
+//////////////////////////////////////////////////////////////////////////////
+//
+// GfxSamplerState Implementation
+//
 
 void creatorGfxSamplerState(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
 {
