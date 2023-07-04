@@ -379,6 +379,7 @@ static id<MTLSharedEvent> frameFenceEvent;
 static MTLSharedEventListener* frameFenceEventListener;
 static dispatch_queue_t frameFenceDispatchQueue;
 static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+static GfxGraphicsPSO* boundGraphicsPSO;
 
 FrameAllocator* getFrameAllocator()
 {
@@ -1226,11 +1227,25 @@ void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat 
 
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setRenderPipelineState:gfx::getMTLRenderPipelineState(pso)];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setDepthStencilState:gfx::getMTLDepthStencilState(pso)];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFrontFacingWinding:gfx::getMTLWinding(pso)];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:gfx::getMTLCullMode(pso)];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setTriangleFillMode:gfx::getMTLTriangleFillMode(pso)];
+    id<MTLRenderCommandEncoder> renderCmdEncoder = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
+    
+    [renderCmdEncoder setRenderPipelineState:gfx::getMTLRenderPipelineState(pso)];
+    [renderCmdEncoder setDepthStencilState:gfx::getMTLDepthStencilState(pso)];
+    [renderCmdEncoder setFrontFacingWinding:gfx::getMTLWinding(pso)];
+    [renderCmdEncoder setCullMode:gfx::getMTLCullMode(pso)];
+    [renderCmdEncoder setTriangleFillMode:gfx::getMTLTriangleFillMode(pso)];
+    
+    boundGraphicsPSO = pso;
+}
+
+void GfxRenderCmdEncoder::setBuffer(char const* bindingTag, char const* bufferTag)
+{
+    rgAssert(boundGraphicsPSO != nullptr);
+    auto resInfoIter = boundGraphicsPSO->mtlResourceInfo.find(bindingTag);
+    rgAssert(resInfoIter != boundGraphicsPSO->mtlResourceInfo.end());
+    GfxGraphicsPSO::ResourceInfo& resInfo = resInfoIter->second;
+    
+    // TODO:
 }
 
 void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)

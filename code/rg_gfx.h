@@ -639,6 +639,8 @@ struct GfxRenderCmdEncoder
         setGraphicsPSO(ptr);
     }
     
+    void setBuffer(char const* bindingTag, char const* bufferTag);
+    
     void drawTexturedQuads(TexturedQuads* quads);
     void drawBunny();
 
