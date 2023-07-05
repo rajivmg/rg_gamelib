@@ -1331,13 +1331,12 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     }
     
     eastl::vector<gfx::SimpleVertexFormat> vertices;
-    eastl::vector<gfx::SimpleInstanceParams> instanceParams;
+    gfx::SimpleInstanceParams instanceParams;
     
     genTexturedQuadVertices(quads, &vertices, &instanceParams);
     
     gfx::AllocationResult vertexBufAllocation = gfx::getFrameAllocator()->allocate("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(gfx::SimpleVertexFormat), vertices.data());
-    gfx::AllocationResult instanceParamsAllocation = gfx::getFrameAllocator()->allocate("instanceParamsBuf", (rgU32)instanceParams.size() * sizeof(gfx::SimpleInstanceParams), instanceParams.data());
-    
+    gfx::AllocationResult instanceParamsBuffer = gfx::getFrameAllocator()->allocate("instanceParamsCBuffer", sizeof(gfx::SimpleInstanceParams), &instanceParams);
 
     //-
     // camera
@@ -1351,17 +1350,17 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     copyMatrix4ToFloatArray(cameraParams.view2d, gfx::viewMatrix);
 
     gfx::AllocationResult cameraBuffer = gfx::getFrameAllocator()->allocate("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
-    std::memcpy(cameraBuffer.ptr, &cameraParams, sizeof(cameraParams));
+    //std::memcpy(cameraBuffer.ptr, &cameraParams, sizeof(cameraParams));
     
     // --
     id<MTLRenderCommandEncoder> cmdEncoder = asMTLRenderCommandEncoder(renderCmdEncoder);
     [cmdEncoder useResource:getFrameAllocator()->mtlBuffer() usage:MTLResourceUsageRead stages:MTLRenderStageVertex | MTLRenderStageFragment];
     
-    //setBuffer(<#GfxBuffer *buffer#>, <#rgU32 offset#>, <#const char *bindingTag#>)
-    //[cmdEncoder setVertexBuffer:<#(nullable id<MTLBuffer>)#> offset:<#(NSUInteger)#> atIndex:<#(NSUInteger)#>]
+    setBuffer(&(cameraBuffer.bufferFacade), cameraBuffer.offset, "camera");
+    setBuffer(&(instanceParamsBuffer.bufferFacade), instanceParamsBuffer.offset, "instanceParams");
+    // TODO: setSampler(globalNearestLibnesrSampler);//
+    // TODO: Bindless texture binding
     
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::frameConstBufferArgBuffer offset:0 atIndex:0];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:instanceParamsAllocation.parentBuffer offset:instanceParamsAllocation.offset atIndex:4];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone];
 

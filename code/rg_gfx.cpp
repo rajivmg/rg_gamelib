@@ -451,7 +451,7 @@ void destroySampler(char const* tag)
     gfx::registrySampler->markForRemove(rgCRC32(tag));
 }
 
-void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, eastl::vector<SimpleInstanceParams>* instanceParams)
+void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams)
 {
     rgUInt listSize = (rgUInt)quadList->size();
     for(rgUInt i = 0; i < listSize; ++i)
@@ -509,9 +509,7 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         vertices->push_back(v[3]);
         vertices->push_back(v[2]);
         
-        SimpleInstanceParams instParam;
-        instParam.texID = t.texID;
-        instanceParams->push_back(instParam);
+        instanceParams->texID[i] = t.texID;
     }
 }
 

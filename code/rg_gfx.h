@@ -775,10 +775,10 @@ struct SimpleVertexFormat
 
 struct SimpleInstanceParams
 {
-    rgU32 texID;
+    rgU32 texID[1024];
 };
 
-void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, eastl::vector<SimpleInstanceParams>* instanceParams);
+void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams);
 
 
 //-----------------------------------------------------------------------------
