@@ -888,7 +888,7 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     mslOptions.texture_buffer_native = true;
     mslOptions.argument_buffers = true;
     mslOptions.argument_buffers_tier = spirv_cross::CompilerMSL::Options::ArgumentBuffersTier::Tier2;
-    mslOptions.enable_decoration_binding = true;
+    //mslOptions.enable_decoration_binding = true;
 
     spirv_cross::CompilerMSL msl(spirvParser.get_parsed_ir());
     msl.set_msl_options(mslOptions);
@@ -917,53 +917,39 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     
     // perform reflection
     spirv_cross::ShaderResources shaderResources = msl.get_shader_resources();
+    
+    auto pushMSLResourceInfo = [&](uint32_t varId, GfxGraphicsPSO::ResourceInfo::Type type) -> void
+    {
+        uint32_t mslBinding = msl.get_automatic_msl_resource_binding(varId);
+        if(mslBinding != uint32_t(-1))
+        {
+            GfxGraphicsPSO::ResourceInfo info;
+            info.type = type;
+            info.mslBinding = mslBinding;
+            info.stage = stage;
+            
+            std::string const name = msl.get_name(varId);
+            rgLog("%s %s -> %d", obj->tag, name.c_str(), mslBinding);
+            
+            obj->mtlResourceInfo[eastl::string(name.c_str())] = info;
+        }
+    };
+    
     for(auto& r : shaderResources.uniform_buffers)
     {
-        uint32_t binding = msl.get_decoration(r.id, spv::DecorationBinding);
-        uint32_t set = msl.get_decoration(r.id, spv::DecorationDescriptorSet);
-        std::string name = msl.get_name(r.id);
-        printf("(%d, %03d) %03d %s\n", set, binding, r.id, name.c_str());
-        GfxGraphicsPSO::ResourceInfo resInfo;
-        resInfo.type = GfxGraphicsPSO::ResourceInfo::Type_ConstantBuffer;
-        resInfo.binding = binding;
-        resInfo.set = set;
-        obj->mtlResourceInfo[eastl::string(name.c_str())] = resInfo;
-    }
-    for(auto& r : shaderResources.storage_buffers) // RW Bigger than CBuffer like StructuredBuffer
-    {
-        uint32_t binding = msl.get_decoration(r.id, spv::DecorationBinding);
-        uint32_t set = msl.get_decoration(r.id, spv::DecorationDescriptorSet);
-        std::string name = msl.get_name(r.id);
-        printf("(%d, %03d) %03d %s\n", set, binding, r.id, name.c_str());
-        GfxGraphicsPSO::ResourceInfo resInfo;
-        resInfo.type = GfxGraphicsPSO::ResourceInfo::Type_ConstantBuffer;
-        resInfo.binding = binding;
-        resInfo.set = set;
-        obj->mtlResourceInfo[eastl::string(name.c_str())] = resInfo;
+        pushMSLResourceInfo(r.id, GfxGraphicsPSO::ResourceInfo::Type_ConstantBuffer);
     }
     for(auto& r : shaderResources.separate_images)
     {
-        uint32_t binding = msl.get_decoration(r.id, spv::DecorationBinding);
-        uint32_t set = msl.get_decoration(r.id, spv::DecorationDescriptorSet);
-        std::string name = msl.get_name(r.id);
-        printf("(%d, %03d) %03d %s\n", set, binding, r.id, name.c_str());
-        GfxGraphicsPSO::ResourceInfo resInfo;
-        resInfo.type = GfxGraphicsPSO::ResourceInfo::Type_Texture2D;
-        resInfo.binding = binding;
-        resInfo.set = set;
-        obj->mtlResourceInfo[eastl::string(name.c_str())] = resInfo;
+        pushMSLResourceInfo(r.id, GfxGraphicsPSO::ResourceInfo::Type_Texture2D);
     }
     for(auto& r : shaderResources.separate_samplers)
     {
-        uint32_t binding = msl.get_decoration(r.id, spv::DecorationBinding);
-        uint32_t set = msl.get_decoration(r.id, spv::DecorationDescriptorSet);
-        std::string name = msl.get_name(r.id);
-        printf("(%d, %03d) %03d %s\n", set, binding, r.id, name.c_str());
-        GfxGraphicsPSO::ResourceInfo resInfo;
-        resInfo.type = GfxGraphicsPSO::ResourceInfo::Type_Sampler;
-        resInfo.binding = binding;
-        resInfo.set = set;
-        obj->mtlResourceInfo[eastl::string(name.c_str())] = resInfo;
+        pushMSLResourceInfo(r.id, GfxGraphicsPSO::ResourceInfo::Type_Sampler);
+    }
+    for(auto& r : shaderResources.storage_buffers) // RW Bigger than CBuffer like StructuredBuffer
+    {
+        pushMSLResourceInfo(r.id, GfxGraphicsPSO::ResourceInfo::Type_ConstantBuffer);
     }
     
     NSError* err;
@@ -1130,7 +1116,7 @@ void destroyerGfxTexture2D(GfxTexture2D* obj)
 // GfxSamplerState Implementation
 //
 
-void creatorGfxSamplerState(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
+void creatorGfxSampler(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
 {
     MTLSamplerDescriptor* desc = [MTLSamplerDescriptor new];
     desc.rAddressMode = toMTLSamplerAddressMode(rstAddressMode);
@@ -1147,12 +1133,12 @@ void creatorGfxSamplerState(char const* tag, GfxSamplerAddressMode rstAddressMod
     id<MTLSamplerState> samplerState = [getMTLDevice() newSamplerStateWithDescriptor:desc];
     [desc release];
     
-    obj->mtlSamplerState = (__bridge void*)samplerState;
+    obj->mtlSampler = (__bridge void*)samplerState;
 }
 
-void destroyerGfxSamplerState(GfxSamplerState* obj)
+void destroyerGfxSampler(GfxSampler* obj)
 {
-    [asMTLSamplerState(obj->mtlSamplerState) release];
+    [asMTLSamplerState(obj->mtlSampler) release];
 }
 
 RG_END_GFX_NAMESPACE
@@ -1234,25 +1220,67 @@ void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat 
 
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
-    id<MTLRenderCommandEncoder> renderCmdEncoder = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
+    id<MTLRenderCommandEncoder> cmdEncoder = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
     
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setRenderPipelineState:gfx::getMTLRenderPipelineState(pso)];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setDepthStencilState:gfx::getMTLDepthStencilState(pso)];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFrontFacingWinding:gfx::getMTLWinding(pso)];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:gfx::getMTLCullMode(pso)];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setTriangleFillMode:gfx::getMTLTriangleFillMode(pso)];
+    [cmdEncoder setRenderPipelineState:gfx::getMTLRenderPipelineState(pso)];
+    [cmdEncoder setDepthStencilState:gfx::getMTLDepthStencilState(pso)];
+    [cmdEncoder setFrontFacingWinding:gfx::getMTLWinding(pso)];
+    [cmdEncoder setCullMode:gfx::getMTLCullMode(pso)];
+    [cmdEncoder setTriangleFillMode:gfx::getMTLTriangleFillMode(pso)];
     
     boundGraphicsPSO = pso;
 }
 
-void GfxRenderCmdEncoder::setBuffer(char const* bindingTag, char const* bufferTag)
+void GfxRenderCmdEncoder::setBuffer(char const* bufferTag, rgU32 offset, char const* bindingTag)
 {
     rgAssert(boundGraphicsPSO != nullptr);
-    auto resInfoIter = boundGraphicsPSO->mtlResourceInfo.find(bindingTag);
-    rgAssert(resInfoIter != boundGraphicsPSO->mtlResourceInfo.end());
-    GfxGraphicsPSO::ResourceInfo& resInfo = resInfoIter->second;
     
-    // TODO:
+    auto infoIter = boundGraphicsPSO->mtlResourceInfo.find(bindingTag);
+    rgAssert(infoIter != boundGraphicsPSO->mtlResourceInfo.end());
+    GfxGraphicsPSO::ResourceInfo& info = infoIter->second;
+    
+    GfxBuffer* buffer = gfx::findBuffer(bufferTag);
+    rgAssert(buffer != nullptr);
+    
+    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
+    if(info.stage == GfxStage_VS)
+    {
+        [encoder setVertexBuffer:getActiveMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
+    }
+    else if(info.stage == GfxStage_FS)
+    {
+        [encoder setFragmentBuffer:getActiveMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
+    }
+    else
+    {
+        rgAssert(!"Not valid");
+    }
+}
+
+void GfxRenderCmdEncoder::setTexture2D(char const* textureTag, char const* bindingTag)
+{
+    rgAssert(boundGraphicsPSO != nullptr);
+    
+    auto infoIter = boundGraphicsPSO->mtlResourceInfo.find(bindingTag);
+    rgAssert(infoIter != boundGraphicsPSO->mtlResourceInfo.end());
+    GfxGraphicsPSO::ResourceInfo& info = infoIter->second;
+    
+    GfxTexture2D* texture = gfx::findTexture2D(textureTag);
+    rgAssert(texture != nullptr);
+    
+    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
+    if(info.stage == GfxStage_VS)
+    {
+        [encoder setVertexTexture:getMTLTexture(texture) atIndex:info.mslBinding];
+    }
+    else if(info.stage == GfxStage_FS)
+    {
+        [encoder setFragmentTexture:getMTLTexture(texture) atIndex:info.mslBinding];
+    }
+    else
+    {
+        rgAssert(!"Not valid");
+    }
 }
 
 void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)

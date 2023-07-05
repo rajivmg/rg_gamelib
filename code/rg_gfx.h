@@ -165,7 +165,7 @@ enum GfxSamplerMipFilter
     GfxSamplerMipFilter_Linear,
 };
 
-struct GfxSamplerState
+struct GfxSampler
 {
     rgChar tag[32];
     GfxSamplerAddressMode rstAddressMode;
@@ -175,7 +175,7 @@ struct GfxSamplerState
     rgBool                 anisotropy;
     
 #if defined(RG_METAL_RNDR)
-    void* mtlSamplerState;
+    void* mtlSampler;
 #else
 #endif
 };
@@ -347,8 +347,8 @@ struct GfxGraphicsPSO
             Type_Sampler,
         };
         Type type;
-        rgU16 binding;
-        rgU16 set;
+        rgU16 mslBinding;
+        GfxStage stage;
     };
     eastl::hash_map<eastl::string, ResourceInfo> mtlResourceInfo;
     void* mtlPSO; // type: id<MTLRenderPipelineState>
@@ -639,7 +639,8 @@ struct GfxRenderCmdEncoder
         setGraphicsPSO(ptr);
     }
     
-    void setBuffer(char const* bindingTag, char const* bufferTag);
+    void setBuffer(char const* bufferTag, rgU32 offset, char const* bindingTag);
+    void setTexture2D(char const* textureTag, char const* bindingTag);
     
     void drawTexturedQuads(TexturedQuads* quads);
     void drawBunny();
@@ -755,7 +756,7 @@ DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, Tin
 
 DeclareGfxObjectFunctions(GraphicsPSO, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
 
-DeclareGfxObjectFunctions(SamplerState, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy);
+DeclareGfxObjectFunctions(Sampler, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy);
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
@@ -797,7 +798,7 @@ extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 extern GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 extern GfxObjectRegistry<GfxBuffer>* registryBuffer;
 extern GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
-extern GfxObjectRegistry<GfxSamplerState>* registrySamplerState;
+extern GfxObjectRegistry<GfxSampler>* registrySampler;
 extern GfxObjectRegistry<GfxShaderLibrary>* registryShaderLibrary;
     
 extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;

@@ -82,7 +82,7 @@ GfxBlitCmdEncoder* currentBlitCmdEncoder;
 GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
 GfxObjectRegistry<GfxBuffer>* registryBuffer;
 GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
-GfxObjectRegistry<GfxSamplerState>* registrySamplerState;
+GfxObjectRegistry<GfxSampler>* registrySampler;
 GfxObjectRegistry<GfxShaderLibrary>* registryShaderLibrary;
 
 GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
@@ -124,7 +124,7 @@ rgInt preInit()
     gfx::registryTexture2D = rgNew(GfxObjectRegistry<GfxTexture2D>);
     gfx::registryBuffer = rgNew(GfxObjectRegistry<GfxBuffer>);
     gfx::registryGraphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
-    gfx::registrySamplerState = rgNew(GfxObjectRegistry<GfxSamplerState>);
+    gfx::registrySampler = rgNew(GfxObjectRegistry<GfxSampler>);
 
     gfx::bindlessManagerTexture2D = rgNew(GfxBindlessResourceManager<GfxTexture2D>);
     
@@ -412,11 +412,11 @@ void destroyGraphicsPSO(char const* tag)
 
 ///
 
-void allocAndFillSamplerStateStruct(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState** obj)
+void allocAndFillSamplerStruct(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler** obj)
 {
-    *obj = rgNew(GfxSamplerState);
+    *obj = rgNew(GfxSampler);
     rgAssert(tag != nullptr);
-    strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxSamplerState::tag));
+    strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxSampler::tag));
     (*obj)->rstAddressMode = rstAddressMode;
     (*obj)->minFilter = minFilter;
     (*obj)->magFilter = magFilter;
@@ -424,45 +424,45 @@ void allocAndFillSamplerStateStruct(const char* tag, GfxSamplerAddressMode rstAd
     (*obj)->anisotropy = anisotropy;
 }
 
-void deallocSamplerStateStruct(GfxSamplerState* obj)
+void deallocSamplerStruct(GfxSampler* obj)
 {
     rgDelete(obj);
 }
 
-GfxSamplerState* createSamplerState(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy)
+GfxSampler* createSampler(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy)
 {
-    GfxSamplerState* objPtr;
-    allocAndFillSamplerStateStruct(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy, &objPtr);
-    creatorGfxSamplerState(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy, objPtr);
-    gfx::registrySamplerState->insert(rgCRC32(tag), objPtr);
+    GfxSampler* objPtr;
+    allocAndFillSamplerStruct(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy, &objPtr);
+    creatorGfxSampler(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy, objPtr);
+    gfx::registrySampler->insert(rgCRC32(tag), objPtr);
     return objPtr;
 }
 
-GfxSamplerState* findOrCreateSamplerState(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy)
+GfxSampler* findOrCreateSampler(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy)
 {
-    GfxSamplerState* objPtr = gfx::registrySamplerState->find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? createSamplerState(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy) : objPtr;
+    GfxSampler* objPtr = gfx::registrySampler->find(rgCRC32(tag));
+    objPtr = (objPtr == nullptr) ? createSampler(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy) : objPtr;
     return objPtr;
 }
 
-GfxSamplerState* findSamplerState(rgHash tagHash)
+GfxSampler* findSampler(rgHash tagHash)
 {
-    return gfx::registrySamplerState->find(tagHash);
+    return gfx::registrySampler->find(tagHash);
 }
 
-GfxSamplerState* findSamplerState(char const* tag)
+GfxSampler* findSampler(char const* tag)
 {
-    return findSamplerState(rgCRC32(tag));
+    return findSampler(rgCRC32(tag));
 }
 
-void destroySamplerState(rgHash tagHash)
+void destroySampler(rgHash tagHash)
 {
-    gfx::registrySamplerState->markForRemove(tagHash);
+    gfx::registrySampler->markForRemove(tagHash);
 }
 
-void destroySamplerState(char const* tag)
+void destroySampler(char const* tag)
 {
-    gfx::registrySamplerState->markForRemove(rgCRC32(tag));
+    gfx::registrySampler->markForRemove(rgCRC32(tag));
 }
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, eastl::vector<SimpleInstanceParams>* instanceParams)
