@@ -145,9 +145,9 @@ id<MTLTexture> getMTLTexture(GfxTexture2D* obj)
      return (__bridge id<MTLTexture>)(obj->mtlTexture);
 }
 
-id<MTLBuffer> getActiveMTLBuffer(GfxBuffer* ptr)
+id<MTLBuffer> getMTLBuffer(GfxBuffer* obj)
 {
-    return (__bridge id<MTLBuffer>)(ptr->mtlBuffers[ptr->activeSlot]);
+    return (__bridge id<MTLBuffer>)(obj->mtlBuffer);
 }
 
 id<MTLSamplerState> getMTLSamplerState(GfxSampler* obj)
@@ -414,7 +414,7 @@ void testComputeAtomicsSetup()
     [histogramLibrary release];
     
     gfx::createTexture2D("histogramTest", rg::loadTexture("histogram_test.png"), false, GfxTextureUsage_ShaderRead);
-    gfx::createBuffer("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW, false);
+    gfx::createBuffer("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
 }
 
 void testComputeAtomicsRun()
@@ -422,9 +422,9 @@ void testComputeAtomicsRun()
     id<MTLComputeCommandEncoder> computeEncoder = [getMTLCommandBuffer() computeCommandEncoder];
     [computeEncoder setComputePipelineState:histogramComputePipeline];
     [computeEncoder setTexture:getMTLTexture(gfx::findTexture2D("histogramTest")) atIndex:0];
-    [computeEncoder setBuffer:getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:0];
+    [computeEncoder setBuffer:getMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:0];
     //[computeEncoder setTexture:(id<MTLTexture>)getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) atIndex:1];
-    [computeEncoder setBuffer:getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:1];
+    [computeEncoder setBuffer:getMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:1];
     [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
     [computeEncoder endEncoding];
 }
@@ -668,68 +668,34 @@ void checkerWaitTillFrameCompleted(rgInt frameIndex)
 // GfxBuffer Implementation
 //
 
-void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
+void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
 {
-    if(dynamic == false && usage != GfxBufferUsage_ShaderRW)
+    if(usage != GfxBufferUsage_ShaderRW)
     {
         rgAssert(buf != NULL);
     }
     
-    MTLResourceOptions options = toMTLResourceOptions(usage, dynamic);
+    MTLResourceOptions options = toMTLResourceOptions(usage, false);
     
-    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    id<MTLBuffer> mtlBuffer;
+    if(buf != NULL)
     {
-        id<MTLBuffer> mtlBuffer;
-        if(buf != NULL)
-        {
-            mtlBuffer = [getMTLDevice() newBufferWithBytes:buf length:(NSUInteger)size options:options];
-        }
-        else
-        {
-            mtlBuffer = [getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
-        }
-        mtlBuffer.label = [NSString stringWithUTF8String:tag];
-        
-        obj->mtlBuffers[i] = (__bridge MTL::Buffer*)mtlBuffer;
-        
-        if(dynamic == false)
-        {
-            break;
-        }
-    }
-}
-
-void updaterGfxBuffer(void* data, rgUInt size, rgUInt offset, GfxBuffer* buffer)
-{
-    rgAssert(buffer);
-    
-    if(buffer->dynamic == true)
-    {
-        if(++buffer->activeSlot >= RG_MAX_FRAMES_IN_FLIGHT)
-        {
-            buffer->activeSlot = 0;
-        }
-        
-        memcpy((rgU8*)buffer->mtlBuffers[buffer->activeSlot]->contents() + offset, data, size);
-        buffer->mtlBuffers[buffer->activeSlot]->didModifyRange(NS::Range(offset, size));
+        mtlBuffer = [getMTLDevice() newBufferWithBytes:buf length:(NSUInteger)size options:options];
     }
     else
     {
-        rgAssert(!"Unimplemented or incorrect usages mode");
+        mtlBuffer = [getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
     }
+    rgAssert(mtlBuffer != nil);
+    
+    mtlBuffer.label = [NSString stringWithUTF8String:tag];
+    
+    obj->mtlBuffer = (__bridge MTL::Buffer*)mtlBuffer;
 }
 
 void destroyerGfxBuffer(GfxBuffer* obj)
 {
-    for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
-    {
-        obj->mtlBuffers[i]->release();
-        
-        if(obj->dynamic == false)
-        {
-            break;
-        }
-    }
+    obj->mtlBuffer->release();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1250,11 +1216,11 @@ void GfxRenderCmdEncoder::setBuffer(char const* bufferTag, rgU32 offset, char co
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
     if(info.stage == GfxStage_VS)
     {
-        [encoder setVertexBuffer:getActiveMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
+        [encoder setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
     }
     else if(info.stage == GfxStage_FS)
     {
-        [encoder setFragmentBuffer:getActiveMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
+        [encoder setFragmentBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
     }
     else
     {

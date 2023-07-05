@@ -293,27 +293,13 @@ void destroyTexture2D(char const* tag)
 
 ///
 
-void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset)
-{
-    GfxBuffer* obj = findBuffer(tagHash);
-    rgAssert(obj != nullptr);
-    updaterGfxBuffer(buf, size, offset, obj);
-}
-
-void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset)
-{
-    updateBuffer(rgCRC32(tag), buf, size, offset);
-}
-
-void allocAndFillBufferStruct(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer** obj)
+void allocAndFillBufferStruct(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer** obj)
 {
     *obj = rgNew(GfxBuffer);
     rgAssert(tag != nullptr);
     strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxBuffer::tag));
     (*obj)->size = size;
     (*obj)->usage = usage;
-    (*obj)->dynamic = dynamic;
-    (*obj)->activeSlot = 0;
 }
 
 void deallocBufferStruct(GfxBuffer* obj)
@@ -321,19 +307,19 @@ void deallocBufferStruct(GfxBuffer* obj)
     rgDelete(obj);
 }
 
-GfxBuffer* createBuffer(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic)
+GfxBuffer* createBuffer(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage)
 {
     GfxBuffer* objPtr;
-    allocAndFillBufferStruct(tag, buf, size, usage, dynamic, &objPtr);
-    creatorGfxBuffer(tag, buf, size, usage, dynamic, objPtr);
+    allocAndFillBufferStruct(tag, buf, size, usage, &objPtr);
+    creatorGfxBuffer(tag, buf, size, usage, objPtr);
     gfx::registryBuffer->insert(rgCRC32(tag), objPtr);
     return objPtr;
 }
 
-GfxBuffer* findOrCreateBuffer(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic)
+GfxBuffer* findOrCreateBuffer(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage)
 {
     GfxBuffer* objPtr = gfx::registryBuffer->find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? createBuffer(tag, buf, size, usage, dynamic) : objPtr;
+    objPtr = (objPtr == nullptr) ? createBuffer(tag, buf, size, usage) : objPtr;
     return objPtr;
 }
 

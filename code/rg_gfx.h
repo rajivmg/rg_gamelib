@@ -86,11 +86,9 @@ struct GfxBuffer
     rgChar       tag[32];
     rgU32           size;
     GfxBufferUsage usage;
-    rgBool       dynamic;
-    rgInt     activeSlot;
 #if defined(RG_D3D12_RNDR)
 #elif defined(RG_METAL_RNDR)
-    MTL::Buffer* mtlBuffers[RG_MAX_FRAMES_IN_FLIGHT];
+    MTL::Buffer* mtlBuffer;
 #elif defined(RG_VULKAN_RNDR)
     VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
     VmaAllocation vmaAlloc;
@@ -746,10 +744,7 @@ GfxBlitCmdEncoder* setBlitPass(char const* tag);
         void creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
         void destroyerGfx##type(Gfx##type* obj)
 
-void updateBuffer(rgHash tagHash, void* buf, rgU32 size, rgU32 offset);
-void updateBuffer(char const* tag, void* buf, rgU32 size, rgU32 offset);
-DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic);
-void updaterGfxBuffer(void* buf, rgU32 size, rgU32 offset, GfxBuffer* obj);
+DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxBufferUsage usage);
 
 GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage);
 void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr);
