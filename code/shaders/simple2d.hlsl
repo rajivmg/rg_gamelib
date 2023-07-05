@@ -44,7 +44,7 @@ VertexOut vsSimple2d(in Vertex2D v, uint instanceId : SV_INSTANCEID)
 half4 fsSimple2d(in VertexOut f) : SV_TARGET
 {
     //return f.color;
-    uint texIndex = 1;//instanceParams.texIds[f.instanceId[0]];
+    uint texIndex = instanceParams.texIds[f.instanceId];
     half4 color = bindlessTexture2D[texIndex].Sample(simpleSampler, f.texcoord);
     return half4(color);
 }
