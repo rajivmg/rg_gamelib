@@ -311,6 +311,15 @@ id<MTLSamplerState> asMTLSamplerState(void* ptr)
     return (__bridge id<MTLSamplerState>)(ptr);
 }
 
+void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
+{
+    rgFloat const* ptr = toFloatPtr(srcMatrix);
+    for(rgInt i = 0; i < 16; ++i)
+    {
+        dstArray[i] = ptr[i];
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // Frame allocator
@@ -320,6 +329,8 @@ struct AllocationResult
 {
     rgU32 offset;
     void* ptr;
+    
+    GfxBuffer bufferFacade;
     id<MTLBuffer> parentBuffer;
 };
 
@@ -345,6 +356,7 @@ public:
         offset = 0;
     }
     
+    // TODO: convert to void allocate(char const*tag, rgU32 size, rgU32 outOffset, void** outPtr, ... )
     AllocationResult allocate(char const* tag, rgU32 size)
     {
         rgAssert(offset + size <= capacity);
@@ -355,6 +367,9 @@ public:
         result.offset = offset;
         result.ptr = ptr;
         result.parentBuffer = buffer;
+        
+        result.bufferFacade.mtlBuffer = (__bridge MTL::Buffer*)buffer;
+        std::strcpy(result.bufferFacade.tag, tag);
 
         rgU32 alignment = 4;
         offset += (size + alignment - 1) & ~(alignment - 1);
@@ -894,12 +909,26 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
         uint32_t mslBinding = msl.get_automatic_msl_resource_binding(varId);
         if(mslBinding != uint32_t(-1))
         {
+            std::string const name = msl.get_name(varId);
+            eastl::string const ourName = eastl::string(name.c_str());
+            
+            auto existingInfoIter = obj->mtlResourceInfo.find(ourName);
+            if(existingInfoIter != obj->mtlResourceInfo.end())
+            {
+                GfxGraphicsPSO::ResourceInfo& existingInfo = existingInfoIter->second;
+                
+                rgAssert(existingInfo.type == type);
+                rgAssert(existingInfo.mslBinding == mslBinding);
+                
+                existingInfo.stage = (GfxStage)((rgU32)existingInfo.stage | (rgU32)stage);
+                return;
+            }
+            
             GfxGraphicsPSO::ResourceInfo info;
             info.type = type;
             info.mslBinding = mslBinding;
             info.stage = stage;
             
-            std::string const name = msl.get_name(varId);
             rgLog("%s %s -> %d", obj->tag, name.c_str(), mslBinding);
             
             obj->mtlResourceInfo[eastl::string(name.c_str())] = info;
@@ -1202,49 +1231,52 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
     boundGraphicsPSO = pso;
 }
 
-void GfxRenderCmdEncoder::setBuffer(char const* bufferTag, rgU32 offset, char const* bindingTag)
+void GfxRenderCmdEncoder::setBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag)
 {
     rgAssert(boundGraphicsPSO != nullptr);
+    rgAssert(buffer != nullptr);
     
     auto infoIter = boundGraphicsPSO->mtlResourceInfo.find(bindingTag);
     rgAssert(infoIter != boundGraphicsPSO->mtlResourceInfo.end());
+
     GfxGraphicsPSO::ResourceInfo& info = infoIter->second;
     
-    GfxBuffer* buffer = gfx::findBuffer(bufferTag);
-    rgAssert(buffer != nullptr);
+    // TODO: Assert check valid Stage
     
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
-    if(info.stage == GfxStage_VS)
+    if((info.stage & GfxStage_VS) == GfxStage_VS)
     {
         [encoder setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
     }
-    else if(info.stage == GfxStage_FS)
+    if((info.stage & GfxStage_FS) == GfxStage_FS)
     {
         [encoder setFragmentBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
     }
-    else
-    {
-        rgAssert(!"Not valid");
-    }
 }
 
-void GfxRenderCmdEncoder::setTexture2D(char const* textureTag, char const* bindingTag)
+void GfxRenderCmdEncoder::setBuffer(char const* bufferTag, rgU32 offset, char const* bindingTag)
+{
+    GfxBuffer* buffer = gfx::findBuffer(bufferTag);
+    rgAssert(buffer != nullptr);
+    setBuffer(buffer, offset, bindingTag);
+}
+
+void GfxRenderCmdEncoder::setTexture2D(GfxTexture2D* texture, char const* bindingTag)
 {
     rgAssert(boundGraphicsPSO != nullptr);
+    rgAssert(texture != nullptr);
     
     auto infoIter = boundGraphicsPSO->mtlResourceInfo.find(bindingTag);
     rgAssert(infoIter != boundGraphicsPSO->mtlResourceInfo.end());
+
     GfxGraphicsPSO::ResourceInfo& info = infoIter->second;
-    
-    GfxTexture2D* texture = gfx::findTexture2D(textureTag);
-    rgAssert(texture != nullptr);
-    
+
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
-    if(info.stage == GfxStage_VS)
+    if((info.stage & GfxStage_VS) == GfxStage_VS)
     {
         [encoder setVertexTexture:getMTLTexture(texture) atIndex:info.mslBinding];
     }
-    else if(info.stage == GfxStage_FS)
+    if((info.stage & GfxStage_FS) == GfxStage_FS)
     {
         [encoder setFragmentTexture:getMTLTexture(texture) atIndex:info.mslBinding];
     }
@@ -1254,30 +1286,40 @@ void GfxRenderCmdEncoder::setTexture2D(char const* textureTag, char const* bindi
     }
 }
 
-void GfxRenderCmdEncoder::setSampler(char const* samplerTag, char const* bindingTag)
+void GfxRenderCmdEncoder::setTexture2D(char const* textureTag, char const* bindingTag)
+{
+    GfxTexture2D* texture = gfx::findTexture2D(textureTag);
+    rgAssert(texture != nullptr);
+    
+    setTexture2D(texture, bindingTag);
+}
+
+void GfxRenderCmdEncoder::setSampler(GfxSampler* sampler, char const* bindingTag)
 {
     rgAssert(boundGraphicsPSO != nullptr);
+    rgAssert(sampler != nullptr);
     
     auto infoIter = boundGraphicsPSO->mtlResourceInfo.find(bindingTag);
     rgAssert(infoIter != boundGraphicsPSO->mtlResourceInfo.end());
     GfxGraphicsPSO::ResourceInfo& info = infoIter->second;
     
-    GfxSampler* sampler = gfx::findSampler(samplerTag);
-    rgAssert(sampler != nullptr);
-    
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
-    if(info.stage == GfxStage_VS)
+    if((info.stage & GfxStage_VS) == GfxStage_VS)
     {
         [encoder setVertexSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
     }
-    else if(info.stage == GfxStage_FS)
+    if((info.stage & GfxStage_FS) == GfxStage_FS)
     {
         [encoder setFragmentSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
     }
-    else
-    {
-        rgAssert(!"Not valid");
-    }
+}
+
+void GfxRenderCmdEncoder::setSampler(char const* samplerTag, char const* bindingTag)
+{
+    GfxSampler* sampler = gfx::findSampler(samplerTag);
+    rgAssert(sampler != nullptr);
+    
+    setSampler(sampler, bindingTag);
 }
 
 void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
@@ -1297,31 +1339,26 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     gfx::AllocationResult instanceParamsAllocation = gfx::getFrameAllocator()->allocate("instanceParamsBuf", (rgU32)instanceParams.size() * sizeof(gfx::SimpleInstanceParams), instanceParams.data());
     
 
-    // TODO: rework this
-    rgBool runOnce = false;
-    if(runOnce == false)
+    //-
+    // camera
+    struct
     {
-        runOnce = true;
-        
-        gfx::Camera cam;
-        rgFloat* orthoMatrix = toFloatPtr(gfx::orthographicMatrix);
-        rgFloat* viewMatrix = toFloatPtr(gfx::viewMatrix);
-        for(rgInt i = 0; i < 16; ++i)
-        {
-            cam.projection[i] = orthoMatrix[i];
-            cam.view[i] = viewMatrix[i];
-        }
-        
-        gfx::Camera* p = (gfx::Camera*)[gfx::cameraBuffer contents];
-        *p = cam;
-        //[gfx::cameraBuffer didModifyRange:NSMakeRange(0, sizeof(gfx::Camera))];
-    }
-    [gfx::frameConstBufferArgEncoder setArgumentBuffer:gfx::frameConstBufferArgBuffer offset:0];
-    [gfx::frameConstBufferArgEncoder setBuffer:gfx::cameraBuffer offset:0 atIndex:0];
-    // --
+        rgFloat projection2d[16];
+        rgFloat view2d[16];
+    } cameraParams;
     
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::cameraBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) useResource:gfx::frameConstBufferArgBuffer usage:MTLResourceUsageRead stages: MTLRenderStageVertex];
+    copyMatrix4ToFloatArray(cameraParams.projection2d, gfx::orthographicMatrix);
+    copyMatrix4ToFloatArray(cameraParams.view2d, gfx::viewMatrix);
+
+    gfx::AllocationResult cameraBuffer = gfx::getFrameAllocator()->allocate("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
+    std::memcpy(cameraBuffer.ptr, &cameraParams, sizeof(cameraParams));
+    
+    // --
+    id<MTLRenderCommandEncoder> cmdEncoder = asMTLRenderCommandEncoder(renderCmdEncoder);
+    [cmdEncoder useResource:getFrameAllocator()->mtlBuffer() usage:MTLResourceUsageRead stages:MTLRenderStageVertex | MTLRenderStageFragment];
+    
+    //setBuffer(<#GfxBuffer *buffer#>, <#rgU32 offset#>, <#const char *bindingTag#>)
+    //[cmdEncoder setVertexBuffer:<#(nullable id<MTLBuffer>)#> offset:<#(NSUInteger)#> atIndex:<#(NSUInteger)#>]
     
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::frameConstBufferArgBuffer offset:0 atIndex:0];
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:instanceParamsAllocation.parentBuffer offset:instanceParamsAllocation.offset atIndex:4];
@@ -1349,15 +1386,6 @@ Matrix4 makePerspectiveProjection(rgFloat fovDeg, rgFloat aspect, rgFloat nearVa
         Vector4(0.0f, yScale, 0.0f, 0.0f),
         Vector4(0.0f, 0.0f, zScale, 1.0f),
         Vector4(0.0f, 0.0f, -nearValue * zScale, 0.0f));
-}
-
-void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
-{
-    rgFloat const* ptr = toFloatPtr(srcMatrix);
-    for(rgInt i = 0; i < 16; ++i)
-    {
-        dstArray[i] = ptr[i];
-    }
 }
 
 void GfxRenderCmdEncoder::drawBunny()

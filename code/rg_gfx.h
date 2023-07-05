@@ -249,9 +249,9 @@ enum GfxTriangleFillMode
 
 enum GfxStage
 {
-    GfxStage_VS,
-    GfxStage_FS,
-    GfxStage_CS,
+    GfxStage_VS = 0x1,
+    GfxStage_FS = 0x2,
+    GfxStage_CS = 0x4,
 };
 
 enum GfxVertexStepFunc
@@ -637,8 +637,11 @@ struct GfxRenderCmdEncoder
         setGraphicsPSO(ptr);
     }
     
+    void setBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
     void setBuffer(char const* bufferTag, rgU32 offset, char const* bindingTag);
+    void setTexture2D(GfxTexture2D* texture, char const* bindingTag);
     void setTexture2D(char const* textureTag, char const* bindingTag);
+    void setSampler(GfxSampler* sampler, char const* bindingTag);
     void setSampler(char const* samplerTag, char const* bindingTag);
     
     void drawTexturedQuads(TexturedQuads* quads);
