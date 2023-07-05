@@ -150,6 +150,11 @@ id<MTLBuffer> getActiveMTLBuffer(GfxBuffer* ptr)
     return (__bridge id<MTLBuffer>)(ptr->mtlBuffers[ptr->activeSlot]);
 }
 
+id<MTLSamplerState> getMTLSamplerState(GfxSampler* obj)
+{
+    return (__bridge id<MTLSamplerState>)(obj->mtlSampler);
+}
+
 MTLClearColor toMTLClearColor(rgFloat4* color)
 {
     return MTLClearColorMake(color->r, color->g, color->b, color->a);
@@ -1276,6 +1281,32 @@ void GfxRenderCmdEncoder::setTexture2D(char const* textureTag, char const* bindi
     else if(info.stage == GfxStage_FS)
     {
         [encoder setFragmentTexture:getMTLTexture(texture) atIndex:info.mslBinding];
+    }
+    else
+    {
+        rgAssert(!"Not valid");
+    }
+}
+
+void GfxRenderCmdEncoder::setSampler(char const* samplerTag, char const* bindingTag)
+{
+    rgAssert(boundGraphicsPSO != nullptr);
+    
+    auto infoIter = boundGraphicsPSO->mtlResourceInfo.find(bindingTag);
+    rgAssert(infoIter != boundGraphicsPSO->mtlResourceInfo.end());
+    GfxGraphicsPSO::ResourceInfo& info = infoIter->second;
+    
+    GfxSampler* sampler = gfx::findSampler(samplerTag);
+    rgAssert(sampler != nullptr);
+    
+    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
+    if(info.stage == GfxStage_VS)
+    {
+        [encoder setVertexSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
+    }
+    else if(info.stage == GfxStage_FS)
+    {
+        [encoder setFragmentSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
     }
     else
     {

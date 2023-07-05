@@ -641,6 +641,7 @@ struct GfxRenderCmdEncoder
     
     void setBuffer(char const* bufferTag, rgU32 offset, char const* bindingTag);
     void setTexture2D(char const* textureTag, char const* bindingTag);
+    void setSampler(char const* samplerTag, char const* bindingTag);
     
     void drawTexturedQuads(TexturedQuads* quads);
     void drawBunny();
