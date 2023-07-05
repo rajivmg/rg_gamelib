@@ -27,7 +27,7 @@ struct Camera
 
 ConstantBuffer<Camera> camera : register(b0, space0);
 ConstantBuffer<SimpleInstanceParams> instanceParams : register(b1, space0);
-Texture2D<float4> bindlessTexture2D[] : register(t0, space3);
+Texture2D<float4> bindlessTexture2D[] : register(t0, space7);
 
 SamplerState simpleSampler : register(s0, space0);
 

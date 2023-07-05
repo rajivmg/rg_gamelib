@@ -378,11 +378,6 @@ protected:
     rgU8* bufferPtr;
 };
 
-FrameAllocator* getFrameAllocator()
-{
-    return frameAllocators[g_FrameIndex];
-}
-
 struct SimpleVertexFormat1
 {
     simd::float3 position;
@@ -461,6 +456,11 @@ static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 // Current state
 static GfxGraphicsPSO* boundGraphicsPSO;
 
+
+FrameAllocator* getFrameAllocator()
+{
+    return frameAllocators[g_FrameIndex];
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -893,10 +893,16 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     spirv_cross::CompilerMSL msl(spirvParser.get_parsed_ir());
     msl.set_msl_options(mslOptions);
     
+    for(uint32_t d = 0; d < 7; ++d)
+    {
+        msl.add_discrete_descriptor_set(d);
+    }
+    msl.set_argument_buffer_device_address_space(7, true);
+    
     // handle unsized texture array
     spirv_cross::MSLResourceBinding bindlessTextureBinding;
     bindlessTextureBinding.basetype = spirv_cross::SPIRType::Image;
-    bindlessTextureBinding.desc_set = 3;
+    bindlessTextureBinding.desc_set = 7;
     bindlessTextureBinding.binding = 0;
     bindlessTextureBinding.count = 65536;
     
@@ -1230,11 +1236,11 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
     id<MTLRenderCommandEncoder> renderCmdEncoder = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
     
-    [renderCmdEncoder setRenderPipelineState:gfx::getMTLRenderPipelineState(pso)];
-    [renderCmdEncoder setDepthStencilState:gfx::getMTLDepthStencilState(pso)];
-    [renderCmdEncoder setFrontFacingWinding:gfx::getMTLWinding(pso)];
-    [renderCmdEncoder setCullMode:gfx::getMTLCullMode(pso)];
-    [renderCmdEncoder setTriangleFillMode:gfx::getMTLTriangleFillMode(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setRenderPipelineState:gfx::getMTLRenderPipelineState(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setDepthStencilState:gfx::getMTLDepthStencilState(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFrontFacingWinding:gfx::getMTLWinding(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:gfx::getMTLCullMode(pso)];
+    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setTriangleFillMode:gfx::getMTLTriangleFillMode(pso)];
     
     boundGraphicsPSO = pso;
 }
