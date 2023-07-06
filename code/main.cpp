@@ -58,6 +58,7 @@ rgInt rg::setup()
     g_GameData = rgNew(GameData);
 
     GfxTexture2D* t2dptr = gfx::createTexture2D("tiny.tga", loadTexture("tiny.tga"), true, GfxTextureUsage_ShaderRead);
+    gfx::destroyTexture2D("tiny.tga");
     
     for(rgInt i = 1; i <= 16; ++i)
     {
@@ -367,7 +368,7 @@ int main(int argc, char* argv[])
                 // process event
             }
         }
-
+        
         gfx::startNextFrame();
         rg::updateAndDraw(g_DeltaTime);
         gfx::endFrame();

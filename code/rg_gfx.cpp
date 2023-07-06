@@ -79,11 +79,10 @@ GfxRenderPass* currentRenderPass;
 GfxRenderCmdEncoder* currentRenderCmdEncoder;
 GfxBlitCmdEncoder* currentBlitCmdEncoder;
 
-GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
-GfxObjectRegistry<GfxBuffer>* registryBuffer;
-GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
-GfxObjectRegistry<GfxSampler>* registrySampler;
-GfxObjectRegistry<GfxShaderLibrary>* registryShaderLibrary;
+GfxObjectRegistry<GfxTexture2D, gfx::destroyerGfxTexture2D>* registryTexture2D;
+GfxObjectRegistry<GfxBuffer, gfx::destroyerGfxBuffer>* registryBuffer;
+GfxObjectRegistry<GfxGraphicsPSO, gfx::destroyerGfxGraphicsPSO>* registryGraphicsPSO;
+GfxObjectRegistry<GfxSampler, gfx::destroyerGfxSampler>* registrySampler;
 
 GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
@@ -123,10 +122,10 @@ Matrix4 createPerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRat
 
 rgInt preInit()
 {
-    gfx::registryTexture2D = rgNew(GfxObjectRegistry<GfxTexture2D>);
-    gfx::registryBuffer = rgNew(GfxObjectRegistry<GfxBuffer>);
-    gfx::registryGraphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
-    gfx::registrySampler = rgNew(GfxObjectRegistry<GfxSampler>);
+    gfx::registryTexture2D = rgNew(GfxObjectRegistry<GfxTexture2D RG_COMMA gfx::destroyerGfxTexture2D>);
+    gfx::registryBuffer = rgNew(GfxObjectRegistry<GfxBuffer RG_COMMA gfx::destroyerGfxBuffer>);
+    gfx::registryGraphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO RG_COMMA gfx::destroyerGfxGraphicsPSO>);
+    gfx::registrySampler = rgNew(GfxObjectRegistry<GfxSampler RG_COMMA gfx::destroyerGfxSampler>);
 
     gfx::bindlessManagerTexture2D = rgNew(GfxBindlessResourceManager<GfxTexture2D>);
     
@@ -155,6 +154,12 @@ rgInt initCommonStuff()
 
 void atFrameStart()
 {
+    registryBuffer->destroyMarkedObjects();
+    registrySampler->destroyMarkedObjects();
+    registryTexture2D->destroyMarkedObjects();
+    registryGraphicsPSO->destroyMarkedObjects();
+    
+    // Reset render pass
     currentRenderPass = nullptr;
     if(currentRenderCmdEncoder != nullptr)
     {
@@ -163,6 +168,11 @@ void atFrameStart()
     }
     
     // TODO: reset unused frame allocator
+}
+
+rgInt getFrameIndex()
+{
+    return (g_FrameIndex != -1) ? g_FrameIndex : 0;
 }
 
 // TODO: rename -> getCompletedFrameIndex
@@ -287,12 +297,12 @@ GfxTexture2D* findTexture2D(char const* tag)
 
 void destroyTexture2D(rgHash tagHash)
 {
-    gfx::registryTexture2D->markForRemove(tagHash);
+    gfx::registryTexture2D->markForDestroy(tagHash);
 }
 
 void destroyTexture2D(char const* tag)
 {
-    gfx::registryTexture2D->markForRemove(rgCRC32(tag));
+    gfx::registryTexture2D->markForDestroy(rgCRC32(tag));
 }
 
 ///
@@ -339,12 +349,12 @@ GfxBuffer* findBuffer(char const* tag)
 
 void destroyBuffer(rgHash tagHash)
 {
-    gfx::registryBuffer->markForRemove(tagHash);
+    gfx::registryBuffer->markForDestroy(tagHash);
 }
 
 void destroyBuffer(char const* tag)
 {
-    gfx::registryBuffer->markForRemove(rgCRC32(tag));
+    gfx::registryBuffer->markForDestroy(rgCRC32(tag));
 }
 
 ///
@@ -392,12 +402,12 @@ GfxGraphicsPSO* findGraphicsPSO(char const* tag)
 
 void destroyGraphicsPSO(rgHash tagHash)
 {
-    gfx::registryGraphicsPSO->markForRemove(tagHash);
+    gfx::registryGraphicsPSO->markForDestroy(tagHash);
 }
 
 void destroyGraphicsPSO(char const* tag)
 {
-    gfx::registryGraphicsPSO->markForRemove(rgCRC32(tag));
+    gfx::registryGraphicsPSO->markForDestroy(rgCRC32(tag));
 }
 
 ///
@@ -447,12 +457,12 @@ GfxSampler* findSampler(char const* tag)
 
 void destroySampler(rgHash tagHash)
 {
-    gfx::registrySampler->markForRemove(tagHash);
+    gfx::registrySampler->markForDestroy(tagHash);
 }
 
 void destroySampler(char const* tag)
 {
-    gfx::registrySampler->markForRemove(rgCRC32(tag));
+    gfx::registrySampler->markForDestroy(rgCRC32(tag));
 }
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams)

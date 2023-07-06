@@ -79,6 +79,7 @@ static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(rgU32) != sizeof(uint3
 #define rgNew(objectType) new objectType
 #define rgPlacementNew(objectType, placementAddress) new(placementAddress) objectType
 #define rgDelete(object) delete object
+#define RG_COMMA ,
 
 void _rgLogImpl(char const* fmt, ...);
 #define rgLog(...) _rgLogImpl(__VA_ARGS__)

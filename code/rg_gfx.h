@@ -311,7 +311,7 @@ struct GfxShaderDesc
     char const* defines;
 };
 
-struct GfxShaderLibrary
+struct GfxShaderLibrary // TODO: remove
 {
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3DBlob> d3dShaderBlob;
@@ -363,10 +363,11 @@ namespace gfx {
 void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr);
 void checkerWaitTillFrameCompleted(rgInt frameIndex);
 GfxGraphicsPSO* findGraphicsPSO(char const* tag);
+rgInt getFrameIndex();
 }
 
 template <typename Type>
-struct GfxBindlessResourceManager
+class GfxBindlessResourceManager
 {
     typedef eastl::vector<Type*> ResourceList;
     ResourceList resources; // Hold reference to the resources until no longer needed
@@ -374,7 +375,7 @@ struct GfxBindlessResourceManager
     typedef eastl::vector<rgU32> SlotList;
     SlotList freeSlots; // Indexes in referenceList which are unused
 
-    rgU32 _getFreeSlot()
+    rgU32 getFreeSlot()
     {
         rgU32 result = kInvalidValue;
 
@@ -394,7 +395,7 @@ struct GfxBindlessResourceManager
         return result;
     }
 
-    void _releaseSlot(rgU32 slot)
+    void releaseSlot(rgU32 slot)
     {
         rgAssert(slot < resources.size());
 
@@ -402,7 +403,7 @@ struct GfxBindlessResourceManager
         freeSlots.push_back(slot);
     }
 
-    void _setResourcePtrInSlot(rgU32 slot, Type* ptr)
+    void setResourcePtrInSlot(rgU32 slot, Type* ptr)
     {
         resources[slot] = ptr;
         gfx::setterBindlessResource(slot, ptr);
@@ -410,7 +411,7 @@ struct GfxBindlessResourceManager
         // this should be implictly handled from _releaseSlot
     }
 
-    rgU32 _getSlotOfResourcePtr(Type* ptr)
+    rgU32 getSlotOfResourcePtr(Type* ptr)
     {
         for(rgUInt i = 0, size = (rgUInt)resources.size(); i < size; ++i)
         {
@@ -422,6 +423,7 @@ struct GfxBindlessResourceManager
         return kInvalidValue;
     }
 
+public:
     typename ResourceList::iterator begin() EA_NOEXCEPT
     {
         return resources.begin();
@@ -434,11 +436,11 @@ struct GfxBindlessResourceManager
 
     rgU32 getBindlessIndex(Type* ptr)
     {
-        rgU32 slot = _getSlotOfResourcePtr(ptr);
+        rgU32 slot = getSlotOfResourcePtr(ptr);
         if(slot == kInvalidValue)
         {
-            slot = _getFreeSlot();
-            _setResourcePtrInSlot(slot, ptr);
+            slot = getFreeSlot();
+            setResourcePtrInSlot(slot, ptr);
         }
         return slot;
     }
@@ -454,13 +456,17 @@ struct GfxBindlessResourceManager
     // TODO: rgU32 getContiguousFreeSlots(int count);
 };
 
-template<typename Type>
+// Gfx Object Registry
+// -------------------
+
+template<typename Type, void DestroyerFn(Type*)>
 struct GfxObjectRegistry
 {
     typedef eastl::hash_map<rgHash, Type*> ObjectMap;
     ObjectMap objects;
-    ObjectMap objectsToRemove;
-
+    //ObjectMap objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT]; // Bucket for each frame in flight
+    eastl::vector<Type*> objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT];
+    
     Type* find(rgHash hash)
     {
         typename ObjectMap::iterator itr = objects.find(hash);
@@ -473,24 +479,23 @@ struct GfxObjectRegistry
         ObjectMap::iterator itr = objects.find(hash);
         rgAssert(itr == objects.end());
 #endif
-        //objects.insert_or_assign(eastl::make_pair(hash, ptr));
         objects.insert_or_assign(hash, ptr);
     }
 
-    void markForRemove(rgHash hash)
+    void markForDestroy(rgHash hash)
     {
         typename ObjectMap::iterator itr = objects.find(hash);
         rgAssert(itr != objects.end());
-        //objectsToRemove.insert_or_assign(eastl::make_pair(hash, *itr))
-        objectsToRemove.insert_or_assign(hash, itr->second);
+        objectsToDestroy[gfx::getFrameIndex()].push_back(itr->second);
     }
 
-    void removeMarkedObjects()
+    void destroyMarkedObjects()
     {
-        for(auto itr : objectsToRemove)
+        for(auto itr : objectsToDestroy[g_FrameIndex])
         {
-
+            DestroyerFn(itr);
         }
+        objectsToDestroy[g_FrameIndex].clear();
     }
     
     typename ObjectMap::iterator begin() EA_NOEXCEPT
@@ -503,64 +508,6 @@ struct GfxObjectRegistry
         return objects.end();
     }
 };
-
-// ---
-/*
-struct GfxAllocationResult
-{
-    void* ptr;
-    rgU32 offset;
-};
-
-class GfxFrameAllocator
-{
-public:
-    GfxFrameAllocator(rgU32 capacity_)
-    {
-        offset = 0;
-        capacity = capacity_;
-        
-        creatorFrameAllocator(capacity);
-    }
-    
-    ~GfxFrameAllocator()
-    {
-        [buffer release];
-    }
-    
-    void reset()
-    {
-        offset = 0;
-    }
-    
-    GfxAllocationResult allocate(char const* tag, rgU32 size)
-    {
-        rgAssert(offset + size <= capacity);
-
-        void* ptr = (bufferPtr + offset);
-        
-        GfxAllocationResult result;
-        result.offset = offset;
-        result.ptr = ptr;
-
-        rgU32 alignment = 4;
-        offset += (size + alignment - 1) & ~(alignment - 1);
-        
-        return result;
-    }
-    
-    id<MTLBuffer> mtlBuffer()
-    {
-        return buffer;
-    }
-    
-protected:
-    rgU32 offset;
-    rgU32 capacity;
-    id<MTLBuffer> buffer;
-    rgU8* bufferPtr;
-};
- */
 
 //-----------------------------------------------------------------------------
 // Texture & Utils
@@ -710,8 +657,10 @@ RG_BEGIN_GFX_NAMESPACE
 //-----------------------------------------------------------------------------
 // General Common Stuff
 //-----------------------------------------------------------------------------
-rgInt           initCommonStuff();
+rgInt           preInit();
+rgInt           initCommonStuff(); // TODO: merge with preInit()
 void            atFrameStart();
+rgInt           getFrameIndex(); // Returns 0 if g_FrameIndex is -1
 rgInt           getFinishedFrameIndex();
 GfxTexture2D*   getCurrentRenderTargetColorBuffer();
 GfxTexture2D*   getRenderTargetDepthBuffer();
@@ -720,8 +669,6 @@ Matrix4         createPerspectiveProjectionMatrix(rgFloat focalLength, rgFloat a
 //-----------------------------------------------------------------------------
 // Gfx function declarations
 //-----------------------------------------------------------------------------
-
-rgInt           preInit();
 rgInt           init();
 void            destroy();
 void            startNextFrame();
@@ -742,7 +689,7 @@ GfxBlitCmdEncoder* setBlitPass(char const* tag);
         Gfx##type* find##type(char const* tag); \
         void destroy##type(rgHash tagHash); \
         void destroy##type(char const* tag); \
-         void allocAndFill##type##Struct(const char* tag, __VA_ARGS__, Gfx##type** obj); \
+        void allocAndFill##type##Struct(const char* tag, __VA_ARGS__, Gfx##type** obj); \
         void dealloc##type##Struct(Gfx##type* obj); \
         void creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
         void destroyerGfx##type(Gfx##type* obj)
@@ -760,11 +707,6 @@ DeclareGfxObjectFunctions(Sampler, GfxSamplerAddressMode rstAddressMode, GfxSamp
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
 //-----------------------------------------------------------------------------
-struct ImmVertexFormat_ // TODO: remove
-{
-    rgFloat position[3];
-    rgFloat color[4];
-};
 
 struct SimpleVertexFormat
 {
@@ -794,23 +736,21 @@ extern rgUInt frameNumber;
 extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 
-extern GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
-extern GfxObjectRegistry<GfxBuffer>* registryBuffer;
-extern GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
-extern GfxObjectRegistry<GfxSampler>* registrySampler;
-extern GfxObjectRegistry<GfxShaderLibrary>* registryShaderLibrary;
+extern GfxObjectRegistry<GfxTexture2D, gfx::destroyerGfxTexture2D>* registryTexture2D;
+extern GfxObjectRegistry<GfxBuffer, gfx::destroyerGfxBuffer>* registryBuffer;
+extern GfxObjectRegistry<GfxGraphicsPSO, gfx::destroyerGfxGraphicsPSO>* registryGraphicsPSO;
+extern GfxObjectRegistry<GfxSampler, gfx::destroyerGfxSampler>* registrySampler;
+//extern GfxObjectRegistry<GfxShaderLibrary, gfx::destroyerGfxShaderLibrary>* registryShaderLibrary;
     
 extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
-extern Matrix4 orthographicMatrix;
-extern Matrix4 viewMatrix;
+extern Matrix4 orthographicMatrix; // TODO: Rename projection2d, projection3d
+extern Matrix4 viewMatrix; // TODO: Rename view2d
     
 extern eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
     
 extern GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
 extern GfxTexture2D* depthStencilBuffer;
-    
-extern GfxSampler* bilinearSampler;
 
 //-----------------------------------------------------------------------------
 // API Specific Graphic Context Data
