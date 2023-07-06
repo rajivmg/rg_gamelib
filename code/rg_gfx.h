@@ -671,6 +671,10 @@ struct GfxRenderCmdEncoder
 
 struct GfxBlitCmdEncoder
 {
+    // TODO: Add a deferred cmds, they run just before the end of the current frame 
+    // TODO: Add a deferred cmds, they run just before the end of the current frame 
+    // TODO: Add a deferred cmds, they run just before the end of the current frame 
+
     struct Cmd
     {
         enum Type

@@ -169,6 +169,18 @@ rgInt rg::setup()
     
     g_PhysicSystem = rgNew(PhysicSystem);
 
+
+    // TODO: remove gfx::createResName gfx::findResName style functions
+    // TODO: remove gfx::createResName gfx::findResName style functions
+    // TODO: remove gfx::createResName gfx::findResName style functions
+    
+    /*
+    gfx::sampler->create("nearestLinear", ...);
+    gfx::createSampler("nearestLinear", ...);
+    gfx::texture2d->create("tiny", ...);
+    gfx::createTexture2D("tiny", ...);
+    */
+
 #if 0
     b2Vec2 gravity(0.0f, -9.8f);
     g_GameData->phyWorld = rgNew(b2World)(gravity);
