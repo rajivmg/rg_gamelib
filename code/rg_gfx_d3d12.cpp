@@ -614,7 +614,7 @@ void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr)
 }
 
 // Buffer
-void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, rgBool dynamic, GfxBuffer* obj)
+void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
 {
     ComPtr<ID3D12Resource> bufferResource;
 
@@ -1140,8 +1140,9 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
 
     // explicitly release shaders
-    vertexShader.shaderBlob->Release();
-    fragmentShader.shaderBlob->Release();
+    // TODO: Remove as this is released automatically
+    //vertexShader.shaderBlob->Release();
+    //fragmentShader.shaderBlob->Release();
 
     obj->d3dPSO = pso;
 }
@@ -1151,12 +1152,12 @@ void destroyerGfxGraphicsPSO(GfxGraphicsPSO* obj)
 
 }
 
-void creatorGfxSamplerState(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
+void creatorGfxSampler(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
 {
 
 }
 
-void destroyerGfxSamplerState(GfxSamplerState* obj)
+void destroyerGfxSampler(GfxSampler* obj)
 {
 
 }

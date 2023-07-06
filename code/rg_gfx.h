@@ -462,7 +462,7 @@ public:
 // Gfx Object Registry
 // -------------------
 
-template<typename Type, void DestroyerFn(Type*)>
+template<typename Type, void DestroyerFn(Type*), typename... Args>
 struct GfxObjectRegistry
 {
     typedef eastl::hash_map<rgHash, Type*> ObjectMap;
@@ -499,6 +499,11 @@ struct GfxObjectRegistry
             DestroyerFn(itr);
         }
         objectsToDestroy[g_FrameIndex].clear();
+    }
+
+    void create(const char* tag, Args... args)
+    {
+        T::allocAndFillStruct(tag, args);
     }
     
     typename ObjectMap::iterator begin() EA_NOEXCEPT
