@@ -93,6 +93,9 @@ struct GfxBuffer
     VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
     VmaAllocation vmaAlloc;
 #endif
+    
+    static void allocAndFillStruct();
+    //https://www.ibm.com/docs/en/zos/2.1.0?topic=only-variadic-templates-c11
 };
 
 // Texture type
