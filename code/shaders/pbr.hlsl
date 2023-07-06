@@ -1,5 +1,4 @@
-#include <metal_stdlib>
-using namespace metal;
+#define MAX_INSTANCES 256
 
 struct Obj2HeaderModelVertex
 {
@@ -11,33 +10,29 @@ struct Obj2HeaderModelVertex
 struct VertexShaderOut
 {
     float4 position : SV_Position;
-    float3 normal;
-    float2 texcoord;
-    nointerpolation uint instanceId;
+    float3 normal   : NORMAL;
+    float vertexLightCoeff : VLC;
+    float2 texcoord : TEXCOORD;
+    nointerpolation uint instanceID : INSTANCE;
 };
 
 struct InstanceParams
 {
-    float4x4 worldXform;
-    float4x4 invTposWorldXform;
+    float4x4 worldXform[MAX_INSTANCES];
+    float4x4 invTposWorldXform[MAX_INSTANCES];
 };
 
-struct CameraParams
+struct Camera
 {
     float4x4 projectionPerspective;
     float4x4 viewCamera;
 };
 
-cbuffer CombinedCB : register(b0)
-{
-    CameraParams cameraParams;
-    InstanceParams instanceParams;
-};
+ConstantBuffer<Camera> camera : register(b0, space0);
+ConstantBuffer<InstanceParams> instanceParams : register(b1, space0);
+//Texture2D<float4> bindlessTexture2D[] : register(t0, space7);
 
-/*struct BindlessResources
-{
-    array<texture2d<float>, 1000> textures2d [[id(0)]];
-};*/
+//SamplerState simpleSampler : register(s0, space0);
 
 float attenuate(float distance, float range, float3 distibutionCoeff)
 {
@@ -45,37 +40,32 @@ float attenuate(float distance, float range, float3 distibutionCoeff)
     return step(distance, range) * saturate(a);
 }
 
-VertexShaderOut vsPrincipledBrdf(in Obj2HeaderModelVertex vertexInput,
-                                 uint instanceId : SV_InstanceID)
+VertexShaderOut vsPbr(in Obj2HeaderModelVertex v, uint instanceID : SV_InstanceID)
 {
-    InstanceParams& instance = instanceParams[instanceId];
-    float3 worldPos = (instance.worldXform * float4(in.position, 1.0)).xyz;
-    float3 normal = normalize((instance.invTposWorldXform * float4(in.normal, 1.0)).xyz);
+    float3 worldPos = mul(instanceParams.worldXform[instanceID], float4(v.position, 1.0)).xyz;
+    float3 normal = normalize(mul(instanceParams.invTposWorldXform[instanceID], float4(v.normal, 1.0)).xyz);
 
-    float3 distributionCoeff(2.0, 3.0, 0.1);
-    float3 lightPos(0.0f, 1.0f, 1.2f);
+    float3 distributionCoeff = float3(2.0, 3.0, 0.1);
+    float3 lightPos = float3(0.0f, 1.0f, 1.2f);
     float atten = attenuate(distance(worldPos, lightPos), 2.2, distributionCoeff);
     float3 lightDir = normalize(lightPos - worldPos);
 
     float nDotL = max(0.0, dot(normal, lightDir));
     float lightCoeff = atten * nDotL;
 
-    VertexShaderOut out;
-    out.position = cameraParams.projectionPerspective * cameraParams.viewCamera * float4(worldPos, 1.0);
-    out.normal = normal;
-    out.texcoord = in.texcoord;
-    out.vertexLightCoeff = lightCoeff;
-    out.instanceId = instanceId;
-    return out;
+    VertexShaderOut output;
+    output.position = mul(camera.projectionPerspective, mul(camera.viewCamera, float4(worldPos, 1.0)));
+    output.normal = normal;
+    output.texcoord = v.texcoord;
+    output.vertexLightCoeff = lightCoeff;
+    output.instanceID = instanceID;
+    return output;
 }
 
-half4 fsPrincipledBrdf(constant InstanceParams* instanceParams  [[buffer(1)]],
-                                VertexShaderOut in [[stage_in]])
+half4 fsPbr(in VertexShaderOut f) : SV_TARGET
 {
-    half4 color(1.0, 0.1, 0.1, 1.0);
+    half4 color = half4(1.0, 0.1, 0.1, 1.0);
     //float4 color = float4(in.normal, 1.0);
     //return half4(color + (float4(1.0, 1.0, 1.0, 1.0) * in.vertexLightCoeff));
-    return half4(color.rgb * (half)in.vertexLightCoeff, 1.0h);
+    return half4(color.rgb * (half)f.vertexLightCoeff, 1.0h);
 }
-
-)foo";

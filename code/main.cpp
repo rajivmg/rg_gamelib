@@ -98,11 +98,7 @@ rgInt rg::setup()
     vertexDesc.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
     GfxShaderDesc simple2dShaderDesc = {};
-#if defined(RG_METAL_RNDR)
-    simple2dShaderDesc.shaderSrc = "simple2d.hlsl";//g_Simple2DShaderSrcCode;
-#else
     simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
-#endif
     simple2dShaderDesc.vsEntrypoint = "vsSimple2d";
     simple2dShaderDesc.fsEntrypoint = "fsSimple2d";
     simple2dShaderDesc.defines = "RIGHT";
@@ -140,9 +136,9 @@ rgInt rg::setup()
     vertexPos3fNor3fTexcoord2f.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
     GfxShaderDesc principledBrdfShaderDesc = {};
-    principledBrdfShaderDesc.shaderSrc = g_PrincipledBrdfShaderSrcCode;
-    principledBrdfShaderDesc.vsEntrypoint = "vsPrincipledBrdf";
-    principledBrdfShaderDesc.fsEntrypoint = "fsPrincipledBrdf";
+    principledBrdfShaderDesc.shaderSrc = "pbr.hlsl";
+    principledBrdfShaderDesc.vsEntrypoint = "vsPbr";
+    principledBrdfShaderDesc.fsEntrypoint = "fsPbr";
     principledBrdfShaderDesc.defines = "LEFT";
     
     GfxRenderStateDesc world3dRenderState = {};
@@ -154,9 +150,7 @@ rgInt rg::setup()
     world3dRenderState.winding = GfxWinding_CCW;
     world3dRenderState.cullMode = GfxCullMode_None;
 
-#if defined(RG_METAL_RNDR)
-    //gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
-#endif
+    gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
     //
 
     gfx::createSampler("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
@@ -243,7 +237,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         // Draw bunny to quick implement lighting models
         // TODO: Use drawTriangles() and bindBuffer() bindTexture() functions ...
         // ... when the prototype is done.
-        /*
+        
         GfxRenderPass myWorld3dPass = {};
         myWorld3dPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
         myWorld3dPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
@@ -256,7 +250,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         myWorld3dRenderEncoder->setGraphicsPSO("principledBrdf");
         myWorld3dRenderEncoder->drawBunny();
         myWorld3dRenderEncoder->end();
-        */
+        
     }
     
     rgHash a = rgCRC32("hello world");

@@ -1406,18 +1406,25 @@ void GfxRenderCmdEncoder::drawBunny()
     // instance
     struct
     {
-        rgFloat worldXform[16];
-        rgFloat invTposeWorldXform[16];
-    } instanceParams[1];
+        rgFloat worldXform[256][16];
+        rgFloat invTposeWorldXform[256][16];
+    } instanceParams;
 
     Matrix4 xform = Matrix4(Transform3::rotationY(sinf(g_Time * 0.5f + 2.0f))).setTranslation(Vector3(0.0f, 0.0f, 0.5f));
-    copyMatrix4ToFloatArray(instanceParams[0].worldXform, xform);
-    copyMatrix4ToFloatArray(instanceParams[0].invTposeWorldXform, transpose(inverse(xform)));
+    copyMatrix4ToFloatArray(&instanceParams.worldXform[0][0], xform);
+    copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
+    
+    gfx::AllocationResult cameraParamsBuffer = gfx::getFrameAllocator()->allocate("cameraParamsCBufferBunny", sizeof(cameraParams), &cameraParams);
+    gfx::AllocationResult instanceParamsBuffer = gfx::getFrameAllocator()->allocate("instanceParamsCBufferBunny", sizeof(instanceParams), &instanceParams);
 
     id<MTLRenderCommandEncoder> rce = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
-    [rce setVertexBytes:&cameraParams length:sizeof(cameraParams) atIndex:0];
-    [rce setVertexBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
-    [rce setFragmentBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
+    
+    setBuffer(&(cameraParamsBuffer.bufferFacade), cameraParamsBuffer.offset, "camera");
+    setBuffer(&(instanceParamsBuffer.bufferFacade), instanceParamsBuffer.offset, "instanceParams");
+    
+    //[rce setVertexBytes:&cameraParams length:sizeof(cameraParams) atIndex:0];
+    //[rce setVertexBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
+    //[rce setFragmentBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
     [rce setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];
     [rce drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:bunnyModelIndexCount indexType:MTLIndexTypeUInt32 indexBuffer:indexBufAllocation.parentBuffer indexBufferOffset:indexBufAllocation.offset instanceCount:1];
 }
