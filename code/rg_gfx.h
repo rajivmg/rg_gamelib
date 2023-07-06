@@ -78,9 +78,9 @@ enum GfxMemoryType
     //GfxMemoryUsage_CPUReadWrite = (GfxMemoryUsage_CPURead | GfxMemoryUsage_CPUWrite),
 };
 
-// TODO: remove the concept of dynamic buffer
-// GfxBuffer will always be for static data,
-// dynamic data can be stored in FrameAllocator
+// Note:
+// GfxBuffer will always be for static data or shader writable data,
+// cpu updatable dynamic data can be stored in FrameAllocator
 struct GfxBuffer
 {
     rgChar       tag[32];
@@ -93,9 +93,15 @@ struct GfxBuffer
     VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
     VmaAllocation vmaAlloc;
 #endif
+
+    static void fillStruct(void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
+    {
+        obj->size = size;
+        obj->usage = usage;
+    }
     
-    static void allocAndFillStruct();
-    //https://www.ibm.com/docs/en/zos/2.1.0?topic=only-variadic-templates-c11
+    static void create(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj);
+    static void destroy(GfxBuffer* obj);
 };
 
 // Texture type
@@ -137,9 +143,20 @@ struct GfxTexture2D
 #elif defined(RG_VULKAN_RNDR)
     VkImage vkTexture;
     VmaAllocation vmaAlloc;
-#elif defined(RG_OPENGL_RNDR)
-    GLuint glTexture;
 #endif
+
+    static void fillStruct(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
+    {
+        obj->width = width;
+        obj->height = height;
+        obj->format = format;
+        obj->mipCount = genMips ? 8 : 1;
+        obj->usage = usage;
+    }
+
+    static void create(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj);
+    //https://www.ibm.com/docs/en/zos/2.1.0?topic=only-variadic-templates-c11
+    static void destroy(GfxTexture2D* obj);
 };
 
 // Sampler
@@ -179,6 +196,18 @@ struct GfxSampler
     void* mtlSampler;
 #else
 #endif
+
+    static void fillStruct(GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
+    {
+        obj->rstAddressMode = rstAddressMode;
+        obj->minFilter = minFilter;
+        obj->magFilter = magFilter;
+        obj->mipFilter = mipFilter;
+        obj->anisotropy = anisotropy;
+    }
+
+    static void create(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj);
+    static void destroy(GfxSampler* obj);
 };
 
 // RenderPass
@@ -356,6 +385,16 @@ struct GfxGraphicsPSO
     void* mtlDepthStencilState; // type: id<MTLDepthStencilState>
 #elif defined(RG_VULKAN_RNDR)
 #endif
+
+    static void fillStruct(GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
+    {
+        obj->cullMode = renderStateDesc->cullMode;
+        obj->winding = renderStateDesc->winding;
+        obj->triangleFillMode = renderStateDesc->triangleFillMode;
+    }
+
+    static void create(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj);
+    static void destroy(GfxGraphicsPSO* obj);
 };
 
 //-----------------------------------------------------------------------------
@@ -369,7 +408,7 @@ GfxGraphicsPSO* findGraphicsPSO(char const* tag);
 rgInt getFrameIndex();
 }
 
-template <typename Type>
+template<typename Type>
 class GfxBindlessResourceManager
 {
     typedef eastl::vector<Type*> ResourceList;
@@ -462,12 +501,14 @@ public:
 // Gfx Object Registry
 // -------------------
 
-template<typename Type, void DestroyerFn(Type*), typename... Args>
+template<typename Type>
 struct GfxObjectRegistry
 {
+    // TODO: Is it better to directly use the string as key
+    // doing that we will lose the ability to use pre-computed
+    // hash.
     typedef eastl::hash_map<rgHash, Type*> ObjectMap;
     ObjectMap objects;
-    //ObjectMap objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT]; // Bucket for each frame in flight
     eastl::vector<Type*> objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT];
     
     Type* find(rgHash hash)
@@ -496,14 +537,34 @@ struct GfxObjectRegistry
     {
         for(auto itr : objectsToDestroy[g_FrameIndex])
         {
-            DestroyerFn(itr);
+            // TODO: Which one is better here
+            Type::destroy(itr);
+            //Type::destroy(&(*itr));
+            rgDelete(&(*itr));
         }
         objectsToDestroy[g_FrameIndex].clear();
     }
 
-    void create(const char* tag, Args... args)
+    template<typename... Args>
+    Type* create(const char* tag, Args... args)
     {
-        T::allocAndFillStruct(tag, args);
+        rgAssert(tag != nullptr);
+
+        Type* obj = rgNew(Type);
+        strncpy(obj->tag, tag, rgARRAY_COUNT(Type::tag));
+        Type::fillStruct(args..., obj);
+        Type::create(tag, args..., obj);
+        insert(rgCRC32(tag), obj);
+        return obj;
+    }
+
+    template <typename... Args>
+    Type* findOrCreate(const char* tag, Args... args)
+    {
+        rgAssert(tag != nullptr);
+        Type* obj = find(rgCRC32(tag));
+        obj = (obj == nullptr) ? create(tag, args...) : obj;
+        return obj;
     }
     
     typename ObjectMap::iterator begin() EA_NOEXCEPT
@@ -744,10 +805,10 @@ extern rgUInt frameNumber;
 extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 
-extern GfxObjectRegistry<GfxTexture2D, gfx::destroyerGfxTexture2D>* registryTexture2D;
-extern GfxObjectRegistry<GfxBuffer, gfx::destroyerGfxBuffer>* registryBuffer;
-extern GfxObjectRegistry<GfxGraphicsPSO, gfx::destroyerGfxGraphicsPSO>* registryGraphicsPSO;
-extern GfxObjectRegistry<GfxSampler, gfx::destroyerGfxSampler>* registrySampler;
+extern GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
+extern GfxObjectRegistry<GfxBuffer>* registryBuffer;
+extern GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
+extern GfxObjectRegistry<GfxSampler>* registrySampler;
 //extern GfxObjectRegistry<GfxShaderLibrary, gfx::destroyerGfxShaderLibrary>* registryShaderLibrary;
     
 extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;

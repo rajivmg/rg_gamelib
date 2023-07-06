@@ -79,10 +79,10 @@ GfxRenderPass* currentRenderPass;
 GfxRenderCmdEncoder* currentRenderCmdEncoder;
 GfxBlitCmdEncoder* currentBlitCmdEncoder;
 
-GfxObjectRegistry<GfxTexture2D, gfx::destroyerGfxTexture2D>* registryTexture2D;
-GfxObjectRegistry<GfxBuffer, gfx::destroyerGfxBuffer>* registryBuffer;
-GfxObjectRegistry<GfxGraphicsPSO, gfx::destroyerGfxGraphicsPSO>* registryGraphicsPSO;
-GfxObjectRegistry<GfxSampler, gfx::destroyerGfxSampler>* registrySampler;
+GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
+GfxObjectRegistry<GfxBuffer>* registryBuffer;
+GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
+GfxObjectRegistry<GfxSampler>* registrySampler;
 
 GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
@@ -122,10 +122,10 @@ Matrix4 createPerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRat
 
 rgInt preInit()
 {
-    gfx::registryTexture2D = rgNew(GfxObjectRegistry<GfxTexture2D RG_COMMA gfx::destroyerGfxTexture2D>);
-    gfx::registryBuffer = rgNew(GfxObjectRegistry<GfxBuffer RG_COMMA gfx::destroyerGfxBuffer>);
-    gfx::registryGraphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO RG_COMMA gfx::destroyerGfxGraphicsPSO>);
-    gfx::registrySampler = rgNew(GfxObjectRegistry<GfxSampler RG_COMMA gfx::destroyerGfxSampler>);
+    gfx::registryBuffer = rgNew(GfxObjectRegistry<GfxBuffer>);
+    gfx::registrySampler = rgNew(GfxObjectRegistry<GfxSampler>);
+    gfx::registryTexture2D = rgNew(GfxObjectRegistry<GfxTexture2D>);
+    gfx::registryGraphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
 
     gfx::bindlessManagerTexture2D = rgNew(GfxBindlessResourceManager<GfxTexture2D>);
     
@@ -246,95 +246,16 @@ GfxBlitCmdEncoder* setBlitPass(char const* tag)
 // --------------------
 
 // --------------------
-
-void allocAndFillTexture2DStruct(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D** obj)
-{
-    *obj = rgNew(GfxTexture2D);
-    rgAssert(tag != nullptr);
-    strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxTexture2D::tag));
-    (*obj)->width = width;
-    (*obj)->height = height;
-    (*obj)->format = format;
-    (*obj)->mipCount = genMips ? 8 : 1;
-    (*obj)->usage = usage;
-}
-
-void deallocTexture2DStruct(GfxTexture2D* obj)
-{
-    rgDelete(obj);
-}
-
-GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage)
-{
-    return createTexture2D(tag, texture->buf, texture->width, texture->height, texture->format, genMips, usage);
-}
-
-GfxTexture2D* createTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage)
-{
-    GfxTexture2D* objPtr;
-    allocAndFillTexture2DStruct(tag, buf, width, height, format, genMips, usage, &objPtr);
-    creatorGfxTexture2D(tag, buf, width, height, format, genMips, usage, objPtr);
-    gfx::registryTexture2D->insert(rgCRC32(tag), objPtr);
-    return objPtr;
-}
-
-GfxTexture2D* findOrCreateTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage)
-{
-    GfxTexture2D* objPtr = gfx::registryTexture2D->find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? createTexture2D(tag, buf, width, height, format, genMips, usage) : objPtr;
-    return objPtr;
-}
-
-GfxTexture2D* findTexture2D(rgHash tagHash)
-{
-    return gfx::registryTexture2D->find(tagHash);
-}
-
-GfxTexture2D* findTexture2D(char const* tag)
-{
-    return findTexture2D(rgCRC32(tag));
-}
-
-void destroyTexture2D(rgHash tagHash)
-{
-    gfx::registryTexture2D->markForDestroy(tagHash);
-}
-
-void destroyTexture2D(char const* tag)
-{
-    gfx::registryTexture2D->markForDestroy(rgCRC32(tag));
-}
-
 ///
-
-void allocAndFillBufferStruct(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer** obj)
-{
-    *obj = rgNew(GfxBuffer);
-    rgAssert(tag != nullptr);
-    strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxBuffer::tag));
-    (*obj)->size = size;
-    (*obj)->usage = usage;
-}
-
-void deallocBufferStruct(GfxBuffer* obj)
-{
-    rgDelete(obj);
-}
 
 GfxBuffer* createBuffer(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage)
 {
-    GfxBuffer* objPtr;
-    allocAndFillBufferStruct(tag, buf, size, usage, &objPtr);
-    creatorGfxBuffer(tag, buf, size, usage, objPtr);
-    gfx::registryBuffer->insert(rgCRC32(tag), objPtr);
-    return objPtr;
+    return gfx::registryBuffer->create(tag, buf, size, usage);
 }
 
 GfxBuffer* findOrCreateBuffer(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage)
 {
-    GfxBuffer* objPtr = gfx::registryBuffer->find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? createBuffer(tag, buf, size, usage) : objPtr;
-    return objPtr;
+    return gfx::registryBuffer->findOrCreate(tag, buf, size, usage);
 }
 
 GfxBuffer* findBuffer(rgHash tagHash)
@@ -359,35 +280,83 @@ void destroyBuffer(char const* tag)
 
 ///
 
-void allocAndFillGraphicsPSOStruct(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO** obj)
+GfxSampler* createSampler(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy)
 {
-    *obj = rgNew(GfxGraphicsPSO);
-    rgAssert(tag != nullptr);
-    strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxGraphicsPSO::tag));
-    (*obj)->cullMode = renderStateDesc->cullMode;
-    (*obj)->winding = renderStateDesc->winding;
-    (*obj)->triangleFillMode = renderStateDesc->triangleFillMode;
+    return gfx::registrySampler->create(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy);
 }
 
-void deallocGraphicsPSOStruct(GfxGraphicsPSO* obj)
+GfxSampler* findOrCreateSampler(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy)
 {
-    rgDelete(obj);
+    return gfx::registrySampler->findOrCreate(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy);
 }
+
+GfxSampler* findSampler(rgHash tagHash)
+{
+    return gfx::registrySampler->find(tagHash);
+}
+
+GfxSampler* findSampler(char const* tag)
+{
+    return findSampler(rgCRC32(tag));
+}
+
+void destroySampler(rgHash tagHash)
+{
+    gfx::registrySampler->markForDestroy(tagHash);
+}
+
+void destroySampler(char const* tag)
+{
+    gfx::registrySampler->markForDestroy(rgCRC32(tag));
+}
+
+// ---
+
+GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage)
+{
+    return createTexture2D(tag, texture->buf, texture->width, texture->height, texture->format, genMips, usage);
+}
+
+GfxTexture2D* createTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage)
+{
+    return gfx::registryTexture2D->create(tag, buf, width, height, format, genMips, usage);
+}
+
+GfxTexture2D* findOrCreateTexture2D(const char* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage)
+{
+    return gfx::registryTexture2D->findOrCreate(tag, buf, width, height, format, genMips, usage);
+}
+
+GfxTexture2D* findTexture2D(rgHash tagHash)
+{
+    return gfx::registryTexture2D->find(tagHash);
+}
+
+GfxTexture2D* findTexture2D(char const* tag)
+{
+    return findTexture2D(rgCRC32(tag));
+}
+
+void destroyTexture2D(rgHash tagHash)
+{
+    gfx::registryTexture2D->markForDestroy(tagHash);
+}
+
+void destroyTexture2D(char const* tag)
+{
+    gfx::registryTexture2D->markForDestroy(rgCRC32(tag));
+}
+
+///
 
 GfxGraphicsPSO* createGraphicsPSO(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
-    GfxGraphicsPSO* objPtr;
-    allocAndFillGraphicsPSOStruct(tag, vertexInputDesc, shaderDesc, renderStateDesc, &objPtr);
-    creatorGfxGraphicsPSO(tag, vertexInputDesc, shaderDesc, renderStateDesc, objPtr);
-    gfx::registryGraphicsPSO->insert(rgCRC32(tag), objPtr);
-    return objPtr;
+    return gfx::registryGraphicsPSO->create(tag, vertexInputDesc, shaderDesc, renderStateDesc);
 }
 
 GfxGraphicsPSO* findOrCreateGraphicsPSO(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc)
 {
-    GfxGraphicsPSO* objPtr = gfx::registryGraphicsPSO->find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? createGraphicsPSO(tag, vertexInputDesc, shaderDesc, renderStateDesc) : objPtr;
-    return objPtr;
+    return gfx::registryGraphicsPSO->findOrCreate(tag, vertexInputDesc, shaderDesc, renderStateDesc);
 }
 
 GfxGraphicsPSO* findGraphicsPSO(rgHash tagHash)
@@ -410,60 +379,7 @@ void destroyGraphicsPSO(char const* tag)
     gfx::registryGraphicsPSO->markForDestroy(rgCRC32(tag));
 }
 
-///
-
-void allocAndFillSamplerStruct(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler** obj)
-{
-    *obj = rgNew(GfxSampler);
-    rgAssert(tag != nullptr);
-    strncpy((*obj)->tag, tag, rgARRAY_COUNT(GfxSampler::tag));
-    (*obj)->rstAddressMode = rstAddressMode;
-    (*obj)->minFilter = minFilter;
-    (*obj)->magFilter = magFilter;
-    (*obj)->mipFilter = mipFilter;
-    (*obj)->anisotropy = anisotropy;
-}
-
-void deallocSamplerStruct(GfxSampler* obj)
-{
-    rgDelete(obj);
-}
-
-GfxSampler* createSampler(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy)
-{
-    GfxSampler* objPtr;
-    allocAndFillSamplerStruct(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy, &objPtr);
-    creatorGfxSampler(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy, objPtr);
-    gfx::registrySampler->insert(rgCRC32(tag), objPtr);
-    return objPtr;
-}
-
-GfxSampler* findOrCreateSampler(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy)
-{
-    GfxSampler* objPtr = gfx::registrySampler->find(rgCRC32(tag));
-    objPtr = (objPtr == nullptr) ? createSampler(tag, rstAddressMode, minFilter, magFilter, mipFilter, anisotropy) : objPtr;
-    return objPtr;
-}
-
-GfxSampler* findSampler(rgHash tagHash)
-{
-    return gfx::registrySampler->find(tagHash);
-}
-
-GfxSampler* findSampler(char const* tag)
-{
-    return findSampler(rgCRC32(tag));
-}
-
-void destroySampler(rgHash tagHash)
-{
-    gfx::registrySampler->markForDestroy(tagHash);
-}
-
-void destroySampler(char const* tag)
-{
-    gfx::registrySampler->markForDestroy(rgCRC32(tag));
-}
+// ------
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams)
 {

@@ -613,8 +613,17 @@ void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr)
 {
 }
 
+// -----------------------------------------------
+// GPU Resource Creators Deleters and Modifers
+// -----------------------------------------------
+// SECTION ENDS -
+
+RG_END_GFX_NAMESPACE
+
+using namespace gfx;
+
 // Buffer
-void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
+void GfxBuffer::create(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
 {
     ComPtr<ID3D12Resource> bufferResource;
 
@@ -651,23 +660,25 @@ void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usa
     d3d.triVBView.SizeInBytes = vbSize;
 }
 
-void updaterGfxBuffer(void* data, rgUInt size, rgUInt offset, GfxBuffer* buffer)
+void GfxBuffer::destroy(GfxBuffer* obj)
 {
 
 }
 
-void destroyerGfxBuffer(GfxBuffer* obj)
+void GfxSampler::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
 {
-
 }
 
-// Texture
-void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
+void GfxSampler::destroy(GfxSampler* obj)
+{
+}
+
+void GfxTexture2D::create(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
 {
     ComPtr<ID3D12Resource> textureResouce;
 
     DXGI_FORMAT textureFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
-    
+
     D3D12_CLEAR_VALUE* clearValue = nullptr;
     D3D12_CLEAR_VALUE initialClearValue = {};
     initialClearValue.Format = textureFormat;
@@ -685,7 +696,7 @@ void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height
         initialClearValue.Color[3] = 0;
         clearValue = &initialClearValue;
     }
-    
+
     D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_NONE;
     D3D12_RESOURCE_STATES resourceState = D3D12_RESOURCE_STATE_COMMON;
     if(usage & GfxTextureUsage_ShaderReadWrite)
@@ -741,20 +752,10 @@ void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height
     }
 
     obj->d3dTexture = textureResouce;
-
-    //GfxTexture2D* dsTex = rgNew(GfxTexture2D);
-    //strncpy(dsTex->tag, "DepthStencilTarget", 32);
-    //dsTex->width = (rgUInt)dsResdesc.Width;
-    //dsTex->height = (rgUInt)dsResdesc.Height;
-    //dsTex->usage = GfxTextureUsage_RenderTarget;
-    //dsTex->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)dsResdesc.Format);
-    //dsTex->d3dTexture = dsResource;
-    //gfxCtx()->depthStencilBuffer = gfxNewTexture2D(dsTex);
 }
 
-void destroyerGfxTexture2D(GfxTexture2D* obj)
+void GfxTexture2D::destroy(GfxTexture2D* obj)
 {
-
 }
 
 // PSO
@@ -770,15 +771,15 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
     {
         switch(s)
         {
-        case GfxStage_VS:
-            return "vs";
-            break;
-        case GfxStage_FS:
-            return "fs";
-            break;
-        case GfxStage_CS:
-            return "cs";
-            break;
+            case GfxStage_VS:
+                return "vs";
+                break;
+            case GfxStage_FS:
+                return "fs";
+                break;
+            case GfxStage_CS:
+                return "cs";
+                break;
         }
         return nullptr;
     };
@@ -914,7 +915,7 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
     //ComPtr<IDxcBlob> shaderHashBlob;
     //checkHR(result->GetOutput(DXC_OUT_SHADER_HASH, IID_PPV_ARGS(&shaderHashBlob), nullptr));
     //DxcShaderHash* shaderHashBuffer = (DxcShaderHash*)shaderHashBlob->GetBufferPointer();
-    
+
     // write pdb to preferred write path
     ComPtr<IDxcBlob> shaderPdbBlob;
     ComPtr<IDxcBlobUtf16> shaderPdbPath;
@@ -971,9 +972,9 @@ void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vecto
 
                 // zero means bindless
                 rgU32 bindCount = shaderInputBindDesc.BindCount ? shaderInputBindDesc.BindCount : 65536;
-                
+
                 CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(descRangeType,
-                    bindCount, 
+                    bindCount,
                     shaderInputBindDesc.BindPoint,
                     shaderInputBindDesc.Space,
                     D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
@@ -1006,7 +1007,7 @@ void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vecto
     }
 }
 
-void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
+void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     // compile shader
     BuildShaderResult vertexShader, fragmentShader;
@@ -1147,29 +1148,9 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     obj->d3dPSO = pso;
 }
 
-void destroyerGfxGraphicsPSO(GfxGraphicsPSO* obj)
+void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
 {
-
 }
-
-void creatorGfxSampler(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
-{
-
-}
-
-void destroyerGfxSampler(GfxSampler* obj)
-{
-
-}
-
-// -----------------------------------------------
-// GPU Resource Creators Deleters and Modifers
-// -----------------------------------------------
-// SECTION ENDS -
-
-RG_END_GFX_NAMESPACE
-
-using namespace gfx;
 
 // SECTION BEGIN -
 // -----------------------------------------------
