@@ -95,6 +95,8 @@ eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
 GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
 GfxTexture2D* depthStencilBuffer;
 
+GfxSampler* bilinearSampler;
+
 Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue)
 {
     rgFloat length = 1.0f / (right - left);
@@ -145,6 +147,8 @@ rgInt initCommonStuff()
     //ctx->orthographicMatrix = shiftZHalf * scaleZHalf * ctx->orthographicMatrix;
     gfx::orthographicMatrix = makeOrthoProjection(0.0f, g_WindowInfo.width, g_WindowInfo.height, 0.0f, 0.1f, 1000.0f);
 #endif
+    
+    gfx::createSampler("bilinearSampler", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
     
     return 0;
 }
@@ -509,9 +513,9 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         vertices->push_back(v[3]);
         vertices->push_back(v[2]);
         
-        instanceParams->texID[i] = t.texID;
+        instanceParams->texParam[i][0] = t.texID;
     }
-}
+} 
 
 RG_END_GFX_NAMESPACE
 RG_END_RG_NAMESPACE

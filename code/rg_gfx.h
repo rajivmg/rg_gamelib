@@ -775,7 +775,7 @@ struct SimpleVertexFormat
 
 struct SimpleInstanceParams
 {
-    rgU32 texID[1024];
+    rgU32 texParam[1024][4];
 };
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams);
@@ -810,9 +810,7 @@ extern eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
 extern GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
 extern GfxTexture2D* depthStencilBuffer;
     
-// RenderCmdTexturedQuads
-extern GfxBuffer* rcTexturedQuadsVB;
-extern GfxBuffer* rcTexturedQuadsInstParams;
+extern GfxSampler* bilinearSampler;
 
 //-----------------------------------------------------------------------------
 // API Specific Graphic Context Data

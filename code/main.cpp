@@ -242,6 +242,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         // Draw bunny to quick implement lighting models
         // TODO: Use drawTriangles() and bindBuffer() bindTexture() functions ...
         // ... when the prototype is done.
+        /*
         GfxRenderPass myWorld3dPass = {};
         myWorld3dPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
         myWorld3dPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
@@ -254,6 +255,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         myWorld3dRenderEncoder->setGraphicsPSO("principledBrdf");
         myWorld3dRenderEncoder->drawBunny();
         myWorld3dRenderEncoder->end();
+        */
     }
     
     rgHash a = rgCRC32("hello world");

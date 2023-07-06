@@ -890,7 +890,7 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     bindlessTextureBinding.basetype = spirv_cross::SPIRType::Image;
     bindlessTextureBinding.desc_set = 7;
     bindlessTextureBinding.binding = 0;
-    bindlessTextureBinding.count = 65536;
+    bindlessTextureBinding.count = 256; // TODO: increase
     
     bindlessTextureBinding.stage = spv::ExecutionModelVertex;
     msl.add_msl_resource_binding(bindlessTextureBinding);
@@ -1358,7 +1358,8 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     
     setBuffer(&(cameraBuffer.bufferFacade), cameraBuffer.offset, "camera");
     setBuffer(&(instanceParamsBuffer.bufferFacade), instanceParamsBuffer.offset, "instanceParams");
-    // TODO: setSampler(globalNearestLibnesrSampler);//
+    setSampler(gfx::findSampler("bilinearSampler"), "simpleSampler");
+    [cmdEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     // TODO: Bindless texture binding
     
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];

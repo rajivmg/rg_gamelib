@@ -11,12 +11,12 @@ struct VertexOut
     float4 position : SV_POSITION;
     float2 texcoord : TEXCOORD;
     half4 color : COLOR;
-    nointerpolation uint instanceId : INSTANCE;
+    nointerpolation uint instanceID : INSTANCE;
 };
 
 struct SimpleInstanceParams
 {
-    uint texIds[MAX_INSTANCES];
+    uint4 texID[MAX_INSTANCES];
 };
 
 struct Camera
@@ -31,20 +31,20 @@ Texture2D<float4> bindlessTexture2D[] : register(t0, space7);
 
 SamplerState simpleSampler : register(s0, space0);
 
-VertexOut vsSimple2d(in Vertex2D v, uint instanceId : SV_INSTANCEID)
+VertexOut vsSimple2d(in Vertex2D v, uint vertexID : SV_VERTEXID, uint instanceID : SV_INSTANCEID)
 {
     VertexOut output;
     output.position = mul(camera.projection2d, mul(camera.view2d, float4(v.pos, 1.0)));
     output.texcoord = v.texcoord;
     output.color  = half4(v.color);
-    output.instanceId = instanceId;
+    output.instanceID = vertexID / 6;
     return output;
 }
 
 half4 fsSimple2d(in VertexOut f) : SV_TARGET
 {
     //return f.color;
-    uint texIndex = instanceParams.texIds[f.instanceId];
+    uint texIndex = instanceParams.texID[f.instanceID].x;
     half4 color = bindlessTexture2D[texIndex].Sample(simpleSampler, f.texcoord);
     return half4(color);
 }
