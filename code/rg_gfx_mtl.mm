@@ -34,10 +34,9 @@ gfx::Mtl* mtl = nullptr;
 static const rgU32 kBindlessTextureSetBinding = 7;
 static const rgU32 kFrameParamsSetBinding = 6;
 
-//////////////////////////////////////////////////////////////////////////////
-//
+//-----------------------------------------------------------------------------
 // Helper Functions
-//
+//-----------------------------------------------------------------------------
 
 static id<MTLDevice> getMTLDevice()
 {
@@ -59,6 +58,55 @@ id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
     return (__bridge id<MTLRenderCommandEncoder>)currentRenderCmdEncoder->renderCmdEncoder;
 }
 
+id<MTLTexture> getMTLTexture(GfxTexture2D* obj)
+{
+     return (__bridge id<MTLTexture>)(obj->mtlTexture);
+}
+
+id<MTLBuffer> getMTLBuffer(GfxBuffer* obj)
+{
+    return (__bridge id<MTLBuffer>)(obj->mtlBuffer);
+}
+
+id<MTLSamplerState> getMTLSamplerState(GfxSampler* obj)
+{
+    return (__bridge id<MTLSamplerState>)(obj->mtlSampler);
+}
+
+id<MTLRenderPipelineState> getMTLRenderPipelineState(GfxGraphicsPSO* obj)
+{
+    return (__bridge id<MTLRenderPipelineState>)(obj->mtlPSO);
+}
+
+id<MTLDepthStencilState> getMTLDepthStencilState(GfxGraphicsPSO* obj)
+{
+    return (__bridge id<MTLDepthStencilState>)(obj->mtlDepthStencilState);
+}
+
+MTLWinding getMTLWinding(GfxGraphicsPSO* obj)
+{
+   return (obj->winding == GfxWinding_CCW) ? MTLWindingCounterClockwise : MTLWindingClockwise;
+}
+
+MTLCullMode getMTLCullMode(GfxGraphicsPSO* obj)
+{
+    MTLCullMode result = MTLCullModeNone;
+    if(obj->cullMode == GfxCullMode_Front)
+    {
+        result = MTLCullModeFront;
+    }
+    else if(obj->cullMode == GfxCullMode_Back)
+    {
+        result = MTLCullModeBack;
+    }
+    return result;
+}
+
+MTLTriangleFillMode getMTLTriangleFillMode(GfxGraphicsPSO* obj)
+{
+    return (obj->triangleFillMode == GfxTriangleFillMode_Fill) ? MTLTriangleFillModeFill : MTLTriangleFillModeLines;
+}
+
 id<MTLRenderCommandEncoder> asMTLRenderCommandEncoder(void* ptr)
 {
     return (__bridge id<MTLRenderCommandEncoder>)ptr;
@@ -69,6 +117,10 @@ id<MTLBlitCommandEncoder> asMTLBlitCommandEncoder(void* ptr)
     return (__bridge id<MTLBlitCommandEncoder>)ptr;
 }
 
+id<MTLSamplerState> asMTLSamplerState(void* ptr)
+{
+    return (__bridge id<MTLSamplerState>)(ptr);
+}
 
 MTLResourceOptions toMTLResourceOptions(GfxBufferUsage usage, rgBool dynamic)
 {
@@ -140,58 +192,9 @@ MTLPixelFormat toMTLPixelFormat(TinyImageFormat fmt)
     return (MTLPixelFormat)TinyImageFormat_ToMTLPixelFormat(fmt);
 }
 
-id<MTLTexture> getMTLTexture(GfxTexture2D* obj)
-{
-     return (__bridge id<MTLTexture>)(obj->mtlTexture);
-}
-
-id<MTLBuffer> getMTLBuffer(GfxBuffer* obj)
-{
-    return (__bridge id<MTLBuffer>)(obj->mtlBuffer);
-}
-
-id<MTLSamplerState> getMTLSamplerState(GfxSampler* obj)
-{
-    return (__bridge id<MTLSamplerState>)(obj->mtlSampler);
-}
-
 MTLClearColor toMTLClearColor(rgFloat4* color)
 {
     return MTLClearColorMake(color->r, color->g, color->b, color->a);
-}
-
-id<MTLRenderPipelineState> getMTLRenderPipelineState(GfxGraphicsPSO* obj)
-{
-    return (__bridge id<MTLRenderPipelineState>)(obj->mtlPSO);
-}
-
-id<MTLDepthStencilState> getMTLDepthStencilState(GfxGraphicsPSO* obj)
-{
-    return (__bridge id<MTLDepthStencilState>)(obj->mtlDepthStencilState);
-}
-
-MTLWinding getMTLWinding(GfxGraphicsPSO* obj)
-{
-   return (obj->winding == GfxWinding_CCW) ? MTLWindingCounterClockwise : MTLWindingClockwise;
-}
-
-MTLCullMode getMTLCullMode(GfxGraphicsPSO* obj)
-{
-    MTLCullMode result = MTLCullModeNone;
-    if(obj->cullMode == GfxCullMode_Front)
-    {
-        result = MTLCullModeFront;
-    }
-    else if(obj->cullMode == GfxCullMode_Back)
-    {
-        result = MTLCullModeBack;
-    }
-    return result;
-}
-
-MTLTriangleFillMode getMTLTriangleFillMode(GfxGraphicsPSO* obj)
-{
-    return (obj->triangleFillMode == GfxTriangleFillMode_Fill) ? MTLTriangleFillModeFill : MTLTriangleFillModeLines;
 }
 
 MTLVertexFormat toMTLVertexFormat(TinyImageFormat fmt)
@@ -250,17 +253,6 @@ MTLCompareFunction toMTLCompareFunction(GfxCompareFunc func)
     return result;
 }
 
-GfxTexture2D createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
-{
-    GfxTexture2D texture2d;
-    texture2d.mtlTexture = (__bridge MTL::Texture*)drawable.texture;
-    return texture2d;
-}
-
-// 
-// SamplerState related helpers
-//
-
 MTLSamplerAddressMode toMTLSamplerAddressMode(GfxSamplerAddressMode addressMode)
 {
     MTLSamplerAddressMode result;
@@ -306,9 +298,11 @@ MTLSamplerMipFilter toMTLSamplerMipFilter(GfxSamplerMipFilter filter)
     return result;
 }
 
-id<MTLSamplerState> asMTLSamplerState(void* ptr)
+GfxTexture2D createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
 {
-    return (__bridge id<MTLSamplerState>)(ptr);
+    GfxTexture2D texture2d;
+    texture2d.mtlTexture = (__bridge MTL::Texture*)drawable.texture;
+    return texture2d;
 }
 
 void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
@@ -320,10 +314,9 @@ void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////
-//
-// Frame allocator
-//
+//-----------------------------------------------------------------------------
+// Frame Resource Allocator
+//-----------------------------------------------------------------------------
 
 struct AllocationResult
 {
@@ -455,10 +448,9 @@ struct Camera
 };
 ///
 
-//////////////////////////////////////////////////////////////////////////////
-//
-// MTL backend variables - states info, obj instances etc
-//
+//-----------------------------------------------------------------------------
+// MTL backend states & instances
+//-----------------------------------------------------------------------------
 
 static FrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
@@ -476,16 +468,14 @@ static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 // Current state
 static GfxGraphicsPSO* boundGraphicsPSO;
 
-
 FrameAllocator* getFrameAllocator()
 {
     return frameAllocators[g_FrameIndex];
 }
 
-//////////////////////////////////////////////////////////////////////////////
-//
-// Implement Gfx backend functions
-//
+//-----------------------------------------------------------------------------
+// Call from main | loop init() destroy() startNextFrame() endFrame()
+//-----------------------------------------------------------------------------
 
 rgInt init()
 {
@@ -680,15 +670,12 @@ void checkerWaitTillFrameCompleted(rgInt frameIndex)
 
 RG_END_GFX_NAMESPACE
 
+// TODO: remove this
 using namespace gfx;
 
-
-//
-
-//////////////////////////////////////////////////////////////////////////////
-//
+//-----------------------------------------------------------------------------
 // GfxBuffer Implementation
-//
+//-----------------------------------------------------------------------------
 
 void GfxBuffer::create(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
 {
@@ -720,10 +707,9 @@ void GfxBuffer::destroy(GfxBuffer* obj)
     obj->mtlBuffer->release();
 }
 
-//////////////////////////////////////////////////////////////////////////////
-//
-// GfxSamplerState Implementation
-//
+//-----------------------------------------------------------------------------
+// GfxSampler Implementation
+//-----------------------------------------------------------------------------
 
 void GfxSampler::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
 {
@@ -750,10 +736,9 @@ void GfxSampler::destroy(GfxSampler* obj)
     [asMTLSamplerState(obj->mtlSampler) release];
 }
 
-//////////////////////////////////////////////////////////////////////////////
-//
+//-----------------------------------------------------------------------------
 // GfxTexture2D Implementation
-//
+//-----------------------------------------------------------------------------
 
 void GfxTexture2D::create(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
 {
@@ -786,10 +771,9 @@ void GfxTexture2D::destroy(GfxTexture2D* obj)
     obj->mtlTexture->release();
 }
 
-//////////////////////////////////////////////////////////////////////////////
-//
+//-----------------------------------------------------------------------------
 // GfxGraphicsPSO Implementation
-//
+//-----------------------------------------------------------------------------
 
 id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, GfxGraphicsPSO* obj)
 {
@@ -1148,7 +1132,9 @@ void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
     [getMTLRenderPipelineState(obj) release];
 }
 
-//
+//-----------------------------------------------------------------------------
+// GfxRenderCmdEncoder Implementation
+//-----------------------------------------------------------------------------
 
 void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 {
@@ -1434,7 +1420,9 @@ void GfxRenderCmdEncoder::drawBunny()
     [rce drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:bunnyModelIndexCount indexType:MTLIndexTypeUInt32 indexBuffer:indexBufAllocation.parentBuffer indexBufferOffset:indexBufAllocation.offset instanceCount:1];
 }
 
-// -------------------------------------------
+//-----------------------------------------------------------------------------
+// GfxBlitCmdEncoder Implementation
+//-----------------------------------------------------------------------------
 
 void GfxBlitCmdEncoder::begin()
 {
