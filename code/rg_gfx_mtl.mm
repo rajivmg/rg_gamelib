@@ -678,12 +678,19 @@ void checkerWaitTillFrameCompleted(rgInt frameIndex)
     }
 }
 
+RG_END_GFX_NAMESPACE
+
+using namespace gfx;
+
+
+//
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // GfxBuffer Implementation
 //
 
-void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
+void GfxBuffer::create(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
 {
     if(usage != GfxBufferUsage_ShaderRW)
     {
@@ -708,9 +715,75 @@ void creatorGfxBuffer(char const* tag, void* buf, rgU32 size, GfxBufferUsage usa
     obj->mtlBuffer = (__bridge MTL::Buffer*)mtlBuffer;
 }
 
-void destroyerGfxBuffer(GfxBuffer* obj)
+void GfxBuffer::destroy(GfxBuffer* obj)
 {
     obj->mtlBuffer->release();
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// GfxSamplerState Implementation
+//
+
+void GfxSampler::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
+{
+    MTLSamplerDescriptor* desc = [MTLSamplerDescriptor new];
+    desc.rAddressMode = toMTLSamplerAddressMode(rstAddressMode);
+    desc.sAddressMode = toMTLSamplerAddressMode(rstAddressMode);
+    desc.tAddressMode = toMTLSamplerAddressMode(rstAddressMode);
+    
+    desc.minFilter = toMTLSamplerMinMagFilter(minFilter);
+    desc.magFilter = toMTLSamplerMinMagFilter(magFilter);
+    desc.mipFilter = toMTLSamplerMipFilter(mipFilter);
+    desc.maxAnisotropy = anisotropy ? 16 : 1;
+
+    desc.label = [NSString stringWithUTF8String:tag];
+    
+    id<MTLSamplerState> samplerState = [getMTLDevice() newSamplerStateWithDescriptor:desc];
+    [desc release];
+    
+    obj->mtlSampler = (__bridge void*)samplerState;
+}
+
+void GfxSampler::destroy(GfxSampler* obj)
+{
+    [asMTLSamplerState(obj->mtlSampler) release];
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// GfxTexture2D Implementation
+//
+
+void GfxTexture2D::create(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
+{
+    MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];
+    texDesc.width = width;
+    texDesc.height = height;
+    texDesc.pixelFormat = toMTLPixelFormat(format);
+    texDesc.textureType = MTLTextureType2D;
+    texDesc.storageMode = MTLStorageModeShared;
+    texDesc.usage = toMTLTextureUsage(usage);
+    //texDesc.resourceOptions = toMTLResourceOptions(usage);
+    
+    //id<MTLTexture> mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc];
+    id<MTLTexture> mtlTexture = [bindlessTextureHeap newTextureWithDescriptor:texDesc];
+    mtlTexture.label = [NSString stringWithUTF8String:tag];
+    [texDesc release];
+    
+    // copy the texture data
+    if(buf != NULL)
+    {
+        MTLRegion region = MTLRegionMake2D(0, 0, width, height);
+        [mtlTexture replaceRegion:region mipmapLevel:0 withBytes:buf bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
+    }
+
+    obj->mtlTexture = (__bridge MTL::Texture*)mtlTexture;
+}
+
+void GfxTexture2D::destroy(GfxTexture2D* obj)
+{
+    obj->mtlTexture->release();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -970,7 +1043,7 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     // TODO: release shader lib
 }
 
-void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
+void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     @autoreleasepool
     {
@@ -1070,80 +1143,12 @@ void creatorGfxGraphicsPSO(char const* tag, GfxVertexInputDesc* vertexInputDesc,
     }
 }
 
-void destroyerGfxGraphicsPSO(GfxGraphicsPSO* obj)
+void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
 {
     [getMTLRenderPipelineState(obj) release];
 }
 
-//////////////////////////////////////////////////////////////////////////////
 //
-// GfxTexture2D Implementation
-//
-
-void creatorGfxTexture2D(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
-{
-    MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];
-    texDesc.width = width;
-    texDesc.height = height;
-    texDesc.pixelFormat = toMTLPixelFormat(format);
-    texDesc.textureType = MTLTextureType2D;
-    texDesc.storageMode = MTLStorageModeShared;
-    texDesc.usage = toMTLTextureUsage(usage);
-    //texDesc.resourceOptions = toMTLResourceOptions(usage);
-    
-    //id<MTLTexture> mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc];
-    id<MTLTexture> mtlTexture = [bindlessTextureHeap newTextureWithDescriptor:texDesc];
-    mtlTexture.label = [NSString stringWithUTF8String:tag];
-    [texDesc release];
-    
-    // copy the texture data
-    if(buf != NULL)
-    {
-        MTLRegion region = MTLRegionMake2D(0, 0, width, height);
-        [mtlTexture replaceRegion:region mipmapLevel:0 withBytes:buf bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
-    }
-
-    obj->mtlTexture = (__bridge MTL::Texture*)mtlTexture;
-}
-
-void destroyerGfxTexture2D(GfxTexture2D* obj)
-{
-    obj->mtlTexture->release();
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-// GfxSamplerState Implementation
-//
-
-void creatorGfxSampler(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
-{
-    MTLSamplerDescriptor* desc = [MTLSamplerDescriptor new];
-    desc.rAddressMode = toMTLSamplerAddressMode(rstAddressMode);
-    desc.sAddressMode = toMTLSamplerAddressMode(rstAddressMode);
-    desc.tAddressMode = toMTLSamplerAddressMode(rstAddressMode);
-    
-    desc.minFilter = toMTLSamplerMinMagFilter(minFilter);
-    desc.magFilter = toMTLSamplerMinMagFilter(magFilter);
-    desc.mipFilter = toMTLSamplerMipFilter(mipFilter);
-    desc.maxAnisotropy = anisotropy ? 16 : 1;
-
-    desc.label = [NSString stringWithUTF8String:tag];
-    
-    id<MTLSamplerState> samplerState = [getMTLDevice() newSamplerStateWithDescriptor:desc];
-    [desc release];
-    
-    obj->mtlSampler = (__bridge void*)samplerState;
-}
-
-void destroyerGfxSampler(GfxSampler* obj)
-{
-    [asMTLSamplerState(obj->mtlSampler) release];
-}
-
-RG_END_GFX_NAMESPACE
-
-using namespace gfx;
 
 void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 {
