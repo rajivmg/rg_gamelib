@@ -33,6 +33,7 @@ gfx::Mtl* mtl = nullptr;
 
 static const rgU32 kBindlessTextureSetBinding = 7;
 static const rgU32 kFrameParamsSetBinding = 6;
+static rgU32 const kMaxMTLArgumentTableBufferSlot = 30;
 
 //-----------------------------------------------------------------------------
 // Helper Functions
@@ -1090,7 +1091,8 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
             vertexDescriptor.attributes[a].format = toMTLVertexFormat(vertexInputDesc->elements[a].format);
             vertexDescriptor.attributes[a].offset = vertexInputDesc->elements[a].offset;
             
-            rgUInt bufferIndex = vertexInputDesc->elements[a].bufferIndex;
+            rgUInt bufferIndex = kMaxMTLArgumentTableBufferSlot - vertexInputDesc->elements[a].bufferIndex;
+            rgAssert(bufferIndex > 0 && bufferIndex <= kMaxMTLArgumentTableBufferSlot);
             if(layoutSet.count(bufferIndex) == 0)
             {
                 layoutSet[bufferIndex].first = 0;
@@ -1220,6 +1222,14 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
     [cmdEncoder setTriangleFillMode:gfx::getMTLTriangleFillMode(pso)];
     
     boundGraphicsPSO = pso;
+}
+
+void GfxRenderCmdEncoder::setVertexBuffer(GfxBuffer const* buffer, rgU32 offset, rgU32 slot)
+{
+    rgU32 const maxBufferBindIndex = 30;
+    rgU32 bindpoint = maxBufferBindIndex - slot;
+    rgAssert(bindpoint > 0 && bindpoint < 31);
+    [asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:slot];
 }
 
 void GfxRenderCmdEncoder::setBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag)

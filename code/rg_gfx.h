@@ -652,7 +652,10 @@ struct GfxRenderCmdEncoder
         rgAssert(ptr != NULL);
         setGraphicsPSO(ptr);
     }
-    
+
+    void setVertexBuffer(rgU32 startSlot, rgU32 numBuffers, const GfxBuffer* buffers);
+
+     // TODO: rename to bindBuffer(const GfxBuffer* buffer...)
     void setBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
     void setBuffer(char const* bufferTag, rgU32 offset, char const* bindingTag);
     void setTexture2D(GfxTexture2D* texture, char const* bindingTag);

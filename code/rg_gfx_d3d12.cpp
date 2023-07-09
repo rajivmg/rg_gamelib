@@ -233,7 +233,7 @@ ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(D3D12_COMMAND_LIST_T
 // TODO: Create a frameallocator and use it as upload heap for texture and buffers
 // https://learn.microsoft.com/en-us/windows/win32/direct3d12/upload-and-readback-of-texture-data
 
-struct AllocationResult
+struct GfxFrameResourceMemory
 {
     rgU32 offset;
     void* ptr;
@@ -241,30 +241,30 @@ struct AllocationResult
     //id<MTLBuffer> parentBuffer; 
 };
 
-class FrameAllocator
+class GfxFrameResourceAllocator
 {
 public:
-    FrameAllocator(rgU32 uploadHeapSizeInBytes)
-        : uploadHeapSize(uploadHeapSizeInBytes)
+    GfxFrameResourceAllocator(rgU32 heapSizeInBytes)
+        : heapSize(heapSizeInBytes)
     {
         offset = 0;
 
         BreakIfFail(device()->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
             D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(uploadHeapSize),
+            &CD3DX12_RESOURCE_DESC::Buffer(heapSize),
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
-            IID_PPV_ARGS(&uploadHeap)
+            IID_PPV_ARGS(&heap)
         ));
 
         CD3DX12_RANGE range(0, 0);
-        uploadHeap->Map(0, &range, (void**)&uploadHeapPtr);
+        heap->Map(0, &range, (void**)&heapPtr);
     }
 
-    ~FrameAllocator()
+    ~GfxFrameResourceAllocator()
     {
-        uploadHeap->Release();
+        heap->Release();
     }
 
     void reset()
@@ -272,13 +272,13 @@ public:
         offset = 0;
     }
 
-    AllocationResult allocate(char const* tag, rgU32 size)
+    GfxFrameResourceMemory allocate(char const* tag, rgU32 size)
     {
         rgAssert(offset + size <= capacity);
 
         //void* ptr = (bufferPtr + offset);
 
-        AllocationResult result;
+        GfxFrameResourceMemory result;
         result.offset = offset;
         //result.ptr = ptr;
         //result.parentBuffer = buffer;
@@ -291,9 +291,9 @@ public:
         return result;
     }
 
-    AllocationResult allocate(char const* tag, rgU32 size, void* initialData)
+    GfxFrameResourceMemory allocate(char const* tag, rgU32 size, void* initialData)
     {
-        AllocationResult result = allocate(tag, size);
+        GfxFrameResourceMemory result = allocate(tag, size);
         memcpy(result.ptr, initialData, size);
         return result;
     }
@@ -301,12 +301,12 @@ public:
 protected:
     rgU32 offset;
     rgU32 capacity;
-    ComPtr<ID3D12Resource> uploadHeap;
-    rgU8* uploadHeapPtr;
-    rgU32 uploadHeapSize;
+    ComPtr<ID3D12Resource> heap;
+    rgU8* heapPtr;
+    rgU32 heapSize;
 };
 
-static FrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
+static GfxFrameResourceMemory* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
 // SECTION BEGIN -
 // -----------------------------------------------

@@ -80,21 +80,21 @@ rgInt rg::setup()
     vertexDesc.elements[0].semanticIndex = 0;
     vertexDesc.elements[0].offset = 0;
     vertexDesc.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
-    vertexDesc.elements[0].bufferIndex = 21;
+    vertexDesc.elements[0].bufferIndex = 0; // TODO: rename to slot
     vertexDesc.elements[0].stepFunc = GfxVertexStepFunc_PerVertex;
     
     vertexDesc.elements[1].semanticName = "TEXCOORD";
     vertexDesc.elements[1].semanticIndex = 0;
     vertexDesc.elements[1].offset = 12;
     vertexDesc.elements[1].format = TinyImageFormat_R32G32_SFLOAT;
-    vertexDesc.elements[1].bufferIndex = 21;
+    vertexDesc.elements[1].bufferIndex = 0; // TODO: Automate this.. MTL: 30 - bufferIndex = vb bindpoint, to maintain compat with DX12 way
     vertexDesc.elements[1].stepFunc = GfxVertexStepFunc_PerVertex;
     
     vertexDesc.elements[2].semanticName = "COLOR";
     vertexDesc.elements[2].semanticIndex = 0;
     vertexDesc.elements[2].offset = 20;
     vertexDesc.elements[2].format = TinyImageFormat_R32G32B32A32_SFLOAT;
-    vertexDesc.elements[2].bufferIndex = 21;
+    vertexDesc.elements[2].bufferIndex = 0;
     vertexDesc.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
     GfxShaderDesc simple2dShaderDesc = {};
@@ -110,6 +110,8 @@ rgInt rg::setup()
     //simple2dRenderStateDesc.triangleFillMode = GfxTriangleFillMode_Lines;
     
     gfx::createGraphicsPSO("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    // gfx::graphicsPSO->create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    // gfx::graphicsPSO->markForDestroy("simple2d");
     
     //
     GfxVertexInputDesc vertexPos3fNor3fTexcoord2f = {};
