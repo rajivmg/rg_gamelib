@@ -120,21 +120,21 @@ rgInt rg::setup()
     vertexPos3fNor3fTexcoord2f.elements[0].semanticIndex = 0;
     vertexPos3fNor3fTexcoord2f.elements[0].offset = 0;
     vertexPos3fNor3fTexcoord2f.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
-    vertexPos3fNor3fTexcoord2f.elements[0].bufferIndex = 21;
+    vertexPos3fNor3fTexcoord2f.elements[0].bufferIndex = 0;
     vertexPos3fNor3fTexcoord2f.elements[0].stepFunc = GfxVertexStepFunc_PerVertex;
     
     vertexPos3fNor3fTexcoord2f.elements[1].semanticName = "NORMAL";
     vertexPos3fNor3fTexcoord2f.elements[1].semanticIndex = 0;
     vertexPos3fNor3fTexcoord2f.elements[1].offset = 12;
     vertexPos3fNor3fTexcoord2f.elements[1].format = TinyImageFormat_R32G32B32_SFLOAT;
-    vertexPos3fNor3fTexcoord2f.elements[1].bufferIndex = 21;
+    vertexPos3fNor3fTexcoord2f.elements[1].bufferIndex = 0;
     vertexPos3fNor3fTexcoord2f.elements[1].stepFunc = GfxVertexStepFunc_PerVertex;
     
     vertexPos3fNor3fTexcoord2f.elements[2].semanticName = "TEXCOORD";
     vertexPos3fNor3fTexcoord2f.elements[2].semanticIndex = 0;
     vertexPos3fNor3fTexcoord2f.elements[2].offset = 24;
     vertexPos3fNor3fTexcoord2f.elements[2].format = TinyImageFormat_R32G32_SFLOAT;
-    vertexPos3fNor3fTexcoord2f.elements[2].bufferIndex = 21;
+    vertexPos3fNor3fTexcoord2f.elements[2].bufferIndex = 0;
     vertexPos3fNor3fTexcoord2f.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
     GfxShaderDesc principledBrdfShaderDesc = {};

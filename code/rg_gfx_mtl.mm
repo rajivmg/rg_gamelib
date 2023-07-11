@@ -59,27 +59,27 @@ id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
     return (__bridge id<MTLRenderCommandEncoder>)currentRenderCmdEncoder->renderCmdEncoder;
 }
 
-id<MTLTexture> getMTLTexture(GfxTexture2D* obj)
+id<MTLTexture> getMTLTexture(const GfxTexture2D* obj)
 {
      return (__bridge id<MTLTexture>)(obj->mtlTexture);
 }
 
-id<MTLBuffer> getMTLBuffer(GfxBuffer* obj)
+id<MTLBuffer> getMTLBuffer(const GfxBuffer* obj)
 {
     return (__bridge id<MTLBuffer>)(obj->mtlBuffer);
 }
 
-id<MTLSamplerState> getMTLSamplerState(GfxSampler* obj)
+id<MTLSamplerState> getMTLSamplerState(const GfxSampler* obj)
 {
     return (__bridge id<MTLSamplerState>)(obj->mtlSampler);
 }
 
-id<MTLRenderPipelineState> getMTLRenderPipelineState(GfxGraphicsPSO* obj)
+id<MTLRenderPipelineState> getMTLRenderPipelineState(const GfxGraphicsPSO* obj)
 {
     return (__bridge id<MTLRenderPipelineState>)(obj->mtlPSO);
 }
 
-id<MTLDepthStencilState> getMTLDepthStencilState(GfxGraphicsPSO* obj)
+id<MTLDepthStencilState> getMTLDepthStencilState(const GfxGraphicsPSO* obj)
 {
     return (__bridge id<MTLDepthStencilState>)(obj->mtlDepthStencilState);
 }
@@ -1224,12 +1224,12 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
     boundGraphicsPSO = pso;
 }
 
-void GfxRenderCmdEncoder::setVertexBuffer(GfxBuffer const* buffer, rgU32 offset, rgU32 slot)
+void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset, rgU32 slot)
 {
     rgU32 const maxBufferBindIndex = 30;
     rgU32 bindpoint = maxBufferBindIndex - slot;
     rgAssert(bindpoint > 0 && bindpoint < 31);
-    [asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:slot];
+    [asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:bindpoint];
 }
 
 void GfxRenderCmdEncoder::setBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag)
@@ -1363,7 +1363,8 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     [cmdEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     // TODO: Bindless texture binding
     
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];
+    ///[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];
+    setVertexBuffer(&vertexBufAllocation.bufferFacade, vertexBufAllocation.offset, 0);
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone];
 
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:vertices.size() instanceCount:1];
@@ -1426,7 +1427,7 @@ void GfxRenderCmdEncoder::drawBunny()
     //[rce setVertexBytes:&cameraParams length:sizeof(cameraParams) atIndex:0];
     //[rce setVertexBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
     //[rce setFragmentBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
-    [rce setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];
+    [rce setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:30];
     [rce drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:bunnyModelIndexCount indexType:MTLIndexTypeUInt32 indexBuffer:indexBufAllocation.parentBuffer indexBufferOffset:indexBufAllocation.offset instanceCount:1];
 }
 
