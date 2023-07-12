@@ -650,12 +650,9 @@ struct GfxRenderCmdEncoder
     void setVertexBuffer(GfxBuffer const* buffer, rgU32 offset, rgU32 slot);
 
      // TODO: rename to bindBuffer(const GfxBuffer* buffer...)
-    void setBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
-    void setBuffer(char const* bufferTag, rgU32 offset, char const* bindingTag);
-    void setTexture2D(GfxTexture2D* texture, char const* bindingTag);
-    void setTexture2D(char const* textureTag, char const* bindingTag);
-    void setSampler(GfxSampler* sampler, char const* bindingTag);
-    void setSampler(char const* samplerTag, char const* bindingTag);
+    void bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
+    void bindTexture2D(GfxTexture2D* texture, char const* bindingTag);
+    void bindSampler(GfxSampler* sampler, char const* bindingTag);
     
     void drawTexturedQuads(TexturedQuads* quads);
     void drawBunny();

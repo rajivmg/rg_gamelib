@@ -1233,7 +1233,7 @@ void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset,
     [asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:bindpoint];
 }
 
-void GfxRenderCmdEncoder::setBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag)
+void GfxRenderCmdEncoder::bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag)
 {
     rgAssert(boundGraphicsPSO != nullptr);
     rgAssert(buffer != nullptr);
@@ -1256,14 +1256,7 @@ void GfxRenderCmdEncoder::setBuffer(GfxBuffer* buffer, rgU32 offset, char const*
     }
 }
 
-void GfxRenderCmdEncoder::setBuffer(char const* bufferTag, rgU32 offset, char const* bindingTag)
-{
-    GfxBuffer* buffer = gfx::buffer->find(rgCRC32(bufferTag));
-    rgAssert(buffer != nullptr);
-    setBuffer(buffer, offset, bindingTag);
-}
-
-void GfxRenderCmdEncoder::setTexture2D(GfxTexture2D* texture, char const* bindingTag)
+void GfxRenderCmdEncoder::bindTexture2D(GfxTexture2D* texture, char const* bindingTag)
 {
     rgAssert(boundGraphicsPSO != nullptr);
     rgAssert(texture != nullptr);
@@ -1288,15 +1281,7 @@ void GfxRenderCmdEncoder::setTexture2D(GfxTexture2D* texture, char const* bindin
     }
 }
 
-void GfxRenderCmdEncoder::setTexture2D(char const* textureTag, char const* bindingTag)
-{
-    GfxTexture2D* texture = gfx::texture2D->find(rgCRC32(textureTag));
-    rgAssert(texture != nullptr);
-    
-    setTexture2D(texture, bindingTag);
-}
-
-void GfxRenderCmdEncoder::setSampler(GfxSampler* sampler, char const* bindingTag)
+void GfxRenderCmdEncoder::bindSampler(GfxSampler* sampler, char const* bindingTag)
 {
     rgAssert(boundGraphicsPSO != nullptr);
     rgAssert(sampler != nullptr);
@@ -1314,14 +1299,6 @@ void GfxRenderCmdEncoder::setSampler(GfxSampler* sampler, char const* bindingTag
     {
         [encoder setFragmentSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
     }
-}
-
-void GfxRenderCmdEncoder::setSampler(char const* samplerTag, char const* bindingTag)
-{
-    GfxSampler* sampler = gfx::sampler->find(rgCRC32(samplerTag));
-    rgAssert(sampler != nullptr);
-    
-    setSampler(sampler, bindingTag);
 }
 
 void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
@@ -1358,9 +1335,9 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     id<MTLRenderCommandEncoder> cmdEncoder = asMTLRenderCommandEncoder(renderCmdEncoder);
     [cmdEncoder useResource:getFrameAllocator()->mtlBuffer() usage:MTLResourceUsageRead stages:MTLRenderStageVertex | MTLRenderStageFragment];
     
-    setBuffer(&(cameraBuffer.bufferFacade), cameraBuffer.offset, "camera");
-    setBuffer(&(instanceParamsBuffer.bufferFacade), instanceParamsBuffer.offset, "instanceParams");
-    setSampler(gfx::sampler->find("bilinearSampler"_rh), "simpleSampler");
+    bindBuffer(&(cameraBuffer.bufferFacade), cameraBuffer.offset, "camera");
+    bindBuffer(&(instanceParamsBuffer.bufferFacade), instanceParamsBuffer.offset, "instanceParams");
+    bindSampler(gfx::sampler->find("bilinearSampler"_rh), "simpleSampler");
     [cmdEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     // TODO: Bindless texture binding
     
@@ -1422,8 +1399,8 @@ void GfxRenderCmdEncoder::drawBunny()
 
     id<MTLRenderCommandEncoder> rce = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
     
-    setBuffer(&(cameraParamsBuffer.bufferFacade), cameraParamsBuffer.offset, "camera");
-    setBuffer(&(instanceParamsBuffer.bufferFacade), instanceParamsBuffer.offset, "instanceParams");
+    bindBuffer(&(cameraParamsBuffer.bufferFacade), cameraParamsBuffer.offset, "camera");
+    bindBuffer(&(instanceParamsBuffer.bufferFacade), instanceParamsBuffer.offset, "instanceParams");
     
     //[rce setVertexBytes:&cameraParams length:sizeof(cameraParams) atIndex:0];
     //[rce setVertexBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
