@@ -579,6 +579,90 @@ struct GfxObjectRegistry
 };
 
 //-----------------------------------------------------------------------------
+// Frame Resource Allocator
+//-----------------------------------------------------------------------------
+#if 0
+struct GfxTransientMemory
+{
+    void* cpuPtr;
+    rgU32 offsetInContainer;
+    
+#if defined(RG_METAL_RNDR)
+    MTL::Buffer* containerBuffer;
+#endif
+};
+
+class GfxTransientMemoryAllocator
+{
+public:
+    GfxTransientMemoryAllocator(rgU32 sizeInBytes)
+    : offset(0)
+    , capacity(sizeInBytes)
+    {
+        create();
+    }
+    
+    ~GfxTransientMemoryAllocator()
+    {
+        destroy();
+    }
+            
+    void reset()
+    {
+        offset = 0;
+    }
+    
+    GfxTransientMemory allocate(char const* tag, rgU32 size)
+    {
+        rgAssert(offset + size <= capacity);
+
+        void* ptr = (bufferPtr + offset);
+        
+        AllocationResult result;
+        result.offset = offset;
+        result.ptr = ptr;
+        result.parentBuffer = buffer;
+        
+        result.bufferFacade.mtlBuffer = (__bridge MTL::Buffer*)buffer;
+        std::strcpy(result.bufferFacade.tag, tag);
+
+        rgU32 alignment = 4;
+        offset += (size + alignment - 1) & ~(alignment - 1);
+        
+        [buffer addDebugMarker:[NSString stringWithUTF8String:tag] range:NSMakeRange(result.offset, (offset - result.offset))];
+        
+        return result;
+    }
+    
+    AllocationResult allocate(char const* tag, rgU32 size, void* initialData)
+    {
+        AllocationResult result = allocate(tag, size);
+        memcpy(result.ptr, initialData, size);
+        return result;
+    }
+    
+    void create();
+    void destroy();
+    void allocateInternal(char const* tag, rgU32 size, void* initialData = nullptr);
+    
+    
+    id<MTLBuffer> mtlBuffer()
+    {
+        return buffer;
+    }
+    
+protected:
+    rgU32 offset;
+    rgU32 capacity;
+    
+#if defined(RG_METAL_RNDR)
+    rgU8* mappedPtr;
+    MTL::Buffer* buffer;
+#endif
+};
+#endif
+
+//-----------------------------------------------------------------------------
 // Texture & Utils
 //-----------------------------------------------------------------------------
 
