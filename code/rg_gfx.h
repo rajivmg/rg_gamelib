@@ -526,7 +526,7 @@ struct GfxObjectRegistry
         objects.insert_or_assign(hash, ptr);
     }
 
-    void markForDestroy(rgHash hash)
+    void destroy(rgHash hash)
     {
         typename ObjectMap::iterator itr = objects.find(hash);
         rgAssert(itr != objects.end());
@@ -646,12 +646,6 @@ struct GfxRenderCmdEncoder
     void setScissor(); // TODO
     
     void setGraphicsPSO(GfxGraphicsPSO* pso);
-    void setGraphicsPSO(char const* tag)
-    {
-        GfxGraphicsPSO* ptr = gfx::findGraphicsPSO(tag);
-        rgAssert(ptr != NULL);
-        setGraphicsPSO(ptr);
-    }
 
     void setVertexBuffer(GfxBuffer const* buffer, rgU32 offset, rgU32 slot);
 
@@ -759,26 +753,8 @@ GfxBlitCmdEncoder* setBlitPass(char const* tag);
 // ---------------
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
 
-#define DeclareGfxObjectFunctions(type, ...) Gfx##type* create##type(const char* tag, __VA_ARGS__); \
-        Gfx##type* findOrCreate##type(const char* tag, __VA_ARGS__); \
-        Gfx##type* find##type(rgHash tagHash);  \
-        Gfx##type* find##type(char const* tag); \
-        void destroy##type(rgHash tagHash); \
-        void destroy##type(char const* tag); \
-        void allocAndFill##type##Struct(const char* tag, __VA_ARGS__, Gfx##type** obj); \
-        void dealloc##type##Struct(Gfx##type* obj); \
-        void creatorGfx##type(char const* tag, __VA_ARGS__, Gfx##type* obj); \
-        void destroyerGfx##type(Gfx##type* obj)
-
-DeclareGfxObjectFunctions(Buffer, void* buf, rgU32 size, GfxBufferUsage usage);
-
 GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage);
 void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr);
-DeclareGfxObjectFunctions(Texture2D, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage);
-
-DeclareGfxObjectFunctions(GraphicsPSO, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc);
-
-DeclareGfxObjectFunctions(Sampler, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy);
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
@@ -812,10 +788,10 @@ extern rgUInt frameNumber;
 extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 
-extern GfxObjectRegistry<GfxTexture2D>* registryTexture2D;
-extern GfxObjectRegistry<GfxBuffer>* registryBuffer;
-extern GfxObjectRegistry<GfxGraphicsPSO>* registryGraphicsPSO;
-extern GfxObjectRegistry<GfxSampler>* registrySampler;
+extern GfxObjectRegistry<GfxTexture2D>* texture2D;
+extern GfxObjectRegistry<GfxBuffer>* buffer;
+extern GfxObjectRegistry<GfxGraphicsPSO>* graphicsPSO;
+extern GfxObjectRegistry<GfxSampler>* sampler;
 //extern GfxObjectRegistry<GfxShaderLibrary, gfx::destroyerGfxShaderLibrary>* registryShaderLibrary;
     
 extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;

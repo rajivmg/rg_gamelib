@@ -57,20 +57,21 @@ rgInt rg::setup()
 {
     g_GameData = rgNew(GameData);
 
-    GfxTexture2D* t2dptr = gfx::createTexture2D("tiny.tga", loadTexture("tiny.tga"), true, GfxTextureUsage_ShaderRead);
-    gfx::destroyTexture2D("tiny.tga");
+    TextureRef tinyTexture = loadTexture("tiny.tga");
+    gfx::texture2D->create("tiny", tinyTexture->buf, tinyTexture->width, tinyTexture->height, tinyTexture->format, false, GfxTextureUsage_ShaderRead);
+    gfx::texture2D->destroy(rgCRC32("tiny"));
     
     for(rgInt i = 1; i <= 16; ++i)
     {
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
-        GfxTexture2D* t2d = gfx::createTexture2D(path, loadTexture(path), true, GfxTextureUsage_ShaderRead);
+        TextureRef t = loadTexture(path);
+        GfxTexture2D* t2d = gfx::texture2D->create(path, t->buf, t->width, t->height, t->format, false, GfxTextureUsage_ShaderRead);
         gfx::debugTextureHandles.push_back(t2d);
     }
     
-    g_GameData->oceanTileTexture = gfx::createTexture2D("ocean_tile", loadTexture("ocean_tile.png"), true, GfxTextureUsage_ShaderRead);
-    
-    g_GameData->flowerTexture = gfx::createTexture2D("flower", loadTexture("flower.png"), true, GfxTextureUsage_ShaderRead);
+    TextureRef flowerTex = rg::loadTexture("flower.png");
+    g_GameData->flowerTexture = gfx::texture2D->create("flower", flowerTex->buf, flowerTex->width, flowerTex->height, flowerTex->format, false, GfxTextureUsage_ShaderRead);
     
     //gfxDestroyBuffer("ocean_tile");
 
@@ -109,7 +110,7 @@ rgInt rg::setup()
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
     //simple2dRenderStateDesc.triangleFillMode = GfxTriangleFillMode_Lines;
     
-    gfx::createGraphicsPSO("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    gfx::graphicsPSO->create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
     // gfx::graphicsPSO->create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
     // gfx::graphicsPSO->markForDestroy("simple2d");
     
@@ -152,10 +153,10 @@ rgInt rg::setup()
     world3dRenderState.winding = GfxWinding_CCW;
     world3dRenderState.cullMode = GfxCullMode_None;
 
-    gfx::createGraphicsPSO("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
+    gfx::graphicsPSO->create("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
     //
 
-    gfx::createSampler("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
+    gfx::sampler->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     //
     
     {
@@ -229,7 +230,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         GfxRenderCmdEncoder* textured2dRenderEncoder = gfx::setRenderPass(&simple2dPass, "Simple2D Pass");
 
-        textured2dRenderEncoder->setGraphicsPSO(gfx::findGraphicsPSO("simple2d"));
+        textured2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find(rgCRC32("simple2d")));
         textured2dRenderEncoder->drawTexturedQuads(&g_GameData->terrainAndOcean);
 
         g_GameData->characterPortraits.resize(0);
@@ -261,7 +262,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         myWorld3dPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
         GfxRenderCmdEncoder* myWorld3dRenderEncoder = gfx::setRenderPass(&myWorld3dPass, "MyWorld3D");
-        myWorld3dRenderEncoder->setGraphicsPSO("principledBrdf");
+        myWorld3dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find(rgCRC32("principledBrdf")));
         myWorld3dRenderEncoder->drawBunny();
         myWorld3dRenderEncoder->end();
         

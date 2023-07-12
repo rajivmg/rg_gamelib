@@ -422,18 +422,19 @@ void testComputeAtomicsSetup()
     [computeHistogram release];
     [histogramLibrary release];
     
-    gfx::createTexture2D("histogramTest", rg::loadTexture("histogram_test.png"), false, GfxTextureUsage_ShaderRead);
-    gfx::createBuffer("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
+    TextureRef histoTex = rg::loadTexture("histogram_test.png");
+    gfx::texture2D->create("histogramTest", histoTex->buf, histoTex->width, histoTex->height, histoTex->format, false, GfxTextureUsage_ShaderRead);
+    gfx::buffer->create("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
 }
 
 void testComputeAtomicsRun()
 {
     id<MTLComputeCommandEncoder> computeEncoder = [getMTLCommandBuffer() computeCommandEncoder];
     [computeEncoder setComputePipelineState:histogramComputePipeline];
-    [computeEncoder setTexture:getMTLTexture(gfx::findTexture2D("histogramTest")) atIndex:0];
-    [computeEncoder setBuffer:getMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:0];
+    [computeEncoder setTexture:getMTLTexture(gfx::texture2D->find(rgCRC32("histogramTest"))) atIndex:0];
+    [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:0];
     //[computeEncoder setTexture:(id<MTLTexture>)getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) atIndex:1];
-    [computeEncoder setBuffer:getMTLBuffer(gfx::findBuffer("histogramBuffer")) offset:0 atIndex:1];
+    [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:1];
     [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
     [computeEncoder endEncoding];
 }
@@ -527,9 +528,9 @@ rgInt init()
         {
             std::string tag = "renderTarget" + std::to_string(i);
             
-            gfx::renderTarget[i] = createTexture2D(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, false, GfxTextureUsage_RenderTarget);
+            gfx::renderTarget[i] = gfx::texture2D->create(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, false, GfxTextureUsage_RenderTarget);
         }
-        gfx::depthStencilBuffer = createTexture2D("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, false, GfxTextureUsage_DepthStencil);
+        gfx::depthStencilBuffer = gfx::texture2D->create("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, false, GfxTextureUsage_DepthStencil);
         
         
         // Create bindless texture argument encoder and buffer
@@ -1257,7 +1258,7 @@ void GfxRenderCmdEncoder::setBuffer(GfxBuffer* buffer, rgU32 offset, char const*
 
 void GfxRenderCmdEncoder::setBuffer(char const* bufferTag, rgU32 offset, char const* bindingTag)
 {
-    GfxBuffer* buffer = gfx::findBuffer(bufferTag);
+    GfxBuffer* buffer = gfx::buffer->find(rgCRC32(bufferTag));
     rgAssert(buffer != nullptr);
     setBuffer(buffer, offset, bindingTag);
 }
@@ -1289,7 +1290,7 @@ void GfxRenderCmdEncoder::setTexture2D(GfxTexture2D* texture, char const* bindin
 
 void GfxRenderCmdEncoder::setTexture2D(char const* textureTag, char const* bindingTag)
 {
-    GfxTexture2D* texture = gfx::findTexture2D(textureTag);
+    GfxTexture2D* texture = gfx::texture2D->find(rgCRC32(textureTag));
     rgAssert(texture != nullptr);
     
     setTexture2D(texture, bindingTag);
@@ -1317,7 +1318,7 @@ void GfxRenderCmdEncoder::setSampler(GfxSampler* sampler, char const* bindingTag
 
 void GfxRenderCmdEncoder::setSampler(char const* samplerTag, char const* bindingTag)
 {
-    GfxSampler* sampler = gfx::findSampler(samplerTag);
+    GfxSampler* sampler = gfx::sampler->find(rgCRC32(samplerTag));
     rgAssert(sampler != nullptr);
     
     setSampler(sampler, bindingTag);
@@ -1359,7 +1360,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     
     setBuffer(&(cameraBuffer.bufferFacade), cameraBuffer.offset, "camera");
     setBuffer(&(instanceParamsBuffer.bufferFacade), instanceParamsBuffer.offset, "instanceParams");
-    setSampler(gfx::findSampler("bilinearSampler"), "simpleSampler");
+    setSampler(gfx::sampler->find(rgCRC32("bilinearSampler")), "simpleSampler");
     [cmdEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     // TODO: Bindless texture binding
     
