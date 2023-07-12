@@ -1360,7 +1360,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     
     setBuffer(&(cameraBuffer.bufferFacade), cameraBuffer.offset, "camera");
     setBuffer(&(instanceParamsBuffer.bufferFacade), instanceParamsBuffer.offset, "instanceParams");
-    setSampler(gfx::sampler->find(rgCRC32("bilinearSampler")), "simpleSampler");
+    setSampler(gfx::sampler->find("bilinearSampler"_rh), "simpleSampler");
     [cmdEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     // TODO: Bindless texture binding
     

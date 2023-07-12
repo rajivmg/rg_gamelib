@@ -230,7 +230,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         GfxRenderCmdEncoder* textured2dRenderEncoder = gfx::setRenderPass(&simple2dPass, "Simple2D Pass");
 
-        textured2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find(rgCRC32("simple2d")));
+        textured2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("simple2d"_rh));
         textured2dRenderEncoder->drawTexturedQuads(&g_GameData->terrainAndOcean);
 
         g_GameData->characterPortraits.resize(0);
