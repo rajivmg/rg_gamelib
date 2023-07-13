@@ -636,34 +636,7 @@ public:
     
     GfxFrameResource newBuffer(const char* tag, rgU32 size, void* initialData);
     GfxFrameResource newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
-                
-    /*
-    GfxHostMappedMemory allocate(char const* tag, rgU32 size, void* initialData)
-    {
-        rgAssert(offset + size <= capacity);
 
-        void* ptr = (mappedPtr + offset);
-        
-        GfxHostMappedMemory result;
-        result.size = size;
-        result.cpuPtr = ptr;
-        result.offsetInHeap = offset;
-        result.heap = heap;
-
-        rgU32 alignment = getDefaultResourceAlignment();
-        offset += (size + alignment - 1) & ~(alignment - 1);
-        
-        addRangeDebugTag(tag, result.offsetInHeap, offset - result.offsetInHeap);
-        
-        if(initialData != nullptr)
-        {
-            std::memcpy(result.cpuPtr, initialData, size);
-        }
-        
-        return result;
-    }
-    */
-    
     void reset()
     {
         offset = 0;
@@ -740,8 +713,7 @@ struct GfxRenderCmdEncoder
     
     void setViewport(rgFloat4 viewport);
     void setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height);
-
-    void setScissor(); // TODO
+    void setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels);
     
     void setGraphicsPSO(GfxGraphicsPSO* pso);
 

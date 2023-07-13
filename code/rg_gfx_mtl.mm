@@ -1224,6 +1224,17 @@ void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat 
     [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setViewport:vp];
 }
 
+void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels)
+{
+    MTLScissorRect rect;
+    rect.x = xPixels;
+    rect.y = yPixels;
+    rect.width = widthPixels;
+    rect.height = heightPixels;
+    
+    [asMTLRenderCommandEncoder(renderCmdEncoder) setScissorRect:rect];
+}
+
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
     id<MTLRenderCommandEncoder> cmdEncoder = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
