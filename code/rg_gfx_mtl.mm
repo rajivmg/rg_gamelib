@@ -128,6 +128,11 @@ id<MTLSamplerState> asMTLSamplerState(void* ptr)
     return (__bridge id<MTLSamplerState>)(ptr);
 }
 
+id<MTLHeap> asMTLHeap(void* ptr)
+{
+    return (__bridge id<MTLHeap>)(ptr);
+}
+
 MTLResourceOptions toMTLResourceOptions(GfxBufferUsage usage, rgBool dynamic)
 {
     MTLResourceOptions options = MTLResourceStorageModeShared | MTLResourceHazardTrackingModeTracked;
@@ -465,7 +470,7 @@ static GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 static id<MTLHeap> bindlessTextureHeap;
 static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
 static id<MTLBuffer> bindlessTextureArgBuffer;
-static GfxHostMappedMemory bindlessTextureArgBufferAlloc; // TODO: Needed here?
+static GfxFrameResource bindlessTextureArgBufferAlloc; // TODO: Needed here?
 
 // Fencing and sync variables
 static id<MTLSharedEvent> frameFenceEvent;
@@ -1179,7 +1184,7 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
     [mtlRenderEncoder useHeap:bindlessTextureHeap stages:MTLRenderStageFragment];
     [mtlRenderEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     
-    [mtlRenderEncoder useResource:asMTLBuffer(getFrameAllocator()->getHeap()) usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];
+    [mtlRenderEncoder useHeap:asMTLHeap(getFrameAllocator()->getHeap()) stages:MTLRenderStageVertex|MTLRenderStageFragment];
     
     renderCmdEncoder = (__bridge void*)mtlRenderEncoder;
     hasEnded = false;
@@ -1246,9 +1251,10 @@ void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset,
     [asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:slotToVertexBinding(slot)];
 }
 
-void GfxRenderCmdEncoder::setVertexBuffer(GfxHostMappedMemory const* memory, rgU32 slot)
+void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU32 slot)
 {
-    [asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:asMTLBuffer(memory->heap) offset:memory->offsetInHeap atIndex:slotToVertexBinding(slot)];
+    rgAssert(resource && resource->type == GfxFrameResource::Type_Buffer);
+    [asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:slotToVertexBinding(slot)];
 }
 
 //-----------------------------------------------------------------------------
@@ -1285,9 +1291,10 @@ void GfxRenderCmdEncoder::bindBuffer(GfxBuffer* buffer, rgU32 offset, char const
     }
 }
 
-void GfxRenderCmdEncoder::bindBuffer(GfxHostMappedMemory const* memory, char const* bindingTag)
+void GfxRenderCmdEncoder::bindBuffer(GfxFrameResource const* resource, char const* bindingTag)
 {
-    rgAssert(memory != nullptr);
+    rgAssert(resource && resource->type == GfxFrameResource::Type_Buffer);
+    
     GfxGraphicsPSO::ResourceInfo& info = getResourceBindingInfo(bindingTag);
     
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
@@ -1296,11 +1303,11 @@ void GfxRenderCmdEncoder::bindBuffer(GfxHostMappedMemory const* memory, char con
     // binding should be same.. type should be same... etc.
     if((info.stage & GfxStage_VS) == GfxStage_VS)
     {
-        [encoder setVertexBuffer:asMTLBuffer(memory->heap) offset:memory->offsetInHeap atIndex:info.mslBinding];
+        [encoder setVertexBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info.mslBinding];
     }
     if((info.stage & GfxStage_FS) == GfxStage_FS)
     {
-        [encoder setFragmentBuffer:asMTLBuffer(memory->heap) offset:memory->offsetInHeap atIndex:info.mslBinding];
+        [encoder setFragmentBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info.mslBinding];
     }
 }
 
@@ -1360,8 +1367,8 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     
     genTexturedQuadVertices(quads, &vertices, &instanceParams);
     
-    GfxHostMappedMemory vertexBufAllocation = gfx::getFrameAllocator()->allocate("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(gfx::SimpleVertexFormat), vertices.data());
-    GfxHostMappedMemory instanceParamsBuffer = gfx::getFrameAllocator()->allocate("instanceParamsCBuffer", sizeof(gfx::SimpleInstanceParams), &instanceParams);
+    GfxFrameResource vertexBufAllocation = gfx::getFrameAllocator()->newBuffer("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(gfx::SimpleVertexFormat), vertices.data());
+    GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBuffer", sizeof(gfx::SimpleInstanceParams), &instanceParams);
 
     //-
     // camera
@@ -1374,7 +1381,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     copyMatrix4ToFloatArray(cameraParams.projection2d, gfx::orthographicMatrix);
     copyMatrix4ToFloatArray(cameraParams.view2d, gfx::viewMatrix);
 
-    GfxHostMappedMemory cameraBuffer = gfx::getFrameAllocator()->allocate("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
+    GfxFrameResource cameraBuffer = gfx::getFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
     
     // --
 
@@ -1411,8 +1418,8 @@ void GfxRenderCmdEncoder::drawBunny()
 {
     rgAssert(renderCmdEncoder);
     
-    GfxHostMappedMemory vertexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyVertexBuf", (rgU32)bunnyModelVertexCount * sizeof(Obj2HeaderModelVertex), (void*)bunnyModelVertices);
-    GfxHostMappedMemory indexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyIndexBuf", (rgU32)bunnyModelIndexCount * sizeof(rgU32), (void*)bunnyModelIndices);
+    GfxFrameResource vertexBufAllocation = gfx::getFrameAllocator()->newBuffer("drawBunnyVertexBuf", (rgU32)bunnyModelVertexCount * sizeof(Obj2HeaderModelVertex), (void*)bunnyModelVertices);
+    GfxFrameResource indexBufAllocation = gfx::getFrameAllocator()->newBuffer("drawBunnyIndexBuf", (rgU32)bunnyModelIndexCount * sizeof(rgU32), (void*)bunnyModelIndices);
     
     // camera
     struct
@@ -1435,8 +1442,8 @@ void GfxRenderCmdEncoder::drawBunny()
     copyMatrix4ToFloatArray(&instanceParams.worldXform[0][0], xform);
     copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
     
-    GfxHostMappedMemory cameraParamsBuffer = gfx::getFrameAllocator()->allocate("cameraParamsCBufferBunny", sizeof(cameraParams), &cameraParams);
-    GfxHostMappedMemory instanceParamsBuffer = gfx::getFrameAllocator()->allocate("instanceParamsCBufferBunny", sizeof(instanceParams), &instanceParams);
+    GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("cameraParamsCBufferBunny", sizeof(cameraParams), &cameraParams);
+    GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBufferBunny", sizeof(instanceParams), &instanceParams);
 
     bindBuffer(&cameraParamsBuffer, "camera");
     bindBuffer(&instanceParamsBuffer, "instanceParams");
@@ -1458,11 +1465,12 @@ void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitI
     [asMTLRenderCommandEncoder(renderCmdEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:getMTLBuffer(indexBuffer) indexBufferOffset:bufferOffset instanceCount:instanceCount];
 }
 
-void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxHostMappedMemory const* indexBufferMemory, rgU32 instanceCount)
+void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount)
 {
     rgAssert(renderCmdEncoder);
+    rgAssert(indexBufferResource && indexBufferResource->type == GfxFrameResource::Type_Buffer);
     MTLIndexType indexElementType = is32bitIndex ? MTLIndexTypeUInt32 : MTLIndexTypeUInt16;
-    [asMTLRenderCommandEncoder(renderCmdEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:asMTLBuffer(indexBufferMemory->heap) indexBufferOffset:indexBufferMemory->offsetInHeap instanceCount:instanceCount];
+    [asMTLRenderCommandEncoder(renderCmdEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:asMTLBuffer(indexBufferResource->mtlBuffer) indexBufferOffset:0 instanceCount:instanceCount];
 }
 
 //*****************************************************************************
@@ -1505,31 +1513,91 @@ void GfxBlitCmdEncoder::copyTexture(GfxTexture2D* srcTexture, GfxTexture2D* dstT
 // Frame Resource Allocator
 //*****************************************************************************
 
-rgU32 GfxFrameAllocator::getDefaultResourceAlignment()
-{
-    return 4;
-}
-
 void GfxFrameAllocator::create(rgU32 sizeInBytes)
 {
-    MTLResourceOptions resourceOptions = MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined | MTLResourceHazardTrackingModeTracked;
-    id<MTLBuffer> buffer = [getMTLDevice() newBufferWithLength:sizeInBytes options:resourceOptions];
-    buffer.label = @"FrameAllocator";
+    MTLHeapDescriptor* heapDesc = [MTLHeapDescriptor new];
+    heapDesc.type = MTLHeapTypePlacement;
+    heapDesc.storageMode = MTLStorageModeShared;
+    heapDesc.cpuCacheMode = MTLCPUCacheModeWriteCombined;
+    heapDesc.hazardTrackingMode = MTLHazardTrackingModeTracked; // TODO: use untracked for better perf. Similar to D3D12
+    heapDesc.resourceOptions = MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined | MTLResourceHazardTrackingModeTracked;
+    heapDesc.size = sizeInBytes;
     
-    heap = (__bridge void*)buffer;
-    mappedPtr = (rgU8*)[buffer contents];
+    id<MTLHeap> hp = [getMTLDevice() newHeapWithDescriptor:heapDesc];
+    rgAssert(hp != nil);
+    [heapDesc release];
+    hp.label = @"FrameAllocator";
+    
+    heap = (__bridge void*)hp;
 }
 
 void GfxFrameAllocator::destroy()
 {
-    [asMTLBuffer(heap) release];
+    [asMTLHeap(heap) release];
 }
 
-void GfxFrameAllocator::addRangeDebugTag(const char* tag, rgU32 offset, rgU32 size)
+GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void* initialData)
 {
-    [asMTLBuffer(heap) addDebugMarker:[NSString stringWithUTF8String:tag] range:NSMakeRange(offset, size)];
+    MTLResourceOptions options = MTLResourceStorageModeShared | MTLResourceHazardTrackingModeTracked | MTLResourceCPUCacheModeWriteCombined;
+    MTLSizeAndAlign sizeAndAlign = [getMTLDevice() heapBufferSizeAndAlignWithLength:size options:options];
+    
+    rgU32 alignedStartOffset = bumpStorageAligned(sizeAndAlign.size, sizeAndAlign.align);
+    
+    id<MTLBuffer> br = [asMTLHeap(heap) newBufferWithLength:size options:options offset:alignedStartOffset];
+    rgAssert(br != nil);
+    br.label = [NSString stringWithUTF8String:tag];
+    
+    if(initialData != nullptr)
+    {
+        void* mappedPtr = [br contents];
+        std::memcpy(mappedPtr, initialData, size);
+    }
+    
+    GfxFrameResource output;
+    output.type = GfxFrameResource::Type_Buffer;
+    output.mtlBuffer = (__bridge void*)br;
+    output.mtlTexture = nullptr;
+    
+    return output;
 }
 
+GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
+{
+    if(initialData != nullptr && (usage & GfxTextureUsage_MemorylessRenderTarget))
+    {
+        rgAssert(!"When texture usage is MemorylessRenderTraget, texture initial data can't be used");
+    }
+    
+    MTLTextureDescriptor* texDesc = [MTLTextureDescriptor new];
+    texDesc.width = width;
+    texDesc.height = height;
+    texDesc.pixelFormat = toMTLPixelFormat(format);
+    texDesc.textureType = MTLTextureType2D;
+    texDesc.storageMode = (usage & GfxTextureUsage_MemorylessRenderTarget) ? MTLStorageModeMemoryless : MTLStorageModeShared;
+    texDesc.cpuCacheMode = MTLCPUCacheModeWriteCombined;
+    texDesc.usage = toMTLTextureUsage(usage);
+    
+    MTLSizeAndAlign sizeAndAlign = [getMTLDevice() heapTextureSizeAndAlignWithDescriptor:texDesc];
+    rgU32 alignedStartOffset = bumpStorageAligned(sizeAndAlign.size, sizeAndAlign.align);
+    
+    id<MTLTexture> te = [asMTLHeap(heap) newTextureWithDescriptor:texDesc offset:alignedStartOffset];
+    te.label = [NSString stringWithUTF8String:tag];
+    [texDesc release];
+    
+    // copy the texture data
+    if(initialData != nullptr)
+    {
+        MTLRegion region = MTLRegionMake2D(0, 0, width, height);
+        [te replaceRegion:region mipmapLevel:0 withBytes:initialData bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
+    }
+
+    GfxFrameResource output;
+    output.type = GfxFrameResource::Type_Texture;
+    output.mtlTexture = (__bridge void*)te;
+    output.mtlBuffer = nullptr;
+    
+    return output;
+}
 
 RG_END_RG_NAMESPACE
 #endif

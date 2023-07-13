@@ -115,6 +115,7 @@ enum GfxTextureUsage
     GfxTextureUsage_DepthStencil = (1 << 2),
     GfxTextureUsage_CopyDst = (1 << 3),
     GfxTextureUsage_CopySrc = (1 << 4),
+    GfxTextureUsage_MemorylessRenderTarget = ( 1 << 5),
 };
 
 enum GfxTextureDim
@@ -582,14 +583,19 @@ struct GfxObjectRegistry
 // Frame Resource Allocator
 //-----------------------------------------------------------------------------
 #if 1
-struct GfxHostMappedMemory
+struct GfxFrameResource
 {
-    rgU32 size;
-    void* cpuPtr;
-
-    rgU32 offsetInHeap;
+    enum Type
+    {
+        Type_Undefined,
+        Type_Buffer,
+        Type_Texture,
+    };
+    
+    Type type;
 #if defined(RG_METAL_RNDR)
-    void* heap; //type: id<MTLBuffer>
+    void* mtlBuffer; //type: id<MTLBuffer>
+    void* mtlTexture; //type: id<MTLTexture>
 #endif
 };
 
@@ -599,15 +605,11 @@ protected:
     rgU32 offset;
     rgU32 capacity;
 #if defined(RG_METAL_RNDR)
-    rgU8* mappedPtr;
-    void* heap; //type: id<MTLBuffer>
+    void* heap; //type: id<MTLHeap>
 #endif
-    
-    rgU32 getDefaultResourceAlignment();
     
     void create(rgU32 sizeInBytes);
     void destroy();
-    void addRangeDebugTag(const char* tag, rgU32 offset, rgU32 size);
 public:
     GfxFrameAllocator(rgU32 sizeInBytes)
     : offset(0)
@@ -620,7 +622,22 @@ public:
     {
         destroy();
     }
+    
+    rgU32 bumpStorageAligned(rgU32 s, rgU32 a)
+    {
+        rgU32 unalignedStartOffset = offset;
+        rgU32 alignedStartOffset = (unalignedStartOffset + a - 1) & ~(a - 1);
+        
+        // bump 'offset'
+        offset = alignedStartOffset + s;
+        
+        return alignedStartOffset;
+    }
+    
+    GfxFrameResource newBuffer(const char* tag, rgU32 size, void* initialData);
+    GfxFrameResource newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
                 
+    /*
     GfxHostMappedMemory allocate(char const* tag, rgU32 size, void* initialData)
     {
         rgAssert(offset + size <= capacity);
@@ -645,6 +662,7 @@ public:
         
         return result;
     }
+    */
     
     void reset()
     {
@@ -728,18 +746,18 @@ struct GfxRenderCmdEncoder
     void setGraphicsPSO(GfxGraphicsPSO* pso);
 
     void setVertexBuffer(GfxBuffer const* buffer, rgU32 offset, rgU32 slot);
-    void setVertexBuffer(GfxHostMappedMemory const* memory, rgU32 slot);
+    void setVertexBuffer(GfxFrameResource const* resource, rgU32 slot);
 
      // TODO: rename to bindBuffer(const GfxBuffer* buffer...)
     void bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
-    void bindBuffer(GfxHostMappedMemory const* memory, char const* bindingTag);
+    void bindBuffer(GfxFrameResource const* resource, char const* bindingTag);
     void bindTexture2D(GfxTexture2D* texture, char const* bindingTag);
     void bindSampler(GfxSampler* sampler, char const* bindingTag);
     
     void drawTexturedQuads(TexturedQuads* quads);
     void drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount);
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount);
-    void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxHostMappedMemory const* indexBufferMemory, rgU32 instanceCount);
+    void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount);
     
     void drawBunny();
 
