@@ -650,11 +650,11 @@ public:
     {
         offset = 0;
     }
-        
-    /*id<MTLBuffer> mtlBuffer()
+    
+    void* getHeap()
     {
-        return buffer;
-    }*/
+        return (void*)heap;
+    }
 };
 #endif
 
@@ -737,10 +737,15 @@ struct GfxRenderCmdEncoder
     void bindSampler(GfxSampler* sampler, char const* bindingTag);
     
     void drawTexturedQuads(TexturedQuads* quads);
+    void drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount);
+    void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount);
+    void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxHostMappedMemory const* indexBufferMemory, rgU32 instanceCount);
+    
     void drawBunny();
 
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)
+    // TODO: rename renderCommandEncoder
     void* renderCmdEncoder; // type: id<MTLRenderCommandEncoder>
 #endif
 };

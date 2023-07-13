@@ -31,7 +31,7 @@ RG_BEGIN_GFX_NAMESPACE
 
 gfx::Mtl* mtl = nullptr;
 
-static const rgU32 kBindlessTextureSetBinding = 7;
+static const rgU32 kBindlessTextureSetBinding = 7; // TODO: change this to some thing higher like 26
 static const rgU32 kFrameParamsSetBinding = 6;
 static rgU32 const kMaxMTLArgumentTableBufferSlot = 30;
 
@@ -1179,6 +1179,8 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
     [mtlRenderEncoder useHeap:bindlessTextureHeap stages:MTLRenderStageFragment];
     [mtlRenderEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     
+    [mtlRenderEncoder useResource:asMTLBuffer(getFrameAllocator()->getHeap()) usage:MTLResourceUsageRead stages:MTLRenderStageVertex|MTLRenderStageFragment];
+    
     renderCmdEncoder = (__bridge void*)mtlRenderEncoder;
     hasEnded = false;
 }
@@ -1230,6 +1232,7 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
     boundGraphicsPSO = pso;
 }
 
+//-----------------------------------------------------------------------------
 rgU32 slotToVertexBinding(rgU32 slot)
 {
     rgU32 const maxBufferBindIndex = 30;
@@ -1248,7 +1251,7 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxHostMappedMemory const* memory, rgU
     [asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:asMTLBuffer(memory->heap) offset:memory->offsetInHeap atIndex:slotToVertexBinding(slot)];
 }
 
-//*****************************************************************************
+//-----------------------------------------------------------------------------
 GfxGraphicsPSO::ResourceInfo& getResourceBindingInfo(char const* bindingTag)
 {
     rgAssert(boundGraphicsPSO != nullptr);
@@ -1301,6 +1304,25 @@ void GfxRenderCmdEncoder::bindBuffer(GfxHostMappedMemory const* memory, char con
     }
 }
 
+//-----------------------------------------------------------------------------
+void GfxRenderCmdEncoder::bindSampler(GfxSampler* sampler, char const* bindingTag)
+{
+    rgAssert(sampler != nullptr);
+    
+    GfxGraphicsPSO::ResourceInfo& info = getResourceBindingInfo(bindingTag);
+    
+    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
+    if((info.stage & GfxStage_VS) == GfxStage_VS)
+    {
+        [encoder setVertexSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
+    }
+    if((info.stage & GfxStage_FS) == GfxStage_FS)
+    {
+        [encoder setFragmentSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
+    }
+}
+
+//-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::bindTexture2D(GfxTexture2D* texture, char const* bindingTag)
 {
     rgAssert(texture != nullptr);
@@ -1324,23 +1346,7 @@ void GfxRenderCmdEncoder::bindTexture2D(GfxTexture2D* texture, char const* bindi
     }
 }
 
-void GfxRenderCmdEncoder::bindSampler(GfxSampler* sampler, char const* bindingTag)
-{
-    rgAssert(sampler != nullptr);
-    
-    GfxGraphicsPSO::ResourceInfo& info = getResourceBindingInfo(bindingTag);
-    
-    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
-    if((info.stage & GfxStage_VS) == GfxStage_VS)
-    {
-        [encoder setVertexSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
-    }
-    if((info.stage & GfxStage_FS) == GfxStage_FS)
-    {
-        [encoder setFragmentSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
-    }
-}
-
+//-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 {
     if(quads->size() < 1)
@@ -1369,23 +1375,16 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     copyMatrix4ToFloatArray(cameraParams.view2d, gfx::viewMatrix);
 
     GfxHostMappedMemory cameraBuffer = gfx::getFrameAllocator()->allocate("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
-    //std::memcpy(cameraBuffer.ptr, &cameraParams, sizeof(cameraParams));
     
     // --
-    id<MTLRenderCommandEncoder> cmdEncoder = asMTLRenderCommandEncoder(renderCmdEncoder);
-    //[cmdEncoder useResource:asMTLBuffer(getFrameAllocator()->heap) usage:MTLResourceUsageRead stages:MTLRenderStageVertex | MTLRenderStageFragment];
-    
+
     bindBuffer(&cameraBuffer, "camera");
     bindBuffer(&instanceParamsBuffer, "instanceParams");
     bindSampler(gfx::sampler->find("bilinearSampler"_rh), "simpleSampler");
-    [cmdEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
-    // TODO: Bindless texture binding
     
-    ///[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:vertexBufAllocation.parentBuffer offset:vertexBufAllocation.offset atIndex:21];
     setVertexBuffer(&vertexBufAllocation, 0);
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone];
 
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:vertices.size() instanceCount:1];
+    drawTriangles(0, (rgU32)vertices.size(), 1);
 }
 
 // TODO: replace with generalized modular functions
@@ -1410,6 +1409,8 @@ Matrix4 makePerspectiveProjection(rgFloat fovDeg, rgFloat aspect, rgFloat nearVa
 
 void GfxRenderCmdEncoder::drawBunny()
 {
+    rgAssert(renderCmdEncoder);
+    
     GfxHostMappedMemory vertexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyVertexBuf", (rgU32)bunnyModelVertexCount * sizeof(Obj2HeaderModelVertex), (void*)bunnyModelVertices);
     GfxHostMappedMemory indexBufAllocation = gfx::getFrameAllocator()->allocate("drawBunnyIndexBuf", (rgU32)bunnyModelIndexCount * sizeof(rgU32), (void*)bunnyModelIndices);
     
@@ -1437,16 +1438,31 @@ void GfxRenderCmdEncoder::drawBunny()
     GfxHostMappedMemory cameraParamsBuffer = gfx::getFrameAllocator()->allocate("cameraParamsCBufferBunny", sizeof(cameraParams), &cameraParams);
     GfxHostMappedMemory instanceParamsBuffer = gfx::getFrameAllocator()->allocate("instanceParamsCBufferBunny", sizeof(instanceParams), &instanceParams);
 
-    id<MTLRenderCommandEncoder> rce = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
-    
     bindBuffer(&cameraParamsBuffer, "camera");
     bindBuffer(&instanceParamsBuffer, "instanceParams");
     
-    //[rce setVertexBytes:&cameraParams length:sizeof(cameraParams) atIndex:0];
-    //[rce setVertexBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
-    //[rce setFragmentBytes:&instanceParams length:sizeof(instanceParams) atIndex:1];
     setVertexBuffer(&vertexBufAllocation, 0);
-    [rce drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:bunnyModelIndexCount indexType:MTLIndexTypeUInt32 indexBuffer:asMTLBuffer(indexBufAllocation.heap) indexBufferOffset:indexBufAllocation.offsetInHeap instanceCount:1];
+    drawIndexedTriangles(bunnyModelIndexCount, true, &indexBufAllocation, 1);
+}
+
+//-----------------------------------------------------------------------------
+void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount)
+{
+    [asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:vertexCount instanceCount:instanceCount];
+}
+
+void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount)
+{
+    rgAssert(renderCmdEncoder);
+    MTLIndexType indexElementType = is32bitIndex ? MTLIndexTypeUInt32 : MTLIndexTypeUInt16;
+    [asMTLRenderCommandEncoder(renderCmdEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:getMTLBuffer(indexBuffer) indexBufferOffset:bufferOffset instanceCount:instanceCount];
+}
+
+void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxHostMappedMemory const* indexBufferMemory, rgU32 instanceCount)
+{
+    rgAssert(renderCmdEncoder);
+    MTLIndexType indexElementType = is32bitIndex ? MTLIndexTypeUInt32 : MTLIndexTypeUInt16;
+    [asMTLRenderCommandEncoder(renderCmdEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:asMTLBuffer(indexBufferMemory->heap) indexBufferOffset:indexBufferMemory->offsetInHeap instanceCount:instanceCount];
 }
 
 //*****************************************************************************
