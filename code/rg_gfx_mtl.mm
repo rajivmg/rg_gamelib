@@ -325,84 +325,6 @@ void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
     }
 }
 
-//*****************************************************************************
-// Frame Resource Allocator
-//*****************************************************************************
-#if 0
-struct AllocationResult
-{
-    rgU32 offset;
-    void* ptr;
-    
-    GfxBuffer bufferFacade;
-    id<MTLBuffer> parentBuffer;
-};
-
-class FrameAllocator
-{
-public:
-    FrameAllocator(id<MTLDevice> device_, rgU32 capacity_, MTLResourceOptions resourceOptions_)
-    {
-        offset = 0;
-        capacity = capacity_;
-        buffer = [device_ newBufferWithLength:capacity options:resourceOptions_];
-        buffer.label = @"FrameAllocator";
-        bufferPtr = (rgU8*)[buffer contents];
-    }
-    
-    ~FrameAllocator()
-    {
-        [buffer release];
-    }
-    
-    void reset()
-    {
-        offset = 0;
-    }
-    
-    // TODO: convert to void allocate(char const*tag, rgU32 size, rgU32 outOffset, void** outPtr, ... )
-    AllocationResult allocate(char const* tag, rgU32 size)
-    {
-        rgAssert(offset + size <= capacity);
-
-        void* ptr = (bufferPtr + offset);
-        
-        AllocationResult result;
-        result.offset = offset;
-        result.ptr = ptr;
-        result.parentBuffer = buffer;
-        
-        result.bufferFacade.mtlBuffer = (__bridge MTL::Buffer*)buffer;
-        std::strcpy(result.bufferFacade.tag, tag);
-
-        rgU32 alignment = 4;
-        offset += (size + alignment - 1) & ~(alignment - 1);
-        
-        [buffer addDebugMarker:[NSString stringWithUTF8String:tag] range:NSMakeRange(result.offset, (offset - result.offset))];
-        
-        return result;
-    }
-    
-    AllocationResult allocate(char const* tag, rgU32 size, void* initialData)
-    {
-        AllocationResult result = allocate(tag, size);
-        memcpy(result.ptr, initialData, size);
-        return result;
-    }
-    
-    id<MTLBuffer> mtlBuffer()
-    {
-        return buffer;
-    }
-    
-protected:
-    rgU32 offset;
-    rgU32 capacity;
-    id<MTLBuffer> buffer;
-    rgU8* bufferPtr;
-};
-#endif
-
 struct SimpleVertexFormat1
 {
     simd::float3 position;
@@ -957,7 +879,7 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     // handle unsized texture array
     spirv_cross::MSLResourceBinding bindlessTextureBinding;
     bindlessTextureBinding.basetype = spirv_cross::SPIRType::Image;
-    bindlessTextureBinding.desc_set = 7;
+    bindlessTextureBinding.desc_set = kBindlessTextureSetBinding;
     bindlessTextureBinding.binding = 0;
     bindlessTextureBinding.count = 256; // TODO: increase
     
