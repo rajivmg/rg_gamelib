@@ -581,84 +581,80 @@ struct GfxObjectRegistry
 //-----------------------------------------------------------------------------
 // Frame Resource Allocator
 //-----------------------------------------------------------------------------
-#if 0
-struct GfxTransientMemory
+#if 1
+struct GfxHostMappedMemory
 {
+    rgU32 size;
     void* cpuPtr;
-    rgU32 offsetInContainer;
-    
+
+    rgU32 offsetInHeap;
 #if defined(RG_METAL_RNDR)
-    MTL::Buffer* containerBuffer;
+    void* heap; //type: id<MTLBuffer>
 #endif
 };
 
-class GfxTransientMemoryAllocator
+class GfxFrameAllocator
 {
+protected:
+    rgU32 offset;
+    rgU32 capacity;
+#if defined(RG_METAL_RNDR)
+    rgU8* mappedPtr;
+    void* heap; //type: id<MTLBuffer>
+#endif
+    
+    rgU32 getDefaultResourceAlignment();
+    
+    void create(rgU32 sizeInBytes);
+    void destroy();
+    void addRangeDebugTag(const char* tag, rgU32 offset, rgU32 size);
 public:
-    GfxTransientMemoryAllocator(rgU32 sizeInBytes)
+    GfxFrameAllocator(rgU32 sizeInBytes)
     : offset(0)
     , capacity(sizeInBytes)
     {
-        create();
+        create(capacity);
     }
     
-    ~GfxTransientMemoryAllocator()
+    ~GfxFrameAllocator()
     {
         destroy();
     }
-            
+                
+    GfxHostMappedMemory allocate(char const* tag, rgU32 size, void* initialData)
+    {
+        rgAssert(offset + size <= capacity);
+
+        void* ptr = (mappedPtr + offset);
+        
+        GfxHostMappedMemory result;
+        result.size = size;
+        result.cpuPtr = ptr;
+        result.offsetInHeap = offset;
+        result.heap = heap;
+
+        rgU32 alignment = getDefaultResourceAlignment();
+        offset += (size + alignment - 1) & ~(alignment - 1);
+        
+        addRangeDebugTag(tag, result.offsetInHeap, offset - result.offsetInHeap);
+        
+        if(initialData != nullptr)
+        {
+            std::memcpy(result.cpuPtr, initialData, size);
+        }
+        
+        return result;
+    }
+    
     void reset()
     {
         offset = 0;
     }
-    
-    GfxTransientMemory allocate(char const* tag, rgU32 size)
-    {
-        rgAssert(offset + size <= capacity);
-
-        void* ptr = (bufferPtr + offset);
         
-        AllocationResult result;
-        result.offset = offset;
-        result.ptr = ptr;
-        result.parentBuffer = buffer;
-        
-        result.bufferFacade.mtlBuffer = (__bridge MTL::Buffer*)buffer;
-        std::strcpy(result.bufferFacade.tag, tag);
-
-        rgU32 alignment = 4;
-        offset += (size + alignment - 1) & ~(alignment - 1);
-        
-        [buffer addDebugMarker:[NSString stringWithUTF8String:tag] range:NSMakeRange(result.offset, (offset - result.offset))];
-        
-        return result;
-    }
-    
-    AllocationResult allocate(char const* tag, rgU32 size, void* initialData)
-    {
-        AllocationResult result = allocate(tag, size);
-        memcpy(result.ptr, initialData, size);
-        return result;
-    }
-    
-    void create();
-    void destroy();
-    void allocateInternal(char const* tag, rgU32 size, void* initialData = nullptr);
-    
-    
-    id<MTLBuffer> mtlBuffer()
+    /*id<MTLBuffer> mtlBuffer()
     {
         return buffer;
-    }
-    
-protected:
-    rgU32 offset;
-    rgU32 capacity;
-    
-#if defined(RG_METAL_RNDR)
-    rgU8* mappedPtr;
-    MTL::Buffer* buffer;
-#endif
+    }*/
 };
 #endif
 
@@ -732,9 +728,11 @@ struct GfxRenderCmdEncoder
     void setGraphicsPSO(GfxGraphicsPSO* pso);
 
     void setVertexBuffer(GfxBuffer const* buffer, rgU32 offset, rgU32 slot);
+    void setVertexBuffer(GfxHostMappedMemory const* memory, rgU32 slot);
 
      // TODO: rename to bindBuffer(const GfxBuffer* buffer...)
     void bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
+    void bindBuffer(GfxHostMappedMemory const* memory, char const* bindingTag);
     void bindTexture2D(GfxTexture2D* texture, char const* bindingTag);
     void bindSampler(GfxSampler* sampler, char const* bindingTag);
     
