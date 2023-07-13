@@ -24,7 +24,6 @@
 #include "spirv_msl.hpp"
 
 RG_BEGIN_RG_NAMESPACE
-RG_BEGIN_GFX_NAMESPACE
 
 #include "shaders/metal/imm_shader.inl"
 #include "shaders/metal/histogram_shader.inl"
@@ -34,6 +33,12 @@ gfx::Mtl* mtl = nullptr;
 static const rgU32 kBindlessTextureSetBinding = 7; // TODO: change this to some thing higher like 26
 static const rgU32 kFrameParamsSetBinding = 6;
 static rgU32 const kMaxMTLArgumentTableBufferSlot = 30;
+
+RG_BEGIN_GFX_NAMESPACE
+    static id<MTLHeap> bindlessTextureHeap;
+    static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
+    static id<MTLBuffer> bindlessTextureArgBuffer;
+RG_END_GFX_NAMESPACE
 
 //*****************************************************************************
 // Helper Functions
@@ -56,7 +61,7 @@ id<MTLCommandBuffer> getMTLCommandBuffer()
 
 id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
 {
-    return (__bridge id<MTLRenderCommandEncoder>)currentRenderCmdEncoder->renderCmdEncoder;
+    return (__bridge id<MTLRenderCommandEncoder>)gfx::currentRenderCmdEncoder->renderCmdEncoder;
 }
 
 id<MTLTexture> getMTLTexture(const GfxTexture2D* obj)
@@ -332,281 +337,6 @@ struct SimpleVertexFormat1
     simd::float4 color;
 };
 
-// TEST ATOMIC ---------
-id<MTLComputePipelineState> histogramComputePipeline;
-
-void testComputeAtomicsSetup()
-{
-    MTLCompileOptions* compileOptions = [[MTLCompileOptions alloc] init];
-    
-    NSError* err;
-    id<MTLLibrary> histogramLibrary = [getMTLDevice() newLibraryWithSource:[NSString stringWithUTF8String:g_HistogramShaderSrcCode] options:compileOptions error:&err];
-    if(err)
-    {
-        printf("%s\n", [[err localizedDescription]UTF8String]);
-        rgAssert(!"newLibrary error");
-    }
-    [compileOptions release];
-    
-    id<MTLFunction> computeHistogram = [histogramLibrary newFunctionWithName:@"computeHistogram_CS"];
-    
-    histogramComputePipeline = [getMTLDevice() newComputePipelineStateWithFunction:computeHistogram error:&err];
-    
-    [computeHistogram release];
-    [histogramLibrary release];
-    
-    TextureRef histoTex = rg::loadTexture("histogram_test.png");
-    gfx::texture2D->create("histogramTest", histoTex->buf, histoTex->width, histoTex->height, histoTex->format, false, GfxTextureUsage_ShaderRead);
-    gfx::buffer->create("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
-}
-
-void testComputeAtomicsRun()
-{
-    id<MTLComputeCommandEncoder> computeEncoder = [getMTLCommandBuffer() computeCommandEncoder];
-    [computeEncoder setComputePipelineState:histogramComputePipeline];
-    [computeEncoder setTexture:getMTLTexture(gfx::texture2D->find(rgCRC32("histogramTest"))) atIndex:0];
-    [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:0];
-    //[computeEncoder setTexture:(id<MTLTexture>)getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) atIndex:1];
-    [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:1];
-    [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
-    [computeEncoder endEncoding];
-}
-// -------- TEST ATOMIC
-
-id<MTLArgumentEncoder> frameConstBufferArgEncoder;
-id<MTLBuffer> frameConstBufferArgBuffer;
-id<MTLBuffer> cameraBuffer;
-struct Camera
-{
-    float projection[16];
-    float view[16];
-};
-///
-
-//*****************************************************************************
-// MTL backend states & instances
-//*****************************************************************************
-
-static GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
-
-static id<MTLHeap> bindlessTextureHeap;
-static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
-static id<MTLBuffer> bindlessTextureArgBuffer;
-static GfxFrameResource bindlessTextureArgBufferAlloc; // TODO: Needed here?
-
-// Fencing and sync variables
-static id<MTLSharedEvent> frameFenceEvent;
-static MTLSharedEventListener* frameFenceEventListener;
-static dispatch_queue_t frameFenceDispatchQueue; // TODO: Needed at all/here?
-static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
-
-// Current state
-static GfxGraphicsPSO* boundGraphicsPSO;
-
-GfxFrameAllocator* getFrameAllocator()
-{
-    return frameAllocators[g_FrameIndex];
-}
-
-//*****************************************************************************
-// Call from main | loop init() destroy() startNextFrame() endFrame()
-//*****************************************************************************
-
-rgInt init()
-{
-    mtl = rgNew(gfx::Mtl);
-    
-    rgAssert(gfx::mainWindow);
-    mtl->view = (NS::View*)SDL_Metal_CreateView(gfx::mainWindow);
-    mtl->layer = SDL_Metal_GetLayer(mtl->view);
-    mtl->device = MTL::CreateSystemDefaultDevice();
-    mtl->commandQueue = mtl->device->newCommandQueue();
-
-    CAMetalLayer* mtlLayer = (CAMetalLayer*)mtl->layer;
-    mtlLayer.device = (__bridge id<MTLDevice>)(mtl->device);
-    mtlLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-    mtlLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_FLIGHT;
-    mtlLayer.framebufferOnly = false;
-    //mtlLayer.displaySyncEnabled = false;
-    //
-
-    mtl->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
-    
-    @autoreleasepool
-    {
-        // Crate frame sync events
-        frameFenceEvent = [getMTLDevice() newSharedEvent];
-        frameFenceDispatchQueue = dispatch_queue_create("rg.gamelib.mtl.frameFenceDispatchQueue", NULL);
-        frameFenceEventListener = [[MTLSharedEventListener alloc] initWithDispatchQueue:frameFenceDispatchQueue];
-        
-        // Initialize frame buffer allocators
-        for(rgS32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
-        {
-            frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMEGABYTE(16));
-        }
-        
-        // Initialize memory for bindless textures
-        MTLHeapDescriptor* bindlessTextureHeapDesc = [MTLHeapDescriptor new];
-        bindlessTextureHeapDesc.type = MTLHeapTypeAutomatic;
-        bindlessTextureHeapDesc.storageMode = MTLStorageModeShared;
-        bindlessTextureHeapDesc.cpuCacheMode = MTLCPUCacheModeDefaultCache;
-        bindlessTextureHeapDesc.hazardTrackingMode = MTLHazardTrackingModeTracked;
-        bindlessTextureHeapDesc.size = rgMEGABYTE(128);
-        bindlessTextureHeap = [getMTLDevice() newHeapWithDescriptor:bindlessTextureHeapDesc];
-        // TODO: is manual release of descriptor needed?
-        
-        // Create render targets
-        for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
-        {
-            std::string tag = "renderTarget" + std::to_string(i);
-            
-            gfx::renderTarget[i] = gfx::texture2D->create(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, false, GfxTextureUsage_RenderTarget);
-        }
-        gfx::depthStencilBuffer = gfx::texture2D->create("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, false, GfxTextureUsage_DepthStencil);
-        
-        
-        // Create bindless texture argument encoder and buffer
-        MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
-        argDesc.index = 0;
-        argDesc.dataType = MTLDataTypeTexture;
-        argDesc.arrayLength = 99999;
-        argDesc.textureType = MTLTextureType2D;
-        argDesc.access = MTLArgumentAccessReadOnly;
-        
-        bindlessTextureArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments: @[argDesc]];
-        bindlessTextureArgBuffer  = [getMTLDevice() newBufferWithLength:[bindlessTextureArgEncoder encodedLength]
-                                                                options:MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined | MTLResourceHazardTrackingModeTracked];
-        [bindlessTextureArgEncoder setArgumentBuffer:bindlessTextureArgBuffer offset:0];
-        
-        // Test argument encoder layout issues
-#if 1
-        MTLArgumentDescriptor* frameConstDescriptor1 = [MTLArgumentDescriptor argumentDescriptor];
-        frameConstDescriptor1.index = 0;
-        frameConstDescriptor1.dataType = MTLDataTypePointer;
-        frameConstDescriptor1.access = MTLArgumentAccessReadOnly;
-        
-        MTLArgumentDescriptor* frameConstDescriptor2 = [MTLArgumentDescriptor argumentDescriptor];
-        frameConstDescriptor2.index = 1;
-        frameConstDescriptor2.dataType = MTLDataTypeTexture;
-        frameConstDescriptor2.textureType = MTLTextureType2D;
-        frameConstDescriptor2.access = MTLArgumentAccessReadOnly;
-
-        frameConstBufferArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments:@[frameConstDescriptor1]];
-        frameConstBufferArgBuffer = [getMTLDevice() newBufferWithLength:[frameConstBufferArgEncoder encodedLength] options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
-#endif
-
-        // TODO: allocate in frame allocator per frame
-        cameraBuffer = [getMTLDevice() newBufferWithLength:sizeof(Camera) options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
-        
-        testComputeAtomicsSetup();
-    }
-    return 0;
-}
-
-void destroy()
-{
-    
-}
-
-void startNextFrame()
-{
-    //dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
-    
-    rgU64 prevFrameFenceValue = (g_FrameIndex != -1) ? frameFenceValues[g_FrameIndex] : 0;
-    
-    g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
-    
-    // check if this next frame is finised on the GPU
-    rgU64 nextFrameFenceValueToWaitFor = frameFenceValues[g_FrameIndex];
-    while(frameFenceEvent.signaledValue < nextFrameFenceValueToWaitFor)
-    {
-        // This means we have no free backbuffers. we must wait
-        
-        //BreakIfFail(d3d.frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, d3d.frameFenceEvent));
-        //::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
-    }
-
-    // This frame fence value is one more than prev frame fence value
-    frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
-    
-    gfx::atFrameStart();
-    
-    // Reset finished frame allocator
-    // TODO: Move this as common gfx class
-    frameAllocators[getFinishedFrameIndex()]->reset();
-    
-    // Autorelease pool BEGIN
-    mtl->autoReleasePool = NS::AutoreleasePool::alloc()->init(); // TODO: replace this with something better
-    
-    CAMetalLayer* metalLayer = (CAMetalLayer*)mtl->layer;
-    id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
-    rgAssert(metalDrawable != nullptr);
-    mtl->caMetalDrawable = metalDrawable;
-    
-    mtl->commandBuffer = (__bridge id<MTLCommandBuffer>)mtl->commandQueue->commandBuffer();
-}
-
-void endFrame()
-{
-    //testComputeAtomicsRun();
-    
-    // TODO: Add assert if the currentRenderCmdEncoder is not ended
-    if(!currentRenderCmdEncoder->hasEnded)
-    {
-        currentRenderCmdEncoder->end();
-    }
-    
-    // blit renderTarget to MTLDrawable
-    GfxTexture2D drawableTexture2D = createGfxTexture2DFromMTLDrawable((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable);
-    GfxBlitCmdEncoder* blitCmdEncoder = gfx::setBlitPass("CopyRTtoMTLDrawable");
-    blitCmdEncoder->copyTexture(gfx::renderTarget[g_FrameIndex], &drawableTexture2D, 0, 0, 1);
-    blitCmdEncoder->end();
-    
-    [getMTLCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
-    
-    //__block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
-    //[getMTLCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
-    //{
-    //    dispatch_semaphore_signal(blockSemaphore);
-    //}];
-    
-    rgU64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
-    [getMTLCommandBuffer() encodeSignalEvent:frameFenceEvent value:fenceValueToSignal];
-    
-    [getMTLCommandBuffer() commit];
-    
-    // Autorelease pool END
-    mtl->autoReleasePool->release();
-    
-    return 0;
-}
-
-void onSizeChanged()
-{
-    
-}
-
-void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr)
-{
-    [bindlessTextureArgEncoder setTexture:getMTLTexture(ptr) atIndex:slot];
-}
-
-void checkerWaitTillFrameCompleted(rgInt frameIndex)
-{
-    rgAssert(frameIndex >= 0);
-    rgU64 valueToWaitFor = frameFenceValues[frameIndex];
-    while(frameFenceEvent.signaledValue < valueToWaitFor)
-    {
-        // TODO: cpu friendly way to wait
-        int ans = 42;
-    }
-}
-
-RG_END_GFX_NAMESPACE
-
-// TODO: remove this
-using namespace gfx;
-
 //-----------------------------------------------------------------------------
 // GfxBuffer Implementation
 //-----------------------------------------------------------------------------
@@ -686,7 +416,7 @@ void GfxTexture2D::create(char const* tag, void* buf, rgUInt width, rgUInt heigh
     //texDesc.resourceOptions = toMTLResourceOptions(usage);
     
     //id<MTLTexture> mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc];
-    id<MTLTexture> mtlTexture = [bindlessTextureHeap newTextureWithDescriptor:texDesc];
+    id<MTLTexture> mtlTexture = [gfx::bindlessTextureHeap newTextureWithDescriptor:texDesc];
     mtlTexture.label = [NSString stringWithUTF8String:tag];
     [texDesc release];
     
@@ -1013,7 +743,7 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
         MTLDepthStencilDescriptor* depthStencilDesc = [[MTLDepthStencilDescriptor alloc] init];
         depthStencilDesc.depthWriteEnabled = renderStateDesc->depthWriteEnabled;
         depthStencilDesc.depthCompareFunction = toMTLCompareFunction(renderStateDesc->depthCompareFunc);
-        obj->mtlDepthStencilState = [gfx::getMTLDevice() newDepthStencilStateWithDescriptor:depthStencilDesc];
+        obj->mtlDepthStencilState = [getMTLDevice() newDepthStencilStateWithDescriptor:depthStencilDesc];
         [depthStencilDesc release];
 
         // vertex attributes
@@ -1086,27 +816,27 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
         MTLRenderPassColorAttachmentDescriptor* colorAttachmentDesc = [renderPassDesc colorAttachments][c];
         GfxColorAttachmentDesc* colorAttachment = &renderPass->colorAttachments[c];
         
-        colorAttachmentDesc.texture     = gfx::getMTLTexture(colorAttachment->texture);
-        colorAttachmentDesc.loadAction  = gfx::toMTLLoadAction(colorAttachment->loadAction);
-        colorAttachmentDesc.storeAction = gfx::toMTLStoreAction(colorAttachment->storeAction);
-        colorAttachmentDesc.clearColor  = gfx::toMTLClearColor(&colorAttachment->clearColor);
+        colorAttachmentDesc.texture     = getMTLTexture(colorAttachment->texture);
+        colorAttachmentDesc.loadAction  = toMTLLoadAction(colorAttachment->loadAction);
+        colorAttachmentDesc.storeAction = toMTLStoreAction(colorAttachment->storeAction);
+        colorAttachmentDesc.clearColor  = toMTLClearColor(&colorAttachment->clearColor);
     }
     MTLRenderPassDepthAttachmentDescriptor* depthAttachmentDesc = [renderPassDesc depthAttachment];
-    depthAttachmentDesc.texture     = gfx::getMTLTexture(renderPass->depthStencilAttachmentTexture);
-    depthAttachmentDesc.loadAction  = gfx::toMTLLoadAction(renderPass->depthStencilAttachmentLoadAction);
-    depthAttachmentDesc.storeAction = gfx::toMTLStoreAction(renderPass->depthStencilAttachmentStoreAction);
+    depthAttachmentDesc.texture     = getMTLTexture(renderPass->depthStencilAttachmentTexture);
+    depthAttachmentDesc.loadAction  = toMTLLoadAction(renderPass->depthStencilAttachmentLoadAction);
+    depthAttachmentDesc.storeAction = toMTLStoreAction(renderPass->depthStencilAttachmentStoreAction);
     depthAttachmentDesc.clearDepth  = renderPass->clearDepth;
 
-    id<MTLRenderCommandEncoder> mtlRenderEncoder = [gfx::getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
+    id<MTLRenderCommandEncoder> mtlRenderEncoder = [getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
     rgAssert(mtlRenderEncoder != nil);
     [mtlRenderEncoder pushDebugGroup:[NSString stringWithUTF8String:tag]];
     
     [renderPassDesc autorelease];
 
-    [mtlRenderEncoder useHeap:bindlessTextureHeap stages:MTLRenderStageFragment];
-    [mtlRenderEncoder setFragmentBuffer:bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
+    [mtlRenderEncoder useHeap:gfx::bindlessTextureHeap stages:MTLRenderStageFragment];
+    [mtlRenderEncoder setFragmentBuffer:gfx::bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     
-    [mtlRenderEncoder useHeap:asMTLHeap(getFrameAllocator()->getHeap()) stages:MTLRenderStageVertex|MTLRenderStageFragment];
+    [mtlRenderEncoder useHeap:asMTLHeap(gfx::getFrameAllocator()->getHeap()) stages:MTLRenderStageVertex|MTLRenderStageFragment];
     
     renderCmdEncoder = (__bridge void*)mtlRenderEncoder;
     hasEnded = false;
@@ -1114,18 +844,18 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 
 void GfxRenderCmdEncoder::end()
 {
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) endEncoding];
+    [asMTLRenderCommandEncoder(renderCmdEncoder) endEncoding];
     hasEnded = true;
 }
 
 void GfxRenderCmdEncoder::pushDebugTag(const char* tag)
 {
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
+    [asMTLRenderCommandEncoder(renderCmdEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
 }
 
 void GfxRenderCmdEncoder::popDebugTag()
 {
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) popDebugGroup];
+    [asMTLRenderCommandEncoder(renderCmdEncoder) popDebugGroup];
 }
 
 void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
@@ -1143,7 +873,7 @@ void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat 
     vp.znear   = 0.0;
     vp.zfar    = 1.0;
     
-    [gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setViewport:vp];
+    [asMTLRenderCommandEncoder(renderCmdEncoder) setViewport:vp];
 }
 
 void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels)
@@ -1159,15 +889,15 @@ void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 wid
 
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
-    id<MTLRenderCommandEncoder> cmdEncoder = gfx::asMTLRenderCommandEncoder(renderCmdEncoder);
+    id<MTLRenderCommandEncoder> cmdEncoder = asMTLRenderCommandEncoder(renderCmdEncoder);
     
-    [cmdEncoder setRenderPipelineState:gfx::getMTLRenderPipelineState(pso)];
-    [cmdEncoder setDepthStencilState:gfx::getMTLDepthStencilState(pso)];
-    [cmdEncoder setFrontFacingWinding:gfx::getMTLWinding(pso)];
-    [cmdEncoder setCullMode:gfx::getMTLCullMode(pso)];
-    [cmdEncoder setTriangleFillMode:gfx::getMTLTriangleFillMode(pso)];
+    [cmdEncoder setRenderPipelineState:getMTLRenderPipelineState(pso)];
+    [cmdEncoder setDepthStencilState:getMTLDepthStencilState(pso)];
+    [cmdEncoder setFrontFacingWinding:getMTLWinding(pso)];
+    [cmdEncoder setCullMode:getMTLCullMode(pso)];
+    [cmdEncoder setTriangleFillMode:getMTLTriangleFillMode(pso)];
     
-    boundGraphicsPSO = pso;
+    gfx::currentGraphicsPSO = pso;
 }
 
 //-----------------------------------------------------------------------------
@@ -1193,11 +923,11 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU3
 //-----------------------------------------------------------------------------
 GfxGraphicsPSO::ResourceInfo& getResourceBindingInfo(char const* bindingTag)
 {
-    rgAssert(boundGraphicsPSO != nullptr);
+    rgAssert(gfx::currentGraphicsPSO != nullptr);
     rgAssert(bindingTag);
     
-    auto infoIter = boundGraphicsPSO->mtlResourceInfo.find(bindingTag);
-    rgAssert(infoIter != boundGraphicsPSO->mtlResourceInfo.end());
+    auto infoIter = gfx::currentGraphicsPSO->mtlResourceInfo.find(bindingTag);
+    rgAssert(infoIter != gfx::currentGraphicsPSO->mtlResourceInfo.end());
     GfxGraphicsPSO::ResourceInfo& info = infoIter->second;
     
     return info;
@@ -1361,7 +1091,7 @@ void GfxRenderCmdEncoder::drawBunny()
         rgFloat viewCamera[16];  
     } cameraParams;
 
-    copyMatrix4ToFloatArray(cameraParams.projectionPerspective, createPerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f));
+    copyMatrix4ToFloatArray(cameraParams.projectionPerspective, gfx::createPerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f));
     copyMatrix4ToFloatArray(cameraParams.viewCamera, Matrix4::lookAt(Point3(0.0f, 1.0f, -1.2f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
 
     // instance
@@ -1531,6 +1261,264 @@ GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialD
     
     return output;
 }
+
+//***********************************************************************
+//***********************************************************************
+//***********************************************************************
+RG_BEGIN_GFX_NAMESPACE
+// TEST ATOMIC ---------
+id<MTLComputePipelineState> histogramComputePipeline;
+
+void testComputeAtomicsSetup()
+{
+    MTLCompileOptions* compileOptions = [[MTLCompileOptions alloc] init];
+    
+    NSError* err;
+    id<MTLLibrary> histogramLibrary = [getMTLDevice() newLibraryWithSource:[NSString stringWithUTF8String:g_HistogramShaderSrcCode] options:compileOptions error:&err];
+    if(err)
+    {
+        printf("%s\n", [[err localizedDescription]UTF8String]);
+        rgAssert(!"newLibrary error");
+    }
+    [compileOptions release];
+    
+    id<MTLFunction> computeHistogram = [histogramLibrary newFunctionWithName:@"computeHistogram_CS"];
+    
+    histogramComputePipeline = [getMTLDevice() newComputePipelineStateWithFunction:computeHistogram error:&err];
+    
+    [computeHistogram release];
+    [histogramLibrary release];
+    
+    TextureRef histoTex = rg::loadTexture("histogram_test.png");
+    gfx::texture2D->create("histogramTest", histoTex->buf, histoTex->width, histoTex->height, histoTex->format, false, GfxTextureUsage_ShaderRead);
+    gfx::buffer->create("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
+}
+
+void testComputeAtomicsRun()
+{
+    id<MTLComputeCommandEncoder> computeEncoder = [getMTLCommandBuffer() computeCommandEncoder];
+    [computeEncoder setComputePipelineState:histogramComputePipeline];
+    [computeEncoder setTexture:getMTLTexture(gfx::texture2D->find(rgCRC32("histogramTest"))) atIndex:0];
+    [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:0];
+    //[computeEncoder setTexture:(id<MTLTexture>)getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) atIndex:1];
+    [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:1];
+    [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
+    [computeEncoder endEncoding];
+}
+// -------- TEST ATOMIC
+
+id<MTLArgumentEncoder> frameConstBufferArgEncoder;
+id<MTLBuffer> frameConstBufferArgBuffer;
+id<MTLBuffer> cameraBuffer;
+struct Camera
+{
+    float projection[16];
+    float view[16];
+};
+///
+
+//*****************************************************************************
+// MTL backend states & instances
+//*****************************************************************************
+
+// Fencing and sync variables
+static id<MTLSharedEvent> frameFenceEvent;
+static MTLSharedEventListener* frameFenceEventListener;
+static dispatch_queue_t frameFenceDispatchQueue; // TODO: Needed at all/here?
+static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+
+// Current state
+
+//*****************************************************************************
+// Call from main | loop init() destroy() startNextFrame() endFrame()
+//*****************************************************************************
+
+rgInt init()
+{
+    mtl = rgNew(gfx::Mtl);
+    
+    rgAssert(gfx::mainWindow);
+    mtl->view = (NS::View*)SDL_Metal_CreateView(gfx::mainWindow);
+    mtl->layer = SDL_Metal_GetLayer(mtl->view);
+    mtl->device = MTL::CreateSystemDefaultDevice();
+    mtl->commandQueue = mtl->device->newCommandQueue();
+
+    CAMetalLayer* mtlLayer = (CAMetalLayer*)mtl->layer;
+    mtlLayer.device = (__bridge id<MTLDevice>)(mtl->device);
+    mtlLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    mtlLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_FLIGHT;
+    mtlLayer.framebufferOnly = false;
+    //mtlLayer.displaySyncEnabled = false;
+    //
+
+    mtl->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
+    
+    @autoreleasepool
+    {
+        // Crate frame sync events
+        frameFenceEvent = [getMTLDevice() newSharedEvent];
+        frameFenceDispatchQueue = dispatch_queue_create("rg.gamelib.mtl.frameFenceDispatchQueue", NULL);
+        frameFenceEventListener = [[MTLSharedEventListener alloc] initWithDispatchQueue:frameFenceDispatchQueue];
+        
+        // Initialize memory for bindless textures
+        MTLHeapDescriptor* bindlessTextureHeapDesc = [MTLHeapDescriptor new];
+        bindlessTextureHeapDesc.type = MTLHeapTypeAutomatic;
+        bindlessTextureHeapDesc.storageMode = MTLStorageModeShared;
+        bindlessTextureHeapDesc.cpuCacheMode = MTLCPUCacheModeDefaultCache;
+        bindlessTextureHeapDesc.hazardTrackingMode = MTLHazardTrackingModeTracked;
+        bindlessTextureHeapDesc.size = rgMEGABYTE(128);
+        bindlessTextureHeap = [getMTLDevice() newHeapWithDescriptor:bindlessTextureHeapDesc];
+        // TODO: is manual release of descriptor needed?
+        
+        // Create render targets
+        for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            std::string tag = "renderTarget" + std::to_string(i);
+            
+            gfx::renderTarget[i] = gfx::texture2D->create(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, false, GfxTextureUsage_RenderTarget);
+        }
+        gfx::depthStencilBuffer = gfx::texture2D->create("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, false, GfxTextureUsage_DepthStencil);
+        
+        
+        // Create bindless texture argument encoder and buffer
+        MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
+        argDesc.index = 0;
+        argDesc.dataType = MTLDataTypeTexture;
+        argDesc.arrayLength = 99999;
+        argDesc.textureType = MTLTextureType2D;
+        argDesc.access = MTLArgumentAccessReadOnly;
+        
+        bindlessTextureArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments: @[argDesc]];
+        bindlessTextureArgBuffer  = [getMTLDevice() newBufferWithLength:[bindlessTextureArgEncoder encodedLength]
+                                                                options:MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined | MTLResourceHazardTrackingModeTracked];
+        [bindlessTextureArgEncoder setArgumentBuffer:bindlessTextureArgBuffer offset:0];
+        
+        // Test argument encoder layout issues
+#if 1
+        MTLArgumentDescriptor* frameConstDescriptor1 = [MTLArgumentDescriptor argumentDescriptor];
+        frameConstDescriptor1.index = 0;
+        frameConstDescriptor1.dataType = MTLDataTypePointer;
+        frameConstDescriptor1.access = MTLArgumentAccessReadOnly;
+        
+        MTLArgumentDescriptor* frameConstDescriptor2 = [MTLArgumentDescriptor argumentDescriptor];
+        frameConstDescriptor2.index = 1;
+        frameConstDescriptor2.dataType = MTLDataTypeTexture;
+        frameConstDescriptor2.textureType = MTLTextureType2D;
+        frameConstDescriptor2.access = MTLArgumentAccessReadOnly;
+
+        frameConstBufferArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments:@[frameConstDescriptor1]];
+        frameConstBufferArgBuffer = [getMTLDevice() newBufferWithLength:[frameConstBufferArgEncoder encodedLength] options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
+#endif
+
+        // TODO: allocate in frame allocator per frame
+        cameraBuffer = [getMTLDevice() newBufferWithLength:sizeof(Camera) options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
+        
+        testComputeAtomicsSetup();
+    }
+    return 0;
+}
+
+void destroy()
+{
+    
+}
+
+void startNextFrame()
+{
+    //dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
+    
+    rgU64 prevFrameFenceValue = (g_FrameIndex != -1) ? frameFenceValues[g_FrameIndex] : 0;
+    
+    g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
+    
+    // check if this next frame is finised on the GPU
+    rgU64 nextFrameFenceValueToWaitFor = frameFenceValues[g_FrameIndex];
+    while(frameFenceEvent.signaledValue < nextFrameFenceValueToWaitFor)
+    {
+        // This means we have no free backbuffers. we must wait
+        
+        //BreakIfFail(d3d.frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, d3d.frameFenceEvent));
+        //::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
+    }
+
+    // This frame fence value is one more than prev frame fence value
+    frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
+    
+    gfx::atFrameStart();
+    
+    // Reset finished frame allocator
+    // TODO: Move this as common gfx class
+    frameAllocators[getFinishedFrameIndex()]->reset();
+    
+    // Autorelease pool BEGIN
+    mtl->autoReleasePool = NS::AutoreleasePool::alloc()->init(); // TODO: replace this with something better
+    
+    CAMetalLayer* metalLayer = (CAMetalLayer*)mtl->layer;
+    id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
+    rgAssert(metalDrawable != nullptr);
+    mtl->caMetalDrawable = metalDrawable;
+    
+    mtl->commandBuffer = (__bridge id<MTLCommandBuffer>)mtl->commandQueue->commandBuffer();
+}
+
+void endFrame()
+{
+    //testComputeAtomicsRun();
+    
+    // TODO: Add assert if the currentRenderCmdEncoder is not ended
+    if(!currentRenderCmdEncoder->hasEnded)
+    {
+        currentRenderCmdEncoder->end();
+    }
+    
+    // blit renderTarget to MTLDrawable
+    GfxTexture2D drawableTexture2D = createGfxTexture2DFromMTLDrawable((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable);
+    GfxBlitCmdEncoder* blitCmdEncoder = gfx::setBlitPass("CopyRTtoMTLDrawable");
+    blitCmdEncoder->copyTexture(gfx::renderTarget[g_FrameIndex], &drawableTexture2D, 0, 0, 1);
+    blitCmdEncoder->end();
+    
+    [getMTLCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
+    
+    //__block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
+    //[getMTLCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
+    //{
+    //    dispatch_semaphore_signal(blockSemaphore);
+    //}];
+    
+    rgU64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
+    [getMTLCommandBuffer() encodeSignalEvent:frameFenceEvent value:fenceValueToSignal];
+    
+    [getMTLCommandBuffer() commit];
+    
+    // Autorelease pool END
+    mtl->autoReleasePool->release();
+    
+    return 0;
+}
+
+void onSizeChanged()
+{
+    
+}
+
+void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr)
+{
+    [bindlessTextureArgEncoder setTexture:getMTLTexture(ptr) atIndex:slot];
+}
+
+void checkerWaitTillFrameCompleted(rgInt frameIndex)
+{
+    rgAssert(frameIndex >= 0);
+    rgU64 valueToWaitFor = frameFenceValues[frameIndex];
+    while(frameFenceEvent.signaledValue < valueToWaitFor)
+    {
+        // TODO: cpu friendly way to wait
+        int ans = 42;
+    }
+}
+
+RG_END_GFX_NAMESPACE
+//***********************************************************************
 
 RG_END_RG_NAMESPACE
 #endif

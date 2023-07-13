@@ -75,26 +75,31 @@ RG_BEGIN_GFX_NAMESPACE
 SDL_Window* mainWindow;
 rgUInt frameNumber;
 
-GfxRenderPass* currentRenderPass;
-GfxRenderCmdEncoder* currentRenderCmdEncoder;
-GfxBlitCmdEncoder* currentBlitCmdEncoder;
+// CURRENT STATE
+GfxRenderPass*          currentRenderPass;
+GfxRenderCmdEncoder*    currentRenderCmdEncoder;
+GfxBlitCmdEncoder*      currentBlitCmdEncoder;
+GfxGraphicsPSO*         currentGraphicsPSO;
 
-GfxObjectRegistry<GfxTexture2D>* texture2D;
-GfxObjectRegistry<GfxBuffer>* buffer;
-GfxObjectRegistry<GfxGraphicsPSO>* graphicsPSO;
-GfxObjectRegistry<GfxSampler>* sampler;
+// OBJECT REGISTRIES
+GfxObjectRegistry<GfxTexture2D>*    texture2D;
+GfxObjectRegistry<GfxBuffer>*       buffer;
+GfxObjectRegistry<GfxGraphicsPSO>*  graphicsPSO;
+GfxObjectRegistry<GfxSampler>*      sampler;
 
-GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
+GfxBindlessResourceManager<GfxTexture2D>*   bindlessManagerTexture2D;
 
+// DEFAULT RESOURCES
+GfxTexture2D*       renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
+GfxTexture2D*       depthStencilBuffer;
+GfxSampler*         bilinearSampler;
+GfxFrameAllocator*  frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
+
+// MISC
 Matrix4 orthographicMatrix;
 Matrix4 viewMatrix;
-
 eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
 
-GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-GfxTexture2D* depthStencilBuffer;
-
-GfxSampler* bilinearSampler;
 
 Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue)
 {
@@ -134,6 +139,13 @@ rgInt preInit()
 
 rgInt initCommonStuff()
 {
+    // Initialize frame buffer allocators
+    for(rgS32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMEGABYTE(16));
+    }
+    
+    //
     gfx::orthographicMatrix = Matrix4::orthographic(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0, 0.1f, 1000.0f);
     gfx::viewMatrix = Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0));
     
@@ -194,6 +206,11 @@ GfxTexture2D* getCurrentRenderTargetColorBuffer()
 GfxTexture2D* getRenderTargetDepthBuffer()
 {
     return gfx::depthStencilBuffer;
+}
+
+GfxFrameAllocator* getFrameAllocator()
+{
+    return gfx::frameAllocators[g_FrameIndex];
 }
 
 GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)

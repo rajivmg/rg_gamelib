@@ -801,14 +801,15 @@ RG_BEGIN_GFX_NAMESPACE
 //-----------------------------------------------------------------------------
 // General Common Stuff
 //-----------------------------------------------------------------------------
-rgInt           preInit();
-rgInt           initCommonStuff(); // TODO: merge with preInit()
-void            atFrameStart();
-rgInt           getFrameIndex(); // Returns 0 if g_FrameIndex is -1
-rgInt           getFinishedFrameIndex();
-GfxTexture2D*   getCurrentRenderTargetColorBuffer();
-GfxTexture2D*   getRenderTargetDepthBuffer();
-Matrix4         createPerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
+rgInt               preInit(); // TODO: IS THIS EVEN NEEDED? TRY TO REMOVE THIS
+rgInt               initCommonStuff(); // TODO: merge with preInit()
+void                atFrameStart();
+rgInt               getFrameIndex(); // Returns 0 if g_FrameIndex is -1
+rgInt               getFinishedFrameIndex();
+GfxFrameAllocator*  getFrameAllocator();
+GfxTexture2D*       getCurrentRenderTargetColorBuffer();
+GfxTexture2D*       getRenderTargetDepthBuffer();
+Matrix4             createPerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
 
 //-----------------------------------------------------------------------------
 // Gfx function declarations
@@ -861,6 +862,7 @@ extern rgUInt frameNumber;
 
 extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
+extern GfxGraphicsPSO* currentGraphicsPSO;
 
 extern GfxObjectRegistry<GfxTexture2D>* texture2D;
 extern GfxObjectRegistry<GfxBuffer>* buffer;
@@ -869,6 +871,8 @@ extern GfxObjectRegistry<GfxSampler>* sampler;
 //extern GfxObjectRegistry<GfxShaderLibrary, gfx::destroyerGfxShaderLibrary>* registryShaderLibrary;
     
 extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
+
+extern GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
 extern Matrix4 orthographicMatrix; // TODO: Rename projection2d, projection3d
 extern Matrix4 viewMatrix; // TODO: Rename view2d
