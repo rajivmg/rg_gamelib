@@ -119,7 +119,8 @@ elseif(APPLE)
     set(DXC_LIBRARY ${DXC_LIB_DIR}/arm64/libdxcompiler.dylib)
 
     # set source files
-    file(GLOB SRC_FILES "code/*.cpp" "code/*.mm" "code/*.h" "code/shaders/metal/*.inl")
+    set(IMGUI_METAL_SRC ${IMGUI_ROOT_DIR}/backends/imgui_impl_metal.mm ${IMGUI_ROOT_DIR}/backends/imgui_impl_metal.h ${IMGUI_ROOT_DIR}/backends/imgui_impl_sdl2.h ${IMGUI_ROOT_DIR}/backends/imgui_impl_sdl2.cpp ${IMGUI_SRC_FILES})
+    file(GLOB SRC_FILES "code/*.cpp" "code/*.mm" "code/*.h" "code/shaders/metal/*.inl" ${IMGUI_METAL_SRC})
     file(GLOB SHADER_SRC_FILES "code/shaders/metal/*.metal")
 
     add_compile_definitions(RG_METAL_RNDR __EMULATE_UUID)

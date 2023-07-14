@@ -145,6 +145,14 @@ rgInt initCommonStuff()
         frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMEGABYTE(16));
     }
     
+    // Initialize IMGUI
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& imguiIO = ImGui::GetIO();
+    ImGui::StyleColorsLight();
+    
+    gfx::rendererImguiInit();
+    
     //
     gfx::orthographicMatrix = Matrix4::orthographic(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0, 0.1f, 1000.0f);
     gfx::viewMatrix = Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0));

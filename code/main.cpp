@@ -4,6 +4,8 @@
 #include "rg_gfx.h"
 #include "rg_physic.h"
 
+#include "backends/imgui_impl_sdl2.h"
+
 #include "box2d/box2d.h"
 
 #include <EASTL/vector.h>
@@ -363,6 +365,8 @@ int main(int argc, char* argv[])
         
         while(SDL_PollEvent(&event) != 0)
         {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+            
             if(event.type == SDL_QUIT)
             {
                 g_ShouldQuit = true;
@@ -380,8 +384,17 @@ int main(int argc, char* argv[])
         }
         
         gfx::startNextFrame();
+        
+        gfx::rendererImGuiNewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+        
         rg::updateAndDraw(g_DeltaTime);
+        
+        ImGui::Render();
+        gfx::rendererImGuiRenderDrawData();
         gfx::endFrame();
+        
     }
 
     gfx::destroy();

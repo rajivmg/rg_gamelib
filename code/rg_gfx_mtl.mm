@@ -23,6 +23,9 @@
 #include "spirv_parser.hpp"
 #include "spirv_msl.hpp"
 
+#include "backends/imgui_impl_sdl2.h"
+#include "backends/imgui_impl_metal.h"
+
 RG_BEGIN_RG_NAMESPACE
 
 #include "shaders/metal/imm_shader.inl"
@@ -1538,6 +1541,22 @@ void endFrame()
     mtl->autoReleasePool->release();
     
     return 0;
+}
+
+void rendererImGuiInit()
+{
+    ImGui_ImplMetal_Init(getMTLDevice());
+    ImGui_ImplSDL2_InitForMetal(gfx::mainWindow);
+}
+
+void rendererImGuiNewFrame()
+{
+    ImGui_ImplMetal_NewFrame(<#MTLRenderPassDescriptor *renderPassDescriptor#>;)
+}
+
+void rendererImGuiRenderDrawData()
+{
+    ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), getMTLCommandBuffer(), <#id<MTLRenderCommandEncoder> commandEncoder#>)
 }
 
 void onSizeChanged()

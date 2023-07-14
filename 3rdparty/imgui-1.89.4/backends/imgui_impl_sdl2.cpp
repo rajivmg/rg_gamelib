@@ -73,8 +73,8 @@
 #include "imgui_impl_sdl2.h"
 
 // SDL
-#include <SDL.h>
-#include <SDL_syswm.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif

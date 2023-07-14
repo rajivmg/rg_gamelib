@@ -23,6 +23,7 @@
 #endif
 
 #include "rg.h"
+#include "imgui.h"
 #include <EASTL/shared_ptr.h>
 #include <EASTL/hash_map.h>
 #include <EASTL/string.h>
@@ -821,6 +822,10 @@ rgInt           init();
 void            destroy();
 void            startNextFrame();
 void            endFrame();
+
+void            rendererImGuiInit();
+void            rendererImGuiNewFrame();
+void            rendererImGuiRenderDrawData();
 
 void            onSizeChanged();
 
