@@ -1058,6 +1058,35 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 }
 
 // TODO: replace with generalized modular functions
+
+struct MeshVertexPositionUV
+{
+    float position[3];
+    float uv[2];
+};
+
+struct MeshVertexNormalBinormal
+{
+    float normal[3];
+    float binormal[3];
+};
+
+struct GfxModel
+{
+    char tag[32];
+    
+    // OFFLINE ONLY
+    eastl::vector<MeshVertexPositionUV> positionUVStream;
+    eastl::vector<MeshVertexNormalBinormal> normalBinormalStream;
+    
+    // RUNTIME ONLY
+    GfxBuffer* positionUVBufferStream;
+    GfxBuffer* normalBinormalBufferStream;
+    
+    // OFFLINE + RUNTIME
+    
+};
+
 #include "../3rdparty/obj2header/shaderball.h"
 const rgUInt shaderballModelIndexCount = sizeof(shaderballModelIndices)/sizeof(shaderballModelIndices[0]);
 const rgUInt shaderballModelVertexCount = sizeof(shaderballModelVertices)/sizeof(shaderballModelVertices[0]);
