@@ -1058,9 +1058,9 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 }
 
 // TODO: replace with generalized modular functions
-#include "../3rdparty/obj2header/bunny_model.h"
-const rgUInt bunnyModelIndexCount = sizeof(bunnyModelIndices)/sizeof(bunnyModelIndices[0]);
-const rgUInt bunnyModelVertexCount = sizeof(bunnyModelVertices)/sizeof(bunnyModelVertices[0]);
+#include "../3rdparty/obj2header/shaderball.h"
+const rgUInt shaderballModelIndexCount = sizeof(shaderballModelIndices)/sizeof(shaderballModelIndices[0]);
+const rgUInt shaderballModelVertexCount = sizeof(shaderballModelVertices)/sizeof(shaderballModelVertices[0]);
 
 Matrix4 makePerspectiveProjection(rgFloat fovDeg, rgFloat aspect, rgFloat nearValue, rgFloat farValue)
 {
@@ -1081,8 +1081,8 @@ void GfxRenderCmdEncoder::drawBunny()
 {
     rgAssert(renderCmdEncoder);
     
-    GfxFrameResource vertexBufAllocation = gfx::getFrameAllocator()->newBuffer("drawBunnyVertexBuf", (rgU32)bunnyModelVertexCount * sizeof(Obj2HeaderModelVertex), (void*)bunnyModelVertices);
-    GfxFrameResource indexBufAllocation = gfx::getFrameAllocator()->newBuffer("drawBunnyIndexBuf", (rgU32)bunnyModelIndexCount * sizeof(rgU32), (void*)bunnyModelIndices);
+    GfxFrameResource vertexBufAllocation = gfx::getFrameAllocator()->newBuffer("drawBunnyVertexBuf", (rgU32)shaderballModelVertexCount * sizeof(Obj2HeaderModelVertex), (void*)shaderballModelVertices);
+    GfxFrameResource indexBufAllocation = gfx::getFrameAllocator()->newBuffer("drawBunnyIndexBuf", (rgU32)shaderballModelIndexCount * sizeof(rgU32), (void*)shaderballModelIndices);
     
     // camera
     struct
@@ -1092,7 +1092,7 @@ void GfxRenderCmdEncoder::drawBunny()
     } cameraParams;
 
     copyMatrix4ToFloatArray(cameraParams.projectionPerspective, gfx::createPerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f));
-    copyMatrix4ToFloatArray(cameraParams.viewCamera, Matrix4::lookAt(Point3(0.0f, 1.0f, -1.2f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
+    copyMatrix4ToFloatArray(cameraParams.viewCamera, Matrix4::lookAt(Point3(0.0f, 1.0f, 3.0f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
 
     // instance
     struct
@@ -1101,7 +1101,7 @@ void GfxRenderCmdEncoder::drawBunny()
         rgFloat invTposeWorldXform[256][16];
     } instanceParams;
 
-    Matrix4 xform = Matrix4(Transform3::rotationY(sinf(g_Time * 0.5f + 2.0f))).setTranslation(Vector3(0.0f, 0.0f, 0.5f));
+    Matrix4 xform = Matrix4(Transform3::rotationY(sinf(g_Time * 0.5f)));
     copyMatrix4ToFloatArray(&instanceParams.worldXform[0][0], xform);
     copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
     
@@ -1112,7 +1112,7 @@ void GfxRenderCmdEncoder::drawBunny()
     bindBuffer(&instanceParamsBuffer, "instanceParams");
     
     setVertexBuffer(&vertexBufAllocation, 0);
-    drawIndexedTriangles(bunnyModelIndexCount, true, &indexBufAllocation, 1);
+    drawIndexedTriangles(shaderballModelIndexCount, true, &indexBufAllocation, 1);
 }
 
 //-----------------------------------------------------------------------------

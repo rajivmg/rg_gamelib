@@ -263,7 +263,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         GfxRenderCmdEncoder* myWorld3dRenderEncoder = gfx::setRenderPass(&myWorld3dPass, "MyWorld3D");
         myWorld3dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find(rgCRC32("principledBrdf")));
-        myWorld3dRenderEncoder->setScissorRect(g_WindowInfo.width - 570, g_WindowInfo.height - 500, 300, 230);
+        //myWorld3dRenderEncoder->setScissorRect(g_WindowInfo.width - 570, g_WindowInfo.height - 500, 300, 230);
         myWorld3dRenderEncoder->drawBunny();
         myWorld3dRenderEncoder->end();
         
