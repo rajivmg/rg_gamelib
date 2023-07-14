@@ -606,10 +606,12 @@ protected:
     rgU32 capacity;
 #if defined(RG_METAL_RNDR)
     void* heap; //type: id<MTLHeap>
+    eastl::vector<void*> mtlResources;
 #endif
     
     void create(rgU32 sizeInBytes);
     void destroy();
+    void releaseResources();
 public:
     GfxFrameAllocator(rgU32 sizeInBytes)
     : offset(0)
@@ -640,6 +642,7 @@ public:
     void reset()
     {
         offset = 0;
+        releaseResources();
     }
     
     void* getHeap()

@@ -1199,6 +1199,17 @@ void GfxFrameAllocator::destroy()
     [asMTLHeap(heap) release];
 }
 
+void GfxFrameAllocator::releaseResources()
+{
+    rgInt l = mtlResources.size();
+    for(rgInt i = 0; i < l; ++i)
+    {
+        id<MTLResource> re = (__bridge id<MTLResource>)mtlResources[i];
+        [re release];
+    }
+    mtlResources.clear();
+}
+
 GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void* initialData)
 {
     MTLResourceOptions options = MTLResourceStorageModeShared | MTLResourceHazardTrackingModeTracked | MTLResourceCPUCacheModeWriteCombined;
@@ -1215,6 +1226,8 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
         void* mappedPtr = [br contents];
         std::memcpy(mappedPtr, initialData, size);
     }
+    
+    mtlResources.push_back((__bridge void*)br);
     
     GfxFrameResource output;
     output.type = GfxFrameResource::Type_Buffer;
@@ -1253,6 +1266,8 @@ GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialD
         MTLRegion region = MTLRegionMake2D(0, 0, width, height);
         [te replaceRegion:region mipmapLevel:0 withBytes:initialData bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
     }
+    
+    mtlResources.push_back((__bridge void*)te);
 
     GfxFrameResource output;
     output.type = GfxFrameResource::Type_Texture;
