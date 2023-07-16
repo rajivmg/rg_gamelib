@@ -5,6 +5,8 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <map>
 
 struct Vertex {
 	std::vector<float> position;
@@ -294,8 +296,232 @@ static bool processGLTFMesh(char const *pFilename, char const *pMeshName, Asset:
 */
 void convert(std::string input, std::string output)
 {
-	cgltf_data* data;
-	cgltf_result result = loadAndParseGLTF("shaderball.glb", &data);
+	cgltf_data* gltf;
+	cgltf_result result = loadAndParseGLTF(input.c_str(), &gltf);
+
+	if(result != cgltf_result_success)
+	{
+		std::cout << "Can't load and parse " << input << std::endl;
+		assert(false);
+		return;
+	}
+
+	auto findAttribute = [](cgltf_attribute_type type, cgltf_primitive* primitive) -> cgltf_attribute*
+	{
+		for(int i = 0; i < primitive->attributes_count; ++i)
+		{
+			if(primitive->attributes[i].type == type)
+			{
+				return &primitive->attributes[i];
+			}
+		}
+
+		return nullptr;
+	};
+
+	// 1. Find concerned nodes in the scene
+	std::vector<cgltf_node*> meshNodes;
+	std::vector<cgltf_node*> lightNodes; // TODO
+	for(int nodeIdx = 0; nodeIdx < gltf->nodes_count; ++nodeIdx)
+	{
+		if(gltf->nodes[nodeIdx].mesh != nullptr)
+		{
+			meshNodes.push_back(&(gltf->nodes[nodeIdx]));
+		}
+	}
+
+	// 3. Read vertex data of meshes from buffers
+	std::vector<float> vertexData;
+	std::vector<uint32_t> index32Data;
+	std::vector<uint16_t> index16Data;
+	vertexData.reserve(50000);
+	index32Data.reserve(50000);
+	index16Data.reserve(50000);
+
+	for(int meshIdx = 0; meshIdx < meshNodes.size(); ++meshIdx)
+	{
+		cgltf_mesh* mesh = meshNodes[meshIdx]->mesh;
+		assert(mesh->primitives_count == 1); // for now we only support 1 primitive per mesh
+
+		cgltf_primitive* primitive = mesh->primitives;
+		assert(primitive->type == cgltf_primitive_type_triangles);
+
+		cgltf_attribute* positionAttrib = findAttribute(cgltf_attribute_type_position,	primitive);
+		cgltf_attribute* texCoordAttrib = findAttribute(cgltf_attribute_type_texcoord,	primitive);
+		cgltf_attribute* normalAttrib	= findAttribute(cgltf_attribute_type_normal,	primitive);
+		cgltf_attribute* binormalAttrib = findAttribute(cgltf_attribute_type_tangent,	primitive);
+
+
+		assert(positionAttrib->data->type == cgltf_type_vec3);
+		if(texCoordAttrib) { assert(texCoordAttrib->data->type == cgltf_type_vec2); }
+		if(normalAttrib) { assert(normalAttrib->data->type == cgltf_type_vec3); }
+		if(binormalAttrib) { assert(binormalAttrib->data->type == cgltf_type_vec4); }
+
+		cgltf_size vertexCount = positionAttrib->data->count;
+		if(texCoordAttrib) { assert(texCoordAttrib->data->count == vertexCount); }
+		if(normalAttrib) { assert(normalAttrib->data->count == vertexCount); }
+		if(binormalAttrib) { assert(binormalAttrib->data->count == vertexCount); }
+
+		for(unsigned int x = 0; x < vertexCount; ++x)
+		{
+			if(positionAttrib)
+			{
+				cgltf_buffer_view* bufView = positionAttrib->data->buffer_view;
+				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + positionAttrib->data->offset + (x * bufView->stride);
+				float* dataFloat = (float*)buf;
+				vertexData.push_back(dataFloat[0]);
+				vertexData.push_back(dataFloat[1]);
+				vertexData.push_back(dataFloat[2]);
+			}
+
+			if(texCoordAttrib)
+			{
+				cgltf_buffer_view* bufView = texCoordAttrib->data->buffer_view;
+				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + texCoordAttrib->data->offset + (x * bufView->stride);
+				float* dataFloat = (float*)buf;
+				vertexData.push_back(dataFloat[0]);
+				vertexData.push_back(dataFloat[1]);
+			}
+
+			if(normalAttrib)
+			{
+				cgltf_buffer_view* bufView = normalAttrib->data->buffer_view;
+				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + normalAttrib->data->offset + (x * bufView->stride);
+				float* dataFloat = (float*)buf;
+				vertexData.push_back(dataFloat[0]);
+				vertexData.push_back(dataFloat[1]);
+				vertexData.push_back(dataFloat[2]);
+			}
+
+			if(binormalAttrib)
+			{
+				cgltf_buffer_view* bufView = binormalAttrib->data->buffer_view;
+				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + binormalAttrib->data->offset + (x * bufView->stride);
+				float* dataFloat = (float*)buf;
+				vertexData.push_back(dataFloat[0]);
+				vertexData.push_back(dataFloat[1]);
+				vertexData.push_back(dataFloat[2]);
+				vertexData.push_back(dataFloat[3]);
+			}
+		}
+
+		assert(primitive->indices);
+		assert(primitive->indices->type == cgltf_type_scalar && (primitive->indices->component_type == cgltf_component_type_r_16u || primitive->indices->component_type == cgltf_component_type_r_32u));
+		cgltf_buffer_view* indicesBufView = primitive->indices->buffer_view;
+
+		if(primitive->indices->component_type == cgltf_component_type_r_16u)
+		{
+			for(unsigned int d = 0; d < primitive->indices->count; ++d)
+			{
+				uint16_t* dataU16 = (uint16_t*)((uint8_t*)indicesBufView->buffer->data + indicesBufView->offset + primitive->indices->offset + (d * primitive->indices->stride));
+				index16Data.push_back(*dataU16);
+			}
+		}
+		else if(primitive->indices->component_type == cgltf_component_type_r_32u)
+		{
+			for(unsigned int d = 0; d < primitive->indices->count; ++d)
+			{
+				uint32_t* dataU32 = (uint32_t*)((uint8_t*)indicesBufView->buffer->data + indicesBufView->offset + primitive->indices->offset + (d * primitive->indices->stride));
+				index32Data.push_back(*dataU32);
+			}
+		}
+	}
+
+	cgltf_free(gltf);
+
+#if 0
+	// 4. Arrange vertex data 
+	vertices.reserve(positions.size() + normals.size() + tangents.size() + texcoords.size());
+	int numVertex = positions.size() / 3;
+	switch(vertFormat)
+	{
+		case Asset::VERTEXFORMAT_POS3f_NOR3f:
+		{
+			for(int g = 0; g < numVertex; ++g)
+			{
+				vertices.push_back(positions[g * 3 + 0]);
+				vertices.push_back(positions[g * 3 + 1]);
+				vertices.push_back(positions[g * 3 + 2]);
+
+				vertices.push_back(normals[g * 3 + 0]);
+				vertices.push_back(normals[g * 3 + 1]);
+				vertices.push_back(normals[g * 3 + 2]);
+			}
+		} break;
+		case Asset::VERTEXFORMAT_POS3f_NOR3f_UV2f:
+		{
+			for(int g = 0; g < numVertex; ++g)
+			{
+				vertices.push_back(positions[g * 3 + 0]);
+				vertices.push_back(positions[g * 3 + 1]);
+				vertices.push_back(positions[g * 3 + 2]);
+
+				vertices.push_back(normals[g * 3 + 0]);
+				vertices.push_back(normals[g * 3 + 1]);
+				vertices.push_back(normals[g * 3 + 2]);
+
+				vertices.push_back(texcoords[g * 2 + 0]);
+				vertices.push_back(texcoords[g * 2 + 1]);
+			}
+		} break;
+		case Asset::VERTEXFORMAT_POS3f_NOR3f_TAN3f_UV2f:
+		{
+			for(int g = 0; g < numVertex; ++g)
+			{
+				vertices.push_back(positions[g * 3 + 0]);
+				vertices.push_back(positions[g * 3 + 1]);
+				vertices.push_back(positions[g * 3 + 2]);
+
+				vertices.push_back(normals[g * 3 + 0]);
+				vertices.push_back(normals[g * 3 + 1]);
+				vertices.push_back(normals[g * 3 + 2]);
+
+				vertices.push_back(tangents[g * 3 + 0]);
+				vertices.push_back(tangents[g * 3 + 1]);
+				vertices.push_back(tangents[g * 3 + 2]);
+
+				vertices.push_back(texcoords[g * 2 + 0]);
+				vertices.push_back(texcoords[g * 2 + 1]);
+			}
+		} break;
+	}
+
+	// 5. Write binary file
+	char binFilename[FS_MAX_PATH];
+	strcpy(binFilename, pMeshName);
+	strcat(binFilename, ".MES");
+	char mesFileName[FS_MAX_PATH + 4] = {};
+	if(binFilename[0] == 'M' && binFilename[1] == 'E' && binFilename[2] == 'S' && binFilename[3] == '_')
+	{
+		strcpy(mesFileName, binFilename);
+	}
+	else
+	{
+		strcpy(mesFileName, "MES_");
+		strcat(mesFileName, binFilename);
+	}
+
+	FileStream file = {};
+	fsOpenStreamFromPath(RD_OUTPUT, mesFileName, FM_WRITE_BINARY, NULL, &file);
+
+	Asset::MeshHeader header = {};
+	strcpy(header.name, pMeshName);
+	header.formatVertex = vertFormat;
+	header.numSubmeshes = submeshes.size();
+	header.byteOffsetSubmeshes = sizeof(Asset::MeshHeader);
+	header.numVertices = vertices.size() / (U32)vertFormat;
+	header.byteOffsetVertices = sizeof(Asset::MeshHeader) + sizeof(Asset::SubMeshInfo) * submeshes.size();
+	header.numIndices = indices.size();
+	header.byteOffsetIndices = header.byteOffsetVertices + vertices.size() * sizeof(F32);
+
+	fsWriteToStream(&file, &header, sizeof(Asset::MeshHeader));
+	fsWriteToStream(&file, &submeshes.front(), sizeof(Asset::SubMeshInfo) * submeshes.size());
+	fsWriteToStream(&file, &vertices.front(), sizeof(F32) * vertices.size());
+	fsWriteToStream(&file, &indices.front(), sizeof(F32) * indices.size());
+	fsCloseStream(&file);
+
+
+#endif
 #if 0
 //**************************************************
 	tinyobj::attrib_t attributes;
