@@ -411,6 +411,7 @@ void convert(std::string input, std::string output)
 
 		if(primitive->indices->component_type == cgltf_component_type_r_16u)
 		{
+			assert(primitive->indices->stride == sizeof(uint16_t));
 			for(unsigned int d = 0; d < primitive->indices->count; ++d)
 			{
 				uint16_t* dataU16 = (uint16_t*)((uint8_t*)indicesBufView->buffer->data + indicesBufView->offset + primitive->indices->offset + (d * primitive->indices->stride));
@@ -419,6 +420,7 @@ void convert(std::string input, std::string output)
 		}
 		else if(primitive->indices->component_type == cgltf_component_type_r_32u)
 		{
+			assert(primitive->indices->stride == sizeof(uint32_t));
 			for(unsigned int d = 0; d < primitive->indices->count; ++d)
 			{
 				uint32_t* dataU32 = (uint32_t*)((uint8_t*)indicesBufView->buffer->data + indicesBufView->offset + primitive->indices->offset + (d * primitive->indices->stride));
