@@ -38,6 +38,9 @@ source_group("Box2D" FILES ${BOX2D_SRC_FILES})
 
 set(GLEW_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/glew-2.2.0)
 
+set(CGLTF_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/cgltf)
+include_directories(${CGLTF_ROOT_DIR})
+
 set(DXC_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/dxc_preview_2023_06_21)
 set(DXC_INCLUDE_DIR ${DXC_ROOT_DIR}/inc)
 set(DXC_LIB_DIR ${DXC_ROOT_DIR}/lib)
@@ -104,6 +107,9 @@ if(WIN32)
     set_target_properties(rg_gamelib PROPERTIES VS_STARTUP_PROJECT rg_gamelib)
 
     add_custom_target(NatVis SOURCES ${EASTL_ROOT_DIR}/doc/EASTL.natvis)
+
+    add_executable(rg_assetprocessor "code/rg_assetprocessor.cpp")
+    set_target_properties(rg_assetprocessor PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
 
 elseif(APPLE)
 
