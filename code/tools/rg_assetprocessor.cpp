@@ -355,7 +355,7 @@ void convert(std::string input, std::string output)
 			bool hasNormal;
 			bool hasBinormal;
 
-			bool has32BitIndex;
+			bool has32BitIndices;
 
 			uint32_t vertexCount;
 			uint32_t vertexDataOffset;
@@ -460,7 +460,7 @@ void convert(std::string input, std::string output)
 				index16Data.push_back(*dataU16);
 			}
 
-			gfxMesh.has32BitIndex = false;
+			gfxMesh.has32BitIndices = false;
 		}
 		else if(primitive->indices->component_type == cgltf_component_type_r_32u)
 		{
@@ -471,7 +471,7 @@ void convert(std::string input, std::string output)
 				index32Data.push_back(*dataU32);
 			}
 			
-			gfxMesh.has32BitIndex = true;
+			gfxMesh.has32BitIndices = true;
 		}
 	}
 
@@ -501,7 +501,7 @@ void convert(std::string input, std::string output)
 		meshNode.append_attribute("hasTexCoord").set_value(m.hasTexCoord);
 		meshNode.append_attribute("hasNormal").set_value(m.hasNormal);
 		meshNode.append_attribute("hasBinormal").set_value(m.hasBinormal);
-		meshNode.append_attribute("has32BitIndex").set_value(m.has32BitIndex);
+		meshNode.append_attribute("has32BitIndices").set_value(m.has32BitIndices);
 		meshNode.append_attribute("vertexCount").set_value(m.vertexCount);
 		meshNode.append_attribute("vertexDataOffset").set_value(m.vertexDataOffset);
 		meshNode.append_attribute("indexCount").set_value(m.indexCount);
