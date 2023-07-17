@@ -7,6 +7,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include "pugixml.hpp"
+
 RG_BEGIN_RG_NAMESPACE
 
 // --- Game Graphics APIs
@@ -40,6 +42,73 @@ void unloadTexture(Texture* t)
 {
     stbi_image_free(t->buf);
     rgDelete(t);
+}
+
+ModelRef loadModel(char const* filename)
+{
+    FileData xmlFileData = readFile(filename);
+    if(!xmlFileData.isValid)
+    {
+        return nullptr;
+    }
+    
+    pugi::xml_document modelDoc;
+    pugi::xml_parse_result parseResult = modelDoc.load_buffer(xmlFileData.data, xmlFileData.dataSize);
+    
+    rgAssert(parseResult.status == pugi::xml_parse_status::status_ok);
+    
+    ModelRef outModel = eastl::shared_ptr<Model>(rgNew(Model), unloadModel);
+    
+    pugi::xml_node modelNode = modelDoc.first_child();
+    
+    strncpy(outModel->tag, modelNode.attribute("name").as_string(), sizeof(Model::tag));
+    
+    const char* binFilename = modelNode.attribute("bufferName").as_string();
+    FileData binFileData = readFile(binFilename);
+    rgAssert(binFileData.isValid);
+    
+    outModel->vertexIndexBuffer = gfx::buffer->create(binFilename, binFileData.data, binFileData.dataSize, GfxBufferUsage_VertexBuffer | GfxBufferUsage_IndexBuffer);
+    
+    outModel->vertexBufferOffset = modelNode.attribute("vertexBufferOffset").as_uint();
+    outModel->index32BufferOffset = modelNode.attribute("index32BufferOffset").as_uint();
+    outModel->index16BufferOffset = modelNode.attribute("index16BufferOffset").as_uint();
+    
+    rgU32 meshCount = modelNode.attribute("meshCount").as_uint();
+    
+    for(auto meshNode : modelNode.children("mesh"))
+    {
+        Mesh m = {};
+        strncpy(m.tag, meshNode.attribute("name").as_string(), sizeof(Mesh::tag));
+        m.vertexCount = meshNode.attribute("vertexCount").as_uint();
+        m.vertexDataOffset = meshNode.attribute("vertexDataOffset").as_uint();
+        m.indexCount = meshNode.attribute("indexCount").as_uint();
+        m.indexDataOffset = meshNode.attribute("indexDataOffset").as_uint();
+        
+        if(meshNode.attribute("has32BitIndices").as_bool() == true)
+        {
+            m.properties |= MeshProperties_Has32BitIndices;
+        }
+        if(meshNode.attribute("hasTexCoord").as_bool() == true)
+        {
+            m.properties |= MeshProperties_HasTexCoord;
+        }
+        if(meshNode.attribute("hasNormal").as_bool() == true)
+        {
+            m.properties |= MeshProperties_HasNormal;
+        }
+        if(meshNode.attribute("hasBinormal").as_bool() == true)
+        {
+            m.properties |= MeshProperties_HasBinormal;
+        }
+        outModel->meshes.push_back(m);
+    }
+    
+    return outModel;
+}
+
+void unloadModel(Model* ptr)
+{
+    
 }
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)

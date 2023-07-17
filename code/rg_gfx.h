@@ -65,6 +65,8 @@ enum GfxBufferUsage
     GfxBufferUsage_CopyDst = (1 << 5),
 };
 
+RG_DEFINE_ENUM_FLAGS_OPERATOR(GfxBufferUsage);
+
 enum GfxMemoryType
 {
     GfxMemoryType_CPUToGPU, // UploadHeap
@@ -675,6 +677,45 @@ typedef eastl::shared_ptr<Texture> TextureRef;
 TextureRef  loadTexture(char const* filename);
 void        unloadTexture(Texture* t);
 
+
+// Model and Mesh
+//-----------------
+enum MeshProperties
+{
+    MeshProperties_None = (0 << 0),
+    MeshProperties_Has32BitIndices = (1 << 0),
+    MeshProperties_HasTexCoord = (1 << 1),
+    MeshProperties_HasNormal = (1 << 2),
+    MeshProperties_HasBinormal = (1 << 3),
+};
+
+RG_DEFINE_ENUM_FLAGS_OPERATOR(MeshProperties);
+
+struct Mesh
+{
+    char tag[32];
+    MeshProperties properties;
+    rgU32 vertexCount;
+    rgU32 vertexDataOffset;
+    rgU32 indexCount;
+    rgU32 indexDataOffset;
+};
+
+struct Model
+{
+    char tag[32];
+    eastl::vector<Mesh> meshes;
+    rgU32 vertexBufferOffset;
+    rgU32 index32BufferOffset;
+    rgU32 index16BufferOffset;
+    GfxBuffer* vertexIndexBuffer;
+};
+
+typedef eastl::shared_ptr<Model> ModelRef;
+
+ModelRef loadModel(char const* filename);
+void        unloadModel(Model* ptr);
+
 // Texture UV helper
 // -----------------
 struct QuadUV
@@ -836,7 +877,7 @@ GfxBlitCmdEncoder* setBlitPass(char const* tag);
 // ---------------
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
 
-GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage);
+GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage); // TODO: remove? unused?
 void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr);
 
 //-----------------------------------------------------------------------------

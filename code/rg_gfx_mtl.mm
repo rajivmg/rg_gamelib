@@ -1566,6 +1566,7 @@ void rendererImGuiNewFrame()
     renderPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
     
     ImGui_ImplMetal_NewFrame(renderPassDesc);
+    [renderPassDesc autorelease];
 }
 
 void rendererImGuiRenderDrawData()

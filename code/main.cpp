@@ -76,6 +76,8 @@ rgInt rg::setup()
     g_GameData->flowerTexture = gfx::texture2D->create("flower", flowerTex->buf, flowerTex->width, flowerTex->height, flowerTex->format, false, GfxTextureUsage_ShaderRead);
     
     //gfxDestroyBuffer("ocean_tile");
+    ModelRef shaderballModel = rg::loadModel("shaderball.xml");
+    
 
     GfxVertexInputDesc vertexDesc = {};
     vertexDesc.elementCount = 3;

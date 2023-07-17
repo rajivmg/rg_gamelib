@@ -44,6 +44,7 @@ include_directories(${CGLTF_ROOT_DIR})
 set(PUGIXML_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/pugixml)
 include_directories(${PUGIXML_ROOT_DIR}/src)
 file(GLOB PUGIXML_SRC_FILES "${PUGIXML_ROOT_DIR}/src/*.cpp" "${PUGIXML_ROOT_DIR}/src/*.hpp")
+source_group("pugixml" FILES ${PUGIXML_SRC_FILES})
 
 set(DXC_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/dxc_preview_2023_06_21)
 set(DXC_INCLUDE_DIR ${DXC_ROOT_DIR}/inc)
@@ -139,7 +140,7 @@ elseif(APPLE)
 
     include_directories(${SPIRVCROSS_ROOT_DIR})
     
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${SHADER_SRC_FILES} ${BOX2D_SRC_FILES} ${SPIRVCROSS_SRC_FILES})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${SHADER_SRC_FILES} ${BOX2D_SRC_FILES} ${SPIRVCROSS_SRC_FILES} ${PUGIXML_SRC_FILES})
     target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2} ${EASTL_LIBRARY} ${DXC_LIBRARY})
 
     set_source_files_properties(${SHADER_SRC_FILES} PROPERTIES LANGUAGE METAL)
