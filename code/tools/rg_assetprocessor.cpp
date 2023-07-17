@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <map>
 
+#include "pugixml.hpp"
+
 struct Vertex {
 	std::vector<float> position;
 	std::vector<float> uv;
@@ -338,8 +340,38 @@ void convert(std::string input, std::string output)
 	index32Data.reserve(50000);
 	index16Data.reserve(50000);
 
+	struct GfxModel
+	{
+		char tag[32];
+
+		uint8_t* buffer;
+		uint32_t bufferLength;
+
+		struct Mesh
+		{
+			char tag[32];
+
+			bool hasTexCoord;
+			bool hasNormal;
+			bool hasBinormal;
+
+			bool has32BitIndex;
+
+			uint32_t vertexCount;
+			uint32_t vertexDataOffset;
+			uint32_t indexCount;
+			uint32_t indexDataOffset;
+		};
+
+		std::vector<Mesh> meshes;
+	};
+
+	GfxModel gfxModel;
+
 	for(int meshIdx = 0; meshIdx < meshNodes.size(); ++meshIdx)
 	{
+		GfxModel::Mesh gfxMesh = {};
+
 		cgltf_mesh* mesh = meshNodes[meshIdx]->mesh;
 		assert(mesh->primitives_count == 1); // for now we only support 1 primitive per mesh
 
@@ -351,16 +383,26 @@ void convert(std::string input, std::string output)
 		cgltf_attribute* normalAttrib	= findAttribute(cgltf_attribute_type_normal,	primitive);
 		cgltf_attribute* binormalAttrib = findAttribute(cgltf_attribute_type_tangent,	primitive);
 
-
 		assert(positionAttrib->data->type == cgltf_type_vec3);
-		if(texCoordAttrib) { assert(texCoordAttrib->data->type == cgltf_type_vec2); }
-		if(normalAttrib) { assert(normalAttrib->data->type == cgltf_type_vec3); }
-		if(binormalAttrib) { assert(binormalAttrib->data->type == cgltf_type_vec4); }
+		if(texCoordAttrib) { assert(texCoordAttrib->data->type == cgltf_type_vec2); gfxMesh.hasTexCoord = true; }
+		if(normalAttrib) { assert(normalAttrib->data->type == cgltf_type_vec3); gfxMesh.hasNormal = true; }
+		if(binormalAttrib) { assert(binormalAttrib->data->type == cgltf_type_vec4); gfxMesh.hasBinormal = true; }
 
 		cgltf_size vertexCount = positionAttrib->data->count;
 		if(texCoordAttrib) { assert(texCoordAttrib->data->count == vertexCount); }
 		if(normalAttrib) { assert(normalAttrib->data->count == vertexCount); }
 		if(binormalAttrib) { assert(binormalAttrib->data->count == vertexCount); }
+
+		cgltf_size indexCount = primitive->indices->count;
+		bool is32bitIndex = (primitive->indices->component_type == cgltf_component_type_r_32u) ? true : false;
+
+		strncpy(gfxMesh.tag, mesh->name, sizeof(GfxModel::Mesh::tag));
+		gfxMesh.vertexCount = vertexCount;
+		gfxMesh.vertexDataOffset = (uint32_t)(vertexData.size() * sizeof(float));
+		gfxMesh.indexCount = indexCount;
+		gfxMesh.indexDataOffset = (uint32_t) (is32bitIndex ? (index32Data.size() * sizeof(uint32_t)) : (index16Data.size() * sizeof(uint16_t)));
+
+		gfxModel.meshes.push_back(gfxMesh);
 
 		for(unsigned int x = 0; x < vertexCount; ++x)
 		{
@@ -417,6 +459,8 @@ void convert(std::string input, std::string output)
 				uint16_t* dataU16 = (uint16_t*)((uint8_t*)indicesBufView->buffer->data + indicesBufView->offset + primitive->indices->offset + (d * primitive->indices->stride));
 				index16Data.push_back(*dataU16);
 			}
+
+			gfxMesh.has32BitIndex = false;
 		}
 		else if(primitive->indices->component_type == cgltf_component_type_r_32u)
 		{
@@ -426,194 +470,59 @@ void convert(std::string input, std::string output)
 				uint32_t* dataU32 = (uint32_t*)((uint8_t*)indicesBufView->buffer->data + indicesBufView->offset + primitive->indices->offset + (d * primitive->indices->stride));
 				index32Data.push_back(*dataU32);
 			}
+			
+			gfxMesh.has32BitIndex = true;
 		}
 	}
 
 	cgltf_free(gltf);
 
-#if 0
-	// 4. Arrange vertex data 
-	vertices.reserve(positions.size() + normals.size() + tangents.size() + texcoords.size());
-	int numVertex = positions.size() / 3;
-	switch(vertFormat)
+    uint32_t vertexBufferLength = (vertexData.size() * sizeof(float));
+    uint32_t index32BufferLength = (index32Data.size() * sizeof(uint32_t));
+    uint32_t index16BufferLength = (index16Data.size() * sizeof(uint16_t));
+    uint32_t totalBufferLength = vertexBufferLength + index32BufferLength + index16BufferLength;
+
+	// Write XML and BIN
+	pugi::xml_document modelDoc;
+ 	pugi::xml_node modelNode =  modelDoc.append_child("model");
+	modelNode.append_attribute("name").set_value(output.c_str());
+	modelNode.append_attribute("bufferName").set_value((output+".bin").c_str());
+	modelNode.append_attribute("vertexBufferOffset").set_value(0);
+	modelNode.append_attribute("index32BufferOffset").set_value(vertexBufferLength);
+	modelNode.append_attribute("index16BufferOffset").set_value(vertexBufferLength + index32BufferLength);
+
+	modelNode.append_attribute("bufferLength").set_value(totalBufferLength);
+
+	for(int i = 0; i < gfxModel.meshes.size(); ++i)
 	{
-		case Asset::VERTEXFORMAT_POS3f_NOR3f:
-		{
-			for(int g = 0; g < numVertex; ++g)
-			{
-				vertices.push_back(positions[g * 3 + 0]);
-				vertices.push_back(positions[g * 3 + 1]);
-				vertices.push_back(positions[g * 3 + 2]);
-
-				vertices.push_back(normals[g * 3 + 0]);
-				vertices.push_back(normals[g * 3 + 1]);
-				vertices.push_back(normals[g * 3 + 2]);
-			}
-		} break;
-		case Asset::VERTEXFORMAT_POS3f_NOR3f_UV2f:
-		{
-			for(int g = 0; g < numVertex; ++g)
-			{
-				vertices.push_back(positions[g * 3 + 0]);
-				vertices.push_back(positions[g * 3 + 1]);
-				vertices.push_back(positions[g * 3 + 2]);
-
-				vertices.push_back(normals[g * 3 + 0]);
-				vertices.push_back(normals[g * 3 + 1]);
-				vertices.push_back(normals[g * 3 + 2]);
-
-				vertices.push_back(texcoords[g * 2 + 0]);
-				vertices.push_back(texcoords[g * 2 + 1]);
-			}
-		} break;
-		case Asset::VERTEXFORMAT_POS3f_NOR3f_TAN3f_UV2f:
-		{
-			for(int g = 0; g < numVertex; ++g)
-			{
-				vertices.push_back(positions[g * 3 + 0]);
-				vertices.push_back(positions[g * 3 + 1]);
-				vertices.push_back(positions[g * 3 + 2]);
-
-				vertices.push_back(normals[g * 3 + 0]);
-				vertices.push_back(normals[g * 3 + 1]);
-				vertices.push_back(normals[g * 3 + 2]);
-
-				vertices.push_back(tangents[g * 3 + 0]);
-				vertices.push_back(tangents[g * 3 + 1]);
-				vertices.push_back(tangents[g * 3 + 2]);
-
-				vertices.push_back(texcoords[g * 2 + 0]);
-				vertices.push_back(texcoords[g * 2 + 1]);
-			}
-		} break;
+		GfxModel::Mesh& m = gfxModel.meshes[i];
+		pugi::xml_node meshNode = modelNode.append_child("mesh");
+		meshNode.append_attribute("name").set_value(m.tag);
+		meshNode.append_attribute("hasTexCoord").set_value(m.hasTexCoord);
+		meshNode.append_attribute("hasNormal").set_value(m.hasNormal);
+		meshNode.append_attribute("hasBinormal").set_value(m.hasBinormal);
+		meshNode.append_attribute("has32BitIndex").set_value(m.has32BitIndex);
+		meshNode.append_attribute("vertexCount").set_value(m.vertexCount);
+		meshNode.append_attribute("vertexDataOffset").set_value(m.vertexDataOffset);
+		meshNode.append_attribute("indexCount").set_value(m.indexCount);
+		meshNode.append_attribute("indexDataOffset").set_value(m.indexDataOffset);
 	}
 
-	// 5. Write binary file
-	char binFilename[FS_MAX_PATH];
-	strcpy(binFilename, pMeshName);
-	strcat(binFilename, ".MES");
-	char mesFileName[FS_MAX_PATH + 4] = {};
-	if(binFilename[0] == 'M' && binFilename[1] == 'E' && binFilename[2] == 'S' && binFilename[3] == '_')
-	{
-		strcpy(mesFileName, binFilename);
-	}
-	else
-	{
-		strcpy(mesFileName, "MES_");
-		strcat(mesFileName, binFilename);
-	}
+	modelDoc.print(std::cout);
+	modelDoc.save_file((output + ".xml").c_str());
 
-	FileStream file = {};
-	fsOpenStreamFromPath(RD_OUTPUT, mesFileName, FM_WRITE_BINARY, NULL, &file);
-
-	Asset::MeshHeader header = {};
-	strcpy(header.name, pMeshName);
-	header.formatVertex = vertFormat;
-	header.numSubmeshes = submeshes.size();
-	header.byteOffsetSubmeshes = sizeof(Asset::MeshHeader);
-	header.numVertices = vertices.size() / (U32)vertFormat;
-	header.byteOffsetVertices = sizeof(Asset::MeshHeader) + sizeof(Asset::SubMeshInfo) * submeshes.size();
-	header.numIndices = indices.size();
-	header.byteOffsetIndices = header.byteOffsetVertices + vertices.size() * sizeof(F32);
-
-	fsWriteToStream(&file, &header, sizeof(Asset::MeshHeader));
-	fsWriteToStream(&file, &submeshes.front(), sizeof(Asset::SubMeshInfo) * submeshes.size());
-	fsWriteToStream(&file, &vertices.front(), sizeof(F32) * vertices.size());
-	fsWriteToStream(&file, &indices.front(), sizeof(F32) * indices.size());
-	fsCloseStream(&file);
-
-
-#endif
-#if 0
-//**************************************************
-	tinyobj::attrib_t attributes;
-    	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-	std::string warning, error;
-	std::vector<Vertex> vertices;
-	std::vector<unsigned int> indices;
-	
-	if(!tinyobj::LoadObj(&attributes, &shapes, &materials, &error, input.c_str(), NULL, true))
-		throw std::runtime_error("Obj loader:" + warning + "\n" + error);
-	
-	bool isNormal = attributes.normals.size() > 0;
-	bool isUv = attributes.texcoords.size() > 0;
-
-	for(const auto& shape : shapes)
-		for(const auto& index : shape.mesh.indices)
-		{
-			Vertex vertex;
-			int offset = 3*index.vertex_index;
-			vertex.position = {attributes.vertices[offset], attributes.vertices[offset+1], attributes.vertices[offset+2]};
-			if(isNormal)
-			{	offset = 3*index.normal_index;
-				vertex.normal = {attributes.normals[offset], attributes.normals[offset+1], attributes.normals[offset+2]};
-			}
-			if(isUv)
-			{	
-				offset = 2*index.texcoord_index;
-				vertex.uv = {attributes.texcoords[offset], attributes.texcoords[offset+1]};
-			}
-			//TODO use map or set
-			unsigned int uniqueIndex = vertices.size();
-			bool found = false;
-			for(int i=0; i<vertices.size(); i++)
-				if(vertices[i] == vertex)
-				{
-					uniqueIndex = i;
-					found = true;
-					break;
-				}
-			if(!found)
-				vertices.push_back(vertex);
-			indices.push_back(uniqueIndex);
-		}
-
-	std::ofstream file;
-	file.open(output);
-	file << "struct ModelVertex {" << std::endl;
-	file << "float position[3];" << std::endl;
-	if(isNormal)
-		file << "float normal[3];" << std::endl;
-	if(isUv)
-		file << "float uv[2];" << std::endl;
-	file << "};" << std::endl << std::endl;
-
-	file << "struct ModelVertex const modelVertices[" << vertices.size() << "] = {" << std::endl;
-	file.unsetf ( std::ios::floatfield );      
-	file.precision(5);
-	file.setf( std::ios::fixed, std:: ios::floatfield );
-	for(const auto& vertex : vertices)
-	{
-		file << "{ { " << vertex.position[0] << "f, " << vertex.position[1] << "f, " << vertex.position[2] << "f }, ";
-		if(isNormal)
-			file << "{ " << vertex.normal[0] << "f, " << vertex.normal[1] << "f, " << vertex.normal[2] << "f }, ";
-		if(isUv)
-			file << "{ " << vertex.uv[0] << "f, " << vertex.uv[1] << "f } ";
-		file << " }," << std::endl;
-	}
-	file << " };" << std::endl << std::endl;
-
-	file << "const unsigned int modelIndices[" << indices.size() << "] = {" << std::endl;
-	unsigned int i = 0;
-	for(const auto& index : indices)
-	{
-		file << index << ", ";
-		i++;
-		if((i % 3) == 0)
-			file << std::endl;
-	}	
-	file << "};";	
-
-	file.close();
-#endif
+	FILE* fs = fopen((output + ".bin").c_str(), "wb");
+	fwrite(vertexData.data(), sizeof(float), vertexData.size(), fs);
+	fwrite(index32Data.data(), sizeof(uint32_t), index32Data.size(), fs);
+	fwrite(index16Data.data(), sizeof(uint16_t), index16Data.size(), fs);
+	fclose(fs);
 }
 
 int main(int argc, char **argv)
 {
 	if(argc != 3)
 	{
-		std::cerr << "Wrong number of arguments, just give me the the name of input and output file. Example: cow.gltf cow.bin" << std::endl;
+		std::cerr << "Wrong number of arguments, just give me the the name of input and output file. Example: cow.gltf cow" << std::endl;
 		return EXIT_FAILURE;
 	}
 
