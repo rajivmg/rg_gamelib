@@ -9,3 +9,4 @@ memory.log
 3rdparty/EASTL/build-apple
 box2d_dump.inl
 data/*.pdb
+data/imgui.ini

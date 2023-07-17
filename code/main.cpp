@@ -219,6 +219,8 @@ rgInt rg::setup()
 rgInt rg::updateAndDraw(rgDouble dt)
 {
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
+    ImGui::ShowDemoWindow();
+    
     {        
         GfxRenderPass simple2dPass = {};
         simple2dPass.colorAttachments[0].texture = gfx::renderTarget[g_FrameIndex];

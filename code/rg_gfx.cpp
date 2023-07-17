@@ -151,7 +151,7 @@ rgInt initCommonStuff()
     ImGuiIO& imguiIO = ImGui::GetIO();
     ImGui::StyleColorsLight();
     
-    gfx::rendererImguiInit();
+    gfx::rendererImGuiInit();
     
     //
     gfx::orthographicMatrix = Matrix4::orthographic(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0, 0.1f, 1000.0f);

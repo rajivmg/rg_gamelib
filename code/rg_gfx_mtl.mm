@@ -126,6 +126,11 @@ id<MTLBlitCommandEncoder> asMTLBlitCommandEncoder(void* ptr)
     return (__bridge id<MTLBlitCommandEncoder>)ptr;
 }
 
+id<MTLTexture> asMTLTexture(MTL::Texture* ptr)
+{
+    return (__bridge id<MTLTexture>)ptr;
+}
+
 id<MTLBuffer> asMTLBuffer(void* ptr)
 {
     return (__bridge id<MTLBuffer>)ptr;
@@ -824,12 +829,16 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
         colorAttachmentDesc.storeAction = toMTLStoreAction(colorAttachment->storeAction);
         colorAttachmentDesc.clearColor  = toMTLClearColor(&colorAttachment->clearColor);
     }
-    MTLRenderPassDepthAttachmentDescriptor* depthAttachmentDesc = [renderPassDesc depthAttachment];
-    depthAttachmentDesc.texture     = getMTLTexture(renderPass->depthStencilAttachmentTexture);
-    depthAttachmentDesc.loadAction  = toMTLLoadAction(renderPass->depthStencilAttachmentLoadAction);
-    depthAttachmentDesc.storeAction = toMTLStoreAction(renderPass->depthStencilAttachmentStoreAction);
-    depthAttachmentDesc.clearDepth  = renderPass->clearDepth;
-
+    
+    if(renderPass->depthStencilAttachmentTexture != NULL)
+    {
+        MTLRenderPassDepthAttachmentDescriptor* depthAttachmentDesc = [renderPassDesc depthAttachment];
+        depthAttachmentDesc.texture     = getMTLTexture(renderPass->depthStencilAttachmentTexture);
+        depthAttachmentDesc.loadAction  = toMTLLoadAction(renderPass->depthStencilAttachmentLoadAction);
+        depthAttachmentDesc.storeAction = toMTLStoreAction(renderPass->depthStencilAttachmentStoreAction);
+        depthAttachmentDesc.clearDepth  = renderPass->clearDepth;
+    }
+    
     id<MTLRenderCommandEncoder> mtlRenderEncoder = [getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
     rgAssert(mtlRenderEncoder != nil);
     [mtlRenderEncoder pushDebugGroup:[NSString stringWithUTF8String:tag]];
@@ -1551,12 +1560,23 @@ void rendererImGuiInit()
 
 void rendererImGuiNewFrame()
 {
-    ImGui_ImplMetal_NewFrame(<#MTLRenderPassDescriptor *renderPassDescriptor#>;)
+    MTLRenderPassDescriptor* renderPassDesc = [MTLRenderPassDescriptor new];
+    renderPassDesc.colorAttachments[0].texture = asMTLTexture(getCurrentRenderTargetColorBuffer()->mtlTexture);
+    renderPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
+    renderPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
+    
+    ImGui_ImplMetal_NewFrame(renderPassDesc);
 }
 
 void rendererImGuiRenderDrawData()
 {
-    ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), getMTLCommandBuffer(), <#id<MTLRenderCommandEncoder> commandEncoder#>)
+    GfxRenderPass imguiRenderPass = {};
+    imguiRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+    imguiRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
+    imguiRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+    GfxRenderCmdEncoder* cmdEncoder = gfx::setRenderPass(&imguiRenderPass, "ImGui Pass");
+    
+    ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), getMTLCommandBuffer(), asMTLRenderCommandEncoder(cmdEncoder->renderCmdEncoder));
 }
 
 void onSizeChanged()
