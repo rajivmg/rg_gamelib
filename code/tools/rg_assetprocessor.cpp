@@ -486,11 +486,11 @@ void convert(std::string input, std::string output)
 	pugi::xml_document modelDoc;
  	pugi::xml_node modelNode =  modelDoc.append_child("model");
 	modelNode.append_attribute("name").set_value(output.c_str());
+	modelNode.append_attribute("meshCount").set_value((uint32_t)gfxModel.meshes.size());
 	modelNode.append_attribute("bufferName").set_value((output+".bin").c_str());
 	modelNode.append_attribute("vertexBufferOffset").set_value(0);
 	modelNode.append_attribute("index32BufferOffset").set_value(vertexBufferLength);
 	modelNode.append_attribute("index16BufferOffset").set_value(vertexBufferLength + index32BufferLength);
-
 	modelNode.append_attribute("bufferLength").set_value(totalBufferLength);
 
 	for(int i = 0; i < gfxModel.meshes.size(); ++i)
