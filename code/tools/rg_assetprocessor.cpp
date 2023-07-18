@@ -410,7 +410,7 @@ void convert(std::string input, std::string output)
 			if(positionAttrib)
 			{
 				cgltf_buffer_view* bufView = positionAttrib->data->buffer_view;
-				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + positionAttrib->data->offset + (x * bufView->stride);
+				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + positionAttrib->data->offset + (x * (sizeof(float) * 3 + bufView->stride));
 				float* dataFloat = (float*)buf;
 				vertexData.push_back(dataFloat[0]);
 				vertexData.push_back(dataFloat[1]);
@@ -420,7 +420,7 @@ void convert(std::string input, std::string output)
 			if(texCoordAttrib)
 			{
 				cgltf_buffer_view* bufView = texCoordAttrib->data->buffer_view;
-				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + texCoordAttrib->data->offset + (x * bufView->stride);
+				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + texCoordAttrib->data->offset + (x * (sizeof(float) * 2 + bufView->stride));
 				float* dataFloat = (float*)buf;
 				vertexData.push_back(dataFloat[0]);
 				vertexData.push_back(dataFloat[1]);
@@ -429,7 +429,7 @@ void convert(std::string input, std::string output)
 			if(normalAttrib)
 			{
 				cgltf_buffer_view* bufView = normalAttrib->data->buffer_view;
-				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + normalAttrib->data->offset + (x * bufView->stride);
+				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + normalAttrib->data->offset + (x * (sizeof(float) * 3 + bufView->stride));
 				float* dataFloat = (float*)buf;
 				vertexData.push_back(dataFloat[0]);
 				vertexData.push_back(dataFloat[1]);
@@ -439,7 +439,7 @@ void convert(std::string input, std::string output)
 			if(binormalAttrib)
 			{
 				cgltf_buffer_view* bufView = binormalAttrib->data->buffer_view;
-				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + binormalAttrib->data->offset + (x * bufView->stride);
+				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + binormalAttrib->data->offset + (x * (sizeof(float) * 4 + bufView->stride));
 				float* dataFloat = (float*)buf;
 				vertexData.push_back(dataFloat[0]);
 				vertexData.push_back(dataFloat[1]);
