@@ -439,7 +439,7 @@ void convert(std::string input, std::string output)
 			if(binormalAttrib)
 			{
 				cgltf_buffer_view* bufView = binormalAttrib->data->buffer_view;
-				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + binormalAttrib->data->offset + (x * (normalAttrib->data->stride + bufView->stride));
+				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + binormalAttrib->data->offset + (x * (binormalAttrib->data->stride + bufView->stride));
 				float* dataFloat = (float*)buf;
 				vertexData.push_back(dataFloat[0]);
 				vertexData.push_back(dataFloat[1]);
