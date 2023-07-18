@@ -395,6 +395,7 @@ void convert(std::string input, std::string output)
 
 		cgltf_size indexCount = primitive->indices->count;
 		bool is32bitIndex = (primitive->indices->component_type == cgltf_component_type_r_32u) ? true : false;
+		gfxMesh.has32BitIndices = is32bitIndex;
 
 		strncpy(gfxMesh.tag, mesh->name, sizeof(GfxModel::Mesh::tag));
 		gfxMesh.vertexCount = vertexCount;
@@ -460,7 +461,7 @@ void convert(std::string input, std::string output)
 				index16Data.push_back(*dataU16);
 			}
 
-			gfxMesh.has32BitIndices = false;
+			//gfxMesh.has32BitIndices = false;
 		}
 		else if(primitive->indices->component_type == cgltf_component_type_r_32u)
 		{
@@ -471,7 +472,7 @@ void convert(std::string input, std::string output)
 				index32Data.push_back(*dataU32);
 			}
 			
-			gfxMesh.has32BitIndices = true;
+			//gfxMesh.has32BitIndices = true;
 		}
 	}
 
