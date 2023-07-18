@@ -12,6 +12,15 @@
 RG_BEGIN_RG_NAMESPACE
 
 // --- Game Graphics APIs
+void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
+{
+    rgFloat const* ptr = toFloatPtr(srcMatrix);
+    for(rgInt i = 0; i < 16; ++i)
+    {
+        dstArray[i] = ptr[i];
+    }
+}
+
 QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
 
 TextureRef loadTexture(char const* filename)

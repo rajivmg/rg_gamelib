@@ -76,9 +76,8 @@ rgInt rg::setup()
     g_GameData->flowerTexture = gfx::texture2D->create("flower", flowerTex->buf, flowerTex->width, flowerTex->height, flowerTex->format, false, GfxTextureUsage_ShaderRead);
     
     //gfxDestroyBuffer("ocean_tile");
-    ModelRef shaderballModel = rg::loadModel("shaderball.xml");
+    g_GameData->shaderballModel = rg::loadModel("shaderball.xml");
     
-
     GfxVertexInputDesc vertexDesc = {};
     vertexDesc.elementCount = 3;
     vertexDesc.elements[0].semanticName = "POSITION";
@@ -119,28 +118,28 @@ rgInt rg::setup()
     // gfx::graphicsPSO->markForDestroy("simple2d");
     
     //
-    GfxVertexInputDesc vertexPos3fNor3fTexcoord2f = {};
-    vertexPos3fNor3fTexcoord2f.elementCount = 3;
-    vertexPos3fNor3fTexcoord2f.elements[0].semanticName = "POSITION";
-    vertexPos3fNor3fTexcoord2f.elements[0].semanticIndex = 0;
-    vertexPos3fNor3fTexcoord2f.elements[0].offset = 0;
-    vertexPos3fNor3fTexcoord2f.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
-    vertexPos3fNor3fTexcoord2f.elements[0].bufferIndex = 0;
-    vertexPos3fNor3fTexcoord2f.elements[0].stepFunc = GfxVertexStepFunc_PerVertex;
+    GfxVertexInputDesc vertexPosTexCoordNormal = {};
+    vertexPosTexCoordNormal.elementCount = 3;
+    vertexPosTexCoordNormal.elements[0].semanticName = "POSITION";
+    vertexPosTexCoordNormal.elements[0].semanticIndex = 0;
+    vertexPosTexCoordNormal.elements[0].offset = 0;
+    vertexPosTexCoordNormal.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
+    vertexPosTexCoordNormal.elements[0].bufferIndex = 0;
+    vertexPosTexCoordNormal.elements[0].stepFunc = GfxVertexStepFunc_PerVertex;
     
-    vertexPos3fNor3fTexcoord2f.elements[1].semanticName = "NORMAL";
-    vertexPos3fNor3fTexcoord2f.elements[1].semanticIndex = 0;
-    vertexPos3fNor3fTexcoord2f.elements[1].offset = 12;
-    vertexPos3fNor3fTexcoord2f.elements[1].format = TinyImageFormat_R32G32B32_SFLOAT;
-    vertexPos3fNor3fTexcoord2f.elements[1].bufferIndex = 0;
-    vertexPos3fNor3fTexcoord2f.elements[1].stepFunc = GfxVertexStepFunc_PerVertex;
+    vertexPosTexCoordNormal.elements[1].semanticName = "TEXCOORD";
+    vertexPosTexCoordNormal.elements[1].semanticIndex = 0;
+    vertexPosTexCoordNormal.elements[1].offset = 12;
+    vertexPosTexCoordNormal.elements[1].format = TinyImageFormat_R32G32_SFLOAT;
+    vertexPosTexCoordNormal.elements[1].bufferIndex = 0;
+    vertexPosTexCoordNormal.elements[1].stepFunc = GfxVertexStepFunc_PerVertex;
     
-    vertexPos3fNor3fTexcoord2f.elements[2].semanticName = "TEXCOORD";
-    vertexPos3fNor3fTexcoord2f.elements[2].semanticIndex = 0;
-    vertexPos3fNor3fTexcoord2f.elements[2].offset = 24;
-    vertexPos3fNor3fTexcoord2f.elements[2].format = TinyImageFormat_R32G32_SFLOAT;
-    vertexPos3fNor3fTexcoord2f.elements[2].bufferIndex = 0;
-    vertexPos3fNor3fTexcoord2f.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
+    vertexPosTexCoordNormal.elements[2].semanticName = "NORMAL";
+    vertexPosTexCoordNormal.elements[2].semanticIndex = 0;
+    vertexPosTexCoordNormal.elements[2].offset = 20;
+    vertexPosTexCoordNormal.elements[2].format = TinyImageFormat_R32G32B32_SFLOAT;
+    vertexPosTexCoordNormal.elements[2].bufferIndex = 0;
+    vertexPosTexCoordNormal.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
     GfxShaderDesc principledBrdfShaderDesc = {};
     principledBrdfShaderDesc.shaderSrc = "pbr.hlsl";
@@ -157,7 +156,7 @@ rgInt rg::setup()
     world3dRenderState.winding = GfxWinding_CCW;
     world3dRenderState.cullMode = GfxCullMode_None;
 
-    gfx::graphicsPSO->create("principledBrdf", &vertexPos3fNor3fTexcoord2f, &principledBrdfShaderDesc, &world3dRenderState);
+    gfx::graphicsPSO->create("principledBrdf", &vertexPosTexCoordNormal, &principledBrdfShaderDesc, &world3dRenderState);
     //
 
     gfx::sampler->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
@@ -254,25 +253,56 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         textured2dRenderEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
         textured2dRenderEncoder->end();
+    }
+    
+    {
+        GfxRenderPass demoScenePass = {};
+        demoScenePass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+        demoScenePass.colorAttachments[0].loadAction = GfxLoadAction_Load;
+        demoScenePass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+        demoScenePass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
+        demoScenePass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
+        demoScenePass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
+        
+        GfxRenderCmdEncoder* demoSceneEncoder = gfx::setRenderPass(&demoScenePass, "DemoScene Pass");
+        demoSceneEncoder->setGraphicsPSO(gfx::graphicsPSO->find(rgCRC32("principledBrdf")));
+        
+        // camera
+        struct
+        {
+            rgFloat projectionPerspective[16];
+            rgFloat viewCamera[16];
+        } cameraParams;
+        
+        copyMatrix4ToFloatArray(cameraParams.projectionPerspective, gfx::createPerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f));
+        copyMatrix4ToFloatArray(cameraParams.viewCamera, Matrix4::lookAt(Point3(0.0f, 1.0f, 3.0f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
+        
+        // instance
+        struct
+        {
+            rgFloat worldXform[256][16];
+            rgFloat invTposeWorldXform[256][16];
+        } instanceParams;
+        
+        Matrix4 xform = Matrix4(Transform3::rotationY(sinf(g_Time * 0.5f)));
+        copyMatrix4ToFloatArray(&instanceParams.worldXform[0][0], xform);
+        copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
+        
+        GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("cameraParamsCBufferBunny", sizeof(cameraParams), &cameraParams);
+        GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBufferBunny", sizeof(instanceParams), &instanceParams);
+        
+        demoSceneEncoder->bindBuffer(&cameraParamsBuffer, "camera");
+        demoSceneEncoder->bindBuffer(&instanceParamsBuffer, "instanceParams");
+        
+        for(rgInt i = 0; i < g_GameData->shaderballModel->meshes.size(); ++i)
+        {
+            rg::Mesh* m = &g_GameData->shaderballModel->meshes[i];
+            
+            demoSceneEncoder->setVertexBuffer(g_GameData->shaderballModel->vertexIndexBuffer, g_GameData->shaderballModel->vertexBufferOffset +  m->vertexDataOffset, 0);
+            demoSceneEncoder->drawIndexedTriangles(m->indexCount, true, g_GameData->shaderballModel->vertexIndexBuffer, g_GameData->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
+        }
 
-        // Draw bunny to quick implement lighting models
-        // TODO: Use drawTriangles() and bindBuffer() bindTexture() functions ...
-        // ... when the prototype is done.
-        
-        GfxRenderPass myWorld3dPass = {};
-        myWorld3dPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
-        myWorld3dPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
-        myWorld3dPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        myWorld3dPass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
-        myWorld3dPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
-        myWorld3dPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
-        
-        GfxRenderCmdEncoder* myWorld3dRenderEncoder = gfx::setRenderPass(&myWorld3dPass, "MyWorld3D");
-        myWorld3dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find(rgCRC32("principledBrdf")));
-        //myWorld3dRenderEncoder->setScissorRect(g_WindowInfo.width - 570, g_WindowInfo.height - 500, 300, 230);
-        myWorld3dRenderEncoder->drawBunny();
-        myWorld3dRenderEncoder->end();
-        
+        demoSceneEncoder->end();
     }
     
     rgHash a = rgCRC32("hello world");

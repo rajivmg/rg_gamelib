@@ -10,6 +10,8 @@ struct GameData
     TexturedQuads terrainAndOcean;
     GfxTexture2D* oceanTileTexture;
     GfxTexture2D* flowerTexture;
+
+    ModelRef shaderballModel;
     
     GfxGraphicsPSO* simple2dPSO; // TODO: use Handle
 

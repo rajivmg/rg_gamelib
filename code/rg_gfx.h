@@ -585,7 +585,6 @@ struct GfxObjectRegistry
 //-----------------------------------------------------------------------------
 // Frame Resource Allocator
 //-----------------------------------------------------------------------------
-#if 1
 struct GfxFrameResource
 {
     enum Type
@@ -653,7 +652,12 @@ public:
         return (void*)heap;
     }
 };
-#endif
+
+//-----------------------------------------------------------------------------
+// Helper functions
+//-----------------------------------------------------------------------------
+void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix);
+
 
 //-----------------------------------------------------------------------------
 // Texture & Utils
@@ -743,6 +747,7 @@ struct TexturedQuad
 typedef eastl::vector<TexturedQuad> TexturedQuads;
 
 void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex);
+
 
 //-----------------------------------------------------------------------------
 // Gfx Commands

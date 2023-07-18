@@ -329,15 +329,6 @@ GfxTexture2D createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
     return texture2d;
 }
 
-void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
-{
-    rgFloat const* ptr = toFloatPtr(srcMatrix);
-    for(rgInt i = 0; i < 16; ++i)
-    {
-        dstArray[i] = ptr[i];
-    }
-}
-
 struct SimpleVertexFormat1
 {
     simd::float3 position;
