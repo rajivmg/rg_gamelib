@@ -746,32 +746,35 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
         [depthStencilDesc release];
 
         // vertex attributes
-        MTLVertexDescriptor* vertexDescriptor = [MTLVertexDescriptor vertexDescriptor];
-        eastl::hash_map<rgUInt, eastl::pair<rgUInt, GfxVertexStepFunc>> layoutSet;
-        for(rgInt a = 0; a < vertexInputDesc->elementCount; ++a)
+        if(vertexInputDesc && vertexInputDesc->elementCount > 0)
         {
-            vertexDescriptor.attributes[a].format = toMTLVertexFormat(vertexInputDesc->elements[a].format);
-            vertexDescriptor.attributes[a].offset = vertexInputDesc->elements[a].offset;
-            
-            rgUInt bufferIndex = kMaxMTLArgumentTableBufferSlot - vertexInputDesc->elements[a].bufferIndex;
-            rgAssert(bufferIndex > 0 && bufferIndex <= kMaxMTLArgumentTableBufferSlot);
-            if(layoutSet.count(bufferIndex) == 0)
+            MTLVertexDescriptor* vertexDescriptor = [MTLVertexDescriptor vertexDescriptor];
+            eastl::hash_map<rgUInt, eastl::pair<rgUInt, GfxVertexStepFunc>> layoutSet;
+            for(rgInt a = 0; a < vertexInputDesc->elementCount; ++a)
             {
-                layoutSet[bufferIndex].first = 0;
+                vertexDescriptor.attributes[a].format = toMTLVertexFormat(vertexInputDesc->elements[a].format);
+                vertexDescriptor.attributes[a].offset = vertexInputDesc->elements[a].offset;
+                
+                rgUInt bufferIndex = kMaxMTLArgumentTableBufferSlot - vertexInputDesc->elements[a].bufferIndex;
+                rgAssert(bufferIndex > 0 && bufferIndex <= kMaxMTLArgumentTableBufferSlot);
+                if(layoutSet.count(bufferIndex) == 0)
+                {
+                    layoutSet[bufferIndex].first = 0;
+                }
+                layoutSet[bufferIndex].first = layoutSet[bufferIndex].first + (TinyImageFormat_BitSizeOfBlock(vertexInputDesc->elements[a].format) / 8);
+                layoutSet[bufferIndex].second = vertexInputDesc->elements[a].stepFunc;
+                
+                vertexDescriptor.attributes[a].bufferIndex = bufferIndex;
             }
-            layoutSet[bufferIndex].first = layoutSet[bufferIndex].first + (TinyImageFormat_BitSizeOfBlock(vertexInputDesc->elements[a].format) / 8);
-            layoutSet[bufferIndex].second = vertexInputDesc->elements[a].stepFunc;
-            
-            vertexDescriptor.attributes[a].bufferIndex = bufferIndex;
+            for(auto& layout : layoutSet)
+            {
+                vertexDescriptor.layouts[layout.first].stepRate = 1;
+                vertexDescriptor.layouts[layout.first].stride = layout.second.first;
+                vertexDescriptor.layouts[layout.first].stepFunction = layout.second.second == GfxVertexStepFunc_PerInstance ? MTLVertexStepFunctionPerInstance : MTLVertexStepFunctionPerVertex;
+            }
+            psoDesc.vertexDescriptor = vertexDescriptor;
         }
-        for(auto& layout : layoutSet)
-        {
-            vertexDescriptor.layouts[layout.first].stepRate = 1;
-            vertexDescriptor.layouts[layout.first].stride = layout.second.first;
-            vertexDescriptor.layouts[layout.first].stepFunction = layout.second.second == GfxVertexStepFunc_PerInstance ? MTLVertexStepFunctionPerInstance : MTLVertexStepFunctionPerVertex;
-        }
-        psoDesc.vertexDescriptor = vertexDescriptor;
-
+    
         NSError* err;
         id<MTLRenderPipelineState> pso = [getMTLDevice() newRenderPipelineStateWithDescriptor:psoDesc error:&err];
         
@@ -1094,7 +1097,7 @@ struct GfxModel
 const rgUInt shaderballModelIndexCount = sizeof(shaderballModelIndices)/sizeof(shaderballModelIndices[0]);
 const rgUInt shaderballModelVertexCount = sizeof(shaderballModelVertices)/sizeof(shaderballModelVertices[0]);
 
-Matrix4 makePerspectiveProjection(rgFloat fovDeg, rgFloat aspect, rgFloat nearValue, rgFloat farValue)
+static Matrix4 makePerspectiveProjection(rgFloat fovDeg, rgFloat aspect, rgFloat nearValue, rgFloat farValue)
 {
     // NOTE: In Metal NDC
 

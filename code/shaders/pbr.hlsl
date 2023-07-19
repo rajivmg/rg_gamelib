@@ -26,6 +26,8 @@ struct Camera
 {
     float4x4 projectionPerspective;
     float4x4 viewCamera;
+    float4x4 invProjection;
+    float4x4 invView;
 };
 
 ConstantBuffer<Camera> camera : register(b0, space0);

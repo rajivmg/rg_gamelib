@@ -158,6 +158,23 @@ rgInt rg::setup()
 
     gfx::graphicsPSO->create("principledBrdf", &vertexPosTexCoordNormal, &principledBrdfShaderDesc, &world3dRenderState);
     //
+    GfxShaderDesc gridShaderDesc = {};
+    gridShaderDesc.shaderSrc = "grid.hlsl";
+    gridShaderDesc.vsEntrypoint = "vsGrid";
+    gridShaderDesc.fsEntrypoint = "fsGrid";
+    
+    GfxRenderStateDesc gridRenderState = {};
+    gridRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    gridRenderState.colorAttachments[0].blendingEnabled = true;
+    gridRenderState.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
+    gridRenderState.depthWriteEnabled = true;
+    gridRenderState.depthCompareFunc = GfxCompareFunc_LessEqual;
+    gridRenderState.winding = GfxWinding_CCW;
+    gridRenderState.cullMode = GfxCullMode_None;
+    
+    gfx::graphicsPSO->create("gridPSO", nullptr, &gridShaderDesc, &gridRenderState);
+    //
+    
 
     gfx::sampler->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     //
@@ -255,6 +272,27 @@ rgInt rg::updateAndDraw(rgDouble dt)
         textured2dRenderEncoder->end();
     }
     
+    // camera
+    struct
+    {
+        rgFloat projectionPerspective[16];
+        rgFloat viewCamera[16];
+        rgFloat invProjectionPerspective[16];
+        rgFloat invViewCamera[16];
+    } cameraParams;
+    
+    Matrix4 projection = gfx::createPerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
+    Matrix4 view = Matrix4::lookAt(Point3(0.0f, 1.0f, 3.0f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0));
+    Matrix4 invProjection = inverse(projection);
+    Matrix4 invView = inverse(view);
+    
+    copyMatrix4ToFloatArray(cameraParams.projectionPerspective, projection);
+    copyMatrix4ToFloatArray(cameraParams.viewCamera, view);
+    copyMatrix4ToFloatArray(cameraParams.invProjectionPerspective, invProjection);
+    copyMatrix4ToFloatArray(cameraParams.invViewCamera, invView);
+    
+    GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("cameraParamsCBufferBunny", sizeof(cameraParams), &cameraParams);
+    
     {
         GfxRenderPass demoScenePass = {};
         demoScenePass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
@@ -267,16 +305,6 @@ rgInt rg::updateAndDraw(rgDouble dt)
         GfxRenderCmdEncoder* demoSceneEncoder = gfx::setRenderPass(&demoScenePass, "DemoScene Pass");
         demoSceneEncoder->setGraphicsPSO(gfx::graphicsPSO->find(rgCRC32("principledBrdf")));
         
-        // camera
-        struct
-        {
-            rgFloat projectionPerspective[16];
-            rgFloat viewCamera[16];
-        } cameraParams;
-        
-        copyMatrix4ToFloatArray(cameraParams.projectionPerspective, gfx::createPerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f));
-        copyMatrix4ToFloatArray(cameraParams.viewCamera, Matrix4::lookAt(Point3(0.0f, 1.0f, 3.0f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
-        
         // instance
         struct
         {
@@ -288,7 +316,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         copyMatrix4ToFloatArray(&instanceParams.worldXform[0][0], xform);
         copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
         
-        GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("cameraParamsCBufferBunny", sizeof(cameraParams), &cameraParams);
+        
         GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBufferBunny", sizeof(instanceParams), &instanceParams);
         
         demoSceneEncoder->bindBuffer(&cameraParamsBuffer, "camera");
@@ -303,6 +331,22 @@ rgInt rg::updateAndDraw(rgDouble dt)
         }
 
         demoSceneEncoder->end();
+    }
+    
+    {
+        GfxRenderPass gridRenderPass = {};
+        gridRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+        gridRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
+        gridRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+        gridRenderPass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
+        gridRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
+        gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
+        
+        GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass(&gridRenderPass, "DemoScene Pass");
+        gridRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("gridPSO"_rh));
+        gridRenderEncoder->bindBuffer(&cameraParamsBuffer, "camera");
+        gridRenderEncoder->drawTriangles(0, 6, 1);
+        gridRenderEncoder->end();
     }
     
     rgHash a = rgCRC32("hello world");
