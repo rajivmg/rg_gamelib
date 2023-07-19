@@ -187,7 +187,7 @@ enum GfxSamplerMipFilter
     GfxSamplerMipFilter_Linear,
 };
 
-struct GfxSampler
+struct GfxSamplerState
 {
     rgChar tag[32];
     GfxSamplerAddressMode rstAddressMode;
@@ -201,7 +201,7 @@ struct GfxSampler
 #else
 #endif
 
-    static void fillStruct(GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
+    static void fillStruct(GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
     {
         obj->rstAddressMode = rstAddressMode;
         obj->minFilter = minFilter;
@@ -210,8 +210,8 @@ struct GfxSampler
         obj->anisotropy = anisotropy;
     }
 
-    static void create(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj);
-    static void destroy(GfxSampler* obj);
+    static void create(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj);
+    static void destroy(GfxSamplerState* obj);
 };
 
 // RenderPass
@@ -763,7 +763,7 @@ struct GfxRenderCmdEncoder
     void bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
     void bindBuffer(GfxFrameResource const* resource, char const* bindingTag);
     void bindTexture2D(GfxTexture2D* texture, char const* bindingTag);
-    void bindSampler(GfxSampler* sampler, char const* bindingTag);
+    void bindSampler(GfxSamplerState* sampler, char const* bindingTag);
     
     void drawTexturedQuads(TexturedQuads* quads);
     void drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount);
@@ -848,7 +848,8 @@ rgInt               getFinishedFrameIndex();
 GfxFrameAllocator*  getFrameAllocator();
 GfxTexture2D*       getCurrentRenderTargetColorBuffer();
 GfxTexture2D*       getRenderTargetDepthBuffer();
-Matrix4             createPerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
+Matrix4             makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
+Matrix4             makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
 
 //-----------------------------------------------------------------------------
 // Gfx function declarations
@@ -907,11 +908,10 @@ extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 extern GfxGraphicsPSO* currentGraphicsPSO;
 
-extern GfxObjectRegistry<GfxTexture2D>* texture2D;
-extern GfxObjectRegistry<GfxBuffer>* buffer;
-extern GfxObjectRegistry<GfxGraphicsPSO>* graphicsPSO;
-extern GfxObjectRegistry<GfxSampler>* sampler;
-//extern GfxObjectRegistry<GfxShaderLibrary, gfx::destroyerGfxShaderLibrary>* registryShaderLibrary;
+extern GfxObjectRegistry<GfxTexture2D>*     texture2D;
+extern GfxObjectRegistry<GfxBuffer>*        buffer;
+extern GfxObjectRegistry<GfxSamplerState>*  samplerState;
+extern GfxObjectRegistry<GfxGraphicsPSO>*   graphicsPSO;
     
 extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 

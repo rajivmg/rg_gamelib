@@ -114,8 +114,6 @@ rgInt rg::setup()
     //simple2dRenderStateDesc.triangleFillMode = GfxTriangleFillMode_Lines;
     
     gfx::graphicsPSO->create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
-    // gfx::graphicsPSO->create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
-    // gfx::graphicsPSO->markForDestroy("simple2d");
     
     //
     GfxVertexInputDesc vertexPosTexCoordNormal = {};
@@ -176,7 +174,7 @@ rgInt rg::setup()
     //
     
 
-    gfx::sampler->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
+    gfx::samplerState->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     
     g_PhysicSystem = rgNew(PhysicSystem);
 
@@ -257,7 +255,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         rgFloat invViewCamera[16];
     } cameraParams;
     
-    Matrix4 projection = gfx::createPerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
+    Matrix4 projection = gfx::makePerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
     Matrix4 view = Matrix4::lookAt(Point3(0.0f, 1.0f, 3.0f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0));
     Matrix4 invProjection = inverse(projection);
     Matrix4 invView = inverse(view);

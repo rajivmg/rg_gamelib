@@ -665,11 +665,11 @@ void GfxBuffer::destroy(GfxBuffer* obj)
 
 }
 
-void GfxSampler::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
+void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
 {
 }
 
-void GfxSampler::destroy(GfxSampler* obj)
+void GfxSamplerState::destroy(GfxSamplerState* obj)
 {
 }
 

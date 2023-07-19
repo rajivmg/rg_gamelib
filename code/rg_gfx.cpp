@@ -178,14 +178,14 @@ GfxGraphicsPSO*         currentGraphicsPSO;
 GfxObjectRegistry<GfxTexture2D>*    texture2D;
 GfxObjectRegistry<GfxBuffer>*       buffer;
 GfxObjectRegistry<GfxGraphicsPSO>*  graphicsPSO;
-GfxObjectRegistry<GfxSampler>*      sampler;
+GfxObjectRegistry<GfxSamplerState>* samplerState;
 
 GfxBindlessResourceManager<GfxTexture2D>*   bindlessManagerTexture2D;
 
 // DEFAULT RESOURCES
 GfxTexture2D*       renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
 GfxTexture2D*       depthStencilBuffer;
-GfxSampler*         bilinearSampler;
+GfxSamplerState*    bilinearSampler;
 GfxFrameAllocator*  frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
 // MISC
@@ -194,7 +194,7 @@ Matrix4 viewMatrix;
 eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
 
 
-Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue)
+Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue)
 {
     rgFloat length = 1.0f / (right - left);
     rgFloat height = 1.0f / (top - bottom);
@@ -206,7 +206,7 @@ Matrix4 makeOrthoProjection(rgFloat left, rgFloat right, rgFloat bottom, rgFloat
                    Vector4(-((right + left) * length), -((top +bottom) * height), -nearValue * depth, 1.0f));
 }
 
-Matrix4 createPerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane)
+Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane)
 {
 #if defined(RG_METAL_RNDR) || defined(RG_D3D12_RNDR)
     return  Matrix4(Vector4(focalLength, 0.0f, 0.0f, 0.0f),
@@ -221,8 +221,8 @@ Matrix4 createPerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRat
 rgInt preInit()
 {
     gfx::buffer = rgNew(GfxObjectRegistry<GfxBuffer>);
-    gfx::sampler = rgNew(GfxObjectRegistry<GfxSampler>);
     gfx::texture2D = rgNew(GfxObjectRegistry<GfxTexture2D>);
+    gfx::samplerState = rgNew(GfxObjectRegistry<GfxSamplerState>);
     gfx::graphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
 
     gfx::bindlessManagerTexture2D = rgNew(GfxBindlessResourceManager<GfxTexture2D>);
@@ -246,10 +246,14 @@ rgInt initCommonStuff()
     
     gfx::rendererImGuiInit();
     
-    //
+    // TODO: REMOVE THIS
+    // TODO: REMOVE THIS
+    // TODO: REMOVE THIS
     gfx::orthographicMatrix = Matrix4::orthographic(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0, 0.1f, 1000.0f);
     gfx::viewMatrix = Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0));
     
+    // TODO: REMOVE THIS
+    // TODO: REMOVE THIS
 #ifdef RG_METAL_RNDR
     //Matrix4 scaleZHalf = Matrix4::scale(Vector3(1.0f, 1.0f, -0.5f));
     Matrix4 scaleZHalf = Matrix4::scale(Vector3(1.0f, 1.0f, -0.5f));
@@ -260,7 +264,7 @@ rgInt initCommonStuff()
     gfx::orthographicMatrix = makeOrthoProjection(0.0f, g_WindowInfo.width, g_WindowInfo.height, 0.0f, 0.1f, 1000.0f);
 #endif
     
-    gfx::sampler->create("bilinearSampler", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
+    gfx::samplerState->create("bilinearSampler", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
     
     return 0;
 }
@@ -268,7 +272,7 @@ rgInt initCommonStuff()
 void atFrameStart()
 {
     gfx::buffer->destroyMarkedObjects();
-    gfx::sampler->destroyMarkedObjects();
+    gfx::samplerState->destroyMarkedObjects();
     gfx::texture2D->destroyMarkedObjects();
     gfx::graphicsPSO->destroyMarkedObjects();
     
