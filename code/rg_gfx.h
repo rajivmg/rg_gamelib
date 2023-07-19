@@ -332,10 +332,8 @@ struct GfxRenderStateDesc
     GfxWinding winding;
     GfxTriangleFillMode triangleFillMode;
 
-    // Viewport <--- not part of static state
-    // ScissorRect <--- not part of static state
     // Primitive Type, Line, LineStrip, Triangle, TriangleStrip
-    // Index Type, U16, U32
+    // Index Type, U16, U32 ??
 };
 
 struct GfxShaderDesc
@@ -347,15 +345,6 @@ struct GfxShaderDesc
     char const* defines;
 };
 
-struct GfxShaderLibrary // TODO: remove
-{
-#if defined(RG_D3D12_RNDR)
-    ComPtr<ID3DBlob> d3dShaderBlob;
-#elif defined(RG_METAL_RNDR)
-    void* mtlLibData; // type: dispatch_data_t
-#endif
-};
-
 struct GfxGraphicsPSO
 {
     rgChar tag[32];
@@ -363,7 +352,7 @@ struct GfxGraphicsPSO
     GfxWinding winding;
     GfxTriangleFillMode triangleFillMode;
 #if defined(RG_D3D12_RNDR)
-    struct ResourceInfo // TODO: --> ?? GfxResourceBindingInfo with per api info
+    struct ResourceInfo
     {
         D3D_SHADER_INPUT_TYPE type;
         rgU16 offsetInDescTable;

@@ -11,7 +11,14 @@
 
 RG_BEGIN_RG_NAMESPACE
 
-// --- Game Graphics APIs
+// DEFAULT RESOURCES
+QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
+
+
+//-----------------------------------------------------------------------------
+// Helper functions
+//-----------------------------------------------------------------------------
+
 void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
 {
     rgFloat const* ptr = toFloatPtr(srcMatrix);
@@ -21,7 +28,10 @@ void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
     }
 }
 
-QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
+
+//-----------------------------------------------------------------------------
+// Textures
+//-----------------------------------------------------------------------------
 
 TextureRef loadTexture(char const* filename)
 {
@@ -52,6 +62,38 @@ void unloadTexture(Texture* t)
     stbi_image_free(t->buf);
     rgDelete(t);
 }
+
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
+{
+    QuadUV r;
+
+    r.uvTopLeft[0] = (rgFloat)xPx / refWidthPx;
+    r.uvTopLeft[1] = (rgFloat)yPx / refHeightPx;
+
+    r.uvBottomRight[0] = (xPx + widthPx) / (rgFloat)refWidthPx;
+    r.uvBottomRight[1] = (yPx + heightPx) / (rgFloat)refHeightPx;
+
+    return r;
+}
+
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture)
+{
+    return createQuadUV(xPx, yPx, widthPx, heightPx, refTexture->width, refTexture->height);
+}
+
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
+{
+    TexturedQuad& q = quadList->push_back();
+    q.uv = uv;
+    q.pos = { posSize.x, posSize.y, 1.0f };
+    q.size = posSize.zw;
+    q.offsetOrientation = offsetOrientation;
+    q.texID = gfx::bindlessManagerTexture2D->getBindlessIndex(tex);
+}
+
+//-----------------------------------------------------------------------------
+// Model
+//-----------------------------------------------------------------------------
 
 ModelRef loadModel(char const* filename)
 {
@@ -120,33 +162,6 @@ void unloadModel(Model* ptr)
     
 }
 
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
-{
-    QuadUV r;
-
-    r.uvTopLeft[0] = (rgFloat)xPx / refWidthPx;
-    r.uvTopLeft[1] = (rgFloat)yPx / refHeightPx;
-
-    r.uvBottomRight[0] = (xPx + widthPx) / (rgFloat)refWidthPx;
-    r.uvBottomRight[1] = (yPx + heightPx) / (rgFloat)refHeightPx;
-
-    return r;
-}
-
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture)
-{
-    return createQuadUV(xPx, yPx, widthPx, heightPx, refTexture->width, refTexture->height);
-}
-
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
-{
-    TexturedQuad& q = quadList->push_back();
-    q.uv = uv;
-    q.pos = {posSize.x, posSize.y, 1.0f};
-    q.size = posSize.zw;
-    q.offsetOrientation = offsetOrientation;
-    q.texID = gfx::bindlessManagerTexture2D->getBindlessIndex(tex);
-}
 
 RG_BEGIN_GFX_NAMESPACE
 

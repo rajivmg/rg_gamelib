@@ -177,32 +177,8 @@ rgInt rg::setup()
     
 
     gfx::sampler->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
-    //
-    
-    {
-        for(rgInt y = -50; y < 50; ++y)
-        {
-            for(rgInt x = -50; x < 50; ++x)
-            {
-//                pushTexturedQuad(&g_GameData->terrainAndOcean, defaultQuadUV, {(rgFloat)x, (rgFloat)y, 64.0f, 64.0f}, {0, 0, 0, 0}, g_GameData->oceanTileTexture);
-            }
-        }
-         //g_GameData->terrainAndOcean
-    }
     
     g_PhysicSystem = rgNew(PhysicSystem);
-
-
-    // TODO: remove gfx::createResName gfx::findResName style functions
-    // TODO: remove gfx::createResName gfx::findResName style functions
-    // TODO: remove gfx::createResName gfx::findResName style functions
-    
-    /*
-    gfx::sampler->create("nearestLinear", ...);
-    gfx::createSampler("nearestLinear", ...);
-    gfx::texture2d->create("tiny", ...);
-    gfx::createTexture2D("tiny", ...);
-    */
 
 #if 0
     b2Vec2 gravity(0.0f, -9.8f);
