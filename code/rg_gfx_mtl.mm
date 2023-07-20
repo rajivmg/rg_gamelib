@@ -6,6 +6,7 @@
 #include <EASTL/fixed_vector.h>
 #include <EASTL/string.h>
 #include <EASTL/hash_map.h>
+#include <EASTL/hash_set.h>
 
 #import <Metal/Metal.h>
 #import <Metal/MTLArgumentEncoder.h>
@@ -437,6 +438,7 @@ void GfxTexture2D::destroy(GfxTexture2D* obj)
 //*****************************************************************************
 // GfxGraphicsPSO Implementation
 //*****************************************************************************
+static ComPtr<IDxcUtils> g_DxcUtils;
 
 id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, GfxGraphicsPSO* obj)
 {
@@ -498,6 +500,10 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     {
         dxcArgs.push_back(L"cs_6_0");
     }
+    
+    // include dir
+    dxcArgs.push_back(L"-I");
+    dxcArgs.push_back(L"../code/shaders");
 
     // generate SPIRV
     dxcArgs.push_back(L"-spirv");
@@ -539,13 +545,47 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
         }
     }
 
-    // create default include handler
-    ComPtr<IDxcUtils> utils;
-    checkHR(DxcCreateInstance(CLSID_DxcUtils, __uuidof(IDxcUtils), (void**)&utils));
-    ComPtr<IDxcIncludeHandler> includeHandler;
-    IDxcIncludeHandler* pIncludeHandler = includeHandler.Get();
-    checkHR(utils->CreateDefaultIncludeHandler(&pIncludeHandler));
+    // create include handler
+    if(!g_DxcUtils)
+    {
+        checkHR(DxcCreateInstance(CLSID_DxcUtils, __uuidof(IDxcUtils), (void**)&g_DxcUtils));
+    }
 
+    class CustomIncludeHandler : public IDxcIncludeHandler
+    {
+    public:
+        HRESULT LoadSource(LPCWSTR pFilename, IDxcBlob **ppIncludeSource) override
+        {
+            
+            ComPtr<IDxcBlobEncoding> blobEncoding;
+            std::filesystem::path filepath = std::filesystem::absolute(std::filesystem::path(pFilename));
+            
+            if(alreadyIncludedFiles.count(eastl::wstring(filepath.string().c_str())) > 0)
+            {
+                static const char emptyStr[] = " ";
+                g_DxcUtils->CreateBlobFromPinned(emptyStr, rgARRAY_COUNT(emptyStr), DXC_CP_ACP, &blobEncoding);
+                return S_OK;
+            }
+            
+            HRESULT hr = g_DxcUtils->LoadFile(pFilename, nullptr, &blobEncoding);
+            if(SUCCEEDED(hr))
+            {
+                alreadyIncludedFiles.insert(eastl::wstring(pFilename));
+                *ppIncludeSource = blobEncoding.Detach();
+            }
+            
+            return hr;
+        }
+        
+        HRESULT QueryInterface(REFIID riid,  void** ppvObject) override { return E_NOINTERFACE; }
+        ULONG   AddRef(void) override     { return 0; }
+        ULONG   Release(void) override    { return 0; }
+        
+        eastl::hash_set<eastl::wstring> alreadyIncludedFiles;
+    };
+    
+    ComPtr<CustomIncludeHandler> customIncludeHandler(rgNew(CustomIncludeHandler));
+    
     // load shader file
     char filepath[512];
     strcpy(filepath, "../code/shaders/");
@@ -564,7 +604,7 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     checkHR(DxcCreateInstance(CLSID_DxcCompiler, __uuidof(IDxcCompiler3), (void**)&compiler3));
 
     ComPtr<IDxcResult> result;
-    checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), includeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
+    checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), customIncludeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
 
     rg::freeFileData(&shaderFileData);
 
@@ -933,7 +973,12 @@ GfxGraphicsPSO::ResourceInfo& getResourceBindingInfo(char const* bindingTag)
     rgAssert(bindingTag);
     
     auto infoIter = gfx::currentGraphicsPSO->mtlResourceInfo.find(bindingTag);
-    rgAssert(infoIter != gfx::currentGraphicsPSO->mtlResourceInfo.end());
+    if(infoIter == gfx::currentGraphicsPSO->mtlResourceInfo.end())
+    {
+        rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
+        rgAssert(false);
+    }
+    
     GfxGraphicsPSO::ResourceInfo& info = infoIter->second;
     
     return info;
@@ -1047,8 +1092,8 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         rgFloat view2d[16];
     } cameraParams;
     
-    copyMatrix4ToFloatArray(cameraParams.projection2d, gfx::orthographicMatrix);
-    copyMatrix4ToFloatArray(cameraParams.view2d, gfx::viewMatrix);
+    copyMatrix4ToFloatArray(cameraParams.projection2d, gfx::makeOrthographicProjectionMatrix(0.0f, g_WindowInfo.width, g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
+    copyMatrix4ToFloatArray(cameraParams.view2d, Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0)));
 
     GfxFrameResource cameraBuffer = gfx::getFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
     
@@ -1339,7 +1384,7 @@ void testComputeAtomicsSetup()
     [computeHistogram release];
     [histogramLibrary release];
     
-    TextureRef histoTex = rg::loadTexture("histogram_test.png");
+    BitmapRef histoTex = rg::loadBitmap("histogram_test.png");
     gfx::texture2D->create("histogramTest", histoTex->buf, histoTex->width, histoTex->height, histoTex->format, false, GfxTextureUsage_ShaderRead);
     gfx::buffer->create("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
 }
@@ -1350,7 +1395,6 @@ void testComputeAtomicsRun()
     [computeEncoder setComputePipelineState:histogramComputePipeline];
     [computeEncoder setTexture:getMTLTexture(gfx::texture2D->find(rgCRC32("histogramTest"))) atIndex:0];
     [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:0];
-    //[computeEncoder setTexture:(id<MTLTexture>)getActiveMTLBuffer(gfx::findBuffer("histogramBuffer")) atIndex:1];
     [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:1];
     [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
     [computeEncoder endEncoding];

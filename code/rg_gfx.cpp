@@ -33,7 +33,7 @@ void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
 // Textures
 //-----------------------------------------------------------------------------
 
-TextureRef loadTexture(char const* filename)
+BitmapRef loadBitmap(char const* filename)
 {
     rgInt width, height, texChnl;
     unsigned char* texData = stbi_load(filename, &width, &height, &texChnl, 4);
@@ -44,23 +44,22 @@ TextureRef loadTexture(char const* filename)
     }
 
     //TextureRef tptr = eastl::make_shared<Texture>(unloadTexture);
-    TextureRef tptr = eastl::shared_ptr<Texture>(rgNew(Texture), unloadTexture);
-    strncpy(tptr->name, filename, rgARRAY_COUNT(Texture::name));
-    tptr->name[rgARRAY_COUNT(Texture::name) - 1] = '\0';
-    //strcpy(tptr->name, "[NONAME]");
-    tptr->hash = rgCRC32(filename);
-    tptr->width = width;
-    tptr->height = height;
-    tptr->format = TinyImageFormat_R8G8B8A8_UNORM;
-    tptr->buf = texData;
+    BitmapRef ptr = eastl::shared_ptr<Bitmap>(rgNew(Bitmap), unloadBitmap);
+    strncpy(ptr->tag, filename, rgARRAY_COUNT(Bitmap::tag));
+    ptr->tag[rgARRAY_COUNT(Bitmap::tag) - 1] = '\0';
+    ptr->hash = rgCRC32(filename);
+    ptr->width = width;
+    ptr->height = height;
+    ptr->format = TinyImageFormat_R8G8B8A8_UNORM;
+    ptr->buf = texData;
 
-    return tptr;
+    return ptr;
 }
 
-void unloadTexture(Texture* t)
+void unloadBitmap(Bitmap* ptr)
 {
-    stbi_image_free(t->buf);
-    rgDelete(t);
+    stbi_image_free(ptr->buf);
+    rgDelete(ptr);
 }
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
@@ -76,9 +75,9 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 r
     return r;
 }
 
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture)
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, BitmapRef bitmap)
 {
-    return createQuadUV(xPx, yPx, widthPx, heightPx, refTexture->width, refTexture->height);
+    return createQuadUV(xPx, yPx, widthPx, heightPx, bitmap->width, bitmap->height);
 }
 
 void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
@@ -245,24 +244,6 @@ rgInt initCommonStuff()
     ImGui::StyleColorsLight();
     
     gfx::rendererImGuiInit();
-    
-    // TODO: REMOVE THIS
-    // TODO: REMOVE THIS
-    // TODO: REMOVE THIS
-    gfx::orthographicMatrix = Matrix4::orthographic(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0, 0.1f, 1000.0f);
-    gfx::viewMatrix = Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0));
-    
-    // TODO: REMOVE THIS
-    // TODO: REMOVE THIS
-#ifdef RG_METAL_RNDR
-    //Matrix4 scaleZHalf = Matrix4::scale(Vector3(1.0f, 1.0f, -0.5f));
-    Matrix4 scaleZHalf = Matrix4::scale(Vector3(1.0f, 1.0f, -0.5f));
-    Matrix4 shiftZHalf = Matrix4::translation(Vector3(0.0f, 0.0f, 0.5f));
-    //Matrix4 shiftZHalf = Matrix4::translation(Vector3(1.0f, -1.0f, -1000.0f / (0.1f - 1000.0f)));
-    //Matrix4 scaleShiftZHalf = shiftZHalf * scaleZHalf;
-    //ctx->orthographicMatrix = shiftZHalf * scaleZHalf * ctx->orthographicMatrix;
-    gfx::orthographicMatrix = makeOrthographicProjectionMatrix(0.0f, g_WindowInfo.width, g_WindowInfo.height, 0.0f, 0.1f, 1000.0f);
-#endif
     
     gfx::samplerState->create("bilinearSampler", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
     

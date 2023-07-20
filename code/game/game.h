@@ -4,6 +4,7 @@
 
 using namespace rg;
 //using namespace gfx;
+
 struct GameData
 {
     TexturedQuads characterPortraits;
@@ -13,7 +14,8 @@ struct GameData
 
     ModelRef shaderballModel;
     
-    GfxGraphicsPSO* simple2dPSO; // TODO: use Handle
+    GfxGraphicsPSO* simple2dPSO;
+    
 
     b2World* phyWorld;
 };

@@ -649,26 +649,24 @@ void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix);
 
 
 //-----------------------------------------------------------------------------
-// Texture & Utils
+// Bitmap & Utils
 //-----------------------------------------------------------------------------
 
-// Texture type
+// Bitmap type
 // -------------
-struct Texture
+struct Bitmap
 {
+    rgChar tag[32];
     rgHash  hash;
     rgU8*   buf;
     rgUInt  width;
     rgUInt  height;
     TinyImageFormat format;
-
-    // -- remove in final build
-    rgChar name[32]; // TODO: rename tag
 };
-typedef eastl::shared_ptr<Texture> TextureRef;
+typedef eastl::shared_ptr<Bitmap> BitmapRef;
 
-TextureRef  loadTexture(char const* filename);
-void        unloadTexture(Texture* t);
+BitmapRef   loadBitmap(char const* filename);
+void        unloadBitmap(Bitmap* t);
 
 
 // Model and Mesh
@@ -707,7 +705,7 @@ struct Model
 typedef eastl::shared_ptr<Model> ModelRef;
 
 ModelRef loadModel(char const* filename);
-void        unloadModel(Model* ptr);
+void     unloadModel(Model* ptr);
 
 // Texture UV helper
 // -----------------
@@ -721,7 +719,7 @@ struct QuadUV
 extern QuadUV defaultQuadUV;
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, Texture* refTexture);
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, BitmapRef bitmap);
 
 // Textured quad
 // ---------------
@@ -872,8 +870,6 @@ GfxBlitCmdEncoder* setBlitPass(char const* tag);
 // ---------------
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
 
-GfxTexture2D* createTexture2D(char const* tag, TextureRef texture, rgBool genMips, GfxTextureUsage usage); // TODO: remove? unused?
-void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr);
 
 //-----------------------------------------------------------------------------
 // Gfx Vertex Format
@@ -917,9 +913,6 @@ extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
 
 extern GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
-extern Matrix4 orthographicMatrix; // TODO: Rename projection2d, projection3d
-extern Matrix4 viewMatrix; // TODO: Rename view2d
-    
 extern eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
     
 extern GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];

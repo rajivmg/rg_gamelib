@@ -1,4 +1,5 @@
 
+#include "common.hlsl"
 
 struct VertexShaderOut
 {
@@ -13,19 +14,11 @@ struct FragmentShaderOut
     float depth : SV_DEPTH;
 };
 
-struct Camera
-{
-    float4x4 projection;
-    float4x4 view;
-    float4x4 invProjection;
-    float4x4 invView;
-};
-
-ConstantBuffer<Camera> camera : register(b0, space0);
+ConstantBuffer<Common> commonParam : register(b0, space0);
 
 float3 unprojectClipSpacePoint(float x, float y, float z)
 {
-    float4 p = mul(mul(camera.invView, camera.invProjection), float4(x, y, z, 1.0));
+    float4 p = mul(mul(commonParam.gameplayInvView, commonParam.gameplayInvProjection), float4(x, y, z, 1.0));
     return p.xyz / p.w;
 }
 
@@ -65,7 +58,7 @@ float4 grid(float3 fragPos3D, float scale, bool drawAxis) {
 
 float computeDepth(float3 position)
 {
-    float4 clipSpacePos = mul(camera.projection, mul(camera.view, float4(position, 1)));
+    float4 clipSpacePos = mul(commonParam.gameplayProjection, mul(commonParam.gameplayView, float4(position, 1)));
     return (clipSpacePos.z / clipSpacePos.w);
 }
 

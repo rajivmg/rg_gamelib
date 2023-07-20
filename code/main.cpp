@@ -59,7 +59,7 @@ rgInt rg::setup()
 {
     g_GameData = rgNew(GameData);
 
-    TextureRef tinyTexture = loadTexture("tiny.tga");
+    BitmapRef tinyTexture = loadBitmap("tiny.tga");
     gfx::texture2D->create("tiny", tinyTexture->buf, tinyTexture->width, tinyTexture->height, tinyTexture->format, false, GfxTextureUsage_ShaderRead);
     gfx::texture2D->destroy(rgCRC32("tiny"));
     
@@ -67,12 +67,12 @@ rgInt rg::setup()
     {
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
-        TextureRef t = loadTexture(path);
+        BitmapRef t = loadBitmap(path);
         GfxTexture2D* t2d = gfx::texture2D->create(path, t->buf, t->width, t->height, t->format, false, GfxTextureUsage_ShaderRead);
         gfx::debugTextureHandles.push_back(t2d);
     }
-    
-    TextureRef flowerTex = rg::loadTexture("flower.png");
+
+    BitmapRef flowerTex = rg::loadBitmap("flower.png");
     g_GameData->flowerTexture = gfx::texture2D->create("flower", flowerTex->buf, flowerTex->width, flowerTex->height, flowerTex->format, false, GfxTextureUsage_ShaderRead);
     
     //gfxDestroyBuffer("ocean_tile");
@@ -213,38 +213,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
     ImGui::ShowDemoWindow();
     
-    {        
-        GfxRenderPass simple2dPass = {};
-        simple2dPass.colorAttachments[0].texture = gfx::renderTarget[g_FrameIndex];
-        simple2dPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
-        simple2dPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        simple2dPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
-        simple2dPass.depthStencilAttachmentTexture = gfx::depthStencilBuffer;
-        simple2dPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
-        simple2dPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
-        simple2dPass.clearDepth = 1.0f;
-        
-        GfxRenderCmdEncoder* textured2dRenderEncoder = gfx::setRenderPass(&simple2dPass, "Simple2D Pass");
-
-        textured2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("simple2d"_rh));
-        textured2dRenderEncoder->drawTexturedQuads(&g_GameData->terrainAndOcean);
-
-        g_GameData->characterPortraits.resize(0);
-        for(rgInt i = 0; i < 4; ++i)
-        {
-            for(rgInt j = 0; j < 4; ++j)
-            {
-                rgFloat px = j * (100) + 10 * (j + 1) + sinf((rgFloat)g_Time) * 30;
-                rgFloat py = i * (100) + 10 * (i + 1) + cosf((rgFloat)g_Time) * 30;
-                
-                pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
-            }
-        }
-        pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
-        
-        textured2dRenderEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
-        textured2dRenderEncoder->end();
-    }
+    // PREPARE COMMON RESOUCES
     
     // camera
     struct
@@ -267,6 +236,41 @@ rgInt rg::updateAndDraw(rgDouble dt)
     
     GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("cameraParamsCBufferBunny", sizeof(cameraParams), &cameraParams);
     
+    
+    // RENDER SIMPLE 2D STUFF
+    {
+        GfxRenderPass simple2dRenderPass = {};
+        simple2dRenderPass.colorAttachments[0].texture = gfx::renderTarget[g_FrameIndex];
+        simple2dRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
+        simple2dRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+        simple2dRenderPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
+        simple2dRenderPass.depthStencilAttachmentTexture = gfx::depthStencilBuffer;
+        simple2dRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
+        simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
+        simple2dRenderPass.clearDepth = 1.0f;
+        
+        GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::setRenderPass(&simple2dRenderPass, "Simple2D Pass");
+
+        simple2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("simple2d"_rh));
+        simple2dRenderEncoder->drawTexturedQuads(&g_GameData->terrainAndOcean);
+
+        g_GameData->characterPortraits.resize(0);
+        for(rgInt i = 0; i < 4; ++i)
+        {
+            for(rgInt j = 0; j < 4; ++j)
+            {
+                rgFloat px = j * (100) + 10 * (j + 1) + sinf((rgFloat)g_Time) * 30;
+                rgFloat py = i * (100) + 10 * (i + 1) + cosf((rgFloat)g_Time) * 30;
+                
+                pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
+            }
+        }
+        pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
+        
+        simple2dRenderEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
+        simple2dRenderEncoder->end();
+    }
+        
     {
         GfxRenderPass demoScenePass = {};
         demoScenePass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
@@ -277,7 +281,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         demoScenePass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
         GfxRenderCmdEncoder* demoSceneEncoder = gfx::setRenderPass(&demoScenePass, "DemoScene Pass");
-        demoSceneEncoder->setGraphicsPSO(gfx::graphicsPSO->find(rgCRC32("principledBrdf")));
+        demoSceneEncoder->setGraphicsPSO(gfx::graphicsPSO->find("principledBrdf"_rh));
         
         // instance
         struct
@@ -307,6 +311,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         demoSceneEncoder->end();
     }
     
+     // RENDER GRID AND EDITOR STUFF
     {
         GfxRenderPass gridRenderPass = {};
         gridRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
@@ -318,7 +323,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass(&gridRenderPass, "DemoScene Pass");
         gridRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("gridPSO"_rh));
-        gridRenderEncoder->bindBuffer(&cameraParamsBuffer, "camera");
+        gridRenderEncoder->bindBuffer(&cameraParamsBuffer, "commonParam");
         gridRenderEncoder->drawTriangles(0, 6, 1);
         gridRenderEncoder->end();
     }
