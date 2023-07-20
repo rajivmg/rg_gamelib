@@ -77,7 +77,7 @@ id<MTLBuffer> getMTLBuffer(const GfxBuffer* obj)
     return (__bridge id<MTLBuffer>)(obj->mtlBuffer);
 }
 
-id<MTLSamplerState> getMTLSamplerState(const GfxSampler* obj)
+id<MTLSamplerState> getMTLSamplerState(const GfxSamplerState* obj)
 {
     return (__bridge id<MTLSamplerState>)(obj->mtlSampler);
 }
@@ -374,7 +374,7 @@ void GfxBuffer::destroy(GfxBuffer* obj)
 // GfxSampler Implementation
 //*****************************************************************************
 
-void GfxSampler::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSampler* obj)
+void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
 {
     MTLSamplerDescriptor* desc = [MTLSamplerDescriptor new];
     desc.rAddressMode = toMTLSamplerAddressMode(rstAddressMode);
@@ -394,7 +394,7 @@ void GfxSampler::create(char const* tag, GfxSamplerAddressMode rstAddressMode, G
     obj->mtlSampler = (__bridge void*)samplerState;
 }
 
-void GfxSampler::destroy(GfxSampler* obj)
+void GfxSamplerState::destroy(GfxSamplerState* obj)
 {
     [asMTLSamplerState(obj->mtlSampler) release];
 }
@@ -981,7 +981,7 @@ void GfxRenderCmdEncoder::bindBuffer(GfxFrameResource const* resource, char cons
 }
 
 //-----------------------------------------------------------------------------
-void GfxRenderCmdEncoder::bindSampler(GfxSampler* sampler, char const* bindingTag)
+void GfxRenderCmdEncoder::bindSamplerState(GfxSamplerState* sampler, char const* bindingTag)
 {
     rgAssert(sampler != nullptr);
     
@@ -1056,7 +1056,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 
     bindBuffer(&cameraBuffer, "camera");
     bindBuffer(&instanceParamsBuffer, "instanceParams");
-    bindSampler(gfx::sampler->find("bilinearSampler"_rh), "simpleSampler");
+    bindSamplerState(gfx::samplerState->find("bilinearSampler"_rh), "simpleSampler");
     
     setVertexBuffer(&vertexBufAllocation, 0);
 
@@ -1126,7 +1126,7 @@ void GfxRenderCmdEncoder::drawBunny()
         rgFloat viewCamera[16];  
     } cameraParams;
 
-    copyMatrix4ToFloatArray(cameraParams.projectionPerspective, gfx::createPerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f));
+    copyMatrix4ToFloatArray(cameraParams.projectionPerspective, gfx::makePerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f));
     copyMatrix4ToFloatArray(cameraParams.viewCamera, Matrix4::lookAt(Point3(0.0f, 1.0f, 3.0f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0)));
 
     // instance
