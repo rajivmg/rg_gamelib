@@ -39,7 +39,7 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
     return new uint8_t[size];
 }
 
-GameData* g_GameData;
+GameState* g_GameState;
 rg::PhysicSystem* g_PhysicSystem;
 rg::WindowInfo g_WindowInfo;
 
@@ -57,7 +57,7 @@ rgU32 rgRenderKey(rgBool top)
 
 rgInt rg::setup()
 {
-    g_GameData = rgNew(GameData);
+    g_GameState = rgNew(GameState);
 
     BitmapRef tinyTexture = loadBitmap("tiny.tga");
     gfx::texture2D->create("tiny", tinyTexture->buf, tinyTexture->width, tinyTexture->height, tinyTexture->format, false, GfxTextureUsage_ShaderRead);
@@ -73,10 +73,10 @@ rgInt rg::setup()
     }
 
     BitmapRef flowerTex = rg::loadBitmap("flower.png");
-    g_GameData->flowerTexture = gfx::texture2D->create("flower", flowerTex->buf, flowerTex->width, flowerTex->height, flowerTex->format, false, GfxTextureUsage_ShaderRead);
+    g_GameState->flowerTexture = gfx::texture2D->create("flower", flowerTex->buf, flowerTex->width, flowerTex->height, flowerTex->format, false, GfxTextureUsage_ShaderRead);
     
     //gfxDestroyBuffer("ocean_tile");
-    g_GameData->shaderballModel = rg::loadModel("shaderball.xml");
+    g_GameState->shaderballModel = rg::loadModel("shaderball.xml");
     
     GfxVertexInputDesc vertexDesc = {};
     vertexDesc.elementCount = 3;
@@ -176,6 +176,10 @@ rgInt rg::setup()
 
     gfx::samplerState->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     
+    g_GameState->cameraPos = Vector3(0.0f, 1.0f, 3.0f);
+    g_GameState->cameraRot = Vector3(0.0f, 0.0f, 0.0f);
+    g_GameState->cameraMat3 = Matrix3::identity();
+    
     g_PhysicSystem = rgNew(PhysicSystem);
 
 #if 0
@@ -206,6 +210,11 @@ rgInt rg::setup()
 #endif
 
     return 0;
+}
+
+rgInt processEvent(SDL_Event *event)
+{
+    
 }
 
 rgInt rg::updateAndDraw(rgDouble dt)
@@ -252,9 +261,9 @@ rgInt rg::updateAndDraw(rgDouble dt)
         GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::setRenderPass(&simple2dRenderPass, "Simple2D Pass");
 
         simple2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("simple2d"_rh));
-        simple2dRenderEncoder->drawTexturedQuads(&g_GameData->terrainAndOcean);
+        simple2dRenderEncoder->drawTexturedQuads(&g_GameState->terrainAndOcean);
 
-        g_GameData->characterPortraits.resize(0);
+        g_GameState->characterPortraits.resize(0);
         for(rgInt i = 0; i < 4; ++i)
         {
             for(rgInt j = 0; j < 4; ++j)
@@ -262,12 +271,12 @@ rgInt rg::updateAndDraw(rgDouble dt)
                 rgFloat px = j * (100) + 10 * (j + 1) + sinf((rgFloat)g_Time) * 30;
                 rgFloat py = i * (100) + 10 * (i + 1) + cosf((rgFloat)g_Time) * 30;
                 
-                pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
+                pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
             }
         }
-        pushTexturedQuad(&g_GameData->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameData->flowerTexture);
+        pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameState->flowerTexture);
         
-        simple2dRenderEncoder->drawTexturedQuads(&g_GameData->characterPortraits);
+        simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits);
         simple2dRenderEncoder->end();
     }
         
@@ -300,12 +309,12 @@ rgInt rg::updateAndDraw(rgDouble dt)
         demoSceneEncoder->bindBuffer(&cameraParamsBuffer, "camera");
         demoSceneEncoder->bindBuffer(&instanceParamsBuffer, "instanceParams");
         
-        for(rgInt i = 0; i < g_GameData->shaderballModel->meshes.size(); ++i)
+        for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
         {
-            rg::Mesh* m = &g_GameData->shaderballModel->meshes[i];
+            rg::Mesh* m = &g_GameState->shaderballModel->meshes[i];
             
-            demoSceneEncoder->setVertexBuffer(g_GameData->shaderballModel->vertexIndexBuffer, g_GameData->shaderballModel->vertexBufferOffset +  m->vertexDataOffset, 0);
-            demoSceneEncoder->drawIndexedTriangles(m->indexCount, true, g_GameData->shaderballModel->vertexIndexBuffer, g_GameData->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
+            demoSceneEncoder->setVertexBuffer(g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->vertexBufferOffset +  m->vertexDataOffset, 0);
+            demoSceneEncoder->drawIndexedTriangles(m->indexCount, true, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
         }
 
         demoSceneEncoder->end();

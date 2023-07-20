@@ -45,6 +45,7 @@ static const rgU32 kMaxColorAttachments = 4;
 // Game functions
 //-----------------------------------------------------------------------------
 rgInt setup();
+rgInt processEvent(SDL_Event *event);
 rgInt updateAndDraw(rgDouble dt);
 
 //-----------------------------------------------------------------------------
