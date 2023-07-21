@@ -65,10 +65,12 @@ struct GameState
     
     GfxGraphicsPSO* simple2dPSO;
     
-    Vector3    cameraPos;
-    Vector3    cameraRot;
-    Matrix3 cameraMat3;
-    
+    // part of in-game editor state
+    Vector3    cameraPosition;
+    Vector3    cameraLookAt;
+    Vector3    cameraUp;
+    Matrix4    cameraView;
+    Matrix4    cameraProjection;
 
     b2World* phyWorld;
 };

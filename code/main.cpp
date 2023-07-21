@@ -177,9 +177,9 @@ rgInt rg::setup()
 
     gfx::samplerState->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     
-    g_GameState->cameraPos = Vector3(0.0f, 1.0f, 3.0f);
-    g_GameState->cameraRot = Vector3(0.0f, 0.0f, 0.0f);
-    g_GameState->cameraMat3 = Matrix3::identity();
+    g_GameState->cameraPosition = Vector3(0.0f, 0.0f, 3.0f);
+    g_GameState->cameraLookAt = Vector3(0.0f, 0.0f, 0.0f);
+    g_GameState->cameraUp = Vector3(0.0f, 1.0f, 0.0f);
     
     g_PhysicSystem = rgNew(PhysicSystem);
 
@@ -213,9 +213,9 @@ rgInt rg::setup()
     return 0;
 }
 
-rgInt processEvent(SDL_Event *event)
+rgFloat sgn(rgFloat x)
 {
-    
+    return (x > 0) - (x < 0);
 }
 
 rgInt rg::updateAndDraw(rgDouble dt)
@@ -223,7 +223,34 @@ rgInt rg::updateAndDraw(rgDouble dt)
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
     ImGui::ShowDemoWindow();
     
-    // PREPARE COMMON RESOUCES
+    // PREPARE COMMON RESOURCES & DATA
+    
+    if(g_GameInput->mouse.right.endedDown)
+    {
+        Vector4 camPos = Vector4(g_GameState->cameraPosition, 1.0f);
+        Vector4 camPivot = Vector4(g_GameState->cameraLookAt, 1.0f);
+        
+        rgFloat dAngX = (2 * M_PI) / g_WindowInfo.width;
+        rgFloat dAngY = M_PI / g_WindowInfo.height;
+        
+        rgFloat angX = -g_GameInput->mouse.relX * dAngX;
+        rgFloat angY = -g_GameInput->mouse.relY * dAngY;
+        
+        rgFloat cosAng = dot(g_GameState->cameraView.getCol2().getXYZ(), Vector3(0.0f, 1.0f, 0.0f));
+        if(cosAng * sgn(angY) > 0.99f)
+        {
+            angY = 0;
+        }
+        
+        Matrix4 rotX = Matrix4::rotation(angX, Vector3(0.0f, 1.0f, 0.0f));
+        Matrix4 rotY = Matrix4::rotation(angY, g_GameState->cameraView.getCol0().getXYZ());
+        camPos = (rotX * (camPos - camPivot)) + camPivot;
+        camPos = (rotY * (camPos - camPivot)) + camPivot;
+        g_GameState->cameraPosition = camPos.getXYZ();
+        
+        g_GameState->cameraView = Matrix4::lookAt(Point3(g_GameState->cameraPosition), Point3(g_GameState->cameraLookAt), Vector3(0.0f, 1.0f, 0.0f));
+    }
+    
     
     // camera
     struct
@@ -234,8 +261,9 @@ rgInt rg::updateAndDraw(rgDouble dt)
         rgFloat invViewCamera[16];
     } cameraParams;
     
-    Matrix4 projection = gfx::makePerspectiveProjectionMatrix(1.0f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
-    Matrix4 view = Matrix4::lookAt(Point3(0.0f, 1.0f, 3.0f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0));
+    Matrix4 projection = gfx::makePerspectiveProjectionMatrix(0.5f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
+    //Matrix4 view = Matrix4::lookAt(Point3(0.0f, 1.0f, 3.0f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0));
+    Matrix4 view = g_GameState->cameraView;
     Matrix4 invProjection = inverse(projection);
     Matrix4 invView = inverse(view);
     
@@ -300,7 +328,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
             rgFloat invTposeWorldXform[256][16];
         } instanceParams;
         
-        Matrix4 xform = Matrix4(Transform3::rotationY(sinf(g_Time * 0.5f)));
+        Matrix4 xform = Matrix4::identity();//Matrix4(Transform3::rotationY(sinf(g_Time * 0.5f)));
         copyMatrix4ToFloatArray(&instanceParams.worldXform[0][0], xform);
         copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
         
