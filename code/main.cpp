@@ -40,6 +40,7 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
 }
 
 GameState* g_GameState;
+GameInput* g_GameInput;
 rg::PhysicSystem* g_PhysicSystem;
 rg::WindowInfo g_WindowInfo;
 
@@ -351,6 +352,96 @@ rgInt rg::updateAndDraw(rgDouble dt)
     return 0;
 }
 
+static rgBool ProcessGameButtonState(GameButtonState* newButtonState, rgBool isDown)
+{
+    if(newButtonState->endedDown != isDown)
+    {
+        newButtonState->endedDown = isDown;
+        ++newButtonState->halfTransitionCount;
+    }
+}
+
+rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
+{
+    GameControllerInput* controller1 = &gameInput->controllers[0];
+    
+    switch(event->type)
+    {
+        case SDL_KEYDOWN:
+        case SDL_KEYUP:
+        {
+            if(!event->key.repeat)
+            {
+                rgBool isDown = (event->key.state == SDL_PRESSED);
+                switch(event->key.keysym.sym)
+                {
+                    case SDLK_w:
+                    case SDLK_UP:
+                    {
+                        ProcessGameButtonState(&controller1->forward, isDown);
+                    } break;
+                        
+                    case SDLK_s:
+                    case SDLK_DOWN:
+                    {
+                        ProcessGameButtonState(&controller1->backward, isDown);
+                    } break;
+                        
+                    case SDLK_a:
+                    case SDLK_LEFT:
+                    {
+                        ProcessGameButtonState(&controller1->left, isDown);
+                    } break;
+                        
+                    case SDLK_d:
+                    case SDLK_RIGHT:
+                    {
+                        ProcessGameButtonState(&controller1->right, isDown);
+                    } break;
+                        
+                    case SDLK_ESCAPE:
+                    {
+                        SDL_Event quitEvent;
+                        quitEvent.type = SDL_QUIT;
+                        SDL_PushEvent(&quitEvent);
+                    } break;
+                }
+            }
+        } break;
+            
+        case SDL_MOUSEMOTION:
+        {
+            gameInput->mouse.x = event->motion.x;
+            gameInput->mouse.y = event->motion.y;
+            gameInput->mouse.relX = event->motion.xrel;
+            gameInput->mouse.relY = event->motion.yrel;
+        } break;
+            
+        case SDL_MOUSEBUTTONUP:
+        case SDL_MOUSEBUTTONDOWN:
+        {
+            rgBool isDown = (event->button.state == SDL_PRESSED);
+            switch(event->button.button)
+            {
+                case SDL_BUTTON_LEFT:
+                {
+                    ProcessGameButtonState(&gameInput->mouse.left, isDown);
+                } break;
+                    
+                case SDL_BUTTON_MIDDLE:
+                {
+                    ProcessGameButtonState(&gameInput->mouse.middle, isDown);
+                } break;
+                    
+                case SDL_BUTTON_RIGHT:
+                {
+                    ProcessGameButtonState(&gameInput->mouse.right, isDown);
+                } break;
+            }
+        } break;
+    }
+}
+
 rgInt createSDLWindow()
 {
     g_WindowInfo.width = 1056.0f;
@@ -419,6 +510,10 @@ int main(int argc, char* argv[])
     Uint64 currentPerfCounter = SDL_GetPerformanceCounter();
     Uint64 previousPerfCounter = currentPerfCounter;
     
+    GameInput inputs[2] = {};
+    GameInput* oldGameInput = &inputs[0];
+    GameInput* newGameInput = &inputs[1];
+    
     while(!g_ShouldQuit)
     {
         ++gfx::frameNumber;
@@ -429,9 +524,28 @@ int main(int argc, char* argv[])
         g_DeltaTime = ((currentPerfCounter - previousPerfCounter) / (1.0 * SDL_GetPerformanceFrequency()));
         g_Time = currentPerfCounter / (1.0 * counterFrequency);
         
+        // Copy old input state to new input state
+        *newGameInput = {};
+        GameControllerInput* oldController1 = &oldGameInput->controllers[0];
+        GameControllerInput* newController1 = &newGameInput->controllers[0];
+        for(rgInt buttonIdx = 0; buttonIdx < rgARRAY_COUNT(GameControllerInput::buttons); ++buttonIdx)
+        {
+            newController1->buttons[buttonIdx].endedDown = oldController1->buttons[buttonIdx].endedDown;
+        }
+        
+        // Copy old mouse input state to new mouse input state
+        newGameInput->mouse.x = oldGameInput->mouse.x;
+        newGameInput->mouse.y = oldGameInput->mouse.y;
+        for(rgInt buttonIdx = 0; buttonIdx < rgARRAY_COUNT(GameControllerInput::buttons); ++buttonIdx)
+        {
+            newGameInput->mouse.buttons[buttonIdx].endedDown = oldGameInput->mouse.buttons[buttonIdx].endedDown;
+        }
+        
+        g_GameInput = newGameInput;
+        
         while(SDL_PollEvent(&event) != 0)
         {
-            ImGui_ImplSDL2_ProcessEvent(&event);
+            ImGui_ImplSDL2_ProcessEvent(&event); // TODO: Is this the right to place this here?
             
             if(event.type == SDL_QUIT)
             {
@@ -446,6 +560,7 @@ int main(int argc, char* argv[])
             else
             {
                 // process event
+                ProcessGameInputs(&event, newGameInput);
             }
         }
         
@@ -456,11 +571,12 @@ int main(int argc, char* argv[])
         ImGui::NewFrame();
         
         rg::updateAndDraw(g_DeltaTime);
-        
+         
         ImGui::Render();
         gfx::rendererImGuiRenderDrawData();
         gfx::endFrame();
         
+        *oldGameInput = *newGameInput;
     }
 
     gfx::destroy();

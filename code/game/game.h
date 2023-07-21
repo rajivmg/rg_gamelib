@@ -43,7 +43,16 @@ struct GameControllerInput
     };
 };
 
-extern GameControllerInput* g_GameControllerInputs[4];
+#define RG_MAX_GAME_CONTROLLERS 4
+
+struct GameInput
+{
+    GameMouseState mouse;
+    GameControllerInput controllers[RG_MAX_GAME_CONTROLLERS];
+};
+
+extern GameInput* g_GameInput;
+
 
 struct GameState
 {
