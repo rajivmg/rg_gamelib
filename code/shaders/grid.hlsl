@@ -78,7 +78,7 @@ FragmentShaderOut fsGrid(in VertexShaderOut f)
     float depth = computeDepth(pos);
     float linearDepth = computeLinearDepth(depth, f.nearPoint, f.farPoint);
 
-    float fade = max(0, 0.8 - linearDepth);
+    float fade = 1.0;//max(0, 0.8 - linearDepth);
 
     float4 color = grid(pos, 1, true) * half(t > 0);
     color.a *= fade;

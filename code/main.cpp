@@ -56,6 +56,16 @@ rgU32 rgRenderKey(rgBool top)
     return top ? 1 : 0;
 }
 
+void updateCamera()
+{
+    Vector3 right = Vector3(1.0f, 0.0f, 0.0f);
+    Vector3 up = Vector3(0.0f, 1.0f, 0.0f);
+    Vector3 forward = Vector3(0.0f, 0.0f, 1.0f);
+    
+    g_GameState->cameraView = Matrix4::lookAt(Point3(g_GameState->cameraPosition), Point3(0.0f), Vector3(0.0f, 1.0f, 0.0f));
+    g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(0.5f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
+}
+
 rgInt rg::setup()
 {
     g_GameState = rgNew(GameState);
@@ -177,9 +187,16 @@ rgInt rg::setup()
 
     gfx::samplerState->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     
-    g_GameState->cameraPosition = Vector3(0.0f, 0.0f, 3.0f);
-    g_GameState->cameraLookAt = Vector3(0.0f, 0.0f, 0.0f);
+    // Initialize camera params
+    g_GameState->cameraRight = Vector3(1.0f, 0.0f, 0.0f);
     g_GameState->cameraUp = Vector3(0.0f, 1.0f, 0.0f);
+    g_GameState->cameraForward = Vector3(0.0f, 0.0f, 1.0f);
+    
+    g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
+    g_GameState->cameraPitch = 0.0f;
+    g_GameState->cameraYaw = 0.0f;
+    
+    updateCamera();
     
     g_PhysicSystem = rgNew(PhysicSystem);
 
@@ -225,30 +242,36 @@ rgInt rg::updateAndDraw(rgDouble dt)
     
     // PREPARE COMMON RESOURCES & DATA
     
+    struct Camera
+    {
+        Matrix3 basis;
+        
+        Matrix4 viewMatrix;
+        Matrix4 projMatrix;
+        Matrix4 viewProjMatrix;
+    };
+
     if(g_GameInput->mouse.right.endedDown)
     {
+        rgDouble camMoveSpeed = 0.9;
+        rgDouble camStrafeSpeed =  0.6;
+        
         Vector4 camPos = Vector4(g_GameState->cameraPosition, 1.0f);
-        Vector4 camPivot = Vector4(g_GameState->cameraLookAt, 1.0f);
         
-        rgFloat dAngX = (2 * M_PI) / g_WindowInfo.width;
-        rgFloat dAngY = M_PI / g_WindowInfo.height;
+        GameControllerInput* controller = &g_GameInput->controllers[0];
+        GameMouseState* mouse = &g_GameInput->mouse;
         
-        rgFloat angX = -g_GameInput->mouse.relX * dAngX;
-        rgFloat angY = -g_GameInput->mouse.relY * dAngY;
+        rgFloat forward = camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0));
+        rgFloat strafe = camStrafeSpeed * ((controller->right.endedDown ? g_DeltaTime : 0.0) + (controller->left.endedDown ? -g_DeltaTime : 0.0));
+        rgFloat ascent = camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0));
+                
+        Vector3 position = g_GameState->cameraPosition + Vector3(strafe, ascent, -forward);
         
-        rgFloat cosAng = dot(g_GameState->cameraView.getCol2().getXYZ(), Vector3(0.0f, 1.0f, 0.0f));
-        if(cosAng * sgn(angY) > 0.99f)
-        {
-            angY = 0;
-        }
         
-        Matrix4 rotX = Matrix4::rotation(angX, Vector3(0.0f, 1.0f, 0.0f));
-        Matrix4 rotY = Matrix4::rotation(angY, g_GameState->cameraView.getCol0().getXYZ());
-        camPos = (rotX * (camPos - camPivot)) + camPivot;
-        camPos = (rotY * (camPos - camPivot)) + camPivot;
-        g_GameState->cameraPosition = camPos.getXYZ();
+        g_GameState->cameraPosition = position;
         
-        g_GameState->cameraView = Matrix4::lookAt(Point3(g_GameState->cameraPosition), Point3(g_GameState->cameraLookAt), Vector3(0.0f, 1.0f, 0.0f));
+        
+        updateCamera();
     }
     
     
@@ -261,8 +284,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         rgFloat invViewCamera[16];
     } cameraParams;
     
-    Matrix4 projection = gfx::makePerspectiveProjectionMatrix(0.5f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
-    //Matrix4 view = Matrix4::lookAt(Point3(0.0f, 1.0f, 3.0f), Point3(-0.2, 0.9f, 0), Vector3(0, 1.0f, 0));
+    Matrix4 projection = g_GameState->cameraProjection;
     Matrix4 view = g_GameState->cameraView;
     Matrix4 invProjection = inverse(projection);
     Matrix4 invView = inverse(view);
@@ -426,7 +448,17 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
                     {
                         ProcessGameButtonState(&controller1->right, isDown);
                     } break;
+                    
+                    case SDLK_q:
+                    {
+                        ProcessGameButtonState(&controller1->up, isDown);
+                    } break;
                         
+                    case SDLK_e:
+                    {
+                        ProcessGameButtonState(&controller1->down, isDown);
+                    } break;
+                    
                     case SDLK_ESCAPE:
                     {
                         SDL_Event quitEvent;

@@ -38,6 +38,8 @@ struct GameControllerInput
             GameButtonState backward;
             GameButtonState left;
             GameButtonState right;
+            GameButtonState up;
+            GameButtonState down;
             GameButtonState jump;
         };
     };
@@ -66,9 +68,15 @@ struct GameState
     GfxGraphicsPSO* simple2dPSO;
     
     // part of in-game editor state
-    Vector3    cameraPosition;
-    Vector3    cameraLookAt;
+    Vector3    cameraRight;
     Vector3    cameraUp;
+    Vector3    cameraForward;
+    
+    Vector3    cameraPosition;
+    Vector3    cameraTarget;
+    rgFloat    cameraPitch;
+    rgFloat    cameraYaw;
+    
     Matrix4    cameraView;
     Matrix4    cameraProjection;
 
