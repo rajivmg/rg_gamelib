@@ -62,6 +62,25 @@ void updateCamera()
     const Vector3 worldEast = Vector3(1.0f, 0.0f, 0.0f);
     const Vector3 worldUp = Vector3(0.0f, 1.0f, 0.0f);
     
+    GameControllerInput* controller = &g_GameInput->controllers[0];
+    GameMouseState* mouse = &g_GameInput->mouse;
+    
+    rgDouble camMoveSpeed = 2.9;
+    rgDouble camStrafeSpeed =  2.6;
+    rgDouble camHorizonalRotateSpeed = (M_PI / g_WindowInfo.width);
+    rgDouble camVerticalRotateSpeed = (M_PI_2 / g_WindowInfo.height);
+    
+    Vector4 camPos = Vector4(g_GameState->cameraPosition, 1.0f);
+    rgFloat camPitch = g_GameState->cameraPitch;
+    rgFloat camYaw = g_GameState->cameraYaw;
+    
+    rgFloat forward = camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0));
+    rgFloat strafe = camStrafeSpeed * ((controller->right.endedDown ? g_DeltaTime : 0.0) + (controller->left.endedDown ? -g_DeltaTime : 0.0));
+    rgFloat ascent = camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0));
+    
+    rgFloat horizontalRotation = (mouse->relX * camHorizonalRotateSpeed) + g_GameState->cameraYaw;
+    rgFloat verticalRotation = (mouse->relY * camVerticalRotateSpeed) + g_GameState->cameraPitch;
+    
 #if 0
     // Rotate worldNorth by pitch angle
     const Quat pitchQuat = Quat::rotation(g_GameState->cameraPitch, worldEast);
@@ -83,12 +102,12 @@ void updateCamera()
         rgLog("%s: %0.3f, %0.3f, %0.3f", tag, v.getX(), v.getY(), v.getZ());
     };
     
-    const Quat yawQuat = Quat::rotation(g_GameState->cameraYaw, worldUp);
+    const Quat yawQuat = Quat::rotation(horizontalRotation, worldUp);
     Vector3 yawedTarget = normalize(rotate(yawQuat, worldEast));
     printVec3("yawedTarget", yawedTarget);
     
     Vector3 right = normalize(cross(worldUp, yawedTarget));
-    const Quat pitchQuat = Quat::rotation(g_GameState->cameraPitch, right);
+    const Quat pitchQuat = Quat::rotation(verticalRotation, right);
     Vector3 pitchedYawedTarget = normalize(rotate(pitchQuat, yawedTarget));
     
     g_GameState->cameraRight = right;
@@ -98,9 +117,14 @@ void updateCamera()
 #endif
     //g_GameState->cameraView = Matrix4::lookAt(Point3(g_GameState->cameraPosition), Point3(-g_GameState->cameraForward), g_GameState->cameraUp);
     
+    Vector3 position = g_GameState->cameraPosition + Matrix3(g_GameState->cameraRight, g_GameState->cameraUp, g_GameState->cameraForward) * Vector3(strafe, ascent, -forward);
+    
+    g_GameState->cameraPosition = position;
+    g_GameState->cameraPitch = verticalRotation;
+    g_GameState->cameraYaw = horizontalRotation;
+    
     Matrix4 m4EyeFrame = Matrix4(Vector4(g_GameState->cameraRight, 1.0f), Vector4(g_GameState->cameraUp, 1.0f), Vector4(g_GameState->cameraForward, 0.0f), Vector4(g_GameState->cameraPosition, 1.0f));
     g_GameState->cameraView = orthoInverse(m4EyeFrame);
-    
     g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(1.4f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
 }
 
@@ -234,7 +258,7 @@ rgInt rg::setup()
     g_GameState->cameraPitch = 0.0f;
     g_GameState->cameraYaw = 0.0f;
     
-    updateCamera();
+    //updateCamera();
     
     g_PhysicSystem = rgNew(PhysicSystem);
 
@@ -291,30 +315,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
 
     if(g_GameInput->mouse.right.endedDown)
     {
-        GameControllerInput* controller = &g_GameInput->controllers[0];
-        GameMouseState* mouse = &g_GameInput->mouse;
-        
-        rgDouble camMoveSpeed = 2.9;
-        rgDouble camStrafeSpeed =  2.6;
-        rgDouble camHorizonalRotateSpeed = (M_PI / g_WindowInfo.width);
-        rgDouble camVerticalRotateSpeed = (M_PI_2 / g_WindowInfo.height);
-        
-        Vector4 camPos = Vector4(g_GameState->cameraPosition, 1.0f);
-        rgFloat camPitch = g_GameState->cameraPitch;
-        rgFloat camYaw = g_GameState->cameraYaw;
-        
-        rgFloat forward = camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0));
-        rgFloat strafe = camStrafeSpeed * ((controller->right.endedDown ? g_DeltaTime : 0.0) + (controller->left.endedDown ? -g_DeltaTime : 0.0));
-        rgFloat ascent = camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0));
-        
-        rgFloat horizontalRotation = mouse->relX * camHorizonalRotateSpeed;
-        rgFloat verticalRotation = mouse->relY * camVerticalRotateSpeed;
-        
-        Vector3 position = g_GameState->cameraPosition + Vector3(strafe, ascent, -forward);
-        
-        g_GameState->cameraPosition = position;
-        g_GameState->cameraPitch += verticalRotation;
-        g_GameState->cameraYaw += horizontalRotation;
+
     
         //rgLog("Pitch: %f Yaw: %f", g_GameState->cameraPitch, g_GameState->cameraYaw);
         
