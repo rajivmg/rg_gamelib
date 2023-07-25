@@ -72,11 +72,9 @@ struct GameState
     Vector3    cameraUp;
     Vector3    cameraForward;
     
+    Vector3    cameraPosition;
     rgFloat    cameraPitch;
     rgFloat    cameraYaw;
-    
-    Vector3    cameraPosition;
-    //Vector3    cameraTarget;
     
     Matrix4    cameraView;
     Matrix4    cameraProjection;

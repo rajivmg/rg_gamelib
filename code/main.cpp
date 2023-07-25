@@ -66,7 +66,9 @@ void updateCamera()
     GameMouseState* mouse = &g_GameInput->mouse;
     
     rgDouble camMoveSpeed = 2.9;
-    rgDouble camStrafeSpeed =  2.6;
+    rgDouble camStrafeSpeed = 3.6;
+    
+    // TODO: take FOV in account
     rgDouble camHorizonalRotateSpeed = (M_PI / g_WindowInfo.width);
     rgDouble camVerticalRotateSpeed = (M_PI_2 / g_WindowInfo.height);
     
@@ -81,22 +83,6 @@ void updateCamera()
     rgFloat horizontalRotation = (mouse->relX * camHorizonalRotateSpeed) + g_GameState->cameraYaw;
     rgFloat verticalRotation = (mouse->relY * camVerticalRotateSpeed) + g_GameState->cameraPitch;
     
-#if 0
-    // Rotate worldNorth by pitch angle
-    const Quat pitchQuat = Quat::rotation(g_GameState->cameraPitch, worldEast);
-    Vector3 pitchedTarget = rotate(pitchQuat, worldNorth);
-    pitchedTarget = normalize(pitchedTarget);
-    
-    // Roate pitched target by yaw angle
-    Vector3 up = cross(pitchedTarget, worldEast);
-    up = normalize(up);
-    const Quat yawQuat = Quat::rotation(g_GameState->cameraYaw, up);
-    Vector3 yawedPitchedTarget = rotate(yawQuat, pitchedTarget);
-    
-    g_GameState->cameraRight = normalize(cross(up, yawedPitchedTarget));
-    g_GameState->cameraUp = up;
-    g_GameState->cameraForward = yawedPitchedTarget;
-#else
     auto printVec3 = [](char const *tag, const Vector3& v)
     {
         rgLog("%s: %0.3f, %0.3f, %0.3f", tag, v.getX(), v.getY(), v.getZ());
@@ -113,11 +99,9 @@ void updateCamera()
     g_GameState->cameraRight = right;
     g_GameState->cameraUp = normalize(cross(pitchedYawedTarget, right));
     g_GameState->cameraForward = pitchedYawedTarget;
-    
-#endif
-    //g_GameState->cameraView = Matrix4::lookAt(Point3(g_GameState->cameraPosition), Point3(-g_GameState->cameraForward), g_GameState->cameraUp);
-    
-    Vector3 position = g_GameState->cameraPosition + Matrix3(g_GameState->cameraRight, g_GameState->cameraUp, g_GameState->cameraForward) * Vector3(strafe, ascent, -forward);
+
+    const Matrix3 basis = Matrix3(g_GameState->cameraRight, g_GameState->cameraUp, g_GameState->cameraForward);
+    Vector3 position = g_GameState->cameraPosition + basis * Vector3(strafe, ascent, -forward);
     
     g_GameState->cameraPosition = position;
     g_GameState->cameraPitch = verticalRotation;
