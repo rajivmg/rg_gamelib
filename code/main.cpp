@@ -58,12 +58,50 @@ rgU32 rgRenderKey(rgBool top)
 
 void updateCamera()
 {
-    Vector3 right = Vector3(1.0f, 0.0f, 0.0f);
-    Vector3 up = Vector3(0.0f, 1.0f, 0.0f);
-    Vector3 forward = Vector3(0.0f, 0.0f, 1.0f);
+    const Vector3 worldNorth = Vector3(0.0f, 0.0f, 1.0f);
+    const Vector3 worldEast = Vector3(1.0f, 0.0f, 0.0f);
+    const Vector3 worldUp = Vector3(0.0f, 1.0f, 0.0f);
     
-    g_GameState->cameraView = Matrix4::lookAt(Point3(g_GameState->cameraPosition), Point3(0.0f), Vector3(0.0f, 1.0f, 0.0f));
-    g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(0.5f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
+#if 0
+    // Rotate worldNorth by pitch angle
+    const Quat pitchQuat = Quat::rotation(g_GameState->cameraPitch, worldEast);
+    Vector3 pitchedTarget = rotate(pitchQuat, worldNorth);
+    pitchedTarget = normalize(pitchedTarget);
+    
+    // Roate pitched target by yaw angle
+    Vector3 up = cross(pitchedTarget, worldEast);
+    up = normalize(up);
+    const Quat yawQuat = Quat::rotation(g_GameState->cameraYaw, up);
+    Vector3 yawedPitchedTarget = rotate(yawQuat, pitchedTarget);
+    
+    g_GameState->cameraRight = normalize(cross(up, yawedPitchedTarget));
+    g_GameState->cameraUp = up;
+    g_GameState->cameraForward = yawedPitchedTarget;
+#else
+    auto printVec3 = [](char const *tag, const Vector3& v)
+    {
+        rgLog("%s: %0.3f, %0.3f, %0.3f", tag, v.getX(), v.getY(), v.getZ());
+    };
+    
+    const Quat yawQuat = Quat::rotation(g_GameState->cameraYaw, worldUp);
+    Vector3 yawedTarget = normalize(rotate(yawQuat, worldEast));
+    printVec3("yawedTarget", yawedTarget);
+    
+    Vector3 right = normalize(cross(worldUp, yawedTarget));
+    const Quat pitchQuat = Quat::rotation(g_GameState->cameraPitch, right);
+    Vector3 pitchedYawedTarget = normalize(rotate(pitchQuat, yawedTarget));
+    
+    g_GameState->cameraRight = right;
+    g_GameState->cameraUp = normalize(cross(pitchedYawedTarget, right));
+    g_GameState->cameraForward = pitchedYawedTarget;
+    
+#endif
+    //g_GameState->cameraView = Matrix4::lookAt(Point3(g_GameState->cameraPosition), Point3(-g_GameState->cameraForward), g_GameState->cameraUp);
+    
+    Matrix4 m4EyeFrame = Matrix4(Vector4(g_GameState->cameraRight, 1.0f), Vector4(g_GameState->cameraUp, 1.0f), Vector4(g_GameState->cameraForward, 0.0f), Vector4(g_GameState->cameraPosition, 1.0f));
+    g_GameState->cameraView = orthoInverse(m4EyeFrame);
+    
+    g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(1.4f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
 }
 
 rgInt rg::setup()
@@ -188,9 +226,9 @@ rgInt rg::setup()
     gfx::samplerState->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     
     // Initialize camera params
-    g_GameState->cameraRight = Vector3(1.0f, 0.0f, 0.0f);
-    g_GameState->cameraUp = Vector3(0.0f, 1.0f, 0.0f);
-    g_GameState->cameraForward = Vector3(0.0f, 0.0f, 1.0f);
+    //g_GameState->cameraRight = Vector3(1.0f, 0.0f, 0.0f);
+    //g_GameState->cameraUp = Vector3(0.0f, 1.0f, 0.0f);
+    //g_GameState->cameraForward = Vector3(0.0f, 0.0f, 1.0f);
     
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
     g_GameState->cameraPitch = 0.0f;
@@ -253,23 +291,32 @@ rgInt rg::updateAndDraw(rgDouble dt)
 
     if(g_GameInput->mouse.right.endedDown)
     {
-        rgDouble camMoveSpeed = 0.9;
-        rgDouble camStrafeSpeed =  0.6;
-        
-        Vector4 camPos = Vector4(g_GameState->cameraPosition, 1.0f);
-        
         GameControllerInput* controller = &g_GameInput->controllers[0];
         GameMouseState* mouse = &g_GameInput->mouse;
+        
+        rgDouble camMoveSpeed = 2.9;
+        rgDouble camStrafeSpeed =  2.6;
+        rgDouble camHorizonalRotateSpeed = (M_PI / g_WindowInfo.width);
+        rgDouble camVerticalRotateSpeed = (M_PI_2 / g_WindowInfo.height);
+        
+        Vector4 camPos = Vector4(g_GameState->cameraPosition, 1.0f);
+        rgFloat camPitch = g_GameState->cameraPitch;
+        rgFloat camYaw = g_GameState->cameraYaw;
         
         rgFloat forward = camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0));
         rgFloat strafe = camStrafeSpeed * ((controller->right.endedDown ? g_DeltaTime : 0.0) + (controller->left.endedDown ? -g_DeltaTime : 0.0));
         rgFloat ascent = camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0));
-                
+        
+        rgFloat horizontalRotation = mouse->relX * camHorizonalRotateSpeed;
+        rgFloat verticalRotation = mouse->relY * camVerticalRotateSpeed;
+        
         Vector3 position = g_GameState->cameraPosition + Vector3(strafe, ascent, -forward);
         
-        
         g_GameState->cameraPosition = position;
-        
+        g_GameState->cameraPitch += verticalRotation;
+        g_GameState->cameraYaw += horizontalRotation;
+    
+        //rgLog("Pitch: %f Yaw: %f", g_GameState->cameraPitch, g_GameState->cameraYaw);
         
         updateCamera();
     }
