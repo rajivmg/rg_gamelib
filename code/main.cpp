@@ -58,57 +58,51 @@ rgU32 rgRenderKey(rgBool top)
 
 void updateCamera()
 {
+    GameControllerInput* controller = &g_GameInput->controllers[0];
+    rgAssert(controller);
+    GameMouseState* mouse = &g_GameInput->mouse;
+    rgAssert(mouse);
+    
     const Vector3 worldNorth = Vector3(0.0f, 0.0f, 1.0f);
     const Vector3 worldEast = Vector3(1.0f, 0.0f, 0.0f);
     const Vector3 worldUp = Vector3(0.0f, 1.0f, 0.0f);
     
-    GameControllerInput* controller = &g_GameInput->controllers[0];
-    GameMouseState* mouse = &g_GameInput->mouse;
-    
-    rgDouble camMoveSpeed = 2.9;
-    rgDouble camStrafeSpeed = 3.6;
-    
+    const rgDouble camMoveSpeed = 2.9;
+    const rgDouble camStrafeSpeed = 3.6;
     // TODO: take FOV in account
-    rgDouble camHorizonalRotateSpeed = (M_PI / g_WindowInfo.width);
-    rgDouble camVerticalRotateSpeed = (M_PI_2 / g_WindowInfo.height);
+    const rgDouble camHorizonalRotateSpeed = (M_PI / g_WindowInfo.width);
+    const rgDouble camVerticalRotateSpeed = (M_PI_2 / g_WindowInfo.height);
+
+    // Position Delta
+    const rgFloat forward = camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0));
+    const rgFloat strafe = camStrafeSpeed * ((controller->right.endedDown ? g_DeltaTime : 0.0) + (controller->left.endedDown ? -g_DeltaTime : 0.0));
+    const rgFloat ascent = camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0));
     
-    Vector4 camPos = Vector4(g_GameState->cameraPosition, 1.0f);
-    rgFloat camPitch = g_GameState->cameraPitch;
-    rgFloat camYaw = g_GameState->cameraYaw;
+    // Orientation Delta
+    const rgFloat yaw = (mouse->relX * camHorizonalRotateSpeed) + g_GameState->cameraYaw;
+    const rgFloat pitch = (mouse->relY * camVerticalRotateSpeed) + g_GameState->cameraPitch;
     
-    rgFloat forward = camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0));
-    rgFloat strafe = camStrafeSpeed * ((controller->right.endedDown ? g_DeltaTime : 0.0) + (controller->left.endedDown ? -g_DeltaTime : 0.0));
-    rgFloat ascent = camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0));
+    // COMPUTE VIEW MATRIX
+    // Apply Yaw
+    const Quat yawQuat = Quat::rotation(yaw, worldUp);
+    const Vector3 yawedTarget = normalize(rotate(yawQuat, worldEast));
+    // Apply Pitch
+    const Vector3 right = normalize(cross(worldUp, yawedTarget));
+    const Quat pitchQuat = Quat::rotation(pitch, right);
+    const Vector3 pitchedYawedTarget = normalize(rotate(pitchQuat, yawedTarget));
     
-    rgFloat horizontalRotation = (mouse->relX * camHorizonalRotateSpeed) + g_GameState->cameraYaw;
-    rgFloat verticalRotation = (mouse->relY * camVerticalRotateSpeed) + g_GameState->cameraPitch;
-    
-    auto printVec3 = [](char const *tag, const Vector3& v)
-    {
-        rgLog("%s: %0.3f, %0.3f, %0.3f", tag, v.getX(), v.getY(), v.getZ());
-    };
-    
-    const Quat yawQuat = Quat::rotation(horizontalRotation, worldUp);
-    Vector3 yawedTarget = normalize(rotate(yawQuat, worldEast));
-    printVec3("yawedTarget", yawedTarget);
-    
-    Vector3 right = normalize(cross(worldUp, yawedTarget));
-    const Quat pitchQuat = Quat::rotation(verticalRotation, right);
-    Vector3 pitchedYawedTarget = normalize(rotate(pitchQuat, yawedTarget));
-    
+    // SET CAMERA STATE
     g_GameState->cameraRight = right;
     g_GameState->cameraUp = normalize(cross(pitchedYawedTarget, right));
     g_GameState->cameraForward = pitchedYawedTarget;
 
-    const Matrix3 basis = Matrix3(g_GameState->cameraRight, g_GameState->cameraUp, g_GameState->cameraForward);
-    Vector3 position = g_GameState->cameraPosition + basis * Vector3(strafe, ascent, -forward);
+    g_GameState->cameraBasis = Matrix3(g_GameState->cameraRight, g_GameState->cameraUp, g_GameState->cameraForward);
+
+    g_GameState->cameraPosition += g_GameState->cameraBasis * Vector3(strafe, ascent, -forward);
+    g_GameState->cameraPitch = pitch;
+    g_GameState->cameraYaw = yaw;
     
-    g_GameState->cameraPosition = position;
-    g_GameState->cameraPitch = verticalRotation;
-    g_GameState->cameraYaw = horizontalRotation;
-    
-    Matrix4 m4EyeFrame = Matrix4(Vector4(g_GameState->cameraRight, 1.0f), Vector4(g_GameState->cameraUp, 1.0f), Vector4(g_GameState->cameraForward, 0.0f), Vector4(g_GameState->cameraPosition, 1.0f));
-    g_GameState->cameraView = orthoInverse(m4EyeFrame);
+    g_GameState->cameraView = orthoInverse(Matrix4(g_GameState->cameraBasis, Vector3(g_GameState->cameraPosition)));
     g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(1.4f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
 }
 
@@ -299,10 +293,6 @@ rgInt rg::updateAndDraw(rgDouble dt)
 
     if(g_GameInput->mouse.right.endedDown)
     {
-
-    
-        //rgLog("Pitch: %f Yaw: %f", g_GameState->cameraPitch, g_GameState->cameraYaw);
-        
         updateCamera();
     }
     
@@ -482,11 +472,13 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
                     } break;
                     
                     case SDLK_q:
+                    case SDLK_f:
                     {
                         ProcessGameButtonState(&controller1->up, isDown);
                     } break;
                         
                     case SDLK_e:
+                    case SDLK_c:
                     {
                         ProcessGameButtonState(&controller1->down, isDown);
                     } break;

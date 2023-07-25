@@ -76,6 +76,7 @@ struct GameState
     rgFloat    cameraPitch;
     rgFloat    cameraYaw;
     
+    Matrix3    cameraBasis;
     Matrix4    cameraView;
     Matrix4    cameraProjection;
 
