@@ -71,7 +71,7 @@ void updateCamera()
     const rgDouble camStrafeSpeed = 3.6;
     // TODO: take FOV in account
     const rgDouble camHorizonalRotateSpeed = (M_PI / g_WindowInfo.width);
-    const rgDouble camVerticalRotateSpeed = (M_PI_2 / g_WindowInfo.height);
+    const rgDouble camVerticalRotateSpeed = (M_PI / g_WindowInfo.height);
 
     // Position Delta
     const rgFloat forward = camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0));
@@ -472,13 +472,13 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
                     } break;
                     
                     case SDLK_q:
-                    case SDLK_f:
+                    case SDLK_c:
                     {
                         ProcessGameButtonState(&controller1->up, isDown);
                     } break;
                         
                     case SDLK_e:
-                    case SDLK_c:
+                    case SDLK_f:
                     {
                         ProcessGameButtonState(&controller1->down, isDown);
                     } break;
