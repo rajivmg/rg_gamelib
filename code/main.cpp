@@ -102,8 +102,11 @@ void updateCamera()
     g_GameState->cameraPitch = pitch;
     g_GameState->cameraYaw = yaw;
     
+    g_GameState->cameraNear = 0.01f;
+    g_GameState->cameraFar  = 1000.0f;
+    
     g_GameState->cameraView = orthoInverse(Matrix4(g_GameState->cameraBasis, Vector3(g_GameState->cameraPosition)));
-    g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(1.4f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
+    g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(1.4f, g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
     g_GameState->cameraViewProjection = g_GameState->cameraProjection * g_GameState->cameraView;
     g_GameState->cameraInvView = inverse(g_GameState->cameraView);
     g_GameState->cameraInvProjection = inverse(g_GameState->cameraProjection);
@@ -287,21 +290,26 @@ rgInt rg::updateAndDraw(rgDouble dt)
     // PREPARE COMMON RESOURCES & DATA
     struct CommonParams
     {
-        rgFloat basisMatrix[9];
-        rgFloat _padding[3];
-        rgFloat viewMatrix[16];
-        rgFloat projMatrix[16];
-        rgFloat viewProjMatrix[16];
-        rgFloat invViewMatrix[16];
-        rgFloat invProjMatrix[16];
+        rgFloat cameraBasisMatrix[9];
+        rgFloat _padding1[3];
+        //rgFloat cameraNear;
+        //rgFloat cameraFar;
+        //rgFloat _padding2[2];
+        rgFloat cameraViewMatrix[16];
+        rgFloat cameraProjMatrix[16];
+        rgFloat cameraViewProjMatrix[16];
+        rgFloat cameraInvViewMatrix[16];
+        rgFloat cameraInvProjMatrix[16];
     } commonParams;
     
-    copyMatrix3ToFloatArray(commonParams.basisMatrix, g_GameState->cameraBasis);
-    copyMatrix4ToFloatArray(commonParams.viewMatrix, g_GameState->cameraView);
-    copyMatrix4ToFloatArray(commonParams.projMatrix, g_GameState->cameraProjection);
-    copyMatrix4ToFloatArray(commonParams.viewProjMatrix, g_GameState->cameraViewProjection);
-    copyMatrix4ToFloatArray(commonParams.invViewMatrix, g_GameState->cameraInvView);
-    copyMatrix4ToFloatArray(commonParams.invProjMatrix, g_GameState->cameraInvProjection);
+    copyMatrix3ToFloatArray(commonParams.cameraBasisMatrix, g_GameState->cameraBasis);
+    //commonParams.cameraNear = g_GameState->cameraNear;
+    //commonParams.cameraFar  = g_GameState->cameraFar;
+    copyMatrix4ToFloatArray(commonParams.cameraViewMatrix, g_GameState->cameraView);
+    copyMatrix4ToFloatArray(commonParams.cameraProjMatrix, g_GameState->cameraProjection);
+    copyMatrix4ToFloatArray(commonParams.cameraViewProjMatrix, g_GameState->cameraViewProjection);
+    copyMatrix4ToFloatArray(commonParams.cameraInvViewMatrix, g_GameState->cameraInvView);
+    copyMatrix4ToFloatArray(commonParams.cameraInvProjMatrix, g_GameState->cameraInvProjection);
 
     GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
     

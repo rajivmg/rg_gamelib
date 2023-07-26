@@ -60,13 +60,13 @@ float computeDepth(float3 position)
     return (clipSpacePos.z / clipSpacePos.w);
 }
 
-float computeLinearDepth(float clipSpaceDepth, float3 near, float3 far)
-{
-    // convert 0 -> 1 to -1.0 to +1.0
-    float d = clipSpaceDepth * 2.0 - 1.0;
-    float linearDepth = (2.0 * near * far) / (far + near - (d * (far - near)));
-    return linearDepth / far;
-}
+// float computeLinearDepth(float clipSpaceDepth)
+// {
+//     // convert 0 -> 1 to -1.0 to +1.0
+//     float d = clipSpaceDepth;// * 2.0 - 1.0;
+//     float linearDepth = (2.0 * cameraNear * cameraFar) / (cameraFar + cameraNear - d * (cameraFar - cameraNear));
+//     return linearDepth / cameraFar;
+// }
 
 FragmentShaderOut fsGrid(in VertexShaderOut f)
 {
@@ -87,9 +87,9 @@ FragmentShaderOut fsGrid(in VertexShaderOut f)
     float3 pos = f.nearPoint + t * (f.farPoint - f.nearPoint);
 
     float depth = computeDepth(pos);
-    float linearDepth = computeLinearDepth(depth, f.nearPoint, f.farPoint);
+    //float linearDepth = computeLinearDepth(depth);
 
-    float fade = 1.0;//max(0, 0.8 - linearDepth);
+    float fade = max(0, (0.9 - depth));
 
     float4 color = grid(pos, 1, true) * half(t > 0);
     color.a *= fade;

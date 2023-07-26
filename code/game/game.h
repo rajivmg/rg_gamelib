@@ -77,6 +77,8 @@ struct GameState
     rgFloat    cameraYaw;
     
     Matrix3    cameraBasis;
+    rgFloat    cameraNear;
+    rgFloat    cameraFar;
     Matrix4    cameraView;
     Matrix4    cameraProjection;
     Matrix4    cameraViewProjection;
