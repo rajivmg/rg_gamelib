@@ -14,11 +14,9 @@ struct FragmentShaderOut
     float depth : SV_DEPTH;
 };
 
-ConstantBuffer<Common> commonParam : register(b0, space0);
-
 float3 unprojectClipSpacePoint(float x, float y, float z)
 {
-    float4 p = mul(mul(commonParam.gameplayInvView, commonParam.gameplayInvProjection), float4(x, y, z, 1.0));
+    float4 p = mul(mul(cameraInvViewMatrix, cameraInvProjMatrix), float4(x, y, z, 1.0));
     return p.xyz / p.w;
 }
 
@@ -58,7 +56,7 @@ float4 grid(float3 fragPos3D, float scale, bool drawAxis) {
 
 float computeDepth(float3 position)
 {
-    float4 clipSpacePos = mul(commonParam.gameplayProjection, mul(commonParam.gameplayView, float4(position, 1)));
+    float4 clipSpacePos = mul(cameraProjMatrix, mul(cameraViewMatrix, float4(position, 1)));
     return (clipSpacePos.z / clipSpacePos.w);
 }
 
@@ -72,6 +70,19 @@ float computeLinearDepth(float clipSpaceDepth, float3 near, float3 far)
 
 FragmentShaderOut fsGrid(in VertexShaderOut f)
 {
+    /*common.cameraViewMatrix;
+    common.camera.viewMatrix;
+    common.time.currentTime;
+    
+    cameraViewMatrix;
+    timeCurrentTime;
+
+    camera.viewMatrix;
+    time.currentTime;
+
+    viewMatrix;
+    currentTime;*/
+
     float t = -f.nearPoint.y / (f.farPoint.y - f.nearPoint.y);
     float3 pos = f.nearPoint + t * (f.farPoint - f.nearPoint);
 

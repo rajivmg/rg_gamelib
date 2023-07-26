@@ -79,6 +79,9 @@ struct GameState
     Matrix3    cameraBasis;
     Matrix4    cameraView;
     Matrix4    cameraProjection;
+    Matrix4    cameraViewProjection;
+    Matrix4    cameraInvView;
+    Matrix4    cameraInvProjection;
 
     b2World* phyWorld;
 };

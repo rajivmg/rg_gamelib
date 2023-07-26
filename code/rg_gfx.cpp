@@ -28,6 +28,15 @@ void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
     }
 }
 
+void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix)
+{
+    rgFloat const* ptr = toFloatPtr(srcMatrix);
+    for(rgInt i = 0; i < 9; ++i)
+    {
+        dstArray[i] = ptr[i];
+    }
+}
+
 
 //-----------------------------------------------------------------------------
 // Textures

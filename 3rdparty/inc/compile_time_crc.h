@@ -119,4 +119,9 @@ constexpr rgHash operator""_rh(const char* str, size_t len)
     return crc::compute(str, len);
 }
 
+constexpr rgHash operator""_tag(const char* str, size_t len)
+{
+    return crc::compute(str, len);
+}
+
 #endif  // COMPILE_TIME_CRC_H

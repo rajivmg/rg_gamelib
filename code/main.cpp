@@ -104,6 +104,9 @@ void updateCamera()
     
     g_GameState->cameraView = orthoInverse(Matrix4(g_GameState->cameraBasis, Vector3(g_GameState->cameraPosition)));
     g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(1.4f, g_WindowInfo.width/g_WindowInfo.height, 0.01f, 1000.0f);
+    g_GameState->cameraViewProjection = g_GameState->cameraProjection * g_GameState->cameraView;
+    g_GameState->cameraInvView = inverse(g_GameState->cameraView);
+    g_GameState->cameraInvProjection = inverse(g_GameState->cameraProjection);
 }
 
 rgInt rg::setup()
@@ -228,10 +231,6 @@ rgInt rg::setup()
     gfx::samplerState->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     
     // Initialize camera params
-    //g_GameState->cameraRight = Vector3(1.0f, 0.0f, 0.0f);
-    //g_GameState->cameraUp = Vector3(0.0f, 1.0f, 0.0f);
-    //g_GameState->cameraForward = Vector3(0.0f, 0.0f, 1.0f);
-    
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
     g_GameState->cameraPitch = 0.0f;
     g_GameState->cameraYaw = 0.0f;
@@ -280,62 +279,34 @@ rgInt rg::updateAndDraw(rgDouble dt)
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
     ImGui::ShowDemoWindow();
     
-    // PREPARE COMMON RESOURCES & DATA
-    
-    struct Camera
-    {
-        Matrix3 basis;
-        
-        Matrix4 viewMatrix;
-        Matrix4 projMatrix;
-        Matrix4 viewProjMatrix;
-    };
-
     if(g_GameInput->mouse.right.endedDown)
     {
         updateCamera();
     }
     
-    
-    // camera
-    struct
+    // PREPARE COMMON RESOURCES & DATA
+    struct CommonParams
     {
-        rgFloat projectionPerspective[16];
-        rgFloat viewCamera[16];
-        rgFloat invProjectionPerspective[16];
-        rgFloat invViewCamera[16];
-    } cameraParams;
+        rgFloat basisMatrix[9];
+        rgFloat _padding[3];
+        rgFloat viewMatrix[16];
+        rgFloat projMatrix[16];
+        rgFloat viewProjMatrix[16];
+        rgFloat invViewMatrix[16];
+        rgFloat invProjMatrix[16];
+    } commonParams;
     
-    Matrix4 projection = g_GameState->cameraProjection;
-    Matrix4 view = g_GameState->cameraView;
-    Matrix4 invProjection = inverse(projection);
-    Matrix4 invView = inverse(view);
-    
-    copyMatrix4ToFloatArray(cameraParams.projectionPerspective, projection);
-    copyMatrix4ToFloatArray(cameraParams.viewCamera, view);
-    copyMatrix4ToFloatArray(cameraParams.invProjectionPerspective, invProjection);
-    copyMatrix4ToFloatArray(cameraParams.invViewCamera, invView);
-    
-    GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("cameraParamsCBufferBunny", sizeof(cameraParams), &cameraParams);
-    
+    copyMatrix3ToFloatArray(commonParams.basisMatrix, g_GameState->cameraBasis);
+    copyMatrix4ToFloatArray(commonParams.viewMatrix, g_GameState->cameraView);
+    copyMatrix4ToFloatArray(commonParams.projMatrix, g_GameState->cameraProjection);
+    copyMatrix4ToFloatArray(commonParams.viewProjMatrix, g_GameState->cameraViewProjection);
+    copyMatrix4ToFloatArray(commonParams.invViewMatrix, g_GameState->cameraInvView);
+    copyMatrix4ToFloatArray(commonParams.invProjMatrix, g_GameState->cameraInvProjection);
+
+    GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
     
     // RENDER SIMPLE 2D STUFF
     {
-        GfxRenderPass simple2dRenderPass = {};
-        simple2dRenderPass.colorAttachments[0].texture = gfx::renderTarget[g_FrameIndex];
-        simple2dRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
-        simple2dRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        simple2dRenderPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
-        simple2dRenderPass.depthStencilAttachmentTexture = gfx::depthStencilBuffer;
-        simple2dRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
-        simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
-        simple2dRenderPass.clearDepth = 1.0f;
-        
-        GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::setRenderPass(&simple2dRenderPass, "Simple2D Pass");
-
-        simple2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("simple2d"_rh));
-        simple2dRenderEncoder->drawTexturedQuads(&g_GameState->terrainAndOcean);
-
         g_GameState->characterPortraits.resize(0);
         for(rgInt i = 0; i < 4; ++i)
         {
@@ -349,6 +320,18 @@ rgInt rg::updateAndDraw(rgDouble dt)
         }
         pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameState->flowerTexture);
         
+        GfxRenderPass simple2dRenderPass = {};
+        simple2dRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+        simple2dRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
+        simple2dRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+        simple2dRenderPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
+        simple2dRenderPass.depthStencilAttachmentTexture = gfx::depthStencilBuffer;
+        simple2dRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
+        simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
+        simple2dRenderPass.clearDepth = 1.0f;
+        
+        GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::setRenderPass(&simple2dRenderPass, "Simple2D Pass");
+        simple2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("simple2d"_rh));
         simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits);
         simple2dRenderEncoder->end();
     }
@@ -379,7 +362,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBufferBunny", sizeof(instanceParams), &instanceParams);
         
-        demoSceneEncoder->bindBuffer(&cameraParamsBuffer, "camera");
+        demoSceneEncoder->bindBuffer(&cameraParamsBuffer, "commonParams");
         demoSceneEncoder->bindBuffer(&instanceParamsBuffer, "instanceParams");
         
         for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
@@ -393,7 +376,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         demoSceneEncoder->end();
     }
     
-     // RENDER GRID AND EDITOR STUFF
+    // RENDER GRID AND EDITOR STUFF
     {
         GfxRenderPass gridRenderPass = {};
         gridRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
@@ -404,8 +387,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
         GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass(&gridRenderPass, "DemoScene Pass");
-        gridRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("gridPSO"_rh));
-        gridRenderEncoder->bindBuffer(&cameraParamsBuffer, "commonParam");
+        gridRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("gridPSO"_tag));
+        gridRenderEncoder->bindBuffer(&cameraParamsBuffer, "commonParams");
         gridRenderEncoder->drawTriangles(0, 6, 1);
         gridRenderEncoder->end();
     }

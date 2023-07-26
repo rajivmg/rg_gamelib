@@ -647,6 +647,7 @@ public:
 // Helper functions
 //-----------------------------------------------------------------------------
 void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix);
+void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix);
 
 
 //-----------------------------------------------------------------------------

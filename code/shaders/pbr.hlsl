@@ -1,3 +1,4 @@
+#include "common.hlsl"
 #define MAX_INSTANCES 256
 
 struct Obj2HeaderModelVertex
@@ -22,15 +23,6 @@ struct InstanceParams
     float4x4 invTposWorldXform[MAX_INSTANCES];
 };
 
-struct Camera
-{
-    float4x4 projectionPerspective;
-    float4x4 viewCamera;
-    float4x4 invProjection;
-    float4x4 invView;
-};
-
-ConstantBuffer<Camera> camera : register(b0, space0);
 ConstantBuffer<InstanceParams> instanceParams : register(b1, space0);
 //Texture2D<float4> bindlessTexture2D[] : register(t0, space7);
 
@@ -56,7 +48,7 @@ VertexShaderOut vsPbr(in Obj2HeaderModelVertex v, uint instanceID : SV_InstanceI
     float lightCoeff = atten * nDotL;
 
     VertexShaderOut output;
-    output.position = mul(camera.projectionPerspective, mul(camera.viewCamera, float4(worldPos, 1.0)));
+    output.position = mul(cameraProjMatrix, mul(cameraViewMatrix, float4(worldPos, 1.0)));
     output.normal = normal;
     output.texcoord = v.texcoord;
     output.vertexLightCoeff = lightCoeff;

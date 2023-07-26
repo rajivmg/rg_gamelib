@@ -1,14 +1,13 @@
 
 // common functions and types
 
-struct Common
+cbuffer commonParams : register(b0, space0)
 {
-    float4x4 gameplayProjection;
-    float4x4 gameplayView;
-    float4x4 gameplayInvProjection;
-    float4x4 gameplayInvView;
-
-    //float4x4 uiProjection;
-    //float4x4 uiView;
+    float3x3 cameraBasisMatrix;
+    float4x4 cameraViewMatrix;
+    float4x4 cameraProjMatrix;
+    float4x4 cameraViewProjMatrix;
+    float4x4 cameraInvViewMatrix;
+    float4x4 cameraInvProjMatrix;
 };
 
