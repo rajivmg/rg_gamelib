@@ -167,7 +167,7 @@ rgInt rg::setup()
     GfxRenderStateDesc simple2dRenderStateDesc = {};
     simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
     simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
-    simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
+    simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     //simple2dRenderStateDesc.triangleFillMode = GfxTriangleFillMode_Lines;
     
     gfx::graphicsPSO->create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
@@ -205,7 +205,7 @@ rgInt rg::setup()
     GfxRenderStateDesc world3dRenderState = {};
     world3dRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
     world3dRenderState.colorAttachments[0].blendingEnabled = true;
-    world3dRenderState.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
+    world3dRenderState.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     world3dRenderState.depthWriteEnabled = true;
     world3dRenderState.depthCompareFunc = GfxCompareFunc_LessEqual;
     world3dRenderState.winding = GfxWinding_CCW;
@@ -221,7 +221,7 @@ rgInt rg::setup()
     GfxRenderStateDesc gridRenderState = {};
     gridRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
     gridRenderState.colorAttachments[0].blendingEnabled = true;
-    gridRenderState.depthStencilAttachmentFormat = TinyImageFormat_D16_UNORM;
+    gridRenderState.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     gridRenderState.depthWriteEnabled = true;
     gridRenderState.depthCompareFunc = GfxCompareFunc_LessEqual;
     gridRenderState.winding = GfxWinding_CCW;

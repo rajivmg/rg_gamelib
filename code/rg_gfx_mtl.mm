@@ -1471,7 +1471,7 @@ rgInt init()
             
             gfx::renderTarget[i] = gfx::texture2D->create(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, false, GfxTextureUsage_RenderTarget);
         }
-        gfx::depthStencilBuffer = gfx::texture2D->create("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D16_UNORM, false, GfxTextureUsage_DepthStencil);
+        gfx::depthStencilBuffer = gfx::texture2D->create("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, false, GfxTextureUsage_DepthStencil);
         
         
         // Create bindless texture argument encoder and buffer
