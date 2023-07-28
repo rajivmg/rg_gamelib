@@ -61,5 +61,5 @@ half4 fsPbr(in VertexShaderOut f) : SV_TARGET
     half4 color = half4(1.0, 0.1, 0.1, 1.0);
     //float4 color = float4(in.normal, 1.0);
     //return half4(color + (float4(1.0, 1.0, 1.0, 1.0) * in.vertexLightCoeff));
-    return half4(color.rgb * (half)f.vertexLightCoeff, 1.0h);
+    return half4(color.rgb * (half)(f.vertexLightCoeff + 0.168f), 1.0h);
 }

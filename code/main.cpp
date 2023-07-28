@@ -519,8 +519,13 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
 
 rgInt createSDLWindow()
 {
+#if 0
     g_WindowInfo.width = 1056.0f;
     g_WindowInfo.height = 594.0f;
+#else
+    g_WindowInfo.width = 1280.0f;
+    g_WindowInfo.height = 720.0f;
+#endif
 
     Uint32 windowFlags = 0;
     
