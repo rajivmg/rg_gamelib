@@ -46,6 +46,14 @@ include_directories(${PUGIXML_ROOT_DIR}/src)
 file(GLOB PUGIXML_SRC_FILES "${PUGIXML_ROOT_DIR}/src/*.cpp" "${PUGIXML_ROOT_DIR}/src/*.hpp")
 source_group("pugixml" FILES ${PUGIXML_SRC_FILES})
 
+set(DIRECXHEADERS_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/DirectX-Headers-1.610.0)
+
+set(DIRECTXMATH_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/DirectXMath-dec2022)
+
+set(DIRECTXTEX_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/DirectXTex-jun2023/DirectXTex)
+file(GLOB DIRECTXTEX_SRC_FILES "${DIRECTXTEX_ROOT_DIR}/*.cpp" "${DIRECTXTEX_ROOT_DIR}/*.h" "${DIRECTXTEX_ROOT_DIR}/*.inl")
+source_group("DirectXTex" FILES ${DIRECTXTEX_SRC_FILES})
+
 set(DXC_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/dxc_preview_2023_06_21)
 set(DXC_INCLUDE_DIR ${DXC_ROOT_DIR}/inc)
 set(DXC_LIB_DIR ${DXC_ROOT_DIR}/lib)
@@ -138,9 +146,11 @@ elseif(APPLE)
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${3RD_PARTY_DIR}/inc/metal-cpp ${3RD_PARTY_DIR}/inc/metal-cpp-extensions ${DXC_INCLUDE_DIR})
     link_directories(${DXC_LIB_DIR}/arm64)
 
-    include_directories(${SPIRVCROSS_ROOT_DIR})
+    list(REMOVE_ITEM DIRECTXTEX_SRC_FILES "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D11.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D12.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexWIC.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.h" "${DIRECTXTEX_ROOT_DIR}/DirectXTexCompressGPU.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexFlipRotate.cpp")
+
+    include_directories(${SPIRVCROSS_ROOT_DIR} ${DIRECXHEADERS_ROOT_DIR}/include ${DIRECXHEADERS_ROOT_DIR}/include/wsl/stubs ${DIRECTXMATH_ROOT_DIR}/Inc ${DIRECTXTEX_ROOT_DIR})
     
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${SHADER_SRC_FILES} ${BOX2D_SRC_FILES} ${SPIRVCROSS_SRC_FILES} ${PUGIXML_SRC_FILES})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${SHADER_SRC_FILES} ${BOX2D_SRC_FILES} ${SPIRVCROSS_SRC_FILES} ${PUGIXML_SRC_FILES} ${DIRECTXTEX_SRC_FILES})
     target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2} ${EASTL_LIBRARY} ${DXC_LIBRARY})
 
     set_source_files_properties(${SHADER_SRC_FILES} PROPERTIES LANGUAGE METAL)

@@ -51,6 +51,8 @@ rgInt g_FrameIndex;
 
 rgBool g_ShouldQuit;
 
+void loadDDS(const char* filename);
+
 rgU32 rgRenderKey(rgBool top)
 {
     return top ? 1 : 0;
@@ -241,6 +243,8 @@ rgInt rg::setup()
     //updateCamera();
     
     g_PhysicSystem = rgNew(PhysicSystem);
+    
+    loadDDS("san_giuseppe_bridge.dds");
 
 #if 0
     b2Vec2 gravity(0.0f, -9.8f);
