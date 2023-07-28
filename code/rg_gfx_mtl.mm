@@ -11,6 +11,7 @@
 #import <Metal/Metal.h>
 #import <Metal/MTLArgumentEncoder.h>
 #import <Metal/MTLBuffer.h>
+#import <AppKit/AppKit.h>
 #include <QuartzCore/CAMetalLayer.h>
 
 #include <sstream>
@@ -32,13 +33,23 @@ RG_BEGIN_RG_NAMESPACE
 #include "shaders/metal/imm_shader.inl"
 #include "shaders/metal/histogram_shader.inl"
 
-gfx::Mtl* mtl = nullptr;
 
 static const rgU32 kBindlessTextureSetBinding = 7; // TODO: change this to some thing higher like 26
 static const rgU32 kFrameParamsSetBinding = 6;
 static rgU32 const kMaxMTLArgumentTableBufferSlot = 30;
 
 RG_BEGIN_GFX_NAMESPACE
+    static NSView* appView;
+    static CAMetalLayer* metalLayer;
+    static id<CAMetalDrawable> caMetalDrawable;
+
+    static NSAutoreleasePool* autoReleasePool;
+    static dispatch_semaphore_t framesInFlightSemaphore;
+
+    static id<MTLDevice> mtlDevice;
+    static id<MTLCommandQueue> mtlCommandQueue;
+    static id<MTLCommandBuffer> mtlCommandBuffer;
+    
     static id<MTLHeap> bindlessTextureHeap;
     static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
     static id<MTLBuffer> bindlessTextureArgBuffer;
@@ -50,17 +61,12 @@ RG_END_GFX_NAMESPACE
 
 static id<MTLDevice> getMTLDevice()
 {
-    return (__bridge id<MTLDevice>)(mtl->device);
-}
-
-id<MTLRenderCommandEncoder> getMTLRenderEncoder()
-{
-    return (__bridge id<MTLRenderCommandEncoder>)mtl->renderEncoder;
+    return gfx::mtlDevice;
 }
 
 id<MTLCommandBuffer> getMTLCommandBuffer()
 {
-    return (__bridge id<MTLCommandBuffer>)mtl->commandBuffer;
+    return gfx::mtlCommandBuffer;
 }
 
 id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
@@ -127,7 +133,7 @@ id<MTLBlitCommandEncoder> asMTLBlitCommandEncoder(void* ptr)
     return (__bridge id<MTLBlitCommandEncoder>)ptr;
 }
 
-id<MTLTexture> asMTLTexture(MTL::Texture* ptr)
+id<MTLTexture> asMTLTexture(void* ptr)
 {
     return (__bridge id<MTLTexture>)ptr;
 }
@@ -326,7 +332,7 @@ MTLSamplerMipFilter toMTLSamplerMipFilter(GfxSamplerMipFilter filter)
 GfxTexture2D createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
 {
     GfxTexture2D texture2d;
-    texture2d.mtlTexture = (__bridge MTL::Texture*)drawable.texture;
+    texture2d.mtlTexture = drawable.texture;
     return texture2d;
 }
 
@@ -350,25 +356,25 @@ void GfxBuffer::create(char const* tag, void* buf, rgU32 size, GfxBufferUsage us
     
     MTLResourceOptions options = toMTLResourceOptions(usage, false);
     
-    id<MTLBuffer> mtlBuffer;
+    id<MTLBuffer> br;
     if(buf != NULL)
     {
-        mtlBuffer = [getMTLDevice() newBufferWithBytes:buf length:(NSUInteger)size options:options];
+        br = [getMTLDevice() newBufferWithBytes:buf length:(NSUInteger)size options:options];
     }
     else
     {
-        mtlBuffer = [getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
+        br = [getMTLDevice() newBufferWithLength:(NSUInteger)size options:options];
     }
-    rgAssert(mtlBuffer != nil);
+    rgAssert(br != nil);
     
-    mtlBuffer.label = [NSString stringWithUTF8String:tag];
+    br.label = [NSString stringWithUTF8String:tag];
     
-    obj->mtlBuffer = (__bridge MTL::Buffer*)mtlBuffer;
+    obj->mtlBuffer = br;
 }
 
 void GfxBuffer::destroy(GfxBuffer* obj)
 {
-    obj->mtlBuffer->release();
+    [asMTLBuffer(obj->mtlBuffer) release];
 }
 
 //*****************************************************************************
@@ -416,23 +422,23 @@ void GfxTexture2D::create(char const* tag, void* buf, rgUInt width, rgUInt heigh
     //texDesc.resourceOptions = toMTLResourceOptions(usage);
     
     //id<MTLTexture> mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc];
-    id<MTLTexture> mtlTexture = [gfx::bindlessTextureHeap newTextureWithDescriptor:texDesc];
-    mtlTexture.label = [NSString stringWithUTF8String:tag];
+    id<MTLTexture> te = [gfx::bindlessTextureHeap newTextureWithDescriptor:texDesc];
+    te.label = [NSString stringWithUTF8String:tag];
     [texDesc release];
     
     // copy the texture data
     if(buf != NULL)
     {
         MTLRegion region = MTLRegionMake2D(0, 0, width, height);
-        [mtlTexture replaceRegion:region mipmapLevel:0 withBytes:buf bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
+        [te replaceRegion:region mipmapLevel:0 withBytes:buf bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
     }
 
-    obj->mtlTexture = (__bridge MTL::Texture*)mtlTexture;
+    obj->mtlTexture = te;
 }
 
 void GfxTexture2D::destroy(GfxTexture2D* obj)
 {
-    obj->mtlTexture->release();
+    [asMTLTexture(obj->mtlTexture) release];
 }
 
 //*****************************************************************************
@@ -1429,23 +1435,20 @@ static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 
 rgInt init()
 {
-    mtl = rgNew(gfx::Mtl);
-    
     rgAssert(gfx::mainWindow);
-    mtl->view = (NS::View*)SDL_Metal_CreateView(gfx::mainWindow);
-    mtl->layer = SDL_Metal_GetLayer(mtl->view);
-    mtl->device = MTL::CreateSystemDefaultDevice();
-    mtl->commandQueue = mtl->device->newCommandQueue();
+    appView = (NSView*)SDL_Metal_CreateView(gfx::mainWindow);
+    metalLayer = (CAMetalLayer*)SDL_Metal_GetLayer(appView);
+    mtlDevice = MTLCreateSystemDefaultDevice();
+    mtlCommandQueue = [mtlDevice newCommandQueue];
 
-    CAMetalLayer* mtlLayer = (CAMetalLayer*)mtl->layer;
-    mtlLayer.device = (__bridge id<MTLDevice>)(mtl->device);
-    mtlLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-    mtlLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_FLIGHT;
-    mtlLayer.framebufferOnly = false;
-    //mtlLayer.displaySyncEnabled = false;
+    metalLayer.device = mtlDevice;
+    metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    metalLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_FLIGHT;
+    metalLayer.framebufferOnly = false;
+    //metalLayer.displaySyncEnabled = false;
     //
 
-    mtl->framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
+    framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
     
     @autoreleasepool
     {
@@ -1545,14 +1548,13 @@ void startNextFrame()
     frameAllocators[getFinishedFrameIndex()]->reset();
     
     // Autorelease pool BEGIN
-    mtl->autoReleasePool = NS::AutoreleasePool::alloc()->init(); // TODO: replace this with something better
+    autoReleasePool = [[NSAutoreleasePool alloc]init];
     
-    CAMetalLayer* metalLayer = (CAMetalLayer*)mtl->layer;
     id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
-    rgAssert(metalDrawable != nullptr);
-    mtl->caMetalDrawable = metalDrawable;
+    rgAssert(metalDrawable != nil);
+    caMetalDrawable = metalDrawable;
     
-    mtl->commandBuffer = (__bridge id<MTLCommandBuffer>)mtl->commandQueue->commandBuffer();
+    mtlCommandBuffer = [mtlCommandQueue commandBuffer];
 }
 
 void endFrame()
@@ -1566,12 +1568,12 @@ void endFrame()
     }
     
     // blit renderTarget to MTLDrawable
-    GfxTexture2D drawableTexture2D = createGfxTexture2DFromMTLDrawable((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable);
+    GfxTexture2D drawableTexture2D = createGfxTexture2DFromMTLDrawable(caMetalDrawable);
     GfxBlitCmdEncoder* blitCmdEncoder = gfx::setBlitPass("CopyRTtoMTLDrawable");
     blitCmdEncoder->copyTexture(gfx::renderTarget[g_FrameIndex], &drawableTexture2D, 0, 0, 1);
     blitCmdEncoder->end();
     
-    [getMTLCommandBuffer() presentDrawable:((__bridge id<CAMetalDrawable>)mtl->caMetalDrawable)];
+    [getMTLCommandBuffer() presentDrawable:(caMetalDrawable)];
     
     //__block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
     //[getMTLCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
@@ -1585,7 +1587,7 @@ void endFrame()
     [getMTLCommandBuffer() commit];
     
     // Autorelease pool END
-    mtl->autoReleasePool->release();
+    [autoReleasePool release];
     
     return 0;
 }

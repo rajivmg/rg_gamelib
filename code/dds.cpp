@@ -1,4 +1,4 @@
-#include "rg.h"
+#include "rg_gfx.h"
 #include "DirectXTex.h"
 
 using namespace DirectX;

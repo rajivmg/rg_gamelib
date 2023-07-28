@@ -10,10 +10,6 @@
     #include <d3dx12.h>
     #include <dxgi1_6.h>
     using namespace Microsoft::WRL;
-#elif defined(RG_METAL_RNDR)
-    #include <Metal/Metal.hpp>
-    #include <AppKit/AppKit.hpp>
-    #include <MetalKit/MetalKit.hpp>
 #elif defined(RG_VULKAN_RNDR)
     #include "volk/volk.h"
     #include "vk-bootstrap/VkBootstrap.h"
@@ -92,7 +88,7 @@ struct GfxBuffer
     GfxBufferUsage usage;
 #if defined(RG_D3D12_RNDR)
 #elif defined(RG_METAL_RNDR)
-    MTL::Buffer* mtlBuffer;
+    void* mtlBuffer; // type: id<MTLBuffer>
 #elif defined(RG_VULKAN_RNDR)
     VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
     VmaAllocation vmaAlloc;
@@ -144,7 +140,7 @@ struct GfxTexture2D
     ComPtr<ID3D12Resource> d3dTexture;
     CD3DX12_CPU_DESCRIPTOR_HANDLE d3dTextureView;
 #elif defined(RG_METAL_RNDR)
-    MTL::Texture* mtlTexture;
+    void* mtlTexture; // type: id<MTLTexture>
 #elif defined(RG_VULKAN_RNDR)
     VkImage vkTexture;
     VmaAllocation vmaAlloc;
@@ -951,21 +947,6 @@ struct D3d
     ComPtr<ID3D12PipelineState> dummyPSO;
     ComPtr<ID3D12Resource> triVB;
     D3D12_VERTEX_BUFFER_VIEW triVBView;
-};
-#elif defined(RG_METAL_RNDR)
-struct Mtl
-{
-    void* layer; // type: id<CAMetalLayer>
-    NS::View* view;
-    MTL::Device* device;
-    MTL::CommandQueue* commandQueue;
-    void* caMetalDrawable; // type: id<CAMetalDrawable>
-
-    dispatch_semaphore_t framesInFlightSemaphore;
-    NS::AutoreleasePool* autoReleasePool;
-    
-    void* renderEncoder; // type: id<MTLRenderCommandEncoder>
-    void* commandBuffer; // type: id<MTLCommandBuffer>
 };
 #elif defined(RG_VULKAN_RNDR)
 struct VkGfxCtx
