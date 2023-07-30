@@ -126,6 +126,25 @@ enum GfxTextureDim
     GfxTextureDim_Buffer,
 };
 
+enum GfxTextureMipFlag
+{
+    GfxTextureMipFlag_NoMips = 0,
+    GfxTextureMipFlag_GenMips = 1,
+    GfxTextureMipFlag_BEGIN_MIPS,
+    GfxTextureMipFlag_2Mips,
+    GfxTextureMipFlag_3Mips,
+    GfxTextureMipFlag_4Mips,
+    GfxTextureMipFlag_5Mips,
+    GfxTextureMipFlag_6Mips,
+    GfxTextureMipFlag_7Mips,
+    GfxTextureMipFlag_8Mips,
+    GfxTextureMipFlag_9Mips,
+    GfxTextureMipFlag_10Mips,
+    GfxTextureMipFlag_11Mips,
+    GfxTextureMipFlag_12Mips,
+    GfxTextureMipFlag_END_MIPS,
+};
+
 struct GfxTexture2D
 {
     rgChar          tag[32];
@@ -158,6 +177,38 @@ struct GfxTexture2D
     static void create(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj);
     //https://www.ibm.com/docs/en/zos/2.1.0?topic=only-variadic-templates-c11
     static void destroy(GfxTexture2D* obj);
+};
+
+struct GfxTextureCube
+{
+    rgChar          tag[32];
+    rgUInt            width;
+    rgUInt           height;
+    TinyImageFormat  format;
+    rgUInt         mipCount;
+    //rgU32             texID; // No bindless Cubemap textures
+
+#if defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Resource> d3dTexture;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE d3dTextureView;
+#elif defined(RG_METAL_RNDR)
+    void* mtlTexture; // type: id<MTLTexture>
+#elif defined(RG_VULKAN_RNDR)
+    VkImage vkTexture;
+    VmaAllocation vmaAlloc;
+#endif
+
+    static void fillStruct(rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, ImageSlice* slices, GfxTextureCube* obj)
+    {
+        obj->width = width;
+        obj->height = height;
+        obj->format = format;
+        obj->mipCount = genMips ? 8 : 1;
+        //gfx::textureCube->create();
+    }
+
+    static void create(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureCube* obj);
+    static void destroy(GfxTextureCube* obj);
 };
 
 // Sampler
@@ -652,6 +703,7 @@ void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix);
 
 // Bitmap type
 // -------------
+#if 0
 struct Bitmap
 {
     rgChar tag[32];
@@ -665,7 +717,29 @@ typedef eastl::shared_ptr<Bitmap> BitmapRef;
 
 BitmapRef   loadBitmap(char const* filename);
 void        unloadBitmap(Bitmap* t);
+#else
+struct ImageSlice
+{
+    rgU8* data;
+    rgU32 dataSize;
+};
 
+struct Image
+{
+    rgChar tag[32];
+    rgUInt width;
+    rgUInt height;
+    rgUInt mipCount;
+    rgUInt sliceCount;
+    TinyImageFormat format;
+    ImageSlice* slices;
+    rgU8* imageData;
+};
+typedef eastl::shared_ptr<Image> ImageRef;
+
+ImageRef    loadImage(char const* filename);
+void        unloadImage(Image* ptr);
+#endif
 
 // Model and Mesh
 //-----------------
