@@ -104,7 +104,7 @@ struct GfxBuffer
     static void destroy(GfxBuffer* obj);
 };
 
-// Texture type
+// Texture types
 // -------------------
 
 enum GfxTextureUsage
@@ -121,8 +121,7 @@ enum GfxTextureUsage
 enum GfxTextureDim
 {
     GfxTextureDim_2D,
-    GfxTextureDim_1D,
-    GfxTextureDim_3D,
+    GfxTextureDim_Cube,
     GfxTextureDim_Buffer,
 };
 
@@ -179,6 +178,7 @@ struct GfxTexture2D
     static void destroy(GfxTexture2D* obj);
 };
 
+//-----------------------------------------------------------------------------
 struct GfxTextureCube
 {
     rgChar          tag[32];
@@ -186,7 +186,6 @@ struct GfxTextureCube
     rgUInt           height;
     TinyImageFormat  format;
     rgUInt         mipCount;
-    //rgU32             texID; // No bindless Cubemap textures
 
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource> d3dTexture;
@@ -200,14 +199,30 @@ struct GfxTextureCube
 
     static void fillStruct(rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, ImageSlice* slices, GfxTextureCube* obj)
     {
+        rgUInt mip = 0;
+        if(mipFlag == GfxTextureMipFlag_NoMips)
+        {
+            mip = 1;
+        }
+        else if(mipFlag == GfxTextureMipFlag_GenMips)
+        {
+            // TODO: Calculate based on width and height
+            // TODO: Calculate based on width and height
+            mip = 8;
+        }
+        else
+        {
+            rgAssert(mipFlag != GfxTextureMipFlag_BEGIN_MIPS && mipFlag != GfxTextureMipFlag_END_MIPS);
+            mip = (rgInt)mipFlag - (rgInt)GfxTextureMipFlag_BEGIN_MIPS + 1;
+        }
+
         obj->width = width;
         obj->height = height;
         obj->format = format;
-        obj->mipCount = genMips ? 8 : 1;
-        //gfx::textureCube->create();
+        obj->mipCount = mip;
     }
 
-    static void create(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureCube* obj);
+    static void create(char const* tag, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, ImageSlice* slices, GfxTextureCube* obj);
     static void destroy(GfxTextureCube* obj);
 };
 
@@ -977,6 +992,7 @@ extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 extern GfxGraphicsPSO* currentGraphicsPSO;
 
 extern GfxObjectRegistry<GfxTexture2D>*     texture2D;
+extern GfxObjectRegistry<GfxTextureCube>*   textureCube;
 extern GfxObjectRegistry<GfxBuffer>*        buffer;
 extern GfxObjectRegistry<GfxSamplerState>*  samplerState;
 extern GfxObjectRegistry<GfxGraphicsPSO>*   graphicsPSO;

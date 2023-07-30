@@ -39,7 +39,7 @@ void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix)
 
 
 //-----------------------------------------------------------------------------
-// Textures
+// Bitmaps and Images
 //-----------------------------------------------------------------------------
 
 BitmapRef loadBitmap(char const* filename)
@@ -69,6 +69,25 @@ void unloadBitmap(Bitmap* ptr)
 {
     stbi_image_free(ptr->buf);
     rgDelete(ptr);
+}
+
+ImageRef loadImage(char const* filename)
+{
+    rgSize nullTerminatedPathLength = strlen(filename) + 1;
+    char const* extStr = filename + nullTerminatedPathLength - 4;
+    if(strcmp(extStr, ".tga") == 0 || strcmp(extStr, ".TGA" == 0))
+    {
+        // loadTGA();
+    }
+    else
+    {
+        // loadDDS();
+    }
+}
+
+void unloadImage(Image* ptr)
+{
+
 }
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
@@ -184,6 +203,7 @@ GfxGraphicsPSO*         currentGraphicsPSO;
 
 // OBJECT REGISTRIES
 GfxObjectRegistry<GfxTexture2D>*    texture2D;
+GfxObjectRegistry<GfxTextureCube>*  textureCube;
 GfxObjectRegistry<GfxBuffer>*       buffer;
 GfxObjectRegistry<GfxGraphicsPSO>*  graphicsPSO;
 GfxObjectRegistry<GfxSamplerState>* samplerState;
@@ -230,6 +250,7 @@ rgInt preInit()
 {
     gfx::buffer = rgNew(GfxObjectRegistry<GfxBuffer>);
     gfx::texture2D = rgNew(GfxObjectRegistry<GfxTexture2D>);
+    gfx::textureCube = rgNew(GfxObjectRegistry<GfxTextureCube>);
     gfx::samplerState = rgNew(GfxObjectRegistry<GfxSamplerState>);
     gfx::graphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
 
