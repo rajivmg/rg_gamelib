@@ -60,8 +60,8 @@ struct GameState
 {
     TexturedQuads characterPortraits;
     TexturedQuads terrainAndOcean;
-    GfxTexture2D* oceanTileTexture;
-    GfxTexture2D* flowerTexture;
+    GfxTexture* oceanTileTexture;
+    GfxTexture* flowerTexture;
 
     ModelRef shaderballModel;
     

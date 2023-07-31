@@ -42,35 +42,6 @@ void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix)
 // Bitmaps and Images
 //-----------------------------------------------------------------------------
 
-BitmapRef loadBitmap(char const* filename)
-{
-    rgInt width, height, texChnl;
-    unsigned char* texData = stbi_load(filename, &width, &height, &texChnl, 4);
-
-    if(texData == NULL)
-    {
-        return nullptr;
-    }
-
-    //TextureRef tptr = eastl::make_shared<Texture>(unloadTexture);
-    BitmapRef ptr = eastl::shared_ptr<Bitmap>(rgNew(Bitmap), unloadBitmap);
-    strncpy(ptr->tag, filename, rgARRAY_COUNT(Bitmap::tag));
-    ptr->tag[rgARRAY_COUNT(Bitmap::tag) - 1] = '\0';
-    ptr->hash = rgCRC32(filename);
-    ptr->width = width;
-    ptr->height = height;
-    ptr->format = TinyImageFormat_R8G8B8A8_UNORM;
-    ptr->buf = texData;
-
-    return ptr;
-}
-
-void unloadBitmap(Bitmap* ptr)
-{
-    stbi_image_free(ptr->buf);
-    rgDelete(ptr);
-}
-
 ImageRef loadImage(char const* filename)
 {
     rgSize nullTerminatedPathLength = strlen(filename) + 1;
@@ -80,7 +51,7 @@ ImageRef loadImage(char const* filename)
     
     ImageRef output;
     
-    if(strcmp(extStr, ".dds") == 0 || strcmp(extStr, ".DDS" == 0))
+    if(strcmp(extStr, ".dds") == 0 || strcmp(extStr, ".DDS") == 0)
     {
         // loadDDS();
     }
@@ -89,7 +60,7 @@ ImageRef loadImage(char const* filename)
         unsigned char* texData = stbi_load(filename, &width, &height, &texChnl, 4);
         if(texData == NULL)
         {
-            return nullptr;
+            return output;
         }
         
         output = eastl::shared_ptr<Image>(rgNew(Image), unloadImage);
@@ -102,22 +73,22 @@ ImageRef loadImage(char const* filename)
         output->sliceCount = 1;
         output->isDDS = false;
         output->imageData = texData;
-        output->slices[0] = { texData, width * height * 4 };
-        
-        BitmapRef ptr = eastl::shared_ptr<Bitmap>(rgNew(Bitmap), unloadBitmap);
-        strncpy(ptr->tag, filename, rgARRAY_COUNT(Bitmap::tag));
-        ptr->tag[rgARRAY_COUNT(Bitmap::tag) - 1] = '\0';
-        ptr->hash = rgCRC32(filename);
-        ptr->width = width;
-        ptr->height = height;
-        ptr->format = TinyImageFormat_R8G8B8A8_UNORM;
-        ptr->buf = texData;
+        output->slices[0].data = texData;
+        output->slices[0].dataSize = rgUInt(width * height * 4);
     }
+    return output;
 }
 
 void unloadImage(Image* ptr)
 {
-
+    if(ptr->isDDS)
+    {
+    }
+    else
+    {
+        stbi_image_free(ptr->imageData);
+    }
+    rgDelete(ptr);
 }
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
@@ -133,19 +104,19 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 r
     return r;
 }
 
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, BitmapRef bitmap)
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRef image)
 {
-    return createQuadUV(xPx, yPx, widthPx, heightPx, bitmap->width, bitmap->height);
+    return createQuadUV(xPx, yPx, widthPx, heightPx, image->width, image->height);
 }
 
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex)
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture* tex)
 {
     TexturedQuad& q = quadList->push_back();
     q.uv = uv;
     q.pos = { posSize.x, posSize.y, 1.0f };
     q.size = posSize.zw;
     q.offsetOrientation = offsetOrientation;
-    q.texID = gfx::bindlessManagerTexture2D->getBindlessIndex(tex);
+    q.texID = gfx::bindlessManagerTexture->getBindlessIndex(tex);
 }
 
 //-----------------------------------------------------------------------------
@@ -232,24 +203,23 @@ GfxBlitCmdEncoder*      currentBlitCmdEncoder;
 GfxGraphicsPSO*         currentGraphicsPSO;
 
 // OBJECT REGISTRIES
-GfxObjectRegistry<GfxTexture2D>*    texture2D;
-GfxObjectRegistry<GfxTextureCube>*  textureCube;
+GfxObjectRegistry<GfxTexture>*      texture;
 GfxObjectRegistry<GfxBuffer>*       buffer;
 GfxObjectRegistry<GfxGraphicsPSO>*  graphicsPSO;
 GfxObjectRegistry<GfxSamplerState>* samplerState;
 
-GfxBindlessResourceManager<GfxTexture2D>*   bindlessManagerTexture2D;
+GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
 
 // DEFAULT RESOURCES
-GfxTexture2D*       renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-GfxTexture2D*       depthStencilBuffer;
+GfxTexture*         renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
+GfxTexture*         depthStencilBuffer;
 GfxSamplerState*    bilinearSampler;
 GfxFrameAllocator*  frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
 // MISC
 Matrix4 orthographicMatrix;
 Matrix4 viewMatrix;
-eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
+eastl::vector<GfxTexture*> debugTextureHandles; // test only
 
 
 Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue)
@@ -279,12 +249,11 @@ Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio
 rgInt preInit()
 {
     gfx::buffer = rgNew(GfxObjectRegistry<GfxBuffer>);
-    gfx::texture2D = rgNew(GfxObjectRegistry<GfxTexture2D>);
-    gfx::textureCube = rgNew(GfxObjectRegistry<GfxTextureCube>);
+    gfx::texture = rgNew(GfxObjectRegistry<GfxTexture>);
     gfx::samplerState = rgNew(GfxObjectRegistry<GfxSamplerState>);
     gfx::graphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
 
-    gfx::bindlessManagerTexture2D = rgNew(GfxBindlessResourceManager<GfxTexture2D>);
+    gfx::bindlessManagerTexture = rgNew(GfxBindlessResourceManager<GfxTexture>);
     
     return 0;
 }
@@ -313,8 +282,8 @@ rgInt initCommonStuff()
 void atFrameStart()
 {
     gfx::buffer->destroyMarkedObjects();
+    gfx::texture->destroyMarkedObjects();
     gfx::samplerState->destroyMarkedObjects();
-    gfx::texture2D->destroyMarkedObjects();
     gfx::graphicsPSO->destroyMarkedObjects();
     
     // Reset render pass
@@ -344,12 +313,12 @@ rgInt getFinishedFrameIndex()
     return completedFrameIndex;
 }
 
-GfxTexture2D* getCurrentRenderTargetColorBuffer()
+GfxTexture* getCurrentRenderTargetColorBuffer()
 {
     return gfx::renderTarget[g_FrameIndex];
 }
 
-GfxTexture2D* getRenderTargetDepthBuffer()
+GfxTexture* getRenderTargetDepthBuffer()
 {
     return gfx::depthStencilBuffer;
 }

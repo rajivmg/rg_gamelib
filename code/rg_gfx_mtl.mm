@@ -74,7 +74,7 @@ id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
     return (__bridge id<MTLRenderCommandEncoder>)gfx::currentRenderCmdEncoder->renderCmdEncoder;
 }
 
-id<MTLTexture> getMTLTexture(const GfxTexture2D* obj)
+id<MTLTexture> getMTLTexture(const GfxTexture* obj)
 {
      return (__bridge id<MTLTexture>)(obj->mtlTexture);
 }
@@ -329,9 +329,9 @@ MTLSamplerMipFilter toMTLSamplerMipFilter(GfxSamplerMipFilter filter)
     return result;
 }
 
-GfxTexture2D createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
+GfxTexture createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
 {
-    GfxTexture2D texture2d;
+    GfxTexture texture2d;
     texture2d.mtlTexture = drawable.texture;
     return texture2d;
 }
@@ -410,7 +410,7 @@ void GfxSamplerState::destroy(GfxSamplerState* obj)
 // GfxTexture2D Implementation
 //*****************************************************************************
 
-void GfxTexture2D::create(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
+void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
     MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];
     texDesc.width = width;
@@ -419,24 +419,22 @@ void GfxTexture2D::create(char const* tag, void* buf, rgUInt width, rgUInt heigh
     texDesc.textureType = MTLTextureType2D;
     texDesc.storageMode = MTLStorageModeShared;
     texDesc.usage = toMTLTextureUsage(usage);
-    //texDesc.resourceOptions = toMTLResourceOptions(usage);
     
-    //id<MTLTexture> mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc];
     id<MTLTexture> te = [gfx::bindlessTextureHeap newTextureWithDescriptor:texDesc];
     te.label = [NSString stringWithUTF8String:tag];
     [texDesc release];
     
     // copy the texture data
-    if(buf != NULL)
+    if(slices && slices[0].data != NULL)
     {
         MTLRegion region = MTLRegionMake2D(0, 0, width, height);
-        [te replaceRegion:region mipmapLevel:0 withBytes:buf bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
+        [te replaceRegion:region mipmapLevel:0 withBytes:slices[0].data bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
     }
 
     obj->mtlTexture = te;
 }
 
-void GfxTexture2D::destroy(GfxTexture2D* obj)
+void GfxTexture::destroy(GfxTexture* obj)
 {
     [asMTLTexture(obj->mtlTexture) release];
 }
@@ -1050,7 +1048,7 @@ void GfxRenderCmdEncoder::bindSamplerState(GfxSamplerState* sampler, char const*
 }
 
 //-----------------------------------------------------------------------------
-void GfxRenderCmdEncoder::bindTexture2D(GfxTexture2D* texture, char const* bindingTag)
+void GfxRenderCmdEncoder::bindTexture(GfxTexture* texture, char const* bindingTag)
 {
     rgAssert(texture != nullptr);
     
@@ -1245,12 +1243,12 @@ void GfxBlitCmdEncoder::pushDebugTag(const char* tag)
     [asMTLBlitCommandEncoder(mtlBlitCommandEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
 }
 
-void GfxBlitCmdEncoder::genMips(GfxTexture2D* srcTexture)
+void GfxBlitCmdEncoder::genMips(GfxTexture* srcTexture)
 {
     [asMTLBlitCommandEncoder(mtlBlitCommandEncoder) generateMipmapsForTexture:getMTLTexture(srcTexture)];
 }
 
-void GfxBlitCmdEncoder::copyTexture(GfxTexture2D* srcTexture, GfxTexture2D* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount)
+void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount)
 {
     id<MTLTexture> src = getMTLTexture(srcTexture);
     id<MTLTexture> dst = getMTLTexture(dstTexture);
@@ -1390,8 +1388,8 @@ void testComputeAtomicsSetup()
     [computeHistogram release];
     [histogramLibrary release];
     
-    BitmapRef histoTex = rg::loadBitmap("histogram_test.png");
-    gfx::texture2D->create("histogramTest", histoTex->buf, histoTex->width, histoTex->height, histoTex->format, false, GfxTextureUsage_ShaderRead);
+    ImageRef histoTex = rg::loadImage("histogram_test.png");
+    gfx::texture->create("histogramTest", GfxTextureDim_2D, histoTex->width, histoTex->height, histoTex->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, histoTex->slices);
     gfx::buffer->create("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
 }
 
@@ -1399,7 +1397,7 @@ void testComputeAtomicsRun()
 {
     id<MTLComputeCommandEncoder> computeEncoder = [getMTLCommandBuffer() computeCommandEncoder];
     [computeEncoder setComputePipelineState:histogramComputePipeline];
-    [computeEncoder setTexture:getMTLTexture(gfx::texture2D->find(rgCRC32("histogramTest"))) atIndex:0];
+    [computeEncoder setTexture:getMTLTexture(gfx::texture->find(rgCRC32("histogramTest"))) atIndex:0];
     [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:0];
     [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:1];
     [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
@@ -1472,9 +1470,9 @@ rgInt init()
         {
             std::string tag = "renderTarget" + std::to_string(i);
             
-            gfx::renderTarget[i] = gfx::texture2D->create(tag.c_str(), nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, false, GfxTextureUsage_RenderTarget);
+            gfx::renderTarget[i] = gfx::texture->create(tag.c_str(), GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, GfxTextureMipFlag_NoMips, GfxTextureUsage_RenderTarget, nullptr);
         }
-        gfx::depthStencilBuffer = gfx::texture2D->create("depthStencilBuffer", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, false, GfxTextureUsage_DepthStencil);
+        gfx::depthStencilBuffer = gfx::texture->create("depthStencilBuffer", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_DepthStencil, nullptr);
         
         
         // Create bindless texture argument encoder and buffer
@@ -1568,9 +1566,9 @@ void endFrame()
     }
     
     // blit renderTarget to MTLDrawable
-    GfxTexture2D drawableTexture2D = createGfxTexture2DFromMTLDrawable(caMetalDrawable);
+    GfxTexture drawableTexture = createGfxTexture2DFromMTLDrawable(caMetalDrawable);
     GfxBlitCmdEncoder* blitCmdEncoder = gfx::setBlitPass("CopyRTtoMTLDrawable");
-    blitCmdEncoder->copyTexture(gfx::renderTarget[g_FrameIndex], &drawableTexture2D, 0, 0, 1);
+    blitCmdEncoder->copyTexture(gfx::renderTarget[g_FrameIndex], &drawableTexture, 0, 0, 1);
     blitCmdEncoder->end();
     
     [getMTLCommandBuffer() presentDrawable:(caMetalDrawable)];
@@ -1625,7 +1623,7 @@ void onSizeChanged()
     
 }
 
-void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr)
+void setterBindlessResource(rgU32 slot, GfxTexture* ptr)
 {
     [bindlessTextureArgEncoder setTexture:getMTLTexture(ptr) atIndex:slot];
 }

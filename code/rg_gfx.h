@@ -428,11 +428,12 @@ struct GfxGraphicsPSO
 // Gfx Helper Classes
 //-----------------------------------------------------------------------------
 
-namespace gfx {
-void setterBindlessResource(rgU32 slot, GfxTexture* ptr);
-void checkerWaitTillFrameCompleted(rgInt frameIndex);
-GfxGraphicsPSO* findGraphicsPSO(char const* tag);
-rgInt getFrameIndex();
+// FORWARD DECLARATIONS
+namespace gfx
+{
+    void    setterBindlessResource(rgU32 slot, GfxTexture* ptr);
+    void    checkerWaitTillFrameCompleted(rgInt frameIndex);
+    rgInt   getFrameIndex();
 }
 
 template<typename Type>
@@ -689,21 +690,6 @@ void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix);
 
 // Bitmap type
 // -------------
-#if 0
-struct Bitmap
-{
-    rgChar tag[32];
-    rgHash  hash;
-    rgU8*   buf;
-    rgUInt  width;
-    rgUInt  height;
-    TinyImageFormat format;
-};
-typedef eastl::shared_ptr<Bitmap> BitmapRef;
-
-BitmapRef   loadBitmap(char const* filename);
-void        unloadBitmap(Bitmap* t);
-#else
 struct ImageSlice
 {
     rgU8* data;
@@ -726,7 +712,7 @@ typedef eastl::shared_ptr<Image> ImageRef;
 
 ImageRef    loadImage(char const* filename);
 void        unloadImage(Image* ptr);
-#endif
+
 
 // Model and Mesh
 //-----------------
@@ -778,7 +764,7 @@ struct QuadUV
 extern QuadUV defaultQuadUV;
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, BitmapRef bitmap);
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRef image);
 
 // Textured quad
 // ---------------
@@ -820,7 +806,7 @@ struct GfxRenderCmdEncoder
      // TODO: rename to bindBuffer(const GfxBuffer* buffer...)
     void bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
     void bindBuffer(GfxFrameResource const* resource, char const* bindingTag);
-    void bindTexture2D(GfxTexture* texture, char const* bindingTag); // TODO: Rename to bindTexture
+    void bindTexture(GfxTexture* texture, char const* bindingTag);
     void bindSamplerState(GfxSamplerState* sampler, char const* bindingTag);
     
     void drawTexturedQuads(TexturedQuads* quads);
@@ -965,14 +951,12 @@ extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 extern GfxGraphicsPSO* currentGraphicsPSO;
 
-extern GfxObjectRegistry<GfxTexture>*       texture;
-//extern GfxObjectRegistry<GfxTextureCube>*   textureCube;
 extern GfxObjectRegistry<GfxBuffer>*        buffer;
+extern GfxObjectRegistry<GfxTexture>*       texture;
 extern GfxObjectRegistry<GfxSamplerState>*  samplerState;
 extern GfxObjectRegistry<GfxGraphicsPSO>*   graphicsPSO;
-    
-// TODO: Handle non 2D types
-extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture2D;
+
+extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
 
 extern GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 

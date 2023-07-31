@@ -118,22 +118,21 @@ rgInt rg::setup()
 {
     g_GameState = rgNew(GameState);
 
-    BitmapRef tinyTexture = loadBitmap("tiny.tga");
-    gfx::texture2D->create("tiny", tinyTexture->buf, tinyTexture->width, tinyTexture->height, tinyTexture->format, false, GfxTextureUsage_ShaderRead);
+    ImageRef tinyTexture = loadImage("tiny.tga");
     gfx::texture->create("tiny", GfxTextureDim_2D, tinyTexture->width, tinyTexture->height, tinyTexture->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, tinyTexture->slices);
-    gfx::texture2D->destroy(rgCRC32("tiny"));
+    gfx::texture->destroy(rgCRC32("tiny"));
     
     for(rgInt i = 1; i <= 16; ++i)
     {
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
-        BitmapRef t = loadBitmap(path);
-        GfxTexture2D* t2d = gfx::texture2D->create(path, t->buf, t->width, t->height, t->format, false, GfxTextureUsage_ShaderRead);
+        ImageRef t = loadImage(path);
+        GfxTexture* t2d = gfx::texture->create(path, GfxTextureDim_2D, t->width, t->height, t->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, t->slices);
         gfx::debugTextureHandles.push_back(t2d);
     }
 
-    BitmapRef flowerTex = rg::loadBitmap("flower.png");
-    g_GameState->flowerTexture = gfx::texture2D->create("flower", flowerTex->buf, flowerTex->width, flowerTex->height, flowerTex->format, false, GfxTextureUsage_ShaderRead);
+    ImageRef flowerTex = rg::loadImage("flower.png");
+    g_GameState->flowerTexture = gfx::texture->create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
     
     //gfxDestroyBuffer("ocean_tile");
     g_GameState->shaderballModel = rg::loadModel("shaderball.xml");
