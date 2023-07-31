@@ -244,7 +244,7 @@ rgInt rg::setup()
     
     g_PhysicSystem = rgNew(PhysicSystem);
     
-    loadDDS("san_giuseppe_bridge.dds");
+    loadImage("san_giuseppe_bridge.dds");
 
 #if 0
     b2Vec2 gravity(0.0f, -9.8f);

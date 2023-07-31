@@ -706,7 +706,8 @@ struct Image
     rgBool isDDS;
     TinyImageFormat format;
     ImageSlice slices[12];
-    rgU8* imageData;
+    rgU8* memory;
+    void* dxTexScratchImage;
 };
 typedef eastl::shared_ptr<Image> ImageRef;
 

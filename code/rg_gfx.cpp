@@ -8,6 +8,7 @@
 #include <stb_image.h>
 
 #include "pugixml.hpp"
+#include "DirectXTex.h"
 
 RG_BEGIN_RG_NAMESPACE
 
@@ -48,12 +49,38 @@ ImageRef loadImage(char const* filename)
     char const* extStr = filename + nullTerminatedPathLength - 4;
     
     rgInt width, height, texChnl;
+    ImageRef output = eastl::shared_ptr<Image>(rgNew(Image), unloadImage);
     
-    ImageRef output;
-    
-    if(strcmp(extStr, ".dds") == 0 || strcmp(extStr, ".DDS") == 0)
+    if(strcmp(extStr, "dds") == 0 || strcmp(extStr, "DDS") == 0)
     {
-        // loadDDS();
+        rg::FileData file = rg::readFile(filename);
+        rgAssert(file.isValid);
+        
+        DirectX::TexMetadata metadata;
+        DirectX::ScratchImage scratchImage;
+        HRESULT result = DirectX::LoadFromDDSMemory(file.data, file.dataSize, DirectX::DDS_FLAGS_NONE, &metadata, scratchImage);
+        rg::freeFileData(&file);
+        
+        if(FAILED(result))
+        {
+            rgLog("Error");
+            return output;
+        }
+        
+        strncpy(output->tag, filename, rgARRAY_COUNT(Image::tag));
+        output->tag[rgARRAY_COUNT(Image::tag) - 1] = '\0';
+        output->width = (rgUInt)metadata.width;
+        output->height = (rgUInt)metadata.height;
+        output->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)metadata.format);
+        output->mipCount = (rgUInt)metadata.mipLevels;
+        output->sliceCount = (rgUInt)metadata.arraySize;
+        output->isDDS = true;
+        
+        for(rgInt i = 0; i < scratchImage.GetImageCount(); ++i)
+        {
+            
+        }
+        //output->memory = rgMalloc(image.)
     }
     else
     {
@@ -72,7 +99,7 @@ ImageRef loadImage(char const* filename)
         output->mipCount = 1;
         output->sliceCount = 1;
         output->isDDS = false;
-        output->imageData = texData;
+        output->memory = texData;
         output->slices[0].data = texData;
         output->slices[0].dataSize = rgUInt(width * height * 4);
     }
