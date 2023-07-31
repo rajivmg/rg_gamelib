@@ -120,6 +120,7 @@ rgInt rg::setup()
 
     BitmapRef tinyTexture = loadBitmap("tiny.tga");
     gfx::texture2D->create("tiny", tinyTexture->buf, tinyTexture->width, tinyTexture->height, tinyTexture->format, false, GfxTextureUsage_ShaderRead);
+    gfx::texture->create("tiny", GfxTextureDim_2D, tinyTexture->width, tinyTexture->height, tinyTexture->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, tinyTexture->slices);
     gfx::texture2D->destroy(rgCRC32("tiny"));
     
     for(rgInt i = 1; i <= 16; ++i)

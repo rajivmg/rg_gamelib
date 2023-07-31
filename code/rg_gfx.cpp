@@ -75,13 +75,43 @@ ImageRef loadImage(char const* filename)
 {
     rgSize nullTerminatedPathLength = strlen(filename) + 1;
     char const* extStr = filename + nullTerminatedPathLength - 4;
-    if(strcmp(extStr, ".tga") == 0 || strcmp(extStr, ".TGA" == 0))
+    
+    rgInt width, height, texChnl;
+    
+    ImageRef output;
+    
+    if(strcmp(extStr, ".dds") == 0 || strcmp(extStr, ".DDS" == 0))
     {
-        // loadTGA();
+        // loadDDS();
     }
     else
     {
-        // loadDDS();
+        unsigned char* texData = stbi_load(filename, &width, &height, &texChnl, 4);
+        if(texData == NULL)
+        {
+            return nullptr;
+        }
+        
+        output = eastl::shared_ptr<Image>(rgNew(Image), unloadImage);
+        strncpy(output->tag, filename, rgARRAY_COUNT(Image::tag));
+        output->tag[rgARRAY_COUNT(Image::tag) - 1] = '\0';
+        output->width = width;
+        output->height = height;
+        output->format = TinyImageFormat_R8G8B8A8_UNORM;
+        output->mipCount = 1;
+        output->sliceCount = 1;
+        output->isDDS = false;
+        output->imageData = texData;
+        output->slices[0] = { texData, width * height * 4 };
+        
+        BitmapRef ptr = eastl::shared_ptr<Bitmap>(rgNew(Bitmap), unloadBitmap);
+        strncpy(ptr->tag, filename, rgARRAY_COUNT(Bitmap::tag));
+        ptr->tag[rgARRAY_COUNT(Bitmap::tag) - 1] = '\0';
+        ptr->hash = rgCRC32(filename);
+        ptr->width = width;
+        ptr->height = height;
+        ptr->format = TinyImageFormat_R8G8B8A8_UNORM;
+        ptr->buf = texData;
     }
 }
 

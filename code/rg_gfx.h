@@ -107,6 +107,8 @@ struct GfxBuffer
 // Texture types
 // -------------------
 
+struct ImageSlice;
+
 enum GfxTextureUsage
 {
     GfxTextureUsage_ShaderRead = (0 << 0),
@@ -144,7 +146,7 @@ enum GfxTextureMipFlag
     GfxTextureMipFlag_END_MIPS,
 };
 
-struct GfxTexture2D
+struct GfxTexture
 {
     rgChar          tag[32];
     rgUInt            width;
@@ -164,40 +166,7 @@ struct GfxTexture2D
     VmaAllocation vmaAlloc;
 #endif
 
-    static void fillStruct(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
-    {
-        obj->width = width;
-        obj->height = height;
-        obj->format = format;
-        obj->mipCount = genMips ? 8 : 1;
-        obj->usage = usage;
-    }
-
-    static void create(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj);
-    //https://www.ibm.com/docs/en/zos/2.1.0?topic=only-variadic-templates-c11
-    static void destroy(GfxTexture2D* obj);
-};
-
-//-----------------------------------------------------------------------------
-struct GfxTextureCube
-{
-    rgChar          tag[32];
-    rgUInt            width;
-    rgUInt           height;
-    TinyImageFormat  format;
-    rgUInt         mipCount;
-
-#if defined(RG_D3D12_RNDR)
-    ComPtr<ID3D12Resource> d3dTexture;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE d3dTextureView;
-#elif defined(RG_METAL_RNDR)
-    void* mtlTexture; // type: id<MTLTexture>
-#elif defined(RG_VULKAN_RNDR)
-    VkImage vkTexture;
-    VmaAllocation vmaAlloc;
-#endif
-
-    static void fillStruct(rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, ImageSlice* slices, GfxTextureCube* obj)
+    static void fillStruct(GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
     {
         rgUInt mip = 0;
         if(mipFlag == GfxTextureMipFlag_NoMips)
@@ -215,16 +184,18 @@ struct GfxTextureCube
             rgAssert(mipFlag != GfxTextureMipFlag_BEGIN_MIPS && mipFlag != GfxTextureMipFlag_END_MIPS);
             mip = (rgInt)mipFlag - (rgInt)GfxTextureMipFlag_BEGIN_MIPS + 1;
         }
-
+        
         obj->width = width;
         obj->height = height;
         obj->format = format;
         obj->mipCount = mip;
+        obj->usage = usage;
     }
 
-    static void create(char const* tag, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, ImageSlice* slices, GfxTextureCube* obj);
-    static void destroy(GfxTextureCube* obj);
+    static void create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj);
+    static void destroy(GfxTexture* obj);
 };
+
 
 // Sampler
 // ----------
@@ -295,7 +266,7 @@ enum GfxStoreAction
 
 struct GfxColorAttachmentDesc
 {
-    GfxTexture2D*      texture;
+    GfxTexture*      texture;
     GfxLoadAction   loadAction;
     GfxStoreAction storeAction;
     rgFloat4        clearColor;
@@ -305,7 +276,7 @@ struct GfxRenderPass
 {
     GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
 
-    GfxTexture2D* depthStencilAttachmentTexture;
+    GfxTexture* depthStencilAttachmentTexture;
     GfxLoadAction depthStencilAttachmentLoadAction;
     GfxStoreAction depthStencilAttachmentStoreAction;
     rgFloat  clearDepth;
@@ -458,7 +429,7 @@ struct GfxGraphicsPSO
 //-----------------------------------------------------------------------------
 
 namespace gfx {
-void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr);
+void setterBindlessResource(rgU32 slot, GfxTexture* ptr);
 void checkerWaitTillFrameCompleted(rgInt frameIndex);
 GfxGraphicsPSO* findGraphicsPSO(char const* tag);
 rgInt getFrameIndex();
@@ -746,8 +717,9 @@ struct Image
     rgUInt height;
     rgUInt mipCount;
     rgUInt sliceCount;
+    rgBool isDDS;
     TinyImageFormat format;
-    ImageSlice* slices;
+    ImageSlice slices[12];
     rgU8* imageData;
 };
 typedef eastl::shared_ptr<Image> ImageRef;
@@ -820,7 +792,8 @@ struct TexturedQuad
 };
 typedef eastl::vector<TexturedQuad> TexturedQuads;
 
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture2D* tex);
+// TODO: Handle non 2D types
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture* tex);
 
 
 //-----------------------------------------------------------------------------
@@ -847,7 +820,7 @@ struct GfxRenderCmdEncoder
      // TODO: rename to bindBuffer(const GfxBuffer* buffer...)
     void bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
     void bindBuffer(GfxFrameResource const* resource, char const* bindingTag);
-    void bindTexture2D(GfxTexture2D* texture, char const* bindingTag);
+    void bindTexture2D(GfxTexture* texture, char const* bindingTag); // TODO: Rename to bindTexture
     void bindSamplerState(GfxSamplerState* sampler, char const* bindingTag);
     
     void drawTexturedQuads(TexturedQuads* quads);
@@ -884,12 +857,12 @@ struct GfxBlitCmdEncoder
         {
             struct
             {
-                GfxTexture2D* tex;
+                GfxTexture* tex;
                 rgU32 uploadBufferOffset;
             } uploadTexture;
             struct
             {
-                GfxTexture2D* tex;
+                GfxTexture* tex;
             } genMips;
         };
     };
@@ -897,8 +870,9 @@ struct GfxBlitCmdEncoder
     void begin();
     void end();
     void pushDebugTag(const char* tag);
-    void genMips(GfxTexture2D* srcTexture);
-    void copyTexture(GfxTexture2D* srcTexture, GfxTexture2D* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount);
+    void genMips(GfxTexture* srcTexture); // TODO: Handle non 2D types
+    // TODO: Handle non 2D types
+    void copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount);
 
     rgBool hasEnded;
     eastl::vector<Cmd> cmds;
@@ -931,8 +905,8 @@ void                atFrameStart();
 rgInt               getFrameIndex(); // Returns 0 if g_FrameIndex is -1
 rgInt               getFinishedFrameIndex();
 GfxFrameAllocator*  getFrameAllocator();
-GfxTexture2D*       getCurrentRenderTargetColorBuffer();
-GfxTexture2D*       getRenderTargetDepthBuffer();
+GfxTexture*         getCurrentRenderTargetColorBuffer();
+GfxTexture*         getRenderTargetDepthBuffer();
 Matrix4             makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
 Matrix4             makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
 
@@ -991,20 +965,21 @@ extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 extern GfxGraphicsPSO* currentGraphicsPSO;
 
-extern GfxObjectRegistry<GfxTexture2D>*     texture2D;
-extern GfxObjectRegistry<GfxTextureCube>*   textureCube;
+extern GfxObjectRegistry<GfxTexture>*       texture;
+//extern GfxObjectRegistry<GfxTextureCube>*   textureCube;
 extern GfxObjectRegistry<GfxBuffer>*        buffer;
 extern GfxObjectRegistry<GfxSamplerState>*  samplerState;
 extern GfxObjectRegistry<GfxGraphicsPSO>*   graphicsPSO;
     
-extern GfxBindlessResourceManager<GfxTexture2D>* bindlessManagerTexture2D;
+// TODO: Handle non 2D types
+extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture2D;
 
 extern GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
-extern eastl::vector<GfxTexture2D*> debugTextureHandles; // test only
+extern eastl::vector<GfxTexture*> debugTextureHandles; // test only
     
-extern GfxTexture2D* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-extern GfxTexture2D* depthStencilBuffer;
+extern GfxTexture* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
+extern GfxTexture* depthStencilBuffer;
 
 //-----------------------------------------------------------------------------
 // API Specific Graphic Context Data
