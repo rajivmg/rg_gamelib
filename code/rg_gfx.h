@@ -149,6 +149,7 @@ enum GfxTextureMipFlag
 struct GfxTexture
 {
     rgChar          tag[32];
+    GfxTextureDim       dim;
     rgUInt            width;
     rgUInt           height;
     TinyImageFormat  format;
@@ -185,6 +186,7 @@ struct GfxTexture
             mip = (rgInt)mipFlag - (rgInt)GfxTextureMipFlag_BEGIN_MIPS + 1;
         }
         
+        obj->dim = dim;
         obj->width = width;
         obj->height = height;
         obj->format = format;

@@ -190,6 +190,26 @@ MTLTextureUsage toMTLTextureUsage(GfxTextureUsage usage)
     return result;
 }
 
+MTLTextureType toMTLTextureType(GfxTextureDim dim)
+{
+    switch(dim)
+    {
+        case GfxTextureDim_2D:
+            return MTLTextureType2D;
+            break;
+        case GfxTextureDim_Cube:
+            return MTLTextureTypeCube;
+            break;
+        case GfxTextureDim_Buffer:
+            return MTLTextureTypeTextureBuffer;
+            break;
+        default:
+            rgAssert(!"Invalid dim");
+            return MTLTextureType1D;
+            break;
+    }
+}
+
 MTLLoadAction toMTLLoadAction(GfxLoadAction action)
 {
     MTLLoadAction result = MTLLoadActionDontCare;
@@ -416,7 +436,7 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
     texDesc.width = width;
     texDesc.height = height;
     texDesc.pixelFormat = toMTLPixelFormat(format);
-    texDesc.textureType = MTLTextureType2D;
+    texDesc.textureType = toMTLTextureType(dim);
     texDesc.storageMode = MTLStorageModeShared;
     texDesc.usage = toMTLTextureUsage(usage);
     
@@ -427,8 +447,13 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
     // copy the texture data
     if(slices && slices[0].data != NULL)
     {
-        MTLRegion region = MTLRegionMake2D(0, 0, width, height);
-        [te replaceRegion:region mipmapLevel:0 withBytes:slices[0].data bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
+        rgInt sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
+        for(rgInt s = 0; s < sliceCount; ++s)
+        {
+            MTLRegion region = MTLRegionMake2D(0, 0, width, height);
+            [te replaceRegion:region mipmapLevel:0 slice:s withBytes:slices[s].data bytesPerRow:(width * TinyImageFormat_ChannelCount(format)) bytesPerImage:0];
+            //[te replaceRegion:region mipmapLevel:0 withBytes:slices[s].data bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
+        }
     }
 
     obj->mtlTexture = te;

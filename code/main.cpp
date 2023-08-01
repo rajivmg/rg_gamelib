@@ -244,7 +244,11 @@ rgInt rg::setup()
     
     g_PhysicSystem = rgNew(PhysicSystem);
     
-    loadImage("san_giuseppe_bridge.dds");
+    ImageRef sanGiuseppeBridgeCube = loadImage("san_giuseppe_bridge.dds");
+    gfx::texture->create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
+    
+    ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("san_giuseppe_bridge_irradiance.dds");
+    gfx::texture->create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
 
 #if 0
     b2Vec2 gravity(0.0f, -9.8f);

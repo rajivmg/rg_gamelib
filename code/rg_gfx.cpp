@@ -75,12 +75,21 @@ ImageRef loadImage(char const* filename)
         output->mipCount = (rgUInt)metadata.mipLevels;
         output->sliceCount = (rgUInt)metadata.arraySize;
         output->isDDS = true;
+        output->memory = (rgU8*)rgMalloc(scratchImage.GetPixelsSize());
         
+        rgU8* basememory = output->memory;
+        rgU32 offset = 0;
         for(rgInt i = 0; i < scratchImage.GetImageCount(); ++i)
         {
+            const DirectX::Image* img = scratchImage.GetImages() + i;
+            memcpy(basememory + offset, img->pixels, img->slicePitch);
             
+            output->slices[i].data = basememory + offset;
+            output->slices[i].dataSize = (rgU32)img->slicePitch;
+        
+            offset += img->slicePitch;
         }
-        //output->memory = rgMalloc(image.)
+        rgAssert(offset == scratchImage.GetPixelsSize());
     }
     else
     {
@@ -113,7 +122,7 @@ void unloadImage(Image* ptr)
     }
     else
     {
-        stbi_image_free(ptr->imageData);
+        stbi_image_free(ptr->memory);
     }
     rgDelete(ptr);
 }
