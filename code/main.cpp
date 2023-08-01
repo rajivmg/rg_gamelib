@@ -380,6 +380,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         demoSceneEncoder->bindBuffer(&cameraParamsBuffer, "commonParams");
         demoSceneEncoder->bindBuffer(&instanceParamsBuffer, "instanceParams");
+        demoSceneEncoder->bindTexture(gfx::texture->find("sangiuseppeBridgeCubeIrradiance"_rh), "irradianceMap");
+        demoSceneEncoder->bindSamplerState(gfx::samplerState->find("nearestRepeat"_rh), "irradianceSampler");
         
         for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
         {

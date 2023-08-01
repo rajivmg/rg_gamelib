@@ -24,7 +24,8 @@ struct InstanceParams
 };
 
 ConstantBuffer<InstanceParams> instanceParams : register(b1, space0);
-//Texture2D<float4> bindlessTexture2D[] : register(t0, space7);
+TextureCube<float4> irradianceMap : register(t0, space0);
+SamplerState irradianceSampler : register(s0, space0);
 
 //SamplerState simpleSampler : register(s0, space0);
 
@@ -58,8 +59,11 @@ VertexShaderOut vsPbr(in Obj2HeaderModelVertex v, uint instanceID : SV_InstanceI
 
 half4 fsPbr(in VertexShaderOut f) : SV_TARGET
 {
-    half4 color = half4(1.0, 0.1, 0.1, 1.0);
+    //half4 color = half4(1.0, 0.1, 0.1, 1.0);
+    half4 diffColor = half4(1.0, 1.0, 1.0, 1.0);
+    half4 irradiance = irradianceMap.Sample(irradianceSampler, f.normal);
+    return diffColor * irradiance;
     //float4 color = float4(in.normal, 1.0);
     //return half4(color + (float4(1.0, 1.0, 1.0, 1.0) * in.vertexLightCoeff));
-    return half4(color.rgb * (half)(f.vertexLightCoeff + 0.168f), 1.0h);
+    //return half4(color.rgb * (half)(f.vertexLightCoeff + 0.168f), 1.0h);
 }
