@@ -471,6 +471,8 @@ static ComPtr<IDxcUtils> g_DxcUtils;
 
 id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, GfxGraphicsPSO* obj)
 {
+    rgAssert(entrypoint);
+    
     auto getStageStr = [](GfxStage s) -> const char*
     {
         switch(s)

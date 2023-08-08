@@ -9,6 +9,7 @@ cbuffer commonParams : register(b0, space0)
     float4x4 cameraViewProjMatrix;
     float4x4 cameraInvViewMatrix;
     float4x4 cameraInvProjMatrix;
+    float4x4 cameraViewRotOnlyMatrix;
     float    cameraNear;
     float    cameraFar;
 };

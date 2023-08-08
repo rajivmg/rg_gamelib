@@ -84,6 +84,7 @@ struct GameState
     Matrix4    cameraViewProjection;
     Matrix4    cameraInvView;
     Matrix4    cameraInvProjection;
+    Matrix4    cameraViewRotOnly;
 
     b2World* phyWorld;
 };

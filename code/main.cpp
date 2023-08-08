@@ -10,6 +10,7 @@
 
 #include <EASTL/vector.h>
 #include "game/game.h"
+#include "game/skybox.h"
 
 #include "shaders/metal/simple2d_shader.inl"
 #include "shaders/metal/principledbrdf_shader.inl"
@@ -112,6 +113,8 @@ void updateCamera()
     g_GameState->cameraViewProjection = g_GameState->cameraProjection * g_GameState->cameraView;
     g_GameState->cameraInvView = inverse(g_GameState->cameraView);
     g_GameState->cameraInvProjection = inverse(g_GameState->cameraProjection);
+    
+    g_GameState->cameraViewRotOnly = Matrix4(g_GameState->cameraView.getUpper3x3(), Vector3(0, 0, 0));
 }
 
 rgInt rg::setup()
@@ -231,8 +234,33 @@ rgInt rg::setup()
     
     gfx::graphicsPSO->create("gridPSO", nullptr, &gridShaderDesc, &gridRenderState);
     //
-    
+    GfxVertexInputDesc vertexPos = {};
+    vertexPos.elementCount = 1;
+    vertexPos.elements[0].semanticName = "POSITION";
+    vertexPos.elements[0].semanticIndex = 0;
+    vertexPos.elements[0].offset = 0;
+    vertexPos.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
+    vertexPos.elements[0].bufferIndex = 0;
+    vertexPos.elements[0].stepFunc = GfxVertexStepFunc_PerVertex;
 
+    GfxShaderDesc skyboxShaderDesc = {};
+    skyboxShaderDesc.shaderSrc = "skybox.hlsl";
+    skyboxShaderDesc.vsEntrypoint = "vsSkybox";
+    skyboxShaderDesc.fsEntrypoint = "fsSkybox";
+    skyboxShaderDesc.defines = "LEFT";
+    
+    GfxRenderStateDesc skyboxRenderState = {};
+    skyboxRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    skyboxRenderState.colorAttachments[0].blendingEnabled = true;
+    skyboxRenderState.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
+    skyboxRenderState.depthWriteEnabled = true;
+    skyboxRenderState.depthCompareFunc = GfxCompareFunc_LessEqual;
+    skyboxRenderState.winding = GfxWinding_CCW;
+    skyboxRenderState.cullMode = GfxCullMode_None;
+
+    gfx::graphicsPSO->create("skybox", &vertexPos, &skyboxShaderDesc, &skyboxRenderState);
+    //
+    
     gfx::samplerState->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     
     // Initialize camera params
@@ -305,6 +333,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         rgFloat cameraViewProjMatrix[16];
         rgFloat cameraInvViewMatrix[16];
         rgFloat cameraInvProjMatrix[16];
+        rgFloat cameraViewRotOnlyMatrix[16];
         rgFloat cameraNear;
         rgFloat cameraFar;
         rgFloat _padding2[2];
@@ -316,6 +345,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     copyMatrix4ToFloatArray(commonParams.cameraViewProjMatrix, g_GameState->cameraViewProjection);
     copyMatrix4ToFloatArray(commonParams.cameraInvViewMatrix, g_GameState->cameraInvView);
     copyMatrix4ToFloatArray(commonParams.cameraInvProjMatrix, g_GameState->cameraInvProjection);
+    copyMatrix4ToFloatArray(commonParams.cameraViewRotOnlyMatrix, g_GameState->cameraViewRotOnly);
     commonParams.cameraNear = g_GameState->cameraNear;
     commonParams.cameraFar  = g_GameState->cameraFar;
 
@@ -396,6 +426,24 @@ rgInt rg::updateAndDraw(rgDouble dt)
     
     // RENDER GRID AND EDITOR STUFF
     {
+        gfx::buffer->findOrCreate("skyboxVertexBuffer", g_SkyboxVertices, sizeof(g_SkyboxVertices), GfxBufferUsage_VertexBuffer);
+        GfxRenderPass skyboxRenderPass = {};
+        skyboxRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+        skyboxRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
+        skyboxRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+        skyboxRenderPass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
+        skyboxRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
+        skyboxRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
+        
+        GfxRenderCmdEncoder* skyboxRenderEncoder = gfx::setRenderPass(&skyboxRenderPass, "Skybox Pass");
+        skyboxRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("skybox"_tag));
+        skyboxRenderEncoder->bindBuffer(&cameraParamsBuffer, "commonParams");
+        skyboxRenderEncoder->bindTexture(gfx::texture->find("sangiuseppeBridgeCube"_tag), "diffuseCubeMap");
+        skyboxRenderEncoder->bindSamplerState(gfx::samplerState->find("nearestRepeat"_rh), "cubeMapSampler");
+        skyboxRenderEncoder->setVertexBuffer(gfx::buffer->find("skyboxVertexBuffer"_tag), 0, 0);
+        skyboxRenderEncoder->drawTriangles(0, 36, 1);
+        skyboxRenderEncoder->end();
+        
         GfxRenderPass gridRenderPass = {};
         gridRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
         gridRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
