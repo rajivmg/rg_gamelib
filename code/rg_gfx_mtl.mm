@@ -451,7 +451,7 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
         for(rgInt s = 0; s < sliceCount; ++s)
         {
             MTLRegion region = MTLRegionMake2D(0, 0, width, height);
-            [te replaceRegion:region mipmapLevel:0 slice:s withBytes:slices[s].data bytesPerRow:(width * TinyImageFormat_ChannelCount(format)) bytesPerImage:0];
+            [te replaceRegion:region mipmapLevel:0 slice:s withBytes:slices[s].data bytesPerRow:(width * (TinyImageFormat_BitSizeOfBlock(format) / 8)) bytesPerImage:0];
             //[te replaceRegion:region mipmapLevel:0 withBytes:slices[s].data bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
         }
     }
