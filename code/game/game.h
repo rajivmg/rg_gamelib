@@ -85,6 +85,8 @@ struct GameState
     Matrix4    cameraInvView;
     Matrix4    cameraInvProjection;
     Matrix4    cameraViewRotOnly;
+    
+    GfxTexture* baseColorRT;
 
     b2World* phyWorld;
 };

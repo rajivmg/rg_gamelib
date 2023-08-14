@@ -170,7 +170,7 @@ rgInt rg::setup()
     simple2dShaderDesc.defines = "RIGHT";
     
     GfxRenderStateDesc simple2dRenderStateDesc = {};
-    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
     simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     //simple2dRenderStateDesc.triangleFillMode = GfxTriangleFillMode_Lines;
@@ -208,7 +208,7 @@ rgInt rg::setup()
     principledBrdfShaderDesc.defines = "LEFT";
     
     GfxRenderStateDesc world3dRenderState = {};
-    world3dRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    world3dRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
     world3dRenderState.colorAttachments[0].blendingEnabled = true;
     world3dRenderState.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     world3dRenderState.depthWriteEnabled = true;
@@ -224,7 +224,7 @@ rgInt rg::setup()
     gridShaderDesc.fsEntrypoint = "fsGrid";
     
     GfxRenderStateDesc gridRenderState = {};
-    gridRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    gridRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
     gridRenderState.colorAttachments[0].blendingEnabled = true;
     gridRenderState.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     gridRenderState.depthWriteEnabled = true;
@@ -250,7 +250,7 @@ rgInt rg::setup()
     skyboxShaderDesc.defines = "LEFT";
     
     GfxRenderStateDesc skyboxRenderState = {};
-    skyboxRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    skyboxRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
     skyboxRenderState.colorAttachments[0].blendingEnabled = true;
     skyboxRenderState.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     skyboxRenderState.depthWriteEnabled = true;
@@ -260,8 +260,22 @@ rgInt rg::setup()
 
     gfx::graphicsPSO->create("skybox", &vertexPos, &skyboxShaderDesc, &skyboxRenderState);
     //
+    GfxShaderDesc fullscreenHDRShaderDesc = {};
+    fullscreenHDRShaderDesc.shaderSrc = "fullscreenHDR.hlsl";
+    fullscreenHDRShaderDesc.vsEntrypoint = "vsFullscreenHDRPassthrough";
+    fullscreenHDRShaderDesc.fsEntrypoint = "fsReinhard";
+    
+    GfxRenderStateDesc fullscreenHDRRenderStateDesc = {};
+    fullscreenHDRRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    fullscreenHDRRenderStateDesc.colorAttachments[0].blendingEnabled = false;
+    //simple2dRenderStateDesc.triangleFillMode = GfxTriangleFillMode_Lines;
+    
+    gfx::graphicsPSO->create("fullscreenHDR", nullptr, &fullscreenHDRShaderDesc, &fullscreenHDRRenderStateDesc);
+    //
     
     gfx::samplerState->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
+    
+    gfx::samplerState->create("nearestClamp", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     
     // Initialize camera params
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
@@ -272,10 +286,12 @@ rgInt rg::setup()
     
     g_PhysicSystem = rgNew(PhysicSystem);
     
-    ImageRef sanGiuseppeBridgeCube = loadImage("san_giuseppe_bridge.dds");
+    g_GameState->baseColorRT = gfx::texture->create("baseColorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R16G16B16A16_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_RenderTarget, nullptr);
+    
+    ImageRef sanGiuseppeBridgeCube = loadImage("je_gray_02.dds");
     gfx::texture->create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
     
-    ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("san_giuseppe_bridge_irradiance.dds");
+    ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("je_gray_02_irradiance.dds");
     gfx::texture->create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
 
 #if 0
@@ -367,7 +383,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameState->flowerTexture);
         
         GfxRenderPass simple2dRenderPass = {};
-        simple2dRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+        simple2dRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
         simple2dRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         simple2dRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
         simple2dRenderPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
@@ -384,7 +400,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
     {
         GfxRenderPass demoScenePass = {};
-        demoScenePass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+        demoScenePass.colorAttachments[0].texture = g_GameState->baseColorRT;
         demoScenePass.colorAttachments[0].loadAction = GfxLoadAction_Load;
         demoScenePass.colorAttachments[0].storeAction = GfxStoreAction_Store;
         demoScenePass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
@@ -428,9 +444,10 @@ rgInt rg::updateAndDraw(rgDouble dt)
     {
         gfx::buffer->findOrCreate("skyboxVertexBuffer", g_SkyboxVertices, sizeof(g_SkyboxVertices), GfxBufferUsage_VertexBuffer);
         GfxRenderPass skyboxRenderPass = {};
-        skyboxRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+        skyboxRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
         skyboxRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
         skyboxRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+        skyboxRenderPass.colorAttachments[0].clearColor = { 1.0f, 1.0f, 0.0f, 1.0f };
         skyboxRenderPass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
         skyboxRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         skyboxRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
@@ -445,7 +462,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         skyboxRenderEncoder->end();
         
         GfxRenderPass gridRenderPass = {};
-        gridRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+        gridRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
         gridRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
         gridRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
         gridRenderPass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
@@ -457,6 +474,18 @@ rgInt rg::updateAndDraw(rgDouble dt)
         gridRenderEncoder->bindBuffer(&cameraParamsBuffer, "commonParams");
         gridRenderEncoder->drawTriangles(0, 6, 1);
         gridRenderEncoder->end();
+        
+        GfxRenderPass tonemapRenderPass = {};
+        tonemapRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+        tonemapRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
+        tonemapRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+        
+        GfxRenderCmdEncoder* tonemapRenderEncoder = gfx::setRenderPass(&tonemapRenderPass, "Tonemap Pass");
+        tonemapRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("fullscreenHDR"_tag));
+        tonemapRenderEncoder->bindTexture(g_GameState->baseColorRT, "srcTexture");
+        tonemapRenderEncoder->bindSamplerState(gfx::samplerState->find("nearestClamp"_tag), "pointSampler");
+        tonemapRenderEncoder->drawTriangles(0, 3, 1);
+        tonemapRenderEncoder->end();
     }
     
     rgHash a = rgCRC32("hello world");
