@@ -12,7 +12,7 @@ struct VertexShaderOut
 };
 
 TextureCube<float4> diffuseCubeMap : register(t0, space0);
-SamplerState cubeMapSampler : register(s0, space0);
+SamplerState skyboxSampler : register(s0, space0);
 
 VertexShaderOut vsSkybox(in SkyboxVertex v)
 {
@@ -25,6 +25,7 @@ VertexShaderOut vsSkybox(in SkyboxVertex v)
 
 float4 fsSkybox(in VertexShaderOut f) : SV_TARGET
 {
-    float4 diffuse = diffuseCubeMap.Sample(cubeMapSampler, f.texcoord);
+    float4 diffuse = diffuseCubeMap.Sample(skyboxSampler, f.texcoord);
+    diffuse.xyz = pow(diffuse.xyz, 1/ 2.2);
     return diffuse;
 }

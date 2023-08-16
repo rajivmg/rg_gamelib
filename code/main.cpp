@@ -277,6 +277,8 @@ rgInt rg::setup()
     
     gfx::samplerState->create("nearestClamp", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
     
+    gfx::samplerState->create("linearClamp", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
+    
     // Initialize camera params
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
     g_GameState->cameraPitch = 0.0f;
@@ -427,7 +429,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         demoSceneEncoder->bindBuffer(&cameraParamsBuffer, "commonParams");
         demoSceneEncoder->bindBuffer(&instanceParamsBuffer, "instanceParams");
         demoSceneEncoder->bindTexture(gfx::texture->find("sangiuseppeBridgeCubeIrradiance"_rh), "irradianceMap");
-        demoSceneEncoder->bindSamplerState(gfx::samplerState->find("nearestRepeat"_rh), "irradianceSampler");
+        demoSceneEncoder->bindSamplerState(gfx::samplerState->find("linearClamp"_tag), "irradianceSampler");
         
         for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
         {
@@ -456,7 +458,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         skyboxRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("skybox"_tag));
         skyboxRenderEncoder->bindBuffer(&cameraParamsBuffer, "commonParams");
         skyboxRenderEncoder->bindTexture(gfx::texture->find("sangiuseppeBridgeCube"_tag), "diffuseCubeMap");
-        skyboxRenderEncoder->bindSamplerState(gfx::samplerState->find("nearestRepeat"_rh), "cubeMapSampler");
+        skyboxRenderEncoder->bindSamplerState(gfx::samplerState->find("linearClamp"_tag), "skyboxSampler");
         skyboxRenderEncoder->setVertexBuffer(gfx::buffer->find("skyboxVertexBuffer"_tag), 0, 0);
         skyboxRenderEncoder->drawTriangles(0, 36, 1);
         skyboxRenderEncoder->end();

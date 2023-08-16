@@ -23,7 +23,17 @@ VertexShaderOut vsFullscreenHDRPassthrough(uint vertexID : SV_VERTEXID)
     return output;
 }
 
+float3 reinhard(float3 c)
+{
+    return c / (1.0 + c);
+}
+
 float4 fsReinhard(VertexShaderOut f) : SV_TARGET
 {
-    return srcTexture.Sample(pointSampler, f.texcoord);
+    float4 color = srcTexture.Sample(pointSampler, f.texcoord);
+    //color.xyz = reinhard(color.xyz);
+
+    //color.xyz = pow(color.xyz, float3(0.454545, 0.454545, 0.454545));
+
+    return color;
 }
