@@ -1132,7 +1132,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 
     bindBuffer(&cameraBuffer, "camera");
     bindBuffer(&instanceParamsBuffer, "instanceParams");
-    bindSamplerState(gfx::samplerState->find("bilinearSampler"_rh), "simpleSampler");
+    bindSamplerState(gfx::samplerBilinearRepeat, "simpleSampler");
     
     setVertexBuffer(&vertexBufAllocation, 0);
 

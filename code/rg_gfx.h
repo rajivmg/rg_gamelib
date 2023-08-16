@@ -968,6 +968,14 @@ extern eastl::vector<GfxTexture*> debugTextureHandles; // test only
 extern GfxTexture* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
 extern GfxTexture* depthStencilBuffer;
 
+extern GfxSamplerState* samplerBilinearRepeat;
+extern GfxSamplerState* samplerBilinearClampEdge;
+extern GfxSamplerState* samplerTrilinearRepeatAniso;
+extern GfxSamplerState* samplerTrilinearClampEdgeAniso;
+extern GfxSamplerState* samplerNearestRepeat;
+extern GfxSamplerState* samplerNearestClampEdge;
+
+
 //-----------------------------------------------------------------------------
 // API Specific Graphic Context Data
 //-----------------------------------------------------------------------------

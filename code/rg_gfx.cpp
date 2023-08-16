@@ -252,6 +252,13 @@ GfxTexture*         depthStencilBuffer;
 GfxSamplerState*    bilinearSampler;
 GfxFrameAllocator*  frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
+GfxSamplerState*    samplerBilinearRepeat;
+GfxSamplerState*    samplerBilinearClampEdge;
+GfxSamplerState*    samplerTrilinearRepeatAniso;
+GfxSamplerState*    samplerTrilinearClampEdgeAniso;
+GfxSamplerState*    samplerNearestRepeat;
+GfxSamplerState*    samplerNearestClampEdge;
+
 // MISC
 Matrix4 orthographicMatrix;
 Matrix4 viewMatrix;
@@ -310,7 +317,13 @@ rgInt initCommonStuff()
     
     gfx::rendererImGuiInit();
     
-    gfx::samplerState->create("bilinearSampler", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
+    samplerBilinearRepeat = gfx::samplerState->create("samplerBilinearRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
+    samplerBilinearClampEdge = gfx::samplerState->create("samplerBilinearClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
+    samplerTrilinearRepeatAniso = gfx::samplerState->create("samplerTrilinearRepeatAniso", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
+    samplerTrilinearClampEdgeAniso = gfx::samplerState->create("samplerTrilinearClampEdgeAniso", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
+    samplerNearestRepeat = gfx::samplerState->create("samplerNearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
+    samplerNearestClampEdge = gfx::samplerState->create("samplerNearestClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
+
     
     return 0;
 }
