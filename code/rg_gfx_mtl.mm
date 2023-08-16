@@ -1015,7 +1015,7 @@ GfxGraphicsPSO::ResourceInfo& getResourceBindingInfo(char const* bindingTag)
     return info;
 }
 
-void GfxRenderCmdEncoder::bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag)
+void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset)
 {
     rgAssert(buffer != nullptr);
 
@@ -1036,7 +1036,7 @@ void GfxRenderCmdEncoder::bindBuffer(GfxBuffer* buffer, rgU32 offset, char const
     }
 }
 
-void GfxRenderCmdEncoder::bindBuffer(GfxFrameResource const* resource, char const* bindingTag)
+void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource const* resource)
 {
     rgAssert(resource && resource->type == GfxFrameResource::Type_Buffer);
     
@@ -1057,7 +1057,7 @@ void GfxRenderCmdEncoder::bindBuffer(GfxFrameResource const* resource, char cons
 }
 
 //-----------------------------------------------------------------------------
-void GfxRenderCmdEncoder::bindSamplerState(GfxSamplerState* sampler, char const* bindingTag)
+void GfxRenderCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerState* sampler)
 {
     rgAssert(sampler != nullptr);
     
@@ -1075,7 +1075,7 @@ void GfxRenderCmdEncoder::bindSamplerState(GfxSamplerState* sampler, char const*
 }
 
 //-----------------------------------------------------------------------------
-void GfxRenderCmdEncoder::bindTexture(GfxTexture* texture, char const* bindingTag)
+void GfxRenderCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* texture)
 {
     rgAssert(texture != nullptr);
     
@@ -1130,9 +1130,9 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     
     // --
 
-    bindBuffer(&cameraBuffer, "camera");
-    bindBuffer(&instanceParamsBuffer, "instanceParams");
-    bindSamplerState(gfx::samplerBilinearRepeat, "simpleSampler");
+    bindBuffer("camera", &cameraBuffer);
+    bindBuffer("instanceParams", &instanceParamsBuffer);
+    bindSamplerState("simpleSampler", gfx::samplerBilinearRepeat);
     
     setVertexBuffer(&vertexBufAllocation, 0);
 
@@ -1219,8 +1219,8 @@ void GfxRenderCmdEncoder::drawBunny()
     GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("cameraParamsCBufferBunny", sizeof(cameraParams), &cameraParams);
     GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBufferBunny", sizeof(instanceParams), &instanceParams);
 
-    bindBuffer(&cameraParamsBuffer, "camera");
-    bindBuffer(&instanceParamsBuffer, "instanceParams");
+    bindBuffer("camera", &cameraParamsBuffer);
+    bindBuffer("instanceParams", &instanceParamsBuffer);
     
     setVertexBuffer(&vertexBufAllocation, 0);
     drawIndexedTriangles(shaderballModelIndexCount, true, &indexBufAllocation, 1);

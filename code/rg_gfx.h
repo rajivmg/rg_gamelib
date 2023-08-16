@@ -807,10 +807,14 @@ struct GfxRenderCmdEncoder
     void setVertexBuffer(GfxFrameResource const* resource, rgU32 slot);
 
      // TODO: rename to bindBuffer(const GfxBuffer* buffer...)
-    void bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
+    /*void bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
     void bindBuffer(GfxFrameResource const* resource, char const* bindingTag);
     void bindTexture(GfxTexture* texture, char const* bindingTag);
-    void bindSamplerState(GfxSamplerState* sampler, char const* bindingTag);
+    void bindSamplerState(GfxSamplerState* sampler, char const* bindingTag);*/
+    void bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset);
+    void bindBuffer(char const* bindingTag, GfxFrameResource const* resource);
+    void bindTexture(char const* bindingTag, GfxTexture* texture);
+    void bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
     
     void drawTexturedQuads(TexturedQuads* quads);
     void drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount);
