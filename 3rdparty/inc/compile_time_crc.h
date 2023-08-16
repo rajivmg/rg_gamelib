@@ -116,12 +116,12 @@ inline rgHash rgCRC32(char const* data, uint32_t len, rgHash crc = 0) { return c
 
 constexpr rgHash operator""_rh(const char* str, size_t len)
 {
-    return crc::compute(str, len);
+    return (rgHash)crc::compute(str, len);
 }
 
 constexpr rgHash operator""_tag(const char* str, size_t len)
 {
-    return crc::compute(str, len);
+    return (rgHash)crc::compute(str, len);
 }
 
 #endif  // COMPILE_TIME_CRC_H
