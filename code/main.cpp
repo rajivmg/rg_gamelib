@@ -289,6 +289,7 @@ rgInt rg::setup()
     g_PhysicSystem = rgNew(PhysicSystem);
     
     g_GameState->baseColorRT = gfx::texture->create("baseColorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R16G16B16A16_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_RenderTarget, nullptr);
+    g_GameState->depthStencilRT = gfx::texture->create("depthStencilRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_DepthStencil, nullptr);
     
     ImageRef sanGiuseppeBridgeCube = loadImage("je_gray_02.dds");
     gfx::texture->create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
@@ -389,7 +390,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         simple2dRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         simple2dRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
         simple2dRenderPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
-        simple2dRenderPass.depthStencilAttachmentTexture = gfx::depthStencilBuffer;
+        simple2dRenderPass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
         simple2dRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
         simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         simple2dRenderPass.clearDepth = 1.0f;
@@ -405,7 +406,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         demoScenePass.colorAttachments[0].texture = g_GameState->baseColorRT;
         demoScenePass.colorAttachments[0].loadAction = GfxLoadAction_Load;
         demoScenePass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        demoScenePass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
+        demoScenePass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
         demoScenePass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         demoScenePass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
@@ -450,7 +451,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         skyboxRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
         skyboxRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
         skyboxRenderPass.colorAttachments[0].clearColor = { 1.0f, 1.0f, 0.0f, 1.0f };
-        skyboxRenderPass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
+        skyboxRenderPass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
         skyboxRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         skyboxRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
@@ -467,7 +468,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         gridRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
         gridRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
         gridRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        gridRenderPass.depthStencilAttachmentTexture = gfx::getRenderTargetDepthBuffer();
+        gridRenderPass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
         gridRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         

@@ -43,6 +43,8 @@ RG_BEGIN_GFX_NAMESPACE
     static CAMetalLayer* metalLayer;
     static id<CAMetalDrawable> caMetalDrawable;
 
+    static GfxTexture currentMTLDrawableTexture;
+
     static NSAutoreleasePool* autoReleasePool;
     static dispatch_semaphore_t framesInFlightSemaphore;
 
@@ -351,9 +353,16 @@ MTLSamplerMipFilter toMTLSamplerMipFilter(GfxSamplerMipFilter filter)
 
 GfxTexture createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
 {
-    GfxTexture texture2d;
-    texture2d.mtlTexture = drawable.texture;
-    return texture2d;
+    // TODO: Add more info to texture2d
+    GfxTexture texture;
+    texture.dim = GfxTextureDim_2D;
+    texture.width = (rgUInt)[drawable.texture width];
+    texture.height = (rgUInt)[drawable.texture height];
+    texture.format = TinyImageFormat_FromMTLPixelFormat((TinyImageFormat_MTLPixelFormat)[drawable.texture pixelFormat]);
+    texture.mipCount = 1;
+    texture.usage = GfxTextureUsage_RenderTarget;
+    texture.mtlTexture = drawable.texture;
+    return texture;
 }
 
 struct SimpleVertexFormat1
@@ -1492,16 +1501,6 @@ rgInt init()
         bindlessTextureHeap = [getMTLDevice() newHeapWithDescriptor:bindlessTextureHeapDesc];
         // TODO: is manual release of descriptor needed?
         
-        // Create render targets
-        for(rgInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
-        {
-            std::string tag = "renderTarget" + std::to_string(i);
-            
-            gfx::renderTarget[i] = gfx::texture->create(tag.c_str(), GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_B8G8R8A8_UNORM, GfxTextureMipFlag_NoMips, GfxTextureUsage_RenderTarget, nullptr);
-        }
-        gfx::depthStencilBuffer = gfx::texture->create("depthStencilBuffer", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_DepthStencil, nullptr);
-        
-        
         // Create bindless texture argument encoder and buffer
         MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
         argDesc.index = 0;
@@ -1579,6 +1578,8 @@ void startNextFrame()
     rgAssert(metalDrawable != nil);
     caMetalDrawable = metalDrawable;
     
+    currentMTLDrawableTexture = createGfxTexture2DFromMTLDrawable(caMetalDrawable);
+    
     mtlCommandBuffer = [mtlCommandQueue commandBuffer];
 }
 
@@ -1591,12 +1592,6 @@ void endFrame()
     {
         currentRenderCmdEncoder->end();
     }
-    
-    // blit renderTarget to MTLDrawable
-    GfxTexture drawableTexture = createGfxTexture2DFromMTLDrawable(caMetalDrawable);
-    GfxBlitCmdEncoder* blitCmdEncoder = gfx::setBlitPass("CopyRTtoMTLDrawable");
-    blitCmdEncoder->copyTexture(gfx::renderTarget[g_FrameIndex], &drawableTexture, 0, 0, 1);
-    blitCmdEncoder->end();
     
     [getMTLCommandBuffer() presentDrawable:(caMetalDrawable)];
     
@@ -1648,6 +1643,11 @@ void rendererImGuiRenderDrawData()
 void onSizeChanged()
 {
     
+}
+
+GfxTexture* getCurrentRenderTargetColorBuffer()
+{
+    return &currentMTLDrawableTexture;
 }
 
 void setterBindlessResource(rgU32 slot, GfxTexture* ptr)

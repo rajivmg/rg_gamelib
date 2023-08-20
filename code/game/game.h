@@ -87,6 +87,7 @@ struct GameState
     Matrix4    cameraViewRotOnly;
     
     GfxTexture* baseColorRT;
+    GfxTexture* depthStencilRT;
 
     b2World* phyWorld;
 };

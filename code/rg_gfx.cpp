@@ -247,8 +247,6 @@ GfxObjectRegistry<GfxSamplerState>* samplerState;
 GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
 
 // DEFAULT RESOURCES
-GfxTexture*         renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-GfxTexture*         depthStencilBuffer;
 GfxSamplerState*    bilinearSampler;
 GfxFrameAllocator*  frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
@@ -360,16 +358,6 @@ rgInt getFinishedFrameIndex()
     checkerWaitTillFrameCompleted(completedFrameIndex);
 
     return completedFrameIndex;
-}
-
-GfxTexture* getCurrentRenderTargetColorBuffer()
-{
-    return gfx::renderTarget[g_FrameIndex];
-}
-
-GfxTexture* getRenderTargetDepthBuffer()
-{
-    return gfx::depthStencilBuffer;
 }
 
 GfxFrameAllocator* getFrameAllocator()

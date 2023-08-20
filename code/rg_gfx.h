@@ -898,8 +898,6 @@ void                atFrameStart();
 rgInt               getFrameIndex(); // Returns 0 if g_FrameIndex is -1
 rgInt               getFinishedFrameIndex();
 GfxFrameAllocator*  getFrameAllocator();
-GfxTexture*         getCurrentRenderTargetColorBuffer();
-GfxTexture*         getRenderTargetDepthBuffer();
 Matrix4             makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
 Matrix4             makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
 
@@ -916,6 +914,8 @@ void            rendererImGuiNewFrame();
 void            rendererImGuiRenderDrawData();
 
 void            onSizeChanged();
+
+GfxTexture*     getCurrentRenderTargetColorBuffer();
 
 GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag);
 GfxBlitCmdEncoder* setBlitPass(char const* tag);
@@ -968,9 +968,6 @@ extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
 extern GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
 extern eastl::vector<GfxTexture*> debugTextureHandles; // test only
-    
-extern GfxTexture* renderTarget[RG_MAX_FRAMES_IN_FLIGHT];
-extern GfxTexture* depthStencilBuffer;
 
 extern GfxSamplerState* samplerBilinearRepeat;
 extern GfxSamplerState* samplerBilinearClampEdge;
