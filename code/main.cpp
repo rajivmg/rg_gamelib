@@ -389,7 +389,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         simple2dRenderPass.clearDepth = 1.0f;
         
-        GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::setRenderPass(&simple2dRenderPass, "Simple2D Pass");
+        GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::setRenderPass("Simple2D Pass", &simple2dRenderPass);
         simple2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("simple2d"_rh));
         simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits);
         simple2dRenderEncoder->end();
@@ -404,8 +404,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         demoScenePass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         demoScenePass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* demoSceneEncoder = gfx::setRenderPass(&demoScenePass, "DemoScene Pass");
-        demoSceneEncoder->setGraphicsPSO(gfx::graphicsPSO->find("principledBrdf"_rh));
+        GfxRenderCmdEncoder* demoSceneEncoder = gfx::setRenderPass("DemoScene Pass", &demoScenePass);
+        demoSceneEncoder->setGraphicsPSO(gfx::graphicsPSO->find("principledBrdf"_tag));
         
         // instance
         struct
@@ -449,7 +449,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         skyboxRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         skyboxRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* skyboxRenderEncoder = gfx::setRenderPass(&skyboxRenderPass, "Skybox Pass");
+        GfxRenderCmdEncoder* skyboxRenderEncoder = gfx::setRenderPass("Skybox Pass", &skyboxRenderPass);
         skyboxRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("skybox"_tag));
         skyboxRenderEncoder->bindBuffer("commonParams", &cameraParamsBuffer);
         skyboxRenderEncoder->bindTexture("diffuseCubeMap", gfx::texture->find("sangiuseppeBridgeCube"_tag));
@@ -466,7 +466,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         gridRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass(&gridRenderPass, "DemoScene Pass");
+        GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass("DemoScene Pass", &gridRenderPass);
         gridRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("gridPSO"_tag));
         gridRenderEncoder->bindBuffer("commonParams", &cameraParamsBuffer);
         gridRenderEncoder->drawTriangles(0, 6, 1);
@@ -477,7 +477,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         tonemapRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         tonemapRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* tonemapRenderEncoder = gfx::setRenderPass(&tonemapRenderPass, "Tonemap Pass");
+        GfxRenderCmdEncoder* tonemapRenderEncoder = gfx::setRenderPass("Tonemap Pass", &tonemapRenderPass);
         tonemapRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("fullscreenHDR"_tag));
         tonemapRenderEncoder->bindTexture("srcTexture", g_GameState->baseColorRT);
         tonemapRenderEncoder->bindSamplerState("pointSampler", gfx::samplerNearestClampEdge);

@@ -1548,7 +1548,7 @@ void rendererImGuiRenderDrawData()
     imguiRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
     imguiRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
     imguiRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-    GfxRenderCmdEncoder* cmdEncoder = gfx::setRenderPass(&imguiRenderPass, "ImGui Pass");
+    GfxRenderCmdEncoder* cmdEncoder = gfx::setRenderPass("ImGui Pass", &imguiRenderPass);
     
     ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), getMTLCommandBuffer(), asMTLRenderCommandEncoder(cmdEncoder->mtlRenderCommandEncoder));
 }

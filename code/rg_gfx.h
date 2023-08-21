@@ -909,7 +909,7 @@ void            onSizeChanged();
 
 GfxTexture*     getCurrentRenderTargetColorBuffer();
 
-GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag);
+GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass);
 GfxBlitCmdEncoder* setBlitPass(char const* tag);
 
 // Helper macros

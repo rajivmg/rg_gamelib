@@ -365,7 +365,7 @@ GfxFrameAllocator* getFrameAllocator()
     return gfx::frameAllocators[g_FrameIndex];
 }
 
-GfxRenderCmdEncoder* setRenderPass(GfxRenderPass* renderPass, char const* tag)
+GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass)
 {
     if(currentRenderPass != renderPass)
     {
