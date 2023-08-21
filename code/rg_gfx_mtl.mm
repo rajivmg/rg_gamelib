@@ -73,7 +73,7 @@ id<MTLCommandBuffer> getMTLCommandBuffer()
 
 id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
 {
-    return (__bridge id<MTLRenderCommandEncoder>)gfx::currentRenderCmdEncoder->renderCmdEncoder;
+    return (__bridge id<MTLRenderCommandEncoder>)gfx::currentRenderCmdEncoder->mtlRenderCommandEncoder;
 }
 
 id<MTLTexture> getMTLTexture(const GfxTexture* obj)
@@ -913,35 +913,35 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
         depthAttachmentDesc.clearDepth  = renderPass->clearDepth;
     }
     
-    id<MTLRenderCommandEncoder> mtlRenderEncoder = [getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
-    rgAssert(mtlRenderEncoder != nil);
-    [mtlRenderEncoder pushDebugGroup:[NSString stringWithUTF8String:tag]];
+    id<MTLRenderCommandEncoder> re = [getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
+    rgAssert(re != nil);
+    [re pushDebugGroup:[NSString stringWithUTF8String:tag]];
     
     [renderPassDesc autorelease];
 
-    [mtlRenderEncoder useHeap:gfx::bindlessTextureHeap stages:MTLRenderStageFragment];
-    [mtlRenderEncoder setFragmentBuffer:gfx::bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
+    [re useHeap:gfx::bindlessTextureHeap stages:MTLRenderStageFragment];
+    [re setFragmentBuffer:gfx::bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     
-    [mtlRenderEncoder useHeap:asMTLHeap(gfx::getFrameAllocator()->getHeap()) stages:MTLRenderStageVertex|MTLRenderStageFragment];
+    [re useHeap:asMTLHeap(gfx::getFrameAllocator()->getHeap()) stages:MTLRenderStageVertex|MTLRenderStageFragment];
     
-    renderCmdEncoder = (__bridge void*)mtlRenderEncoder;
+    mtlRenderCommandEncoder = (__bridge void*)re;
     hasEnded = false;
 }
 
 void GfxRenderCmdEncoder::end()
 {
-    [asMTLRenderCommandEncoder(renderCmdEncoder) endEncoding];
+    [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) endEncoding];
     hasEnded = true;
 }
 
 void GfxRenderCmdEncoder::pushDebugTag(const char* tag)
 {
-    [asMTLRenderCommandEncoder(renderCmdEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
+    [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
 }
 
 void GfxRenderCmdEncoder::popDebugTag()
 {
-    [asMTLRenderCommandEncoder(renderCmdEncoder) popDebugGroup];
+    [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) popDebugGroup];
 }
 
 void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
@@ -959,7 +959,7 @@ void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat 
     vp.znear   = 0.0;
     vp.zfar    = 1.0;
     
-    [asMTLRenderCommandEncoder(renderCmdEncoder) setViewport:vp];
+    [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) setViewport:vp];
 }
 
 void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels)
@@ -970,12 +970,12 @@ void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 wid
     rect.width = widthPixels;
     rect.height = heightPixels;
     
-    [asMTLRenderCommandEncoder(renderCmdEncoder) setScissorRect:rect];
+    [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) setScissorRect:rect];
 }
 
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
-    id<MTLRenderCommandEncoder> cmdEncoder = asMTLRenderCommandEncoder(renderCmdEncoder);
+    id<MTLRenderCommandEncoder> cmdEncoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     
     [cmdEncoder setRenderPipelineState:getMTLRenderPipelineState(pso)];
     [cmdEncoder setDepthStencilState:getMTLDepthStencilState(pso)];
@@ -997,13 +997,13 @@ rgU32 slotToVertexBinding(rgU32 slot)
 
 void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset, rgU32 slot)
 {
-    [asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:slotToVertexBinding(slot)];
+    [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:slotToVertexBinding(slot)];
 }
 
 void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU32 slot)
 {
     rgAssert(resource && resource->type == GfxFrameResource::Type_Buffer);
-    [asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:slotToVertexBinding(slot)];
+    [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) setVertexBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:slotToVertexBinding(slot)];
 }
 
 //-----------------------------------------------------------------------------
@@ -1034,7 +1034,7 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, 
     
     // TODO: Look into the logic of binding on both stages..
     // binding should be same.. type should be same... etc.
-    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
+    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     if((info.stage & GfxStage_VS) == GfxStage_VS)
     {
         [encoder setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
@@ -1051,7 +1051,7 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource co
     
     GfxGraphicsPSO::ResourceInfo& info = getResourceBindingInfo(bindingTag);
     
-    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
+    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     
     // TODO: Look into the logic of binding on both stages..
     // binding should be same.. type should be same... etc.
@@ -1072,7 +1072,7 @@ void GfxRenderCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSta
     
     GfxGraphicsPSO::ResourceInfo& info = getResourceBindingInfo(bindingTag);
     
-    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
+    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     if((info.stage & GfxStage_VS) == GfxStage_VS)
     {
         [encoder setVertexSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
@@ -1090,7 +1090,7 @@ void GfxRenderCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* textur
     
     GfxGraphicsPSO::ResourceInfo& info = getResourceBindingInfo(bindingTag);
 
-    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(renderCmdEncoder);
+    id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     // TODO: Look into the logic of binding on both stages..
     // binding should be same.. type should be same... etc.
     if((info.stage & GfxStage_VS) == GfxStage_VS)
@@ -1151,22 +1151,22 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 //-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount)
 {
-    [asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:vertexCount instanceCount:instanceCount];
+    [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:vertexCount instanceCount:instanceCount];
 }
 
 void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount)
 {
-    rgAssert(renderCmdEncoder);
+    rgAssert(mtlRenderCommandEncoder);
     MTLIndexType indexElementType = is32bitIndex ? MTLIndexTypeUInt32 : MTLIndexTypeUInt16;
-    [asMTLRenderCommandEncoder(renderCmdEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:getMTLBuffer(indexBuffer) indexBufferOffset:bufferOffset instanceCount:instanceCount];
+    [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:getMTLBuffer(indexBuffer) indexBufferOffset:bufferOffset instanceCount:instanceCount];
 }
 
 void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount)
 {
-    rgAssert(renderCmdEncoder);
+    rgAssert(mtlRenderCommandEncoder);
     rgAssert(indexBufferResource && indexBufferResource->type == GfxFrameResource::Type_Buffer);
     MTLIndexType indexElementType = is32bitIndex ? MTLIndexTypeUInt32 : MTLIndexTypeUInt16;
-    [asMTLRenderCommandEncoder(renderCmdEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:asMTLBuffer(indexBufferResource->mtlBuffer) indexBufferOffset:0 instanceCount:instanceCount];
+    [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:asMTLBuffer(indexBufferResource->mtlBuffer) indexBufferOffset:0 instanceCount:instanceCount];
 }
 
 //*****************************************************************************
@@ -1550,7 +1550,7 @@ void rendererImGuiRenderDrawData()
     imguiRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
     GfxRenderCmdEncoder* cmdEncoder = gfx::setRenderPass(&imguiRenderPass, "ImGui Pass");
     
-    ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), getMTLCommandBuffer(), asMTLRenderCommandEncoder(cmdEncoder->renderCmdEncoder));
+    ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), getMTLCommandBuffer(), asMTLRenderCommandEncoder(cmdEncoder->mtlRenderCommandEncoder));
 }
 
 void onSizeChanged()

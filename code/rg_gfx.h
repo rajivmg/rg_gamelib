@@ -818,8 +818,7 @@ struct GfxRenderCmdEncoder
 
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)
-    // TODO: rename renderCommandEncoder
-    void* renderCmdEncoder; // type: id<MTLRenderCommandEncoder>
+    void* mtlRenderCommandEncoder; // type: id<MTLRenderCommandEncoder>
 #endif
 };
 
