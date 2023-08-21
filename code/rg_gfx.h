@@ -806,11 +806,6 @@ struct GfxRenderCmdEncoder
     void setVertexBuffer(GfxBuffer const* buffer, rgU32 offset, rgU32 slot);
     void setVertexBuffer(GfxFrameResource const* resource, rgU32 slot);
 
-     // TODO: rename to bindBuffer(const GfxBuffer* buffer...)
-    /*void bindBuffer(GfxBuffer* buffer, rgU32 offset, char const* bindingTag);
-    void bindBuffer(GfxFrameResource const* resource, char const* bindingTag);
-    void bindTexture(GfxTexture* texture, char const* bindingTag);
-    void bindSamplerState(GfxSamplerState* sampler, char const* bindingTag);*/
     void bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset);
     void bindBuffer(char const* bindingTag, GfxFrameResource const* resource);
     void bindTexture(char const* bindingTag, GfxTexture* texture);
@@ -820,8 +815,6 @@ struct GfxRenderCmdEncoder
     void drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount);
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount);
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount);
-    
-    void drawBunny();
 
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)

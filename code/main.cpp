@@ -273,12 +273,6 @@ rgInt rg::setup()
     gfx::graphicsPSO->create("fullscreenHDR", nullptr, &fullscreenHDRShaderDesc, &fullscreenHDRRenderStateDesc);
     //
     
-    gfx::samplerState->create("nearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
-    
-    gfx::samplerState->create("nearestClamp", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, true);
-    
-    gfx::samplerState->create("linearClamp", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
-    
     // Initialize camera params
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
     g_GameState->cameraPitch = 0.0f;
@@ -430,7 +424,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         demoSceneEncoder->bindBuffer("commonParams", &cameraParamsBuffer);
         demoSceneEncoder->bindBuffer("instanceParams", &instanceParamsBuffer);
         demoSceneEncoder->bindTexture("irradianceMap", gfx::texture->find("sangiuseppeBridgeCubeIrradiance"_tag));
-        demoSceneEncoder->bindSamplerState("irradianceSampler", gfx::samplerState->find("linearClamp"_tag));
+        demoSceneEncoder->bindSamplerState("irradianceSampler", gfx::samplerBilinearClampEdge);
         
         for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
         {
@@ -459,7 +453,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         skyboxRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("skybox"_tag));
         skyboxRenderEncoder->bindBuffer("commonParams", &cameraParamsBuffer);
         skyboxRenderEncoder->bindTexture("diffuseCubeMap", gfx::texture->find("sangiuseppeBridgeCube"_tag));
-        skyboxRenderEncoder->bindSamplerState("skyboxSampler", gfx::samplerState->find("linearClamp"_tag));
+        skyboxRenderEncoder->bindSamplerState("skyboxSampler", gfx::samplerBilinearClampEdge);
         skyboxRenderEncoder->setVertexBuffer(gfx::buffer->find("skyboxVertexBuffer"_tag), 0, 0);
         skyboxRenderEncoder->drawTriangles(0, 36, 1);
         skyboxRenderEncoder->end();
@@ -486,7 +480,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         GfxRenderCmdEncoder* tonemapRenderEncoder = gfx::setRenderPass(&tonemapRenderPass, "Tonemap Pass");
         tonemapRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("fullscreenHDR"_tag));
         tonemapRenderEncoder->bindTexture("srcTexture", g_GameState->baseColorRT);
-        tonemapRenderEncoder->bindSamplerState("pointSampler", gfx::samplerState->find("nearestClamp"_tag));
+        tonemapRenderEncoder->bindSamplerState("pointSampler", gfx::samplerNearestClampEdge);
         tonemapRenderEncoder->drawTriangles(0, 3, 1);
         tonemapRenderEncoder->end();
     }
