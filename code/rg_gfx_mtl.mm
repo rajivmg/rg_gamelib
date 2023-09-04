@@ -478,7 +478,8 @@ void GfxTexture::destroy(GfxTexture* obj)
 //*****************************************************************************
 static ComPtr<IDxcUtils> g_DxcUtils;
 
-id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, GfxGraphicsPSO* obj)
+template<typename PSOType>
+id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, PSOType* obj)
 {
     rgAssert(entrypoint);
     
@@ -704,7 +705,7 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     // perform reflection
     spirv_cross::ShaderResources shaderResources = msl.get_shader_resources();
     
-    auto pushMSLResourceInfo = [&](uint32_t varId, GfxGraphicsPSO::ResourceInfo::Type type) -> void
+    auto pushMSLResourceInfo = [&](uint32_t varId, GfxObjectBinding::Type type) -> void
     {
         uint32_t mslBinding = msl.get_automatic_msl_resource_binding(varId);
         if(mslBinding != uint32_t(-1))
@@ -712,44 +713,44 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
             std::string const name = msl.get_name(varId);
             eastl::string const ourName = eastl::string(name.c_str());
             
-            auto existingInfoIter = obj->mtlResourceInfo.find(ourName);
-            if(existingInfoIter != obj->mtlResourceInfo.end())
+            auto existingInfoIter = obj->reflection.find(ourName);
+            if(existingInfoIter != obj->reflection.end())
             {
-                GfxGraphicsPSO::ResourceInfo& existingInfo = existingInfoIter->second;
+                GfxObjectBinding& existingInfo = existingInfoIter->second;
                 
                 rgAssert(existingInfo.type == type);
-                rgAssert(existingInfo.mslBinding == mslBinding);
+                rgAssert(existingInfo.registerIndex == mslBinding);
                 
-                existingInfo.stage = (GfxStage)((rgU32)existingInfo.stage | (rgU32)stage);
+                existingInfo.stages = (GfxStage)((rgU32)existingInfo.stages | (rgU32)stage);
                 return;
             }
             
-            GfxGraphicsPSO::ResourceInfo info;
+            GfxObjectBinding info;
             info.type = type;
-            info.mslBinding = mslBinding;
-            info.stage = stage;
+            info.registerIndex = mslBinding;
+            info.stages = stage;
             
             rgLog("%s %s -> %d", obj->tag, name.c_str(), mslBinding);
             
-            obj->mtlResourceInfo[eastl::string(name.c_str())] = info;
+            obj->reflection[eastl::string(name.c_str())] = info;
         }
     };
     
     for(auto& r : shaderResources.uniform_buffers)
     {
-        pushMSLResourceInfo(r.id, GfxGraphicsPSO::ResourceInfo::Type_ConstantBuffer);
+        pushMSLResourceInfo(r.id, GfxObjectBinding::Type_ConstantBuffer);
     }
     for(auto& r : shaderResources.separate_images)
     {
-        pushMSLResourceInfo(r.id, GfxGraphicsPSO::ResourceInfo::Type_Texture2D);
+        pushMSLResourceInfo(r.id, GfxObjectBinding::Type_Texture2D);
     }
     for(auto& r : shaderResources.separate_samplers)
     {
-        pushMSLResourceInfo(r.id, GfxGraphicsPSO::ResourceInfo::Type_Sampler);
+        pushMSLResourceInfo(r.id, GfxObjectBinding::Type_Sampler);
     }
     for(auto& r : shaderResources.storage_buffers) // RW Bigger than CBuffer like StructuredBuffer
     {
-        pushMSLResourceInfo(r.id, GfxGraphicsPSO::ResourceInfo::Type_ConstantBuffer);
+        pushMSLResourceInfo(r.id, GfxObjectBinding::Type_ConstantBuffer);
     }
     
     NSError* err;
@@ -1007,19 +1008,19 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU3
 }
 
 //-----------------------------------------------------------------------------
-GfxGraphicsPSO::ResourceInfo& getResourceBindingInfo(char const* bindingTag)
+GfxObjectBinding& getResourceBindingInfo(char const* bindingTag)
 {
     rgAssert(gfx::currentGraphicsPSO != nullptr);
     rgAssert(bindingTag);
     
-    auto infoIter = gfx::currentGraphicsPSO->mtlResourceInfo.find(bindingTag);
-    if(infoIter == gfx::currentGraphicsPSO->mtlResourceInfo.end())
+    auto infoIter = gfx::currentGraphicsPSO->reflection.find(bindingTag);
+    if(infoIter == gfx::currentGraphicsPSO->reflection.end())
     {
         rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
         rgAssert(false);
     }
     
-    GfxGraphicsPSO::ResourceInfo& info = infoIter->second;
+    GfxObjectBinding& info = infoIter->second;
     
     return info;
 }
@@ -1028,20 +1029,20 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, 
 {
     rgAssert(buffer != nullptr);
 
-    GfxGraphicsPSO::ResourceInfo& info = getResourceBindingInfo(bindingTag);
+    GfxObjectBinding& info = getResourceBindingInfo(bindingTag);
     
     // TODO: Assert check valid Stage
     
     // TODO: Look into the logic of binding on both stages..
     // binding should be same.. type should be same... etc.
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
-    if((info.stage & GfxStage_VS) == GfxStage_VS)
+    if((info.stages & GfxStage_VS) == GfxStage_VS)
     {
-        [encoder setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
+        [encoder setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.registerIndex];
     }
-    if((info.stage & GfxStage_FS) == GfxStage_FS)
+    if((info.stages & GfxStage_FS) == GfxStage_FS)
     {
-        [encoder setFragmentBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.mslBinding];
+        [encoder setFragmentBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.registerIndex];
     }
 }
 
@@ -1049,19 +1050,19 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource co
 {
     rgAssert(resource && resource->type == GfxFrameResource::Type_Buffer);
     
-    GfxGraphicsPSO::ResourceInfo& info = getResourceBindingInfo(bindingTag);
+    GfxObjectBinding& info = getResourceBindingInfo(bindingTag);
     
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     
     // TODO: Look into the logic of binding on both stages..
     // binding should be same.. type should be same... etc.
-    if((info.stage & GfxStage_VS) == GfxStage_VS)
+    if((info.stages & GfxStage_VS) == GfxStage_VS)
     {
-        [encoder setVertexBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info.mslBinding];
+        [encoder setVertexBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info.registerIndex];
     }
-    if((info.stage & GfxStage_FS) == GfxStage_FS)
+    if((info.stages & GfxStage_FS) == GfxStage_FS)
     {
-        [encoder setFragmentBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info.mslBinding];
+        [encoder setFragmentBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info.registerIndex];
     }
 }
 
@@ -1070,16 +1071,16 @@ void GfxRenderCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSta
 {
     rgAssert(sampler != nullptr);
     
-    GfxGraphicsPSO::ResourceInfo& info = getResourceBindingInfo(bindingTag);
+    GfxObjectBinding& info = getResourceBindingInfo(bindingTag);
     
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
-    if((info.stage & GfxStage_VS) == GfxStage_VS)
+    if((info.stages & GfxStage_VS) == GfxStage_VS)
     {
-        [encoder setVertexSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
+        [encoder setVertexSamplerState:getMTLSamplerState(sampler) atIndex:info.registerIndex];
     }
-    if((info.stage & GfxStage_FS) == GfxStage_FS)
+    if((info.stages & GfxStage_FS) == GfxStage_FS)
     {
-        [encoder setFragmentSamplerState:getMTLSamplerState(sampler) atIndex:info.mslBinding];
+        [encoder setFragmentSamplerState:getMTLSamplerState(sampler) atIndex:info.registerIndex];
     }
 }
 
@@ -1088,18 +1089,18 @@ void GfxRenderCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* textur
 {
     rgAssert(texture != nullptr);
     
-    GfxGraphicsPSO::ResourceInfo& info = getResourceBindingInfo(bindingTag);
+    GfxObjectBinding& info = getResourceBindingInfo(bindingTag);
 
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     // TODO: Look into the logic of binding on both stages..
     // binding should be same.. type should be same... etc.
-    if((info.stage & GfxStage_VS) == GfxStage_VS)
+    if((info.stages & GfxStage_VS) == GfxStage_VS)
     {
-        [encoder setVertexTexture:getMTLTexture(texture) atIndex:info.mslBinding];
+        [encoder setVertexTexture:getMTLTexture(texture) atIndex:info.registerIndex];
     }
-    if((info.stage & GfxStage_FS) == GfxStage_FS)
+    if((info.stages & GfxStage_FS) == GfxStage_FS)
     {
-        [encoder setFragmentTexture:getMTLTexture(texture) atIndex:info.mslBinding];
+        [encoder setFragmentTexture:getMTLTexture(texture) atIndex:info.registerIndex];
     }
     else
     {

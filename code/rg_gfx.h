@@ -381,6 +381,25 @@ struct GfxShaderDesc
     char const* defines;
 };
 
+// Object in a Pipeline
+struct GfxObjectBinding
+{
+    char tag[32];
+    
+    GfxStage stages; // Stages in the pipeline where object is bound
+    
+    enum Type
+    {
+        Type_ConstantBuffer,
+        Type_Texture2D,
+        Type_Sampler,
+    };
+    Type type;
+    
+    rgU16 registerIndex;
+    rgU16 spaceIndex;
+};
+
 struct GfxGraphicsPSO
 {
     rgChar tag[32];
@@ -397,19 +416,7 @@ struct GfxGraphicsPSO
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
-    struct ResourceInfo
-    {
-        enum Type
-        {
-            Type_ConstantBuffer,
-            Type_Texture2D,
-            Type_Sampler,
-        };
-        Type type;
-        rgU16 mslBinding;
-        GfxStage stage;
-    };
-    eastl::hash_map<eastl::string, ResourceInfo> mtlResourceInfo;
+    eastl::hash_map<eastl::string, GfxObjectBinding> reflection;
     void* mtlPSO; // type: id<MTLRenderPipelineState>
     void* mtlDepthStencilState; // type: id<MTLDepthStencilState>
 #elif defined(RG_VULKAN_RNDR)
@@ -424,6 +431,11 @@ struct GfxGraphicsPSO
 
     static void create(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj);
     static void destroy(GfxGraphicsPSO* obj);
+};
+
+struct GfxComputePSO
+{
+    
 };
 
 //-----------------------------------------------------------------------------
@@ -820,6 +832,18 @@ struct GfxRenderCmdEncoder
 #if defined(RG_METAL_RNDR)
     void* mtlRenderCommandEncoder; // type: id<MTLRenderCommandEncoder>
 #endif
+};
+
+struct GfxComputeCmdEncoder
+{
+    void begin(char const* tag);
+    void end();
+    
+    void pushDebugTag(char const* tag);
+    void popDebugTag();
+    
+    void setComputePSO(GfxComputePSO* pso);
+    
 };
 
 struct GfxBlitCmdEncoder
