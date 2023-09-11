@@ -96,6 +96,11 @@ id<MTLRenderPipelineState> getMTLRenderPipelineState(const GfxGraphicsPSO* obj)
     return (__bridge id<MTLRenderPipelineState>)(obj->mtlPSO);
 }
 
+id<MTLComputePipelineState> getMTLComputePipelineState(const GfxComputePSO* obj)
+{
+    return (__bridge id<MTLComputePipelineState>)(obj->mtlPSO);
+}
+
 id<MTLDepthStencilState> getMTLDepthStencilState(const GfxGraphicsPSO* obj)
 {
     return (__bridge id<MTLDepthStencilState>)(obj->mtlDepthStencilState);
@@ -128,6 +133,11 @@ MTLTriangleFillMode getMTLTriangleFillMode(GfxGraphicsPSO* obj)
 id<MTLRenderCommandEncoder> asMTLRenderCommandEncoder(void* ptr)
 {
     return (__bridge id<MTLRenderCommandEncoder>)ptr;
+}
+
+id<MTLComputeCommandEncoder> asMTLComputeCommandEncoder(void* ptr)
+{
+    return (__bridge id<MTLComputeCommandEncoder>)ptr;
 }
 
 id<MTLBlitCommandEncoder> asMTLBlitCommandEncoder(void* ptr)
@@ -881,6 +891,38 @@ void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
 }
 
 //*****************************************************************************
+// GfxComputePSO Implementation
+//*****************************************************************************
+
+void GfxComputePSO::create(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj)
+{
+    @autoreleasepool
+    {
+        rgAssert(shaderDesc->csEntrypoint);
+        id<MTLFunction> cs = buildShader(shaderDesc->shaderSrc, GfxStage_CS, shaderDesc->csEntrypoint, shaderDesc->defines, obj);
+        rgAssert(cs != nil);
+        
+        NSError* err;
+        id<MTLComputePipelineState> ce = [getMTLDevice() newComputePipelineStateWithFunction:cs error:&err];
+        if(err)
+        {
+            printf("%s\n", err.localizedDescription.UTF8String);
+            rgAssert(!"newComputePipelineStateWithFunction call failed");
+        }
+        
+        rgAssert(ce != nil);
+        obj->mtlPSO = (__bridge void*)ce;
+        
+        [cs release];
+    }
+}
+
+void GfxComputePSO::destroy(GfxComputePSO* obj)
+{
+    [getMTLComputePipelineState(obj) release];
+}
+
+//*****************************************************************************
 // GfxRenderCmdEncoder Implementation
 //*****************************************************************************
 
@@ -1168,6 +1210,45 @@ void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitI
     rgAssert(indexBufferResource && indexBufferResource->type == GfxFrameResource::Type_Buffer);
     MTLIndexType indexElementType = is32bitIndex ? MTLIndexTypeUInt32 : MTLIndexTypeUInt16;
     [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:asMTLBuffer(indexBufferResource->mtlBuffer) indexBufferOffset:0 instanceCount:instanceCount];
+}
+
+//*****************************************************************************
+// GfxComputeCmdEncoder Implementation
+//*****************************************************************************
+
+void GfxComputeCmdEncoder::begin(char const* tag)
+{
+    rgAssert(tag);
+    id<MTLComputeCommandEncoder> cce = [getMTLCommandBuffer() computeCommandEncoder];
+    rgAssert(cce != nil);
+    [cce pushDebugGroup:[NSString stringWithUTF8String:tag]];
+    [cce useHeap:gfx::bindlessTextureHeap];
+    [cce useHeap:asMTLHeap(gfx::getFrameAllocator()->getHeap())];
+    mtlComputeCommandEncoder = (__bridge void*)cce;
+    hasEnded = false;
+}
+
+void GfxComputeCmdEncoder::end()
+{
+    [asMTLComputeCommandEncoder(mtlComputeCommandEncoder) endEncoding];
+    hasEnded = true;
+}
+
+void GfxComputeCmdEncoder::pushDebugTag(char const* tag)
+{
+    [asMTLComputeCommandEncoder(mtlComputeCommandEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
+}
+
+void GfxComputeCmdEncoder::popDebugTag()
+{
+    [asMTLComputeCommandEncoder(mtlComputeCommandEncoder) popDebugGroup];
+}
+
+void GfxComputeCmdEncoder::setComputePSO(GfxComputePSO* pso)
+{
+    rgAssert(pso);
+    [asMTLComputeCommandEncoder(mtlComputeCommandEncoder) setComputePipelineState:getMTLComputePipelineState(pso)];
+    gfx::currentComputePSO = pso;
 }
 
 //*****************************************************************************

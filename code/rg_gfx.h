@@ -435,7 +435,20 @@ struct GfxGraphicsPSO
 
 struct GfxComputePSO
 {
+    rgChar tag[32];
     
+    eastl::hash_map<eastl::string, GfxObjectBinding> reflection;
+    
+#if defined(RG_METAL_RNDR)
+    void* mtlPSO; // type: id<MTLComputePipelineState>
+#endif
+    
+    static void fillStruct(GfxShaderDesc* shaderDesc, GfxComputePSO* obj)
+    {
+    }
+    
+    static void create(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj);
+    static void destroy(GfxComputePSO* obj);
 };
 
 //-----------------------------------------------------------------------------
@@ -844,6 +857,15 @@ struct GfxComputeCmdEncoder
     
     void setComputePSO(GfxComputePSO* pso);
     
+    void bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset);
+    void bindBuffer(char const* bindingTag, GfxFrameResource const* resource);
+    void bindTexture(char const* bindingTag, GfxTexture* texture);
+    void bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
+    
+    rgBool hasEnded;
+#if defined(RG_METAL_RNDR)
+    void* mtlComputeCommandEncoder; // type: id<MTLComputeCommandEncoder>
+#endif
 };
 
 struct GfxBlitCmdEncoder
@@ -973,11 +995,13 @@ extern rgUInt frameNumber;
 extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
 extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 extern GfxGraphicsPSO* currentGraphicsPSO;
+extern GfxComputePSO* currentComputePSO;
 
 extern GfxObjectRegistry<GfxBuffer>*        buffer;
 extern GfxObjectRegistry<GfxTexture>*       texture;
 extern GfxObjectRegistry<GfxSamplerState>*  samplerState;
 extern GfxObjectRegistry<GfxGraphicsPSO>*   graphicsPSO;
+extern GfxObjectRegistry<GfxComputePSO>*    computePSO;
 
 extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
 

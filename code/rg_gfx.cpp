@@ -237,11 +237,13 @@ GfxRenderPass*          currentRenderPass;
 GfxRenderCmdEncoder*    currentRenderCmdEncoder;
 GfxBlitCmdEncoder*      currentBlitCmdEncoder;
 GfxGraphicsPSO*         currentGraphicsPSO;
+GfxComputePSO*          currentComputePSO; // TODO: See if this is really necessary
 
 // OBJECT REGISTRIES
 GfxObjectRegistry<GfxTexture>*      texture;
 GfxObjectRegistry<GfxBuffer>*       buffer;
 GfxObjectRegistry<GfxGraphicsPSO>*  graphicsPSO;
+GfxObjectRegistry<GfxComputePSO>*   computePSO;
 GfxObjectRegistry<GfxSamplerState>* samplerState;
 
 GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
@@ -293,6 +295,7 @@ rgInt preInit()
     gfx::texture = rgNew(GfxObjectRegistry<GfxTexture>);
     gfx::samplerState = rgNew(GfxObjectRegistry<GfxSamplerState>);
     gfx::graphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
+    gfx::computePSO = rgNew(GfxObjectRegistry<GfxComputePSO>);
 
     gfx::bindlessManagerTexture = rgNew(GfxBindlessResourceManager<GfxTexture>);
     
@@ -367,6 +370,8 @@ GfxFrameAllocator* getFrameAllocator()
 
 GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass)
 {
+    // TODO: handle case when there is already a compute or blit command encoder in progress
+    // TODO: handle case when there is already a compute or blit command encoder in progress
     if(currentRenderPass != renderPass)
     {
         if(currentRenderPass != nullptr)
@@ -395,6 +400,8 @@ GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass)
 
 GfxBlitCmdEncoder* setBlitPass(char const* tag)
 {
+    // TODO: handle case when there is already a compute or render command encoder in progress
+    // TODO: handle case when there is already a compute or render command encoder in progress
     if(currentBlitCmdEncoder != nullptr)
     {
         if(!currentBlitCmdEncoder->hasEnded)
