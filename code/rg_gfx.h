@@ -382,7 +382,7 @@ struct GfxShaderDesc
 };
 
 // Object in a Pipeline
-struct GfxObjectBinding
+struct GfxObjectBinding // TODO: Rename GfxPipelineArgumentInfo
 {
     char tag[32];
     
@@ -841,6 +841,8 @@ struct GfxRenderCmdEncoder
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount);
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount);
 
+    GfxObjectBinding& getPipelineArgumentInfo(char const* bindingTag);
+    
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)
     void* mtlRenderCommandEncoder; // type: id<MTLRenderCommandEncoder>
@@ -861,6 +863,8 @@ struct GfxComputeCmdEncoder
     void bindBuffer(char const* bindingTag, GfxFrameResource const* resource);
     void bindTexture(char const* bindingTag, GfxTexture* texture);
     void bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
+    
+    GfxObjectBinding& getPipelineArgumentInfo(char const* bindingTag);
     
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)

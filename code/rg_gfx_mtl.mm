@@ -781,6 +781,7 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     // TODO: release shader lib
 }
 
+//-----------------------------------------------------------------------------
 void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     @autoreleasepool
@@ -977,6 +978,7 @@ void GfxRenderCmdEncoder::end()
     hasEnded = true;
 }
 
+//-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::pushDebugTag(const char* tag)
 {
     [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
@@ -987,6 +989,7 @@ void GfxRenderCmdEncoder::popDebugTag()
     [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) popDebugGroup];
 }
 
+//-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
 {
     setViewport(viewport.x, viewport.y, viewport.z, viewport.w);
@@ -1016,6 +1019,7 @@ void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 wid
     [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) setScissorRect:rect];
 }
 
+//-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
     id<MTLRenderCommandEncoder> cmdEncoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
@@ -1050,7 +1054,7 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU3
 }
 
 //-----------------------------------------------------------------------------
-GfxObjectBinding& getResourceBindingInfo(char const* bindingTag)
+GfxObjectBinding& GfxRenderCmdEncoder::getPipelineArgumentInfo(char const* bindingTag)
 {
     rgAssert(gfx::currentGraphicsPSO != nullptr);
     rgAssert(bindingTag);
@@ -1071,7 +1075,7 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, 
 {
     rgAssert(buffer != nullptr);
 
-    GfxObjectBinding& info = getResourceBindingInfo(bindingTag);
+    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
     
     // TODO: Assert check valid Stage
     
@@ -1092,7 +1096,7 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource co
 {
     rgAssert(resource && resource->type == GfxFrameResource::Type_Buffer);
     
-    GfxObjectBinding& info = getResourceBindingInfo(bindingTag);
+    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
     
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     
@@ -1113,7 +1117,7 @@ void GfxRenderCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSta
 {
     rgAssert(sampler != nullptr);
     
-    GfxObjectBinding& info = getResourceBindingInfo(bindingTag);
+    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
     
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     if((info.stages & GfxStage_VS) == GfxStage_VS)
@@ -1131,7 +1135,7 @@ void GfxRenderCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* textur
 {
     rgAssert(texture != nullptr);
     
-    GfxObjectBinding& info = getResourceBindingInfo(bindingTag);
+    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
 
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     // TODO: Look into the logic of binding on both stages..
@@ -1234,21 +1238,87 @@ void GfxComputeCmdEncoder::end()
     hasEnded = true;
 }
 
+//-----------------------------------------------------------------------------
 void GfxComputeCmdEncoder::pushDebugTag(char const* tag)
 {
     [asMTLComputeCommandEncoder(mtlComputeCommandEncoder) pushDebugGroup:[NSString stringWithUTF8String:tag]];
 }
 
+//-----------------------------------------------------------------------------
 void GfxComputeCmdEncoder::popDebugTag()
 {
     [asMTLComputeCommandEncoder(mtlComputeCommandEncoder) popDebugGroup];
 }
 
+//-----------------------------------------------------------------------------
 void GfxComputeCmdEncoder::setComputePSO(GfxComputePSO* pso)
 {
     rgAssert(pso);
     [asMTLComputeCommandEncoder(mtlComputeCommandEncoder) setComputePipelineState:getMTLComputePipelineState(pso)];
     gfx::currentComputePSO = pso;
+}
+
+//-----------------------------------------------------------------------------
+GfxObjectBinding& GfxComputeCmdEncoder::getPipelineArgumentInfo(char const* bindingTag)
+{
+    rgAssert(gfx::currentGraphicsPSO != nullptr);
+    rgAssert(bindingTag);
+    
+    auto infoIter = gfx::currentComputePSO->reflection.find(bindingTag);
+    if(infoIter == gfx::currentComputePSO->reflection.end())
+    {
+        rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
+        rgAssert(false);
+    }
+    
+    GfxObjectBinding& info = infoIter->second;
+    
+    return info;
+}
+
+//-----------------------------------------------------------------------------
+void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset)
+{
+    rgAssert(buffer != nullptr);
+
+    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
+    rgAssert((info.stages & GfxStage_CS) == GfxStage_CS);
+    
+    id<MTLComputeCommandEncoder> encoder = asMTLComputeCommandEncoder(mtlComputeCommandEncoder);
+    [encoder setBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.registerIndex];
+}
+
+void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource const* resource)
+{
+    rgAssert(resource != nullptr);
+
+    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
+    rgAssert((info.stages & GfxStage_CS) == GfxStage_CS);
+    
+    id<MTLComputeCommandEncoder> encoder = asMTLComputeCommandEncoder(mtlComputeCommandEncoder);
+    [encoder setBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info.registerIndex];
+}
+
+void GfxComputeCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* texture)
+{
+    rgAssert(texture != nullptr);
+
+    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
+    rgAssert((info.stages & GfxStage_CS) == GfxStage_CS);
+    
+    id<MTLComputeCommandEncoder> encoder = asMTLComputeCommandEncoder(mtlComputeCommandEncoder);
+    [encoder setTexture:getMTLTexture(texture) atIndex:info.registerIndex];
+}
+
+void GfxComputeCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerState* sampler)
+{
+    rgAssert(sampler != nullptr);
+
+    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
+    rgAssert((info.stages & GfxStage_CS) == GfxStage_CS);
+    
+    id<MTLComputeCommandEncoder> encoder = asMTLComputeCommandEncoder(mtlComputeCommandEncoder);
+    [encoder setSamplerState:getMTLSamplerState(sampler) atIndex:info.registerIndex];
 }
 
 //*****************************************************************************
