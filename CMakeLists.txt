@@ -64,6 +64,9 @@ source_group("SPIRV-Cross" FILES ${SPIRVCROSS_SRC_FILES})
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+file(GLOB SHADER_FILES "${CMAKE_SOURCE_DIR}/code/shaders/*.hlsl")
+source_group("Shaders" FILES ${SHADER_FILES})
+
 if(WIN32)
 
     set(3RD_PARTY_DIR "${CMAKE_SOURCE_DIR}/3rdparty/win64/")
@@ -140,7 +143,6 @@ elseif(APPLE)
     # set source files
     set(IMGUI_METAL_SRC ${IMGUI_ROOT_DIR}/backends/imgui_impl_metal.mm ${IMGUI_ROOT_DIR}/backends/imgui_impl_metal.h ${IMGUI_ROOT_DIR}/backends/imgui_impl_sdl2.h ${IMGUI_ROOT_DIR}/backends/imgui_impl_sdl2.cpp ${IMGUI_SRC_FILES})
     file(GLOB SRC_FILES "code/*.cpp" "code/*.mm" "code/*.h" "code/shaders/metal/*.inl" ${IMGUI_METAL_SRC})
-    file(GLOB SHADER_SRC_FILES "code/shaders/metal/*.metal")
 
     add_compile_definitions(RG_METAL_RNDR __EMULATE_UUID)
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${3RD_PARTY_DIR}/inc/metal-cpp ${3RD_PARTY_DIR}/inc/metal-cpp-extensions ${DXC_INCLUDE_DIR})
@@ -150,10 +152,10 @@ elseif(APPLE)
 
     include_directories(${SPIRVCROSS_ROOT_DIR} ${DIRECXHEADERS_ROOT_DIR}/include ${DIRECXHEADERS_ROOT_DIR}/include/wsl/stubs ${DIRECTXMATH_ROOT_DIR}/Inc ${DIRECTXTEX_ROOT_DIR})
     
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${SHADER_SRC_FILES} ${BOX2D_SRC_FILES} ${SPIRVCROSS_SRC_FILES} ${PUGIXML_SRC_FILES} ${DIRECTXTEX_SRC_FILES})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${BOX2D_SRC_FILES} ${SPIRVCROSS_SRC_FILES} ${PUGIXML_SRC_FILES} ${DIRECTXTEX_SRC_FILES} ${SHADER_FILES})
     target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2} ${EASTL_LIBRARY} ${DXC_LIBRARY})
 
-    set_source_files_properties(${SHADER_SRC_FILES} PROPERTIES LANGUAGE METAL)
+    set_source_files_properties(${SHADER_FILES} PROPERTIES XCODE_EXPLICIT_FILE_TYPE HLSL)
     
     set_target_properties(rg_gamelib PROPERTIES XCODE_GENERATE_SCHEME TRUE
                                                 XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
