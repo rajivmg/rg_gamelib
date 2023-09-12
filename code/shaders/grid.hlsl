@@ -1,7 +1,7 @@
 
 #include "common.hlsl"
 
-struct VertexShaderOut
+struct GridVertexShaderOut
 {
     float4 position : SV_POSITION;
     float3 nearPoint : NEAR;
@@ -20,7 +20,7 @@ float3 unprojectClipSpacePoint(float x, float y, float z)
     return p.xyz / p.w;
 }
 
-VertexShaderOut vsGrid(uint vertexID : SV_VertexID)
+GridVertexShaderOut vsGrid(uint vertexID : SV_VertexID)
 {
     const float3 gridPlane[6] = 
     {
@@ -30,7 +30,7 @@ VertexShaderOut vsGrid(uint vertexID : SV_VertexID)
 
     float3 vertPos = gridPlane[vertexID];
 
-    VertexShaderOut output;
+    GridVertexShaderOut output;
     output.position = float4(vertPos, 1);
     output.nearPoint = unprojectClipSpacePoint(vertPos.x, vertPos.y, 0.0);
     output.farPoint = unprojectClipSpacePoint(vertPos.x, vertPos.y, 1.0);
@@ -79,7 +79,7 @@ float computeLinearDepth(float clipSpaceDepth)
     return linearDepth / cameraFar;
 }
 
-FragmentShaderOut fsGrid(in VertexShaderOut f)
+FragmentShaderOut fsGrid(in GridVertexShaderOut f)
 {
     float t = -f.nearPoint.y / (f.farPoint.y - f.nearPoint.y);
     

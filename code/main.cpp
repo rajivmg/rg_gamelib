@@ -205,7 +205,7 @@ rgInt rg::setup()
     principledBrdfShaderDesc.shaderSrc = "pbr.hlsl";
     principledBrdfShaderDesc.vsEntrypoint = "vsPbr";
     principledBrdfShaderDesc.fsEntrypoint = "fsPbr";
-    principledBrdfShaderDesc.defines = "LEFT";
+    principledBrdfShaderDesc.defines = "HAS_VERTEX_NORMAL";
     
     GfxRenderStateDesc world3dRenderState = {};
     world3dRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
@@ -262,7 +262,7 @@ rgInt rg::setup()
     //
     GfxShaderDesc fullscreenHDRShaderDesc = {};
     fullscreenHDRShaderDesc.shaderSrc = "fullscreenHDR.hlsl";
-    fullscreenHDRShaderDesc.vsEntrypoint = "vsFullscreenHDRPassthrough";
+    fullscreenHDRShaderDesc.vsEntrypoint = "vsFullscreenPassthrough";
     fullscreenHDRShaderDesc.fsEntrypoint = "fsReinhard";
     
     GfxRenderStateDesc fullscreenHDRRenderStateDesc = {};
