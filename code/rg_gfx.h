@@ -416,6 +416,10 @@ struct GfxGraphicsPSO
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
+    // TODO: remove remove remove, this is needed only because buildShader() is used for all type shaders
+    rgU32 threadsPerThreadgroupX;
+    rgU32 threadsPerThreadgroupY;
+    rgU32 threadsPerThreadgroupZ;
     eastl::hash_map<eastl::string, GfxObjectBinding> reflection;
     void* mtlPSO; // type: id<MTLRenderPipelineState>
     void* mtlDepthStencilState; // type: id<MTLDepthStencilState>
@@ -438,6 +442,9 @@ struct GfxComputePSO
     rgChar tag[32];
     
     eastl::hash_map<eastl::string, GfxObjectBinding> reflection;
+    rgU32 threadsPerThreadgroupX;
+    rgU32 threadsPerThreadgroupY;
+    rgU32 threadsPerThreadgroupZ;
     
 #if defined(RG_METAL_RNDR)
     void* mtlPSO; // type: id<MTLComputePipelineState>
@@ -864,6 +871,8 @@ struct GfxComputeCmdEncoder
     void bindTexture(char const* bindingTag, GfxTexture* texture);
     void bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
     
+    void dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ);
+    
     GfxObjectBinding& getPipelineArgumentInfo(char const* bindingTag);
     
     rgBool hasEnded;
@@ -959,8 +968,9 @@ void            onSizeChanged();
 
 GfxTexture*     getCurrentRenderTargetColorBuffer();
 
-GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass);
-GfxBlitCmdEncoder* setBlitPass(char const* tag);
+GfxRenderCmdEncoder*    setRenderPass(char const* tag, GfxRenderPass* renderPass);
+GfxComputeCmdEncoder*   setComputePass(char const* tag);
+GfxBlitCmdEncoder*      setBlitPass(char const* tag);
 
 // Helper macros
 // ---------------

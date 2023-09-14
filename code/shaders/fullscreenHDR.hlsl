@@ -17,3 +17,12 @@ float4 fsReinhard(VS_OUT f) : SV_TARGET
 
     return color;
 }
+
+Texture2D<float4> inputImage;
+RWTexture2D<float4> outputImage;
+
+[numthreads(4, 4, 1)]
+void csReinhard(uint3 id : SV_DispatchThreadID)
+{
+    outputImage[id.xy] = inputImage[id.xy]; //float4(0, 1, 0, 1);
+}

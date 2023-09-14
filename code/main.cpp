@@ -273,6 +273,13 @@ rgInt rg::setup()
     gfx::graphicsPSO->create("fullscreenHDR", nullptr, &fullscreenHDRShaderDesc, &fullscreenHDRRenderStateDesc);
     //
     
+    //
+    GfxShaderDesc tonemapShaderDesc = {};
+    tonemapShaderDesc.shaderSrc = "fullscreenHDR.hlsl";
+    tonemapShaderDesc.csEntrypoint = "csReinhard";
+    gfx::computePSO->create("reinhardTonemap", &tonemapShaderDesc);
+    //
+    
     // Initialize camera params
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
     g_GameState->cameraPitch = 0.0f;
@@ -472,17 +479,30 @@ rgInt rg::updateAndDraw(rgDouble dt)
         gridRenderEncoder->drawTriangles(0, 6, 1);
         gridRenderEncoder->end();
         
-        GfxRenderPass tonemapRenderPass = {};
-        tonemapRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
-        tonemapRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
-        tonemapRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        
-        GfxRenderCmdEncoder* tonemapRenderEncoder = gfx::setRenderPass("Tonemap Pass", &tonemapRenderPass);
-        tonemapRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("fullscreenHDR"_tag));
-        tonemapRenderEncoder->bindTexture("srcTexture", g_GameState->baseColorRT);
-        tonemapRenderEncoder->bindSamplerState("pointSampler", gfx::samplerNearestClampEdge);
-        tonemapRenderEncoder->drawTriangles(0, 3, 1);
-        tonemapRenderEncoder->end();
+        {
+#if 0
+            GfxRenderPass tonemapRenderPass = {};
+            tonemapRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+            tonemapRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
+            tonemapRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+            
+            GfxRenderCmdEncoder* tonemapRenderEncoder = gfx::setRenderPass("Tonemap Pass", &tonemapRenderPass);
+            tonemapRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("fullscreenHDR"_tag));
+            tonemapRenderEncoder->bindTexture("srcTexture", g_GameState->baseColorRT);
+            tonemapRenderEncoder->bindSamplerState("pointSampler", gfx::samplerNearestClampEdge);
+            tonemapRenderEncoder->drawTriangles(0, 3, 1);
+            tonemapRenderEncoder->end();
+#else
+            GfxComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
+            GfxComputePSO* reinhardTonemapPSO = gfx::computePSO->find("reinhardTonemap"_tag);
+            postfxCmdEncoder->setComputePSO(reinhardTonemapPSO);
+            postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
+            postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
+            postfxCmdEncoder->end();
+            //postfxCmdEncoder->bindSamplerState("nearestClampEdgeSampler", gfx::samplerNearestClampEdge);
+#endif
+        }
     }
     
     rgHash a = rgCRC32("hello world");

@@ -235,6 +235,7 @@ rgUInt frameNumber;
 // CURRENT STATE
 GfxRenderPass*          currentRenderPass;
 GfxRenderCmdEncoder*    currentRenderCmdEncoder;
+GfxComputeCmdEncoder*   currentComputeCmdEncoder;
 GfxBlitCmdEncoder*      currentBlitCmdEncoder;
 GfxGraphicsPSO*         currentGraphicsPSO;
 GfxComputePSO*          currentComputePSO; // TODO: See if this is really necessary
@@ -396,6 +397,25 @@ GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass)
     }
     
     return currentRenderCmdEncoder;
+}
+
+GfxComputeCmdEncoder* setComputePass(char const* tag)
+{
+    // TODO: handle case when there is already a blit or render command encoder in progress
+    // TODO: handle case when there is already a blit or render command encoder in progress
+    if(currentComputeCmdEncoder != nullptr)
+    {
+        if(!currentComputeCmdEncoder->hasEnded)
+        {
+            currentComputeCmdEncoder->end();
+        }
+        rgDelete(currentComputeCmdEncoder);
+    }
+    
+    currentComputeCmdEncoder = rgNew(GfxComputeCmdEncoder);
+    currentComputeCmdEncoder->begin(tag);
+    
+    return currentComputeCmdEncoder;
 }
 
 GfxBlitCmdEncoder* setBlitPass(char const* tag)

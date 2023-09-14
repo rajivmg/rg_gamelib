@@ -712,6 +712,28 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     
     std::string mslShaderSource = msl.compile();
     
+    // write generate msl shader src to a file
+    char generatedFilepath[512];
+    // TODO: create a generated/ folder and save the files there
+    strcpy(generatedFilepath, "../code/shaders/");
+    strncat(generatedFilepath, filename, 470);
+    strncat(generatedFilepath, ".gen_msl", 9);
+    rg::writeFile(generatedFilepath, (void*)mslShaderSource.c_str(), mslShaderSource.size() * sizeof(char));
+    
+    // if compute shader, fetch the workgroup size
+    if(typeid(PSOType) == typeid(GfxComputePSO))
+    {
+        if (msl.get_execution_model() == spv::ExecutionModelGLCompute)
+        {
+            uint32_t x = msl.get_execution_mode_argument(spv::ExecutionModeLocalSize, 0);
+            uint32_t y = msl.get_execution_mode_argument(spv::ExecutionModeLocalSize, 1);
+            uint32_t z = msl.get_execution_mode_argument(spv::ExecutionModeLocalSize, 2);
+            obj->threadsPerThreadgroupX = x;
+            obj->threadsPerThreadgroupY = y;
+            obj->threadsPerThreadgroupZ = z;
+        }
+    }
+    
     // perform reflection
     spirv_cross::ShaderResources shaderResources = msl.get_shader_resources();
     
@@ -754,6 +776,16 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     {
         pushMSLResourceInfo(r.id, GfxObjectBinding::Type_Texture2D);
     }
+    
+    // TODO: HANDLE THIS CORRECTLY
+    // TODO: HANDLE THIS CORRECTLY
+    // TODO: HANDLE THIS CORRECTLY
+    // TODO: HANDLE THIS CORRECTLY
+    for(auto& r : shaderResources.storage_images)
+    {
+        pushMSLResourceInfo(r.id, GfxObjectBinding::Type_Texture2D);
+    }
+    
     for(auto& r : shaderResources.separate_samplers)
     {
         pushMSLResourceInfo(r.id, GfxObjectBinding::Type_Sampler);
@@ -1319,6 +1351,15 @@ void GfxComputeCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSt
     
     id<MTLComputeCommandEncoder> encoder = asMTLComputeCommandEncoder(mtlComputeCommandEncoder);
     [encoder setSamplerState:getMTLSamplerState(sampler) atIndex:info.registerIndex];
+}
+
+void GfxComputeCmdEncoder::dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ)
+{
+    id<MTLComputeCommandEncoder> encoder = asMTLComputeCommandEncoder(mtlComputeCommandEncoder);
+    [encoder dispatchThreads:MTLSizeMake(threadgroupsGridX, threadgroupsGridY, threadgroupsGridZ)
+       threadsPerThreadgroup:MTLSizeMake(gfx::currentComputePSO->threadsPerThreadgroupX,
+                                         gfx::currentComputePSO->threadsPerThreadgroupY,
+                                         gfx::currentComputePSO->threadsPerThreadgroupZ)];
 }
 
 //*****************************************************************************

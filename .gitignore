@@ -10,3 +10,4 @@ memory.log
 box2d_dump.inl
 data/*.pdb
 data/imgui.ini
+*.gen_msl
