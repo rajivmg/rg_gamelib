@@ -98,10 +98,17 @@ struct GfxBuffer
     {
         obj->size = size;
         obj->usage = usage;
+        obj->mappedMemory = nullptr;
     }
     
+    // TODO: should change to first size then buffer??
+    // create(const char* tag, rgU32 size, void* buf, GfxBufferUsage usage, GfxBuffer* obj);
     static void create(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj);
     static void destroy(GfxBuffer* obj);
+    
+    void*   mappedMemory;
+    void*   map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes); // TODO: MTL D3D12 - handle ranges
+    void    unmap();
 };
 
 // Texture types
@@ -868,6 +875,7 @@ struct GfxComputeCmdEncoder
     
     void bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset);
     void bindBuffer(char const* bindingTag, GfxFrameResource const* resource);
+    void bindBufferFromData(char const* bindingTag, rgU32 sizeInBytes, void* data);
     void bindTexture(char const* bindingTag, GfxTexture* texture);
     void bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
     

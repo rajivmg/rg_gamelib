@@ -261,7 +261,7 @@ rgInt rg::setup()
     gfx::graphicsPSO->create("skybox", &vertexPos, &skyboxShaderDesc, &skyboxRenderState);
     //
     GfxShaderDesc fullscreenHDRShaderDesc = {};
-    fullscreenHDRShaderDesc.shaderSrc = "fullscreenHDR.hlsl";
+    fullscreenHDRShaderDesc.shaderSrc = "tonemap.hlsl";
     fullscreenHDRShaderDesc.vsEntrypoint = "vsFullscreenPassthrough";
     fullscreenHDRShaderDesc.fsEntrypoint = "fsReinhard";
     
@@ -275,7 +275,7 @@ rgInt rg::setup()
     
     //
     GfxShaderDesc tonemapShaderDesc = {};
-    tonemapShaderDesc.shaderSrc = "fullscreenHDR.hlsl";
+    tonemapShaderDesc.shaderSrc = "tonemap.hlsl";
     tonemapShaderDesc.csEntrypoint = "csReinhard";
     gfx::computePSO->create("reinhardTonemap", &tonemapShaderDesc);
     //
@@ -378,8 +378,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         {
             for(rgInt j = 0; j < 4; ++j)
             {
-                rgFloat px = j * (100) + 10 * (j + 1) + sinf((rgFloat)g_Time) * 30;
-                rgFloat py = i * (100) + 10 * (i + 1) + cosf((rgFloat)g_Time) * 30;
+                rgFloat px = j * (100) + 10 * (j + 1) + sin(g_Time) * 30;
+                rgFloat py = i * (100) + 10 * (i + 1) + cos(g_Time) * 30;
                 
                 pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
             }
@@ -493,13 +493,51 @@ rgInt rg::updateAndDraw(rgDouble dt)
             tonemapRenderEncoder->drawTriangles(0, 3, 1);
             tonemapRenderEncoder->end();
 #else
+            struct TonemapParams
+            {
+                rgU32   inputImageWidth;
+                rgU32   inputImageHeight;
+                float   minLogLuminance;
+                float   oneOverLogLuminanceRange;
+            } tonemapParams;
+            
+            tonemapParams.inputImageWidth = g_WindowInfo.width;
+            tonemapParams.inputImageHeight = g_WindowInfo.height;
+            tonemapParams.minLogLuminance = -10.0f;
+            tonemapParams.oneOverLogLuminanceRange = 1.0f / 12.0f;
+            
             GfxComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
             GfxComputePSO* reinhardTonemapPSO = gfx::computePSO->find("reinhardTonemap"_tag);
             postfxCmdEncoder->setComputePSO(reinhardTonemapPSO);
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
             postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
+            //+---
+            // THINK: GfxGPUReadbackBuffer or gfx::buffer->create("foo", sizeInBytes, data, GfxBufferUsage, GfxMemoryType (Upload, Default, Readback));
+            // THINK: GfxGPUReadbackBuffer or gfx::buffer->create("foo", sizeInBytes, data, GfxBufferUsage, GfxMemoryType (Upload, Default, Readback));
+            // THINK: GfxGPUReadbackBuffer or gfx::buffer->create("foo", sizeInBytes, data, GfxBufferUsage, GfxMemoryType (Upload, Default, Readback));
+            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->create("outputLuminanceHistogram", nullptr, sizeof(uint32_t) * 256, GfxBufferUsage_ShaderRW);
+            // ^^^^ THIS IS A MEMORY LEAK
+            // ^^^^ THIS IS A MEMORY LEAK
+            // ^^^^ THIS IS A MEMORY LEAK
+            
+            postfxCmdEncoder->bindBuffer("outputLuminanceHistogram", outputLuminanceHistogramBuffer, 0);
+            //-+++
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
+            //postfxCmdEncoder->updateFence();
             postfxCmdEncoder->end();
+            
+            ImGui::Begin("Tonemapper");
+            {
+                float histoBins[256];
+                rgU32* histoBinsData = (rgU32*)outputLuminanceHistogramBuffer->map(0, 0);
+                for(int i = 0; i < 256; ++i)
+                {
+                    histoBins[i] = histoBinsData[i];
+                }
+                ImGui::PlotHistogram("outputLuminanceHistogram", histoBins, 256);
+            }
+            ImGui::End();
             //postfxCmdEncoder->bindSamplerState("nearestClampEdgeSampler", gfx::samplerNearestClampEdge);
 #endif
         }
