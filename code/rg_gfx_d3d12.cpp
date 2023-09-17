@@ -8,14 +8,47 @@
 #include "d3d12shader.h"
 
 #include <EASTL/string.h>
+#include <EASTL/hash_set.h>
+
+#include <filesystem>
 
 RG_BEGIN_RG_NAMESPACE
 RG_BEGIN_GFX_NAMESPACE
 
-D3d d3d; // TODO: Make this a pointer
+//D3d d3d; // TODO: Make this a pointer
+
+// __STRUCT_D3d
+ComPtr<ID3D12Device2> device;
+ComPtr<ID3D12CommandQueue> commandQueue;
+ComPtr<IDXGISwapChain4> dxgiSwapchain;
+ComPtr<IDXGIFactory4> dxgiFactory;
+
+ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
+rgUInt rtvDescriptorSize;
+
+ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
+
+ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
+rgUInt cbvSrvUavDescriptorSize;
+
+ComPtr<ID3D12Fence> frameFence;
+UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+HANDLE frameFenceEvent;
+
+/// test
+ComPtr<ID3D12RootSignature> dummyRootSignature;
+ComPtr<ID3D12PipelineState> dummyPSO;
+ComPtr<ID3D12Resource> triVB;
+D3D12_VERTEX_BUFFER_VIEW triVBView;
+// __ENDSTRUCT
 
 ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
 ComPtr<ID3D12GraphicsCommandList> commandList;
+
+GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
+GfxTexture* depthStencilTexture;
+
+RG_END_GFX_NAMESPACE
 
 // SECTION BEGIN -
 // -----------------------------------------------
@@ -36,9 +69,9 @@ inline void _BreakIfFail(HRESULT hr)
 //    return &d3d;
 //}
 
-static ComPtr<ID3D12Device> device()
+static ComPtr<ID3D12Device> getDevice()
 {
-    return d3d.device;
+    return gfx::device;
 }
 
 inline DXGI_FORMAT toDXGIFormat(TinyImageFormat fmt)
@@ -148,11 +181,11 @@ void getHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool
 
 void waitForGpu()
 {
-    BreakIfFail(d3d.commandQueue->Signal(d3d.frameFence.Get(), d3d.frameFenceValues[g_FrameIndex]));
-    BreakIfFail(d3d.frameFence->SetEventOnCompletion(d3d.frameFenceValues[g_FrameIndex], d3d.frameFenceEvent));
-    ::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
+    BreakIfFail(gfx::commandQueue->Signal(gfx::frameFence.Get(), gfx::frameFenceValues[g_FrameIndex]));
+    BreakIfFail(gfx::frameFence->SetEventOnCompletion(gfx::frameFenceValues[g_FrameIndex], gfx::frameFenceEvent));
+    ::WaitForSingleObject(gfx::frameFenceEvent, INFINITE);
 
-    d3d.frameFenceValues[g_FrameIndex] += 1;
+    gfx::frameFenceValues[g_FrameIndex] += 1;
 }
 
 // https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Fullscreen/src/D3D12Fullscreen.cpp
@@ -166,7 +199,7 @@ ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE typ
     desc.NumDescriptors = descriptorsCount;
     desc.Flags = flags;
 
-    BreakIfFail(device()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
+    BreakIfFail(getDevice()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
 
     return descriptorHeap;
 }
@@ -174,7 +207,7 @@ ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE typ
 ComPtr<ID3D12CommandAllocator> createCommandAllocator(D3D12_COMMAND_LIST_TYPE commandListType)
 {
     ComPtr<ID3D12CommandAllocator> commandAllocator;
-    BreakIfFail(device()->CreateCommandAllocator(commandListType, IID_PPV_ARGS(&commandAllocator)));
+    BreakIfFail(getDevice()->CreateCommandAllocator(commandListType, IID_PPV_ARGS(&commandAllocator)));
     
     return commandAllocator;
 }
@@ -182,7 +215,7 @@ ComPtr<ID3D12CommandAllocator> createCommandAllocator(D3D12_COMMAND_LIST_TYPE co
 ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> commandAllocator, ID3D12PipelineState* pipelineState)
 {
     ComPtr<ID3D12GraphicsCommandList> commandList;
-    BreakIfFail(device()->CreateCommandList(0, type, commandAllocator.Get(), pipelineState, IID_PPV_ARGS(&commandList)));
+    BreakIfFail(getDevice()->CreateCommandList(0, type, commandAllocator.Get(), pipelineState, IID_PPV_ARGS(&commandList)));
     BreakIfFail(commandList->Close());
     return commandList;
 }
@@ -233,6 +266,7 @@ ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(D3D12_COMMAND_LIST_T
 // TODO: Create a frameallocator and use it as upload heap for texture and buffers
 // https://learn.microsoft.com/en-us/windows/win32/direct3d12/upload-and-readback-of-texture-data
 
+#if 0 // not needed here anymore
 struct GfxFrameResourceMemory
 {
     rgU32 offset;
@@ -307,8 +341,10 @@ protected:
 };
 
 static GfxFrameResourceMemory* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
+#endif 
 
 // SECTION BEGIN -
+RG_BEGIN_GFX_NAMESPACE
 // -----------------------------------------------
 // GFX Functions
 // -----------------------------------------------
@@ -321,7 +357,7 @@ rgInt init()
 #if defined(_DEBUG)
     factoryCreateFlag = DXGI_CREATE_FACTORY_DEBUG;
 #endif
-    BreakIfFail(CreateDXGIFactory2(factoryCreateFlag, __uuidof(d3d.dxgiFactory), (void**)&(d3d.dxgiFactory)));
+    BreakIfFail(CreateDXGIFactory2(factoryCreateFlag, __uuidof(dxgiFactory), (void**)&(dxgiFactory)));
 
     // create debug validation interface
 #ifdef _DEBUG
@@ -340,8 +376,8 @@ rgInt init()
 
     // create device
     ComPtr<IDXGIAdapter1> hardwareAdapter;
-    getHardwareAdapter(d3d.dxgiFactory.Get(), &hardwareAdapter, true);
-    BreakIfFail(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), (void**)&(d3d.device)));
+    getHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter, true);
+    BreakIfFail(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), (void**)&(device)));
     
     // create command queue
     D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
@@ -349,7 +385,7 @@ rgInt init()
     commandQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
     commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 
-    BreakIfFail(device()->CreateCommandQueue(&commandQueueDesc, __uuidof(ID3D12CommandQueue), (void**)&(d3d.commandQueue)));
+    BreakIfFail(getDevice()->CreateCommandQueue(&commandQueueDesc, __uuidof(ID3D12CommandQueue), (void**)&(commandQueue)));
 
     // create swapchain
     DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
@@ -367,51 +403,53 @@ rgInt init()
     HWND hWnd = ::GetActiveWindow();
 
     ComPtr<IDXGISwapChain1> dxgiSwapchain1;
-    BreakIfFail(d3d.dxgiFactory->CreateSwapChainForHwnd(
-        d3d.commandQueue.Get(),
+    BreakIfFail(dxgiFactory->CreateSwapChainForHwnd(
+        commandQueue.Get(),
         hWnd,
         &swapchainDesc,
         nullptr,
         nullptr,
         &dxgiSwapchain1
     ));
-    BreakIfFail(d3d.dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
-    BreakIfFail(dxgiSwapchain1.As(&d3d.dxgiSwapchain));
+    BreakIfFail(dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
+    BreakIfFail(dxgiSwapchain1.As(&dxgiSwapchain));
 
     // create swapchain RTV
-    d3d.rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RG_MAX_FRAMES_IN_FLIGHT, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    d3d.rtvDescriptorSize = device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(d3d.rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RG_MAX_FRAMES_IN_FLIGHT, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    rtvDescriptorSize = getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         ComPtr<ID3D12Resource> texResource;
-        BreakIfFail(d3d.dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
-        device()->CreateRenderTargetView(texResource.Get(), nullptr, rtvDescriptorHandle);
-        rtvDescriptorHandle.Offset(1, d3d.rtvDescriptorSize);
+        BreakIfFail(dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
+        getDevice()->CreateRenderTargetView(texResource.Get(), nullptr, rtvDescriptorHandle);
+        rtvDescriptorHandle.Offset(1, rtvDescriptorSize);
 
         D3D12_RESOURCE_DESC desc = texResource->GetDesc();
-        GfxTexture2D* tex2d = rgNew(GfxTexture2D);
-        strncpy(tex2d->tag, "RenderTarget", 32);
-        tex2d->width = (rgUInt)desc.Width;
-        tex2d->height = (rgUInt)desc.Height;
-        tex2d->usage = GfxTextureUsage_RenderTarget;
-        tex2d->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
-        tex2d->d3dTexture = texResource;
-        gfx::renderTarget[i] = tex2d;
+        GfxTexture* texRT = rgNew(GfxTexture);
+        strncpy(texRT->tag, "RenderTarget", 32);
+        texRT->dim = GfxTextureDim_2D;
+        texRT->width = (rgUInt)desc.Width;
+        texRT->height = (rgUInt)desc.Height;
+        texRT->usage = GfxTextureUsage_RenderTarget;
+        texRT->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
+        texRT->d3dTexture = texResource;
+        gfx::swapchainTextures[i] = texRT;
     }
 
-    d3d.dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    gfx::depthStencilBuffer = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, false, GfxTextureUsage_DepthStencil);
+    dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    //gfx::depthStencilTexture = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, false, GfxTextureUsage_DepthStencil);
+    gfx::depthStencilTexture = gfx::texture->create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_DepthStencil, nullptr);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsDesc.Texture2D.MipSlice = 0;
     dsDesc.Flags = D3D12_DSV_FLAG_NONE;
-    device()->CreateDepthStencilView(gfx::depthStencilBuffer->d3dTexture.Get(), &dsDesc, d3d.dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    getDevice()->CreateDepthStencilView(gfx::depthStencilTexture->d3dTexture.Get(), &dsDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-    d3d.cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 400000, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 400000, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
@@ -450,9 +488,10 @@ rgInt init()
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     simple2dRenderStateDesc.depthWriteEnabled = true;
     simple2dRenderStateDesc.depthCompareFunc = GfxCompareFunc_Less;
-    GfxGraphicsPSO* simplePSO = createGraphicsPSO("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
-    d3d.dummyPSO = simplePSO->d3dPSO;
-    d3d.dummyRootSignature = simplePSO->d3dRootSignature;
+    //GfxGraphicsPSO* simplePSO = createGraphicsPSO("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    GfxGraphicsPSO* simplePSO = gfx::graphicsPSO->create("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    dummyPSO = simplePSO->d3dPSO;
+    dummyRootSignature = simplePSO->d3dRootSignature;
 
     {
         rgFloat triangleVertices[] =
@@ -468,34 +507,34 @@ rgInt init()
 
         rgUInt vbSize = sizeof(triangleVertices);
 
-        BreakIfFail(device()->CreateCommittedResource(
+        BreakIfFail(getDevice()->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
             D3D12_HEAP_FLAG_NONE,
             &CD3DX12_RESOURCE_DESC::Buffer(vbSize),
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
-            __uuidof(d3d.triVB),
-            (void**)&(d3d.triVB)
+            __uuidof(triVB),
+            (void**)&(triVB)
         ));
 
         rgU8* vbPtr;;
         CD3DX12_RANGE readRange(0, 0);
-        BreakIfFail(d3d.triVB->Map(0, &readRange, (void**)&vbPtr));
+        BreakIfFail(triVB->Map(0, &readRange, (void**)&vbPtr));
         memcpy(vbPtr, triangleVertices, vbSize);
-        d3d.triVB->Unmap(0, nullptr);
+        triVB->Unmap(0, nullptr);
 
-        d3d.triVBView.BufferLocation = d3d.triVB->GetGPUVirtualAddress();
-        d3d.triVBView.StrideInBytes = 36;
-        d3d.triVBView.SizeInBytes = vbSize;
+        triVBView.BufferLocation = triVB->GetGPUVirtualAddress();
+        triVBView.StrideInBytes = 36;
+        triVBView.SizeInBytes = vbSize;
     }
 
     {
         // Create a fence with initial value 0 which is equal to d3d.nextFrameFenceValues[g_FrameIndex=0]
-        BreakIfFail(device()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(d3d.frameFence), (void**)&(d3d.frameFence)));
+        BreakIfFail(getDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(frameFence), (void**)&(frameFence)));
         
         // Create an framefence event
-        d3d.frameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if(d3d.frameFenceEvent == nullptr)
+        frameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if(frameFenceEvent == nullptr)
         {
             BreakIfFail(HRESULT_FROM_WIN32(::GetLastError()));
         }
@@ -507,43 +546,43 @@ rgInt init()
 void destroy()
 {
     waitForGpu();
-    ::CloseHandle(d3d.frameFenceEvent);
+    ::CloseHandle(frameFenceEvent);
 }
 
 rgInt draw()
 {
-    commandList->SetGraphicsRootSignature(d3d.dummyRootSignature.Get());
+    commandList->SetGraphicsRootSignature(dummyRootSignature.Get());
 
-    commandList->SetPipelineState(d3d.dummyPSO.Get());
+    commandList->SetPipelineState(dummyPSO.Get());
 
     CD3DX12_VIEWPORT vp(0.0f, 0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height);
     commandList->RSSetViewports(1, &vp);
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
     commandList->RSSetScissorRects(1, &scissorRect);
 
-    GfxTexture2D* activeRenderTarget = gfx::renderTarget[g_FrameIndex];
-    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(activeRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    GfxTexture* currentRenderTarget = gfx::swapchainTextures[g_FrameIndex];
+    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(d3d.rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, d3d.rtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(d3d.dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
     commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
 
     const rgFloat clearColor[] = { 0.5f, 0.5f, 0.5f, 1.0f };
     commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &d3d.triVBView);
+    commandList->IASetVertexBuffers(0, 1, &triVBView);
     //commandList->DrawInstanced(6, 1, 0, 0);
     commandList->DrawInstanced(3, 1, 0, 0);
     commandList->DrawInstanced(3, 1, 3, 0);
 
-    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(activeRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     BreakIfFail(commandList->Close());
 
     ID3D12CommandList* commandLists[] = { commandList.Get() };
-    d3d.commandQueue->ExecuteCommandLists(1, commandLists);
-    BreakIfFail(d3d.dxgiSwapchain->Present(1, 0));
+    commandQueue->ExecuteCommandLists(1, commandLists);
+    BreakIfFail(dxgiSwapchain->Present(1, 0));
 
     return 0;
 }
@@ -551,30 +590,30 @@ rgInt draw()
 void checkerWaitTillFrameCompleted(rgInt frameIndex)
 {
     rgAssert(frameIndex >= 0);
-    UINT64 valueToWaitFor = d3d.frameFenceValues[frameIndex];
-    while(d3d.frameFence->GetCompletedValue() < valueToWaitFor)
+    UINT64 valueToWaitFor = frameFenceValues[frameIndex];
+    while(frameFence->GetCompletedValue() < valueToWaitFor)
     {
-        BreakIfFail(d3d.frameFence->SetEventOnCompletion(valueToWaitFor, d3d.frameFenceEvent));
-        ::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
+        BreakIfFail(frameFence->SetEventOnCompletion(valueToWaitFor, frameFenceEvent));
+        ::WaitForSingleObject(frameFenceEvent, INFINITE);
     }
 }
 
 void startNextFrame()
 {
-    UINT64 prevFrameFenceValue = (g_FrameIndex != -1) ? d3d.frameFenceValues[g_FrameIndex] : 0;
+    UINT64 prevFrameFenceValue = (g_FrameIndex != -1) ? frameFenceValues[g_FrameIndex] : 0;
 
-    g_FrameIndex = d3d.dxgiSwapchain->GetCurrentBackBufferIndex();
+    g_FrameIndex = dxgiSwapchain->GetCurrentBackBufferIndex();
 
     // check if this next frame is finised on the GPU
-    UINT64 nextFrameFenceValueToWaitFor = d3d.frameFenceValues[g_FrameIndex];
-    while(d3d.frameFence->GetCompletedValue() < nextFrameFenceValueToWaitFor)
+    UINT64 nextFrameFenceValueToWaitFor = frameFenceValues[g_FrameIndex];
+    while(frameFence->GetCompletedValue() < nextFrameFenceValueToWaitFor)
     {
-        BreakIfFail(d3d.frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, d3d.frameFenceEvent));
-        ::WaitForSingleObject(d3d.frameFenceEvent, INFINITE);
+        BreakIfFail(frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, frameFenceEvent));
+        ::WaitForSingleObject(frameFenceEvent, INFINITE);
     }
 
     // This frame fence value is one more than prev frame fence value
-    d3d.frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
+    frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
 
     // Reset command allocator and command list
     BreakIfFail(commandAllocator[g_FrameIndex]->Reset());
@@ -585,8 +624,8 @@ void startNextFrame()
 
 void endFrame()
 {
-    UINT64 fenceValueToSignal = d3d.frameFenceValues[g_FrameIndex];
-    BreakIfFail(d3d.commandQueue->Signal(d3d.frameFence.Get(), fenceValueToSignal));
+    UINT64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
+    BreakIfFail(commandQueue->Signal(frameFence.Get(), fenceValueToSignal));
 }
 
 void onSizeChanged()
@@ -609,8 +648,26 @@ void onSizeChanged()
 // GPU Resource Creators Deleters and Modifers
 // -----------------------------------------------
 
-void setterBindlessResource(rgU32 slot, GfxTexture2D* ptr)
+void setterBindlessResource(rgU32 slot, GfxTexture* ptr)
 {
+}
+
+
+void rendererImGuiInit()
+{
+}
+
+void rendererImGuiNewFrame()
+{
+}
+
+void rendererImGuiRenderDrawData()
+{
+}
+
+GfxTexture* getCurrentRenderTargetColorBuffer()
+{
+    return swapchainTextures[g_FrameIndex];
 }
 
 // -----------------------------------------------
@@ -640,7 +697,7 @@ void GfxBuffer::create(char const* tag, void* buf, rgU32 size, GfxBufferUsage us
 
     rgUInt vbSize = sizeof(triangleVertices);
 
-    BreakIfFail(device()->CreateCommittedResource(
+    BreakIfFail(getDevice()->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
         D3D12_HEAP_FLAG_NONE,
         &CD3DX12_RESOURCE_DESC::Buffer(vbSize),
@@ -651,18 +708,27 @@ void GfxBuffer::create(char const* tag, void* buf, rgU32 size, GfxBufferUsage us
 
     rgU8* vbPtr;;
     CD3DX12_RANGE readRange(0, 0);
-    BreakIfFail(d3d.triVB->Map(0, &readRange, (void**)&vbPtr));
+    BreakIfFail(triVB->Map(0, &readRange, (void**)&vbPtr));
     memcpy(vbPtr, triangleVertices, vbSize);
-    d3d.triVB->Unmap(0, nullptr);
+    triVB->Unmap(0, nullptr);
 
-    d3d.triVBView.BufferLocation = d3d.triVB->GetGPUVirtualAddress();
-    d3d.triVBView.StrideInBytes = 36;
-    d3d.triVBView.SizeInBytes = vbSize;
+    triVBView.BufferLocation = triVB->GetGPUVirtualAddress();
+    triVBView.StrideInBytes = 36;
+    triVBView.SizeInBytes = vbSize;
 }
 
 void GfxBuffer::destroy(GfxBuffer* obj)
 {
 
+}
+
+void* GfxBuffer::map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes) // TODO: MTL D3D12 - handle ranges
+{
+    return nullptr;
+}
+
+void GfxBuffer::unmap()
+{
 }
 
 void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
@@ -673,7 +739,7 @@ void GfxSamplerState::destroy(GfxSamplerState* obj)
 {
 }
 
-void GfxTexture2D::create(char const* tag, void* buf, rgUInt width, rgUInt height, TinyImageFormat format, rgBool genMips, GfxTextureUsage usage, GfxTexture2D* obj)
+void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
     ComPtr<ID3D12Resource> textureResouce;
 
@@ -721,7 +787,7 @@ void GfxTexture2D::create(char const* tag, void* buf, rgUInt width, rgUInt heigh
 
     CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(textureFormat, width, height, 1, 1, 1, 0, resourceFlags);
 
-    BreakIfFail(device()->CreateCommittedResource(
+    BreakIfFail(getDevice()->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
         &resourceDesc,
@@ -754,7 +820,7 @@ void GfxTexture2D::create(char const* tag, void* buf, rgUInt width, rgUInt heigh
     obj->d3dTexture = textureResouce;
 }
 
-void GfxTexture2D::destroy(GfxTexture2D* obj)
+void GfxTexture::destroy(GfxTexture* obj)
 {
 }
 
@@ -764,6 +830,8 @@ struct BuildShaderResult
     ComPtr<IDxcBlob> shaderBlob;
     ComPtr<ID3D12ShaderReflection> shaderReflection;
 };
+
+static ComPtr<IDxcUtils> g_DxcUtils;
 
 BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
 {
@@ -826,6 +894,10 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
         dxcArgs.push_back(L"cs_6_0");
     }
 
+    // include dir
+    dxcArgs.push_back(L"-I");
+    dxcArgs.push_back(L"../code/shaders");
+
     // generate debug symbols
     wchar_t debugSymPath[512];
     wchar_t prefPath[256];
@@ -877,12 +949,45 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
         }
     }
 
-    // create default include handler
-    ComPtr<IDxcUtils> utils;
-    checkHR(DxcCreateInstance(CLSID_DxcUtils, __uuidof(IDxcUtils), (void**)&utils));
-    ComPtr<IDxcIncludeHandler> includeHandler;
-    IDxcIncludeHandler* pIncludeHandler = includeHandler.Get();
-    checkHR(utils->CreateDefaultIncludeHandler(&pIncludeHandler));
+    // create include handler
+    if(!g_DxcUtils)
+    {
+        checkHR(DxcCreateInstance(CLSID_DxcUtils, __uuidof(IDxcUtils), (void**)&g_DxcUtils));
+    }
+
+    class CustomIncludeHandler : public IDxcIncludeHandler
+    {
+    public:
+        HRESULT LoadSource(LPCWSTR pFilename, IDxcBlob **ppIncludeSource) override
+        {
+
+            ComPtr<IDxcBlobEncoding> blobEncoding;
+            std::filesystem::path filepath = std::filesystem::absolute(std::filesystem::path(pFilename));
+            if(alreadyIncludedFiles.count(eastl::wstring(filepath.string().c_str())) > 0)
+            {
+                static const char emptyStr[] = " ";
+                g_DxcUtils->CreateBlobFromPinned(emptyStr, rgARRAY_COUNT(emptyStr), DXC_CP_ACP, &blobEncoding);
+                return S_OK;
+            }
+
+            HRESULT hr = g_DxcUtils->LoadFile(pFilename, nullptr, &blobEncoding);
+            if(SUCCEEDED(hr))
+            {
+                alreadyIncludedFiles.insert(eastl::wstring(pFilename));
+                *ppIncludeSource = blobEncoding.Detach();
+            }
+
+            return hr;
+        }
+
+        HRESULT QueryInterface(REFIID riid, void** ppvObject) override { return E_NOINTERFACE; }
+        ULONG   AddRef(void) override { return 0; }
+        ULONG   Release(void) override { return 0; }
+
+        eastl::hash_set<eastl::wstring> alreadyIncludedFiles;
+    };
+
+    ComPtr<CustomIncludeHandler> customIncludeHandler(rgNew(CustomIncludeHandler));
 
     // load shader file
     char filepath[512];
@@ -902,7 +1007,7 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
     checkHR(DxcCreateInstance(CLSID_DxcCompiler, __uuidof(IDxcCompiler3), (void**)&compiler3));
 
     ComPtr<IDxcResult> result;
-    checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), includeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
+    checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), customIncludeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
 
     // process errors
     ComPtr<IDxcBlobUtf8> errorMsg;
@@ -939,7 +1044,7 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
     shaderReflectionBuffer.Encoding = 0;
 
     ComPtr<ID3D12ShaderReflection> shaderReflection;
-    utils->CreateReflection(&shaderReflectionBuffer, IID_PPV_ARGS(&shaderReflection));
+    g_DxcUtils->CreateReflection(&shaderReflectionBuffer, IID_PPV_ARGS(&shaderReflection));
 
     BuildShaderResult output;
     output.shaderBlob = shaderBlob;
@@ -1061,7 +1166,7 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
         {
             rgLogError("RootSignature serialization error: %s", error->GetBufferPointer());
         }
-        BreakIfFail(device()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(rootSig), (void**)&(rootSig)));
+        BreakIfFail(getDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), __uuidof(rootSig), (void**)&(rootSig)));
     }
     obj->d3dRootSignature = rootSig;
 
@@ -1138,7 +1243,7 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
         }
     }
 
-    BreakIfFail(device()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
+    BreakIfFail(getDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
 
     // explicitly release shaders
     // TODO: Remove as this is released automatically
@@ -1152,6 +1257,18 @@ void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
 {
 }
 
+//*****************************************************************************
+// GfxComputePSO Implementation
+//*****************************************************************************
+
+void GfxComputePSO::create(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj)
+{
+}
+
+void GfxComputePSO::destroy(GfxComputePSO* obj)
+{
+}
+
 // SECTION BEGIN -
 // -----------------------------------------------
 // RenderCmd Handlers
@@ -1159,165 +1276,295 @@ void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
 
 void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 {
-    //// create RenderCommandEncoder
-    //MTLRenderPassDescriptor* renderPassDesc = [[MTLRenderPassDescriptor alloc]init];
-
-    //for(rgInt c = 0; c < kMaxColorAttachments; ++c)
-    //{
-    //    if(renderPass->colorAttachments[c].texture == NULL)
-    //    {
-    //        continue;
-    //    }
-
-    //    MTLRenderPassColorAttachmentDescriptor* colorAttachmentDesc = [renderPassDesc colorAttachments][c];
-    //    GfxColorAttachmentDesc* colorAttachment = &renderPass->colorAttachments[c];
-
-    //    colorAttachmentDesc.texture = gfx::getMTLTexture(colorAttachment->texture);
-    //    colorAttachmentDesc.loadAction = gfx::toMTLLoadAction(colorAttachment->loadAction);
-    //    colorAttachmentDesc.storeAction = gfx::toMTLStoreAction(colorAttachment->storeAction);
-    //    colorAttachmentDesc.clearColor = gfx::toMTLClearColor(&colorAttachment->clearColor);
-    //}
-    //MTLRenderPassDepthAttachmentDescriptor* depthAttachmentDesc = [renderPassDesc depthAttachment];
-    //depthAttachmentDesc.texture = gfx::getMTLTexture(renderPass->depthStencilAttachmentTexture);
-    //depthAttachmentDesc.loadAction = gfx::toMTLLoadAction(renderPass->depthStencilAttachmentLoadAction);
-    //depthAttachmentDesc.storeAction = gfx::toMTLStoreAction(renderPass->depthStencilAttachmentStoreAction);
-    //depthAttachmentDesc.clearDepth = renderPass->clearDepth;
-
-    //id<MTLRenderCommandEncoder> mtlRenderEncoder = [gfx::getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
-    //[renderPassDesc autorelease] ;
-
-    //MTLDepthStencilDescriptor* depthStencilDesc = [[MTLDepthStencilDescriptor alloc]init];
-    //depthStencilDesc.depthWriteEnabled = true;
-    //id<MTLDepthStencilState> dsState = [gfx::getMTLDevice() newDepthStencilStateWithDescriptor:depthStencilDesc];
-    //[depthStencilDesc release] ;
-
-    //[mtlRenderEncoder setDepthStencilState : dsState] ;
-
-    //for(GfxTexture2D* texture2d : *gfx::bindlessManagerTexture2D)
-    //{
-    //    if(texture2d != nullptr)
-    //    {
-    //        [mtlRenderEncoder useResource : (__bridge id<MTLTexture>)texture2d->mtlTexture usage : MTLResourceUsageRead stages : MTLRenderStageVertex | MTLRenderStageFragment] ;
-    //    }
-    //}
-
-    //[mtlRenderEncoder setFragmentBuffer : gfx::getActiveMTLBuffer(gfx::mtl->largeArrayTex2DArgBuffer) offset : 0 atIndex : gfx::kBindlessTextureSetBinding] ;
-
-    //renderCmdEncoder = (__bridge void*)mtlRenderEncoder;
-    //hasEnded = false;
 }
 
 void GfxRenderCmdEncoder::end()
 {
-    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) endEncoding] ;
-    //hasEnded = true;
 }
 
+//-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::pushDebugTag(const char* tag)
 {
-    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) pushDebugGroup:[NSString stringWithUTF8String : tag] ] ;
 }
 
+void GfxRenderCmdEncoder::popDebugTag()
+{
+}
+
+//-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
 {
-    //setViewport(viewport.x, viewport.y, viewport.z, viewport.w);
+    setViewport(viewport.x, viewport.y, viewport.z, viewport.w);
 }
 
 void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height)
 {
-    //CD3DX12_VIEWPORT vp(originX, originY, width, height);
-    //commandList->RSSetViewports(1, &vp);
 }
 
+void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels)
+{
+}
+
+//-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
-    //commandList->SetGraphicsRootSignature(pso->d3dRootSignature.Get());
-    //commandList->SetPipelineState(pso->d3dPSO.Get());
 }
 
+//-----------------------------------------------------------------------------
+rgU32 slotToVertexBinding(rgU32 slot)
+{
+    rgU32 const maxBufferBindIndex = 30;
+    rgU32 bindpoint = maxBufferBindIndex - slot;
+    rgAssert(bindpoint > 0 && bindpoint < 31);
+    return bindpoint;
+}
+
+void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset, rgU32 slot)
+{
+}
+
+void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU32 slot)
+{
+}
+
+//-----------------------------------------------------------------------------
+GfxObjectBinding& GfxRenderCmdEncoder::getPipelineArgumentInfo(char const* bindingTag)
+{
+    rgAssert(gfx::currentGraphicsPSO != nullptr);
+    rgAssert(bindingTag);
+
+    auto infoIter = gfx::currentGraphicsPSO->reflection.find(bindingTag);
+    if(infoIter == gfx::currentGraphicsPSO->reflection.end())
+    {
+        rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
+        rgAssert(false);
+    }
+
+    GfxObjectBinding& info = infoIter->second;
+
+    if(((info.stages & GfxStage_VS) != GfxStage_VS) && (info.stages & GfxStage_FS) != GfxStage_FS)
+    {
+        rgLogError("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, gfx::currentGraphicsPSO->tag);
+        rgAssert(!"TODO: LogError should stop the execution");
+    }
+
+    return info;
+}
+
+void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset)
+{
+}
+
+void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource const* resource)
+{
+}
+
+//-----------------------------------------------------------------------------
+void GfxRenderCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerState* sampler)
+{
+}
+
+//-----------------------------------------------------------------------------
+void GfxRenderCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* texture)
+{
+}
+
+//-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 {
-    //eastl::vector<gfx::SimpleVertexFormat> vertices;
-    //eastl::vector<gfx::SimpleInstanceParams> instanceParams;
+    if(quads->size() < 1)
+    {
+        return;
+        rgAssert("No textured quads to draw");
+    }
 
-    //genTexturedQuadVertices(quads, &vertices, &instanceParams);
+    eastl::vector<gfx::SimpleVertexFormat> vertices;
+    gfx::SimpleInstanceParams instanceParams;
 
-    //if(gfx::rcTexturedQuadsVB == NULL)
-    //{
-    //    gfx::rcTexturedQuadsVB = gfx::createBuffer("texturedQuadsVB", nullptr, rgMEGABYTE(16), GfxBufferUsage_VertexBuffer, true);
-    //}
+    genTexturedQuadVertices(quads, &vertices, &instanceParams);
 
-    //if(gfx::rcTexturedQuadsInstParams == NULL)
-    //{
-    //    gfx::rcTexturedQuadsInstParams = gfx::createBuffer("texturedQuadInstParams", nullptr, rgMEGABYTE(4), GfxBufferUsage_StructuredBuffer, true);
-    //}
+    GfxFrameResource vertexBufAllocation = gfx::getFrameAllocator()->newBuffer("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(gfx::SimpleVertexFormat), vertices.data());
+    GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBuffer", sizeof(gfx::SimpleInstanceParams), &instanceParams);
 
-    //GfxBuffer* texturesQuadVB = gfx::rcTexturedQuadsVB;
-    //GfxBuffer* texturedQuadInstParams = gfx::rcTexturedQuadsInstParams;
-    //updateBuffer("texturedQuadsVB", &vertices.front(), vertices.size() * sizeof(gfx::SimpleVertexFormat), 0);
-    //updateBuffer("texturedQuadInstParams", &instanceParams.front(), instanceParams.size() * sizeof(gfx::SimpleInstanceParams), 0);
+    //-
+    // camera
+    struct
+    {
+        rgFloat projection2d[16];
+        rgFloat view2d[16];
+    } cameraParams;
 
-    ////
-    //struct Camera
-    //{
-    //    float projection[16];
-    //    float view[16];
-    //} cam;
+    copyMatrix4ToFloatArray(cameraParams.projection2d, gfx::makeOrthographicProjectionMatrix(0.0f, g_WindowInfo.width, g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
+    copyMatrix4ToFloatArray(cameraParams.view2d, Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0)));
 
-    //rgFloat* orthoMatrix = toFloatPtr(gfx::orthographicMatrix);
-    //rgFloat* viewMatrix = toFloatPtr(gfx::viewMatrix);
+    GfxFrameResource cameraBuffer = gfx::getFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
 
-    //for(rgInt i = 0; i < 16; ++i)
-    //{
-    //    cam.projection[i] = orthoMatrix[i];
-    //    cam.view[i] = viewMatrix[i];
-    //}
+    // --
 
-    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBytes:&cam length : sizeof(Camera) atIndex : 0] ;
-    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setFragmentBuffer:gfx::getActiveMTLBuffer(texturedQuadInstParams) offset : 0 atIndex : 4] ;
-    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setVertexBuffer:gfx::getActiveMTLBuffer(texturesQuadVB) offset : 0 atIndex : 1] ;
-    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) setCullMode:MTLCullModeNone] ;
+    bindBuffer("camera", &cameraBuffer);
+    bindBuffer("instanceParams", &instanceParamsBuffer);
+    bindSamplerState("simpleSampler", gfx::samplerBilinearRepeat);
 
-    //[gfx::asMTLRenderCommandEncoder(renderCmdEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart : 0 vertexCount : 6 instanceCount : vertices.size() / 6] ;
+    setVertexBuffer(&vertexBufAllocation, 0);
+
+    drawTriangles(0, (rgU32)vertices.size(), 1);
 }
 
-void GfxRenderCmdEncoder::drawBunny()
+//-----------------------------------------------------------------------------
+void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount)
 {
-
 }
 
-// -------------------------------------------
+void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount)
+{
+}
+
+void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount)
+{
+}
+
+//*****************************************************************************
+// GfxComputeCmdEncoder Implementation
+//*****************************************************************************
+
+void GfxComputeCmdEncoder::begin(char const* tag)
+{
+}
+
+void GfxComputeCmdEncoder::end()
+{
+}
+
+//-----------------------------------------------------------------------------
+void GfxComputeCmdEncoder::pushDebugTag(char const* tag)
+{
+}
+
+//-----------------------------------------------------------------------------
+void GfxComputeCmdEncoder::popDebugTag()
+{
+}
+
+//-----------------------------------------------------------------------------
+void GfxComputeCmdEncoder::setComputePSO(GfxComputePSO* pso)
+{
+}
+
+//-----------------------------------------------------------------------------
+GfxObjectBinding& GfxComputeCmdEncoder::getPipelineArgumentInfo(char const* bindingTag)
+{
+    rgAssert(gfx::currentComputePSO != nullptr);
+    rgAssert(bindingTag);
+
+    auto infoIter = gfx::currentComputePSO->reflection.find(bindingTag);
+    if(infoIter == gfx::currentComputePSO->reflection.end())
+    {
+        rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
+        rgAssert(false);
+    }
+
+    GfxObjectBinding& info = infoIter->second;
+
+    if((info.stages & GfxStage_CS) != GfxStage_CS)
+    {
+        rgLogError("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
+        rgAssert(!"TODO: LogError should stop the execution");
+        //rgAssert("TODO: LogError should stop the execution");
+        //rgAssert("TODO: LogError should stop the execution");
+        //rgAssert("TODO: LogError should stop the execution");
+        //rgAssert("TODO: LogError should stop the execution");
+        //rgAssert("TODO: LogError should stop the execution");
+        //rgAssert("TODO: LogError should stop the execution");
+        //rgAssert("TODO: LogError should stop the execution");
+        //rgAssert("TODO: LogError should stop the execution");
+        //rgAssert("TODO: LogError should stop the execution");
+    }
+
+    return info;
+}
+
+//-----------------------------------------------------------------------------
+void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset)
+{
+}
+
+void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource const* resource)
+{
+}
+
+void GfxComputeCmdEncoder::bindBufferFromData(char const* bindingTag, rgU32 sizeInBytes, void* data)
+{
+}
+
+void GfxComputeCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* texture)
+{
+}
+
+void GfxComputeCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerState* sampler)
+{
+}
+
+void GfxComputeCmdEncoder::dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ)
+{
+}
+
+//*****************************************************************************
+// GfxBlitCmdEncoder Implementation
+//*****************************************************************************
 
 void GfxBlitCmdEncoder::begin()
 {
-    //id<MTLBlitCommandEncoder> blitCmdEncoder = [getMTLCommandBuffer() blitCommandEncoder];
-    //mtlBlitCommandEncoder = (__bridge void*)blitCmdEncoder;
-    //hasEnded = false;
 }
 
 void GfxBlitCmdEncoder::end()
 {
-    //rgAssert(!hasEnded);
-    //[asMTLBlitCommandEncoder(mtlBlitCommandEncoder) endEncoding] ;
-    //hasEnded = true;
 }
 
 void GfxBlitCmdEncoder::pushDebugTag(const char* tag)
 {
-    //[asMTLBlitCommandEncoder(mtlBlitCommandEncoder) pushDebugGroup:[NSString stringWithUTF8String : tag] ] ;
 }
 
-void GfxBlitCmdEncoder::genMips(GfxTexture2D* srcTexture)
+void GfxBlitCmdEncoder::genMips(GfxTexture* srcTexture)
 {
-    //[asMTLBlitCommandEncoder(mtlBlitCommandEncoder) generateMipmapsForTexture:getMTLTexture(srcTexture)] ;
 }
 
-void GfxBlitCmdEncoder::copyTexture(GfxTexture2D* srcTexture, GfxTexture2D* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount)
+void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount)
 {
-    //id<MTLTexture> src = getMTLTexture(srcTexture);
-    //id<MTLTexture> dst = getMTLTexture(dstTexture);
+}
 
-    //[asMTLBlitCommandEncoder(mtlBlitCommandEncoder) copyFromTexture:src sourceSlice : 0 sourceLevel : srcMipLevel toTexture : dst destinationSlice : 0 destinationLevel : dstMipLevel sliceCount : 1 levelCount : mipLevelCount] ;
+//*****************************************************************************
+// Frame Resource Allocator
+//*****************************************************************************
+
+void GfxFrameAllocator::create(rgU32 sizeInBytes)
+{
+}
+
+void GfxFrameAllocator::destroy()
+{
+}
+
+void GfxFrameAllocator::releaseResources()
+{
+}
+
+GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void* initialData)
+{
+    // TODO: Incorrect implementation
+    GfxFrameResource output;
+    output.type = GfxFrameResource::Type_Buffer;
+    return output;
+}
+
+GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
+{
+    // TODO: Incorrect implementation
+    GfxFrameResource output;
+    output.type = GfxFrameResource::Type_Texture;
+    // ....
+
+
+    return output;
 }
 
 // -----------------------------------------------

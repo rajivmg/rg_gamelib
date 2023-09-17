@@ -413,6 +413,13 @@ struct GfxGraphicsPSO
     GfxCullMode cullMode;
     GfxWinding winding;
     GfxTriangleFillMode triangleFillMode;
+
+    // TODO: remove remove remove, this is needed only because buildShader() is used for all type shaders
+    rgU32 threadsPerThreadgroupX;
+    rgU32 threadsPerThreadgroupY;
+    rgU32 threadsPerThreadgroupZ;
+    eastl::hash_map<eastl::string, GfxObjectBinding> reflection;
+
 #if defined(RG_D3D12_RNDR)
     struct ResourceInfo
     {
@@ -423,11 +430,6 @@ struct GfxGraphicsPSO
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
-    // TODO: remove remove remove, this is needed only because buildShader() is used for all type shaders
-    rgU32 threadsPerThreadgroupX;
-    rgU32 threadsPerThreadgroupY;
-    rgU32 threadsPerThreadgroupZ;
-    eastl::hash_map<eastl::string, GfxObjectBinding> reflection;
     void* mtlPSO; // type: id<MTLRenderPipelineState>
     void* mtlDepthStencilState; // type: id<MTLDepthStencilState>
 #elif defined(RG_VULKAN_RNDR)
@@ -674,6 +676,8 @@ protected:
 #if defined(RG_METAL_RNDR)
     void* heap; //type: id<MTLHeap>
     eastl::vector<void*> mtlResources;
+#else
+    void* heap;
 #endif
     
     void create(rgU32 sizeInBytes);

@@ -563,7 +563,9 @@ static rgBool ProcessGameButtonState(GameButtonState* newButtonState, rgBool isD
     {
         newButtonState->endedDown = isDown;
         ++newButtonState->halfTransitionCount;
+        return true;
     }
+    return false;
 }
 
 rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
@@ -657,6 +659,7 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
             }
         } break;
     }
+    return true;
 }
 
 rgInt createSDLWindow()

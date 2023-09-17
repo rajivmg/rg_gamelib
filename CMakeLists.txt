@@ -52,6 +52,9 @@ set(DIRECTXMATH_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/DirectXMath-dec2022)
 
 set(DIRECTXTEX_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/DirectXTex-jun2023/DirectXTex)
 file(GLOB DIRECTXTEX_SRC_FILES "${DIRECTXTEX_ROOT_DIR}/*.cpp" "${DIRECTXTEX_ROOT_DIR}/*.h" "${DIRECTXTEX_ROOT_DIR}/*.inl")
+# TODO: We shouldn't need to remove some files on WIN32, these files could be useful to process textures
+# TODO: REMOVE from WIN32
+list(REMOVE_ITEM DIRECTXTEX_SRC_FILES "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D11.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D12.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexWIC.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.h" "${DIRECTXTEX_ROOT_DIR}/DirectXTexCompressGPU.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexFlipRotate.cpp")
 source_group("DirectXTex" FILES ${DIRECTXTEX_SRC_FILES})
 
 set(DXC_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/dxc_preview_2023_06_21)
@@ -76,13 +79,13 @@ if(WIN32)
     if(VULKAN)
         file(GLOB IMGUI_BACKEND_SRC_FILES "${IMGUI_BACKEND_DIR}/imgui_impl_vulkan.cpp" "${IMGUI_BACKEND_DIR}/imgui_impl_vulkan.h")
     elseif(D3D12)
-        set(IMGUI_BACKEND_SRC_FILES "")
+        file(GLOB IMGUI_BACKEND_SRC_FILES "${IMGUI_BACKEND_DIR}/imgui_impl_dx12.cpp" "${IMGUI_BACKEND_DIR}/imgui_impl_dx12.h" "${IMGUI_BACKEND_DIR}/imgui_impl_sdl2.h" "${IMGUI_BACKEND_DIR}/imgui_impl_sdl2.cpp")
     else()
         set(IMGUI_BACKEND_SRC_FILES "")
     endif()
 
     # set include and lib directories
-    include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc)
+    include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${DIRECTXTEX_ROOT_DIR})
     link_directories(${3RD_PARTY_DIR}/lib)
     set(EASTL_LIBRARY debug ${EASTL_ROOT_DIR}/build-win64/Debug/EASTL.lib optimized ${EASTL_ROOT_DIR}/build-win64/Release/EASTL.lib)
     
@@ -114,9 +117,11 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES} ${BOX2D_SRC_FILES} ${GRAPHICS_SRC})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES} ${BOX2D_SRC_FILES} ${DIRECTXTEX_SRC_FILES} ${PUGIXML_SRC_FILES} ${GRAPHICS_SRC})
     target_link_libraries(rg_gamelib SDL2main SDL2 ${EASTL_LIBRARY} ${GRAPHICS_LIBS})
     set_target_properties(rg_gamelib PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
+    set_target_properties(rg_gamelib PROPERTIES CXX_STANDARD 17)
+    set_target_properties(rg_gamelib PROPERTIES CXX_STANDARD_REQUIRED On)
 
     set_target_properties(rg_gamelib PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
     set_target_properties(rg_gamelib PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
@@ -148,7 +153,7 @@ elseif(APPLE)
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${3RD_PARTY_DIR}/inc/metal-cpp ${3RD_PARTY_DIR}/inc/metal-cpp-extensions ${DXC_INCLUDE_DIR})
     link_directories(${DXC_LIB_DIR}/arm64)
 
-    list(REMOVE_ITEM DIRECTXTEX_SRC_FILES "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D11.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D12.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexWIC.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.h" "${DIRECTXTEX_ROOT_DIR}/DirectXTexCompressGPU.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexFlipRotate.cpp")
+    #list(REMOVE_ITEM DIRECTXTEX_SRC_FILES "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D11.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D12.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexWIC.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.h" "${DIRECTXTEX_ROOT_DIR}/DirectXTexCompressGPU.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexFlipRotate.cpp")
 
     include_directories(${SPIRVCROSS_ROOT_DIR} ${DIRECXHEADERS_ROOT_DIR}/include ${DIRECXHEADERS_ROOT_DIR}/include/wsl/stubs ${DIRECTXMATH_ROOT_DIR}/Inc ${DIRECTXTEX_ROOT_DIR})
     
