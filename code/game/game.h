@@ -85,6 +85,10 @@ struct GameState
     Matrix4    cameraInvView;
     Matrix4    cameraInvProjection;
     Matrix4    cameraViewRotOnly;
+
+    
+    rgFloat tonemapperMinLogLuminance;
+    rgFloat tonemapperMaxLogLuminance;
     
     GfxTexture* baseColorRT;
     GfxTexture* depthStencilRT;

@@ -276,8 +276,8 @@ rgInt rg::setup()
     //
     GfxShaderDesc tonemapShaderDesc = {};
     tonemapShaderDesc.shaderSrc = "tonemap.hlsl";
-    tonemapShaderDesc.csEntrypoint = "csReinhard";
-    gfx::computePSO->create("reinhardTonemap", &tonemapShaderDesc);
+    tonemapShaderDesc.csEntrypoint = "csGenerateHistogram";
+    gfx::computePSO->create("tonemapGenerateHistogram", &tonemapShaderDesc);
     
     tonemapShaderDesc.csEntrypoint = "csClearOutputLuminanceHistogram";
     gfx::computePSO->create("tonemapClearOutputLuminanceHistogram", &tonemapShaderDesc);
@@ -287,6 +287,10 @@ rgInt rg::setup()
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
     g_GameState->cameraPitch = 0.0f;
     g_GameState->cameraYaw = 0.0f;
+    
+    // Initialize tonemapper params
+    g_GameState->tonemapperMinLogLuminance = -10.0f;
+    g_GameState->tonemapperMaxLogLuminance = 2.0f;
     
     //updateCamera();
     
@@ -496,6 +500,28 @@ rgInt rg::updateAndDraw(rgDouble dt)
             tonemapRenderEncoder->drawTriangles(0, 3, 1);
             tonemapRenderEncoder->end();
 #else
+            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("outputLuminanceHistogram", nullptr, sizeof(uint32_t) * 256, GfxBufferUsage_ShaderRW);
+            
+            ImGui::Begin("Tonemapper");
+            {
+                ImGui::SliderFloat("minLogLuminance", &g_GameState->tonemapperMinLogLuminance, -15.0f, 5.0f, "%.3f");
+                ImGui::SliderFloat("maxLogLuminance", &g_GameState->tonemapperMaxLogLuminance, -5.0f, 20.0f, "%.3f");
+                
+                //if(ImGui::CollapsingHeader("Histogram"))
+                ImGui::SeparatorText("Histogram");
+                {
+                    float histoBins[256];
+                    rgU32* histoBinsData = (rgU32*)outputLuminanceHistogramBuffer->map(0, 0);
+                    for(int i = 0; i < rgARRAY_COUNT(histoBins); ++i)
+                    {
+                        histoBins[i] = histoBinsData[i];
+                    }
+                    outputLuminanceHistogramBuffer->unmap();
+                    ImGui::PlotHistogram("##luminanceHistogram", histoBins, 256, 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(512, 100));
+                }
+            }
+            ImGui::End();
+     
             struct TonemapParams
             {
                 rgU32   inputImageWidth;
@@ -506,47 +532,26 @@ rgInt rg::updateAndDraw(rgDouble dt)
             
             tonemapParams.inputImageWidth = g_WindowInfo.width;
             tonemapParams.inputImageHeight = g_WindowInfo.height;
-            tonemapParams.minLogLuminance = -10.0f;
-            tonemapParams.oneOverLogLuminanceRange = 1.0f / 12.0f;
+            tonemapParams.minLogLuminance = g_GameState->tonemapperMinLogLuminance;
+            tonemapParams.oneOverLogLuminanceRange = 1.0f / (g_GameState->tonemapperMaxLogLuminance - g_GameState->tonemapperMinLogLuminance);
             
             GfxComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
-            
-            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("outputLuminanceHistogram", nullptr, sizeof(uint32_t) * 256, GfxBufferUsage_ShaderRW);
-            
+                        
             postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapClearOutputLuminanceHistogram"_tag));
-            postfxCmdEncoder->bindBuffer("outputLuminanceHistogram", outputLuminanceHistogramBuffer, 0);
+            postfxCmdEncoder->bindBuffer("luminanceHistogram", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(16, 16, 1);
             
-            GfxComputePSO* reinhardTonemapPSO = gfx::computePSO->find("reinhardTonemap"_tag);
-            postfxCmdEncoder->setComputePSO(reinhardTonemapPSO);
+            postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapGenerateHistogram"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
             postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
             postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
-            postfxCmdEncoder->bindBuffer("outputLuminanceHistogram", outputLuminanceHistogramBuffer, 0);
-            //+---
-            // THINK: GfxGPUReadbackBuffer or gfx::buffer->create("foo", sizeInBytes, data, GfxBufferUsage, GfxMemoryType (Upload, Default, Readback));
-            // THINK: GfxGPUReadbackBuffer or gfx::buffer->create("foo", sizeInBytes, data, GfxBufferUsage, GfxMemoryType (Upload, Default, Readback));
-            // THINK: GfxGPUReadbackBuffer or gfx::buffer->create("foo", sizeInBytes, data, GfxBufferUsage, GfxMemoryType (Upload, Default, Readback));
-
-            //-+++
+            postfxCmdEncoder->bindBuffer("luminanceHistogram", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
+            
+            //.....
+            
             //postfxCmdEncoder->updateFence();
             postfxCmdEncoder->end();
-            
-            ImGui::Begin("Tonemapper");
-            {
-                float histoBins[256];
-                rgU32* histoBinsData = (rgU32*)outputLuminanceHistogramBuffer->map(0, 0);
-                for(int i = 0; i < 256; ++i)
-                {
-                    histoBins[i] = histoBinsData[i];
-                }
-                //PlotHistogram(const char* label, const float* values, int values_count, int values_offset = 0, const char* overlay_text = NULL, float scale_min = FLT_MAX, float scale_max = FLT_MAX, ImVec2 graph_size = ImVec2(0, 0), int stride = sizeof(float));
-                
-                ImGui::PlotHistogram("outputLuminanceHistogram", histoBins, 256, 0, NULL, FLT_MAX, FLT_MAX, ImVec2(512, 100));
-            }
-            ImGui::End();
-            //postfxCmdEncoder->bindSamplerState("nearestClampEdgeSampler", gfx::samplerNearestClampEdge);
 #endif
         }
     }

@@ -31,7 +31,7 @@ cbuffer TonemapParams
     float   oneOverLogLuminanceRange;
 };
 
-RWByteAddressBuffer outputLuminanceHistogram;
+RWByteAddressBuffer luminanceHistogram;
 
 #define HISTOGRAM_BIN_COUNT 256
 groupshared uint histogramBins[HISTOGRAM_BIN_COUNT];
@@ -46,7 +46,8 @@ uint calculateBinIndexFromHDRColor(float3 hdrColor)
 {
     float lum = calculateLuminance(hdrColor);
     
-    if(lum < 0.002)
+    float const epsilon = 0.005;
+    if(lum < epsilon)
     {
         return 0;
     }
@@ -58,11 +59,11 @@ uint calculateBinIndexFromHDRColor(float3 hdrColor)
 [numthreads(16, 16, 1)]
 void csClearOutputLuminanceHistogram(uint groupIndex : SV_GroupIndex)
 {
-    outputLuminanceHistogram.Store(groupIndex * 4, 0);
+    luminanceHistogram.Store(groupIndex * 4, 0);
 }
 
 [numthreads(16, 16, 1)]
-void csReinhard(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GroupIndex)
+void csGenerateHistogram(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GroupIndex)
 {
     // TODO: An option to visualize luminance
     float luminance = calculateLuminance(inputImage[id.xy].rgb);
@@ -82,7 +83,12 @@ void csReinhard(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GroupIndex)
     
     GroupMemoryBarrierWithGroupSync();
     
-    outputLuminanceHistogram.InterlockedAdd(groupIndex * 4, histogramBins[groupIndex]);
-    
-    //outputImage[id.xy] = float4(reinhard(inputImage[id.xy].rgb), inputImage[id.xy].a); //float4(0, 1, 0, 1);
+    luminanceHistogram.InterlockedAdd(groupIndex * 4, histogramBins[groupIndex]);
 }
+
+[numthreads(16, 16, 1)]
+void csComputeAvgLuminance(uint groupIndex : SV_GroupIndex)
+{
+    
+}
+
