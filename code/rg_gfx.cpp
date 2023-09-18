@@ -315,7 +315,8 @@ rgInt initCommonStuff()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& imguiIO = ImGui::GetIO();
-    ImGui::StyleColorsLight();
+    //ImGui::StyleColorsLight();
+    ImGui::StyleColorsDark();
     
     gfx::rendererImGuiInit();
     

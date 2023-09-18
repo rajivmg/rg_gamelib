@@ -56,6 +56,12 @@ uint calculateBinIndexFromHDRColor(float3 hdrColor)
 }
 
 [numthreads(16, 16, 1)]
+void csClearOutputLuminanceHistogram(uint groupIndex : SV_GroupIndex)
+{
+    outputLuminanceHistogram.Store(groupIndex * 4, 0);
+}
+
+[numthreads(16, 16, 1)]
 void csReinhard(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_GroupIndex)
 {
     // TODO: An option to visualize luminance
