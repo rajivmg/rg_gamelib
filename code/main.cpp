@@ -510,6 +510,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
                 //if(ImGui::CollapsingHeader("Histogram"))
                 ImGui::SeparatorText("Histogram");
                 {
+#ifndef RG_D3D12_RNDR
                     float histoBins[256];
                     rgU32* histoBinsData = (rgU32*)outputLuminanceHistogramBuffer->map(0, 0);
                     for(int i = 0; i < rgARRAY_COUNT(histoBins); ++i)
@@ -518,6 +519,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
                     }
                     outputLuminanceHistogramBuffer->unmap();
                     ImGui::PlotHistogram("##luminanceHistogram", histoBins, 256, 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(512, 100));
+
+#endif // !RG_D3D12_RNDR
                 }
             }
             ImGui::End();

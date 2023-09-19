@@ -7,6 +7,9 @@
 #include "dxcapi.h"
 #include "d3d12shader.h"
 
+#include "backends/imgui_impl_sdl2.h"
+#include "backends/imgui_impl_dx12.h"
+
 #include <EASTL/string.h>
 #include <EASTL/hash_set.h>
 
@@ -575,6 +578,9 @@ rgInt draw()
     //commandList->DrawInstanced(6, 1, 0, 0);
     commandList->DrawInstanced(3, 1, 0, 0);
     commandList->DrawInstanced(3, 1, 3, 0);
+    
+    // TODO: This vvv line should not be here 
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
     commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
@@ -652,13 +658,16 @@ void setterBindlessResource(rgU32 slot, GfxTexture* ptr)
 {
 }
 
-
 void rendererImGuiInit()
 {
+    //ImGui_ImplDX12_Init(ID3D12Device * device, int num_frames_in_flight, DXGI_FORMAT rtv_format, ID3D12DescriptorHeap * cbv_srv_heap, D3D12_CPU_DESCRIPTOR_HANDLE font_srv_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE font_srv_gpu_desc_handle);
+    ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, gfx::cbvSrvUavDescriptorHeap.Get(), gfx::cbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), gfx::cbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+    ImGui_ImplSDL2_InitForD3D(gfx::mainWindow);
 }
 
 void rendererImGuiNewFrame()
 {
+    ImGui_ImplDX12_NewFrame();
 }
 
 void rendererImGuiRenderDrawData()
@@ -1067,6 +1076,22 @@ void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vecto
             case D3D_SIT_CBUFFER:
             case D3D_SIT_TEXTURE:
             {
+                // TODO: BEGIN -- Improve this logic
+                // TODO: BEGIN -- Improve this logic
+                if(resourceInfo.count(shaderInputBindDesc.Name))
+                {
+                    auto existingSameNameResInfoIter = resourceInfo.find(shaderInputBindDesc.Name);
+                    if(existingSameNameResInfoIter->second.type == shaderInputBindDesc.Type)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        rgAssert(!"Same name resouce but type is different");
+                    }
+                }
+                // END
+
                 GfxGraphicsPSO::ResourceInfo info;
                 info.type = shaderInputBindDesc.Type;
                 info.offsetInDescTable = (rgU16)cbvSrvUavDescTableRanges.size();
@@ -1172,21 +1197,24 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
 
     // create vertex input desc
     eastl::vector<D3D12_INPUT_ELEMENT_DESC> inputElementDesc;
-    inputElementDesc.reserve(vertexInputDesc->elementCount);
+    if(vertexInputDesc && vertexInputDesc->elementCount > 0)
     {
-        for(rgInt i = 0; i < vertexInputDesc->elementCount; ++i)
+        inputElementDesc.reserve(vertexInputDesc->elementCount);
         {
-            auto& elementDesc = vertexInputDesc->elements[i];
-            D3D12_INPUT_ELEMENT_DESC e = {};
-            e.SemanticName = elementDesc.semanticName;
-            e.SemanticIndex = elementDesc.semanticIndex;
-            e.Format = toDXGIFormat(elementDesc.format);
-            e.InputSlot = elementDesc.bufferIndex;
-            e.AlignedByteOffset = elementDesc.offset;
-            e.InputSlotClass = elementDesc.stepFunc == GfxVertexStepFunc_PerInstance ?
-                D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-            e.InstanceDataStepRate = elementDesc.stepFunc == GfxVertexStepFunc_PerInstance ? 1 : 0;
-            inputElementDesc.push_back(e);
+            for(rgInt i = 0; i < vertexInputDesc->elementCount; ++i)
+            {
+                auto& elementDesc = vertexInputDesc->elements[i];
+                D3D12_INPUT_ELEMENT_DESC e = {};
+                e.SemanticName = elementDesc.semanticName;
+                e.SemanticIndex = elementDesc.semanticIndex;
+                e.Format = toDXGIFormat(elementDesc.format);
+                e.InputSlot = elementDesc.bufferIndex;
+                e.AlignedByteOffset = elementDesc.offset;
+                e.InputSlotClass = elementDesc.stepFunc == GfxVertexStepFunc_PerInstance ?
+                    D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+                e.InstanceDataStepRate = elementDesc.stepFunc == GfxVertexStepFunc_PerInstance ? 1 : 0;
+                inputElementDesc.push_back(e);
+            }
         }
     }
 
@@ -1207,8 +1235,11 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
 
     // d3d12 pso create start
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-    psoDesc.InputLayout = { &inputElementDesc.front(), (rgUInt)inputElementDesc.size() };
     psoDesc.pRootSignature = rootSig.Get();
+    if(inputElementDesc.size() > 0)
+    {
+        psoDesc.InputLayout = { &inputElementDesc.front(), (rgUInt)inputElementDesc.size() };
+    }
 
     // shaders
     psoDesc.VS.pShaderBytecode = vertexShader.shaderBlob->GetBufferPointer();
