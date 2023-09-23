@@ -117,7 +117,7 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES} ${BOX2D_SRC_FILES} ${DIRECTXTEX_SRC_FILES} ${PUGIXML_SRC_FILES} ${GRAPHICS_SRC})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES} ${BOX2D_SRC_FILES} ${DIRECTXTEX_SRC_FILES} ${PUGIXML_SRC_FILES} ${GRAPHICS_SRC} ${SHADER_FILES})
     target_link_libraries(rg_gamelib SDL2main SDL2 ${EASTL_LIBRARY} ${GRAPHICS_LIBS})
     set_target_properties(rg_gamelib PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
     set_target_properties(rg_gamelib PROPERTIES CXX_STANDARD 17)
@@ -131,6 +131,8 @@ if(WIN32)
     set_target_properties(rg_assetprocessor PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
 
     add_custom_target(NatVis SOURCES ${EASTL_ROOT_DIR}/doc/EASTL.natvis ${PUGIXML_ROOT_DIR}/scripts/natvis/pugixml.natvis)
+
+    set_source_files_properties(${SHADER_FILES} PROPERTIES VS_TOOL_OVERRIDE "None")
 
 elseif(APPLE)
 
