@@ -481,8 +481,8 @@ rgInt init()
 
     GfxShaderDesc simple2dShaderDesc = {};
     simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
-    simple2dShaderDesc.vsEntrypoint = "vsSimple2d";
-    simple2dShaderDesc.fsEntrypoint = "fsSimple2d";
+    simple2dShaderDesc.vsEntrypoint = "vsSimple2dTest";
+    simple2dShaderDesc.fsEntrypoint = "fsSimple2dTest";
     simple2dShaderDesc.defines = "RIGHT";
 
     GfxRenderStateDesc simple2dRenderStateDesc = {};
@@ -499,11 +499,11 @@ rgInt init()
     {
         rgFloat triangleVertices[] =
         {
-            0.0f, 0.3f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.0f, 0.4f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
             0.4f, -0.25f, 0.0f, 0.9f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
             -0.25f, -0.1f, 0.0f, 0.0f, 0.3f, 1.0f, 0.0f, 0.0f, 1.0f,
 
-            0.0f, 0.25f, 0.1f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.0f, 1.25f, 0.1f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
             0.25f, -0.25f, 0.1f, 0.9f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
             -0.25f, -0.25f, 0.1f, 0.0f, 0.3f, 0.0f, 0.0f, 1.0f, 1.0f
         };
@@ -580,15 +580,15 @@ rgInt draw()
     commandList->DrawInstanced(3, 1, 3, 0);
     
     // TODO: This vvv line should not be here 
-    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
+    //ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 
-    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    //commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
-    BreakIfFail(commandList->Close());
+    //BreakIfFail(commandList->Close());
 
-    ID3D12CommandList* commandLists[] = { commandList.Get() };
-    commandQueue->ExecuteCommandLists(1, commandLists);
-    BreakIfFail(dxgiSwapchain->Present(1, 0));
+    //ID3D12CommandList* commandLists[] = { commandList.Get() };
+    //commandQueue->ExecuteCommandLists(1, commandLists);
+    //BreakIfFail(dxgiSwapchain->Present(1, 0));
 
     return 0;
 }
@@ -630,6 +630,15 @@ void startNextFrame()
 
 void endFrame()
 {
+    GfxTexture* currentRenderTarget = gfx::swapchainTextures[g_FrameIndex];
+    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+    BreakIfFail(commandList->Close());
+
+    ID3D12CommandList* commandLists[] = { commandList.Get() };
+    commandQueue->ExecuteCommandLists(1, commandLists);
+    BreakIfFail(dxgiSwapchain->Present(1, 0));
+
     UINT64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
     BreakIfFail(commandQueue->Signal(frameFence.Get(), fenceValueToSignal));
 }
@@ -672,6 +681,8 @@ void rendererImGuiNewFrame()
 
 void rendererImGuiRenderDrawData()
 {
+    commandList->SetDescriptorHeaps(1, cbvSrvUavDescriptorHeap.GetAddressOf());
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
 }
 
 GfxTexture* getCurrentRenderTargetColorBuffer()
