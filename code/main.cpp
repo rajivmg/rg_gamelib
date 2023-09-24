@@ -340,10 +340,78 @@ rgFloat sgn(rgFloat x)
     return (x > 0) - (x < 0);
 }
 
+static bool showPostFXEditor = false;
+static void showDebugInterface(bool* open)
+{
+    static int location = 0;
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+    if(location >= 0)
+    {
+        const float PAD = 10.0f;
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImVec2 workPos = viewport->WorkPos; // Use work area to avoid menu-bar/task-bar, if any!
+        ImVec2 workSize = viewport->WorkSize;
+        ImVec2 windowPos, windowPosPivot;
+        windowPos.x = (location & 1) ? (workPos.x + workSize.x - PAD) : (workPos.x + PAD);
+        windowPos.y = (location & 2) ? (workPos.y + workSize.y - PAD) : (workPos.y + PAD);
+        windowPosPivot.x = (location & 1) ? 1.0f : 0.0f;
+        windowPosPivot.y = (location & 2) ? 1.0f : 0.0f;
+        ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPosPivot);
+        windowFlags |= ImGuiWindowFlags_NoMove;
+    }
+    else if(location == -2)
+    {
+        // Center window
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        windowFlags |= ImGuiWindowFlags_NoMove;
+    }
+    ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
+    if(ImGui::Begin("RG DebugInterface", open, windowFlags))
+    {
+        //static rgDouble lastFewDeltaTs[60] = { 0 };
+        //static rgInt deltaTBufferIndex = 0;
+        //lastFewDeltaTs[deltaTBufferIndex] = g_DeltaTime;
+        //deltaTBufferIndex = (deltaTBufferIndex + 1) % rgARRAY_COUNT(lastFewDeltaTs);
+        //rgDouble lastFewDeltaTSum = 0;
+        //for(rgInt i = 0; i < rgARRAY_COUNT(lastFewDeltaTs); ++i)
+        //{
+        //    lastFewDeltaTSum += lastFewDeltaTs[i];
+        //}
+        //ImGui::Text("%0.1f FPS (Avg)", 1.0 / (lastFewDeltaTSum / rgARRAY_COUNT(lastFewDeltaTs)));
+        ImGui::Text("%0.1f FPS (Avg)", io.Framerate);
+        ImGui::Separator();
+
+        ImGui::Text("Simple overlay\n" "(right-click to change position)");
+        if(ImGui::IsMousePosValid())
+            ImGui::Text("Mouse Position: (%.1f,%.1f)", io.MousePos.x, io.MousePos.y);
+        else
+            ImGui::Text("Mouse Position: <invalid>");
+        if(ImGui::BeginPopupContextWindow())
+        {
+            if(ImGui::MenuItem("PostFX Editor", NULL, showPostFXEditor))
+            {
+                showPostFXEditor = true;
+            }
+
+            //if(ImGui::MenuItem("Custom", NULL, location == -1)) location = -1;
+            //if(ImGui::MenuItem("Center", NULL, location == -2)) location = -2;
+            //if(ImGui::MenuItem("Top-left", NULL, location == 0)) location = 0;
+            //if(ImGui::MenuItem("Top-right", NULL, location == 1)) location = 1;
+            //if(ImGui::MenuItem("Bottom-left", NULL, location == 2)) location = 2;
+            //if(ImGui::MenuItem("Bottom-right", NULL, location == 3)) location = 3;
+            if(open && ImGui::MenuItem("Close")) *open = false;
+            ImGui::EndPopup();
+        }
+    }
+    ImGui::End();
+}
+
 rgInt rg::updateAndDraw(rgDouble dt)
 {
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
     ImGui::ShowDemoWindow();
+    showDebugInterface(NULL);
     
     if(g_GameInput->mouse.right.endedDown)
     {
@@ -502,28 +570,31 @@ rgInt rg::updateAndDraw(rgDouble dt)
 #else
             GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("outputLuminanceHistogram", nullptr, sizeof(uint32_t) * 256, GfxBufferUsage_ShaderRW);
             
-            ImGui::Begin("Tonemapper");
+            if(showPostFXEditor)
             {
-                ImGui::SliderFloat("minLogLuminance", &g_GameState->tonemapperMinLogLuminance, -15.0f, 5.0f, "%.3f");
-                ImGui::SliderFloat("maxLogLuminance", &g_GameState->tonemapperMaxLogLuminance, -5.0f, 20.0f, "%.3f");
-                
-                //if(ImGui::CollapsingHeader("Histogram"))
-                ImGui::SeparatorText("Histogram");
+                if(ImGui::Begin("PostFX Editor", &showPostFXEditor))
                 {
-#ifndef RG_D3D12_RNDR
-                    float histoBins[256];
-                    rgU32* histoBinsData = (rgU32*)outputLuminanceHistogramBuffer->map(0, 0);
-                    for(int i = 0; i < rgARRAY_COUNT(histoBins); ++i)
+                    ImGui::SliderFloat("minLogLuminance", &g_GameState->tonemapperMinLogLuminance, -15.0f, 5.0f, "%.3f");
+                    ImGui::SliderFloat("maxLogLuminance", &g_GameState->tonemapperMaxLogLuminance, -5.0f, 20.0f, "%.3f");
+
+                    //if(ImGui::CollapsingHeader("Histogram"))
+                    ImGui::SeparatorText("Histogram");
                     {
-                        histoBins[i] = histoBinsData[i];
-                    }
-                    outputLuminanceHistogramBuffer->unmap();
-                    ImGui::PlotHistogram("##luminanceHistogram", histoBins, 256, 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(512, 100));
+#ifndef RG_D3D12_RNDR
+                        float histoBins[256];
+                        rgU32* histoBinsData = (rgU32*)outputLuminanceHistogramBuffer->map(0, 0);
+                        for(int i = 0; i < rgARRAY_COUNT(histoBins); ++i)
+                        {
+                            histoBins[i] = histoBinsData[i];
+                        }
+                        outputLuminanceHistogramBuffer->unmap();
+                        ImGui::PlotHistogram("##luminanceHistogram", histoBins, 256, 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(512, 100));
 
 #endif // !RG_D3D12_RNDR
+                    }
                 }
+                ImGui::End();
             }
-            ImGui::End();
      
             struct TonemapParams
             {
@@ -700,6 +771,7 @@ rgInt createSDLWindow()
     windowFlags |= SDL_WINDOW_OPENGL;
 #elif defined(RG_D3D12_RNDR)
     windowFlags |= SDL_WINDOW_RESIZABLE;
+    //windowFlags |= SDL_WINDOW_FULLSCREEN;
 #endif
     
     if (SDL_Init(SDL_INIT_VIDEO) == 0)
