@@ -1493,7 +1493,7 @@ void GfxComputeCmdEncoder::setComputePSO(GfxComputePSO* pso)
 }
 
 //-----------------------------------------------------------------------------
-GfxObjectBinding& GfxComputeCmdEncoder::getPipelineArgumentInfo(char const* bindingTag)
+GfxObjectBinding* GfxComputeCmdEncoder::getPipelineArgumentInfo(char const* bindingTag)
 {
     rgAssert(gfx::currentComputePSO != nullptr);
     rgAssert(bindingTag);
@@ -1501,28 +1501,13 @@ GfxObjectBinding& GfxComputeCmdEncoder::getPipelineArgumentInfo(char const* bind
     auto infoIter = gfx::currentComputePSO->reflection.find(bindingTag);
     if(infoIter == gfx::currentComputePSO->reflection.end())
     {
-        rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
-        rgAssert(false);
+        rgLogWarn("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
+        return nullptr;
     }
 
-    GfxObjectBinding& info = infoIter->second;
+    rgAssert((infoIter->second.stages & GfxStage_CS) == GfxStage_CS);
 
-    if((info.stages & GfxStage_CS) != GfxStage_CS)
-    {
-        rgLogError("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
-        rgAssert(!"TODO: LogError should stop the execution");
-        //rgAssert("TODO: LogError should stop the execution");
-        //rgAssert("TODO: LogError should stop the execution");
-        //rgAssert("TODO: LogError should stop the execution");
-        //rgAssert("TODO: LogError should stop the execution");
-        //rgAssert("TODO: LogError should stop the execution");
-        //rgAssert("TODO: LogError should stop the execution");
-        //rgAssert("TODO: LogError should stop the execution");
-        //rgAssert("TODO: LogError should stop the execution");
-        //rgAssert("TODO: LogError should stop the execution");
-    }
-
-    return info;
+    return &infoIter->second;
 }
 
 //-----------------------------------------------------------------------------

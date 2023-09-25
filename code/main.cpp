@@ -334,6 +334,7 @@ rgFloat sgn(rgFloat x)
 }
 
 static bool showPostFXEditor = false;
+static bool showImGuiDemo = false;
 static void showDebugInterface(bool* open)
 {
     static int location = 0;
@@ -341,22 +342,16 @@ static void showDebugInterface(bool* open)
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
     if(location >= 0)
     {
-        const float PAD = 10.0f;
+        const float padding = 10.0f;
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImVec2 workPos = viewport->WorkPos; // Use work area to avoid menu-bar/task-bar, if any!
         ImVec2 workSize = viewport->WorkSize;
         ImVec2 windowPos, windowPosPivot;
-        windowPos.x = (location & 1) ? (workPos.x + workSize.x - PAD) : (workPos.x + PAD);
-        windowPos.y = (location & 2) ? (workPos.y + workSize.y - PAD) : (workPos.y + PAD);
+        windowPos.x = (location & 1) ? (workPos.x + workSize.x - padding) : (workPos.x + padding);
+        windowPos.y = (location & 2) ? (workPos.y + workSize.y - padding) : (workPos.y + padding);
         windowPosPivot.x = (location & 1) ? 1.0f : 0.0f;
         windowPosPivot.y = (location & 2) ? 1.0f : 0.0f;
         ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPosPivot);
-        windowFlags |= ImGuiWindowFlags_NoMove;
-    }
-    else if(location == -2)
-    {
-        // Center window
-        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         windowFlags |= ImGuiWindowFlags_NoMove;
     }
     ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
@@ -372,27 +367,33 @@ static void showDebugInterface(bool* open)
         //    lastFewDeltaTSum += lastFewDeltaTs[i];
         //}
         //ImGui::Text("%0.1f FPS (Avg)", 1.0 / (lastFewDeltaTSum / rgARRAY_COUNT(lastFewDeltaTs)));
+        
         ImGui::Text("%0.1f FPS (Avg)", io.Framerate);
         ImGui::Separator();
 
-        ImGui::Text("Simple overlay\n" "(right-click to change position)");
+        ImGui::Text("Harry Potter & The Secrets of Pandora");
+        
         if(ImGui::IsMousePosValid())
+        {
             ImGui::Text("Mouse Position: (%.1f,%.1f)", io.MousePos.x, io.MousePos.y);
+        }
         else
+        {
             ImGui::Text("Mouse Position: <invalid>");
+        }
+
         if(ImGui::BeginPopupContextWindow())
         {
             if(ImGui::MenuItem("PostFX Editor", NULL, showPostFXEditor))
             {
-                showPostFXEditor = true;
+                showPostFXEditor = !showPostFXEditor;
             }
 
-            //if(ImGui::MenuItem("Custom", NULL, location == -1)) location = -1;
-            //if(ImGui::MenuItem("Center", NULL, location == -2)) location = -2;
-            //if(ImGui::MenuItem("Top-left", NULL, location == 0)) location = 0;
-            //if(ImGui::MenuItem("Top-right", NULL, location == 1)) location = 1;
-            //if(ImGui::MenuItem("Bottom-left", NULL, location == 2)) location = 2;
-            //if(ImGui::MenuItem("Bottom-right", NULL, location == 3)) location = 3;
+            if(ImGui::MenuItem("ImGui Demo", NULL, showImGuiDemo))
+            {
+                showImGuiDemo = !showImGuiDemo;
+            }
+
             if(open && ImGui::MenuItem("Close")) *open = false;
             ImGui::EndPopup();
         }
@@ -403,7 +404,7 @@ static void showDebugInterface(bool* open)
 rgInt rg::updateAndDraw(rgDouble dt)
 {
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
-    ImGui::ShowDemoWindow();
+    if(showImGuiDemo) { ImGui::ShowDemoWindow(&showImGuiDemo); }
     showDebugInterface(NULL);
     
     if(g_GameInput->mouse.right.endedDown)
@@ -567,8 +568,9 @@ rgInt rg::updateAndDraw(rgDouble dt)
             {
                 if(ImGui::Begin("PostFX Editor", &showPostFXEditor))
                 {
-                    ImGui::SliderFloat("minLogLuminance", &g_GameState->tonemapperMinLogLuminance, -15.0f, 5.0f, "%.3f");
-                    ImGui::SliderFloat("maxLogLuminance", &g_GameState->tonemapperMaxLogLuminance, -5.0f, 20.0f, "%.3f");
+                    //ImGui::SliderFloat("minLogLuminance", &g_GameState->tonemapperMinLogLuminance, -15.0f, 5.0f, "%.3f");
+                    //ImGui::SliderFloat("maxLogLuminance", &g_GameState->tonemapperMaxLogLuminance, -5.0f, 20.0f, "%.3f");
+                    ImGui::DragFloatRange2("LogLuminance", &g_GameState->tonemapperMinLogLuminance, &g_GameState->tonemapperMaxLogLuminance, 0.1f, -20.0f, 20.0f, "Min: %.1f", "Max: %.1f", ImGuiSliderFlags_AlwaysClamp);
                     
                     ImGui::SeparatorText("Histogram");
 #ifndef RG_D3D12_RNDR
