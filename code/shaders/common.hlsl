@@ -1,4 +1,16 @@
 
+#if _cpp
+typedef uint32_t uint;
+#endif
+
+static uint const LUMINANCE_BLOCK_SIZE = 16;
+static uint const LUMINANCE_HISTOGRAM_BINS_COUNT = LUMINANCE_BLOCK_SIZE * LUMINANCE_BLOCK_SIZE;
+static uint const LUMINANCE_BUFFER_OFFSET_EXPOSURE = 0;
+static uint const LUMINANCE_BUFFER_OFFSET_LUMINANCE = LUMINANCE_BUFFER_OFFSET_EXPOSURE + 4;
+static uint const LUMINANCE_BUFFER_OFFSET_HISTOGRAM = LUMINANCE_BUFFER_OFFSET_LUMINANCE + 4;
+
+#ifndef _cpp
+
 // ---------------------------------
 // common resources and params
 cbuffer commonParams : register(b0, space0)
@@ -44,3 +56,5 @@ VS_OUT vsFullscreenPassthrough(uint vertexID : SV_VERTEXID)
 #endif
     return output;
 }
+
+#endif

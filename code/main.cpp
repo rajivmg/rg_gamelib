@@ -259,19 +259,6 @@ rgInt rg::setup()
     skyboxRenderState.cullMode = GfxCullMode_None;
 
     gfx::graphicsPSO->create("skybox", &vertexPos, &skyboxShaderDesc, &skyboxRenderState);
-    //
-    GfxShaderDesc fullscreenHDRShaderDesc = {};
-    fullscreenHDRShaderDesc.shaderSrc = "tonemap.hlsl";
-    fullscreenHDRShaderDesc.vsEntrypoint = "vsFullscreenPassthrough";
-    fullscreenHDRShaderDesc.fsEntrypoint = "fsReinhard";
-    
-    GfxRenderStateDesc fullscreenHDRRenderStateDesc = {};
-    fullscreenHDRRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
-    fullscreenHDRRenderStateDesc.colorAttachments[0].blendingEnabled = false;
-    //simple2dRenderStateDesc.triangleFillMode = GfxTriangleFillMode_Lines;
-    
-    gfx::graphicsPSO->create("fullscreenHDR", nullptr, &fullscreenHDRShaderDesc, &fullscreenHDRRenderStateDesc);
-    //
     
     //
     GfxShaderDesc tonemapShaderDesc = {};
@@ -281,6 +268,12 @@ rgInt rg::setup()
     
     tonemapShaderDesc.csEntrypoint = "csClearOutputLuminanceHistogram";
     gfx::computePSO->create("tonemapClearOutputLuminanceHistogram", &tonemapShaderDesc);
+    
+    tonemapShaderDesc.csEntrypoint = "csComputeAvgLuminance";
+    gfx::computePSO->create("tonemapComputeAvgLuminance", &tonemapShaderDesc);
+    
+    tonemapShaderDesc.csEntrypoint = "csReinhard";
+    gfx::computePSO->create("tonemapReinhard", &tonemapShaderDesc);
     //
     
     // Initialize camera params
@@ -568,7 +561,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
             tonemapRenderEncoder->drawTriangles(0, 3, 1);
             tonemapRenderEncoder->end();
 #else
-            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("outputLuminanceHistogram", nullptr, sizeof(uint32_t) * 256, GfxBufferUsage_ShaderRW);
+            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", nullptr, sizeof(uint32_t) * (256 + 2), GfxBufferUsage_ShaderRW);
             
             if(showPostFXEditor)
             {
@@ -576,22 +569,20 @@ rgInt rg::updateAndDraw(rgDouble dt)
                 {
                     ImGui::SliderFloat("minLogLuminance", &g_GameState->tonemapperMinLogLuminance, -15.0f, 5.0f, "%.3f");
                     ImGui::SliderFloat("maxLogLuminance", &g_GameState->tonemapperMaxLogLuminance, -5.0f, 20.0f, "%.3f");
-
-                    //if(ImGui::CollapsingHeader("Histogram"))
+                    
                     ImGui::SeparatorText("Histogram");
-                    {
 #ifndef RG_D3D12_RNDR
-                        float histoBins[256];
-                        rgU32* histoBinsData = (rgU32*)outputLuminanceHistogramBuffer->map(0, 0);
-                        for(int i = 0; i < rgARRAY_COUNT(histoBins); ++i)
-                        {
-                            histoBins[i] = histoBinsData[i];
-                        }
-                        outputLuminanceHistogramBuffer->unmap();
-                        ImGui::PlotHistogram("##luminanceHistogram", histoBins, 256, 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(512, 100));
-
-#endif // !RG_D3D12_RNDR
+                    float histoBins[256];
+                    rgU32* histoBinsData = (rgU32*)outputLuminanceHistogramBuffer->map(0, 0) + 2;
+                    for(int i = 0; i < rgARRAY_COUNT(histoBins); ++i)
+                    {
+                        histoBins[i] = histoBinsData[i];
                     }
+                    outputLuminanceHistogramBuffer->unmap();
+                    ImGui::PlotHistogram("##luminanceHistogram", histoBins, 256, 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(512, 100));
+                    rgFloat avgLuminance = *((rgFloat*)histoBinsData + 256);
+                    ImGui::Text("Average Luminance %f", avgLuminance);
+#endif // !RG_D3D12_RNDR
                 }
                 ImGui::End();
             }
@@ -600,26 +591,46 @@ rgInt rg::updateAndDraw(rgDouble dt)
             {
                 rgU32   inputImageWidth;
                 rgU32   inputImageHeight;
+                rgU32   inputImagePixelCount;
                 float   minLogLuminance;
+                float   logLuminanceRange;
                 float   oneOverLogLuminanceRange;
+                float   tau;
+                float   deltaTime; // TODO: Move to common.hlsl
             } tonemapParams;
             
             tonemapParams.inputImageWidth = g_WindowInfo.width;
             tonemapParams.inputImageHeight = g_WindowInfo.height;
+            tonemapParams.inputImagePixelCount = g_WindowInfo.width * g_WindowInfo.height;
             tonemapParams.minLogLuminance = g_GameState->tonemapperMinLogLuminance;
+            tonemapParams.logLuminanceRange = g_GameState->tonemapperMaxLogLuminance - g_GameState->tonemapperMinLogLuminance;
             tonemapParams.oneOverLogLuminanceRange = 1.0f / (g_GameState->tonemapperMaxLogLuminance - g_GameState->tonemapperMinLogLuminance);
+            tonemapParams.tau = 1.1f;
+            tonemapParams.deltaTime = (rgFloat)g_DeltaTime;
             
             GfxComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
                         
             postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapClearOutputLuminanceHistogram"_tag));
-            postfxCmdEncoder->bindBuffer("luminanceHistogram", outputLuminanceHistogramBuffer, 0);
+            postfxCmdEncoder->bindBuffer("luminanceBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(16, 16, 1);
             
             postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapGenerateHistogram"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
             postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
             postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
-            postfxCmdEncoder->bindBuffer("luminanceHistogram", outputLuminanceHistogramBuffer, 0);
+            postfxCmdEncoder->bindBuffer("luminanceBuffer", outputLuminanceHistogramBuffer, 0);
+            postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
+
+            postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapComputeAvgLuminance"_tag));
+            postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
+            postfxCmdEncoder->bindBuffer("luminanceBuffer", outputLuminanceHistogramBuffer, 0);
+            postfxCmdEncoder->dispatch(16, 16, 1);
+            
+            postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapReinhard"_tag));
+            postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
+            postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
+            //postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
+            postfxCmdEncoder->bindBuffer("luminanceBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
             
             //.....

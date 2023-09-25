@@ -885,7 +885,7 @@ struct GfxComputeCmdEncoder
     
     void dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ);
     
-    GfxObjectBinding& getPipelineArgumentInfo(char const* bindingTag);
+    GfxObjectBinding* getPipelineArgumentInfo(char const* bindingTag);
     
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)
