@@ -12,7 +12,6 @@ cbuffer TonemapParams
     float   logLuminanceRange;
     float   oneOverLogLuminanceRange;
     float   tau;
-    float   deltaTime; // TODO: Move to common.hlsl
 };
 
 RWByteAddressBuffer luminanceBuffer;
@@ -96,7 +95,7 @@ void csComputeAvgLuminance(uint groupIndex : SV_GroupIndex)
         float weightedLogAvg = (histogramShared[0].x / max((float)inputImagePixelCount - countInBin, 1.0)) - 1.0;
         float weightedAvgLuminance = exp2(((weightedLogAvg / (LUMINANCE_HISTOGRAM_BINS_COUNT - 2)) * logLuminanceRange) + minLogLuminance);
         float luminanceLastFrame = luminanceBuffer.Load<float>(LUMINANCE_BUFFER_OFFSET_LUMINANCE);
-        float adaptedLuminance = luminanceLastFrame + (weightedAvgLuminance - luminanceLastFrame) * (1 - exp(-deltaTime * tau));
+        float adaptedLuminance = luminanceLastFrame + (weightedAvgLuminance - luminanceLastFrame) * (1 - exp(-timeDelta * tau));
         luminanceBuffer.Store(LUMINANCE_BUFFER_OFFSET_LUMINANCE, adaptedLuminance);
     }
 }

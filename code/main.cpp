@@ -444,7 +444,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     commonParams.timeDelta = (rgFloat)g_DeltaTime;
     commonParams.timeGame  = (rgFloat)g_Time;
 
-    GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
+    GfxFrameResource commonParamsBuffer = gfx::getFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
     
     // RENDER SIMPLE 2D STUFF
     {
@@ -503,7 +503,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBufferBunny", sizeof(instanceParams), &instanceParams);
         
-        demoSceneEncoder->bindBuffer("commonParams", &cameraParamsBuffer);
+        demoSceneEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         demoSceneEncoder->bindBuffer("instanceParams", &instanceParamsBuffer);
         demoSceneEncoder->bindTexture("irradianceMap", gfx::texture->find("sangiuseppeBridgeCubeIrradiance"_tag));
         demoSceneEncoder->bindSamplerState("irradianceSampler", gfx::samplerBilinearClampEdge);
@@ -533,7 +533,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         GfxRenderCmdEncoder* skyboxRenderEncoder = gfx::setRenderPass("Skybox Pass", &skyboxRenderPass);
         skyboxRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("skybox"_tag));
-        skyboxRenderEncoder->bindBuffer("commonParams", &cameraParamsBuffer);
+        skyboxRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         skyboxRenderEncoder->bindTexture("diffuseCubeMap", gfx::texture->find("sangiuseppeBridgeCube"_tag));
         skyboxRenderEncoder->bindSamplerState("skyboxSampler", gfx::samplerBilinearClampEdge);
         skyboxRenderEncoder->setVertexBuffer(gfx::buffer->find("skyboxVertexBuffer"_tag), 0, 0);
@@ -550,7 +550,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass("DemoScene Pass", &gridRenderPass);
         gridRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("gridPSO"_tag));
-        gridRenderEncoder->bindBuffer("commonParams", &cameraParamsBuffer);
+        gridRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         gridRenderEncoder->drawTriangles(0, 6, 1);
         gridRenderEncoder->end();
         
@@ -608,7 +608,6 @@ rgInt rg::updateAndDraw(rgDouble dt)
                 float   logLuminanceRange;
                 float   oneOverLogLuminanceRange;
                 float   tau;
-                float   deltaTime; // TODO: Move to common.hlsl
             } tonemapParams;
             
             tonemapParams.inputImageWidth = g_WindowInfo.width;
@@ -618,7 +617,6 @@ rgInt rg::updateAndDraw(rgDouble dt)
             tonemapParams.logLuminanceRange = g_GameState->tonemapperMaxLogLuminance - g_GameState->tonemapperMinLogLuminance;
             tonemapParams.oneOverLogLuminanceRange = 1.0f / (g_GameState->tonemapperMaxLogLuminance - g_GameState->tonemapperMinLogLuminance);
             tonemapParams.tau = 1.1f;
-            tonemapParams.deltaTime = (rgFloat)g_DeltaTime;
             
             GfxComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
                         
@@ -634,6 +632,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
 
             postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapComputeAvgLuminance"_tag));
+            postfxCmdEncoder->bindBuffer("commonParams", &commonParamsBuffer);
             postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
             postfxCmdEncoder->bindBuffer("luminanceBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(16, 16, 1);
