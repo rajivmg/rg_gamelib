@@ -1,4 +1,4 @@
-#include "common.hlsl"
+#include "shaderinterop_common.h"
 
 Texture2D<float4> inputImage;
 RWTexture2D<float4> outputImage;
@@ -177,7 +177,7 @@ void csReinhard(uint3 id : SV_DispatchThreadID)
     
     float3 hdrColor = inputImage[id.xy].rgb;
     
-    float exposureBias = 2.0;
+    float exposureBias = 1.0;
     float3 curr = uncharted2Tonemap(exposureBias * hdrColor);
     
     float W = avgLum;

@@ -1,5 +1,5 @@
 
-#include "common.hlsl"
+#include "shaderinterop_common.h"
 
 struct GridVertexShaderOut
 {

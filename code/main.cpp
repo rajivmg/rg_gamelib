@@ -15,6 +15,8 @@
 #include "shaders/metal/simple2d_shader.inl"
 #include "shaders/metal/principledbrdf_shader.inl"
 
+#include "shaders/shaderinterop_common.h"
+
 // TODO:
 // 2. Add rgLogDebug() rgLogError()
 // 3. Then use the suitable rgLogXXX() version in VKDbgReportCallback Function based on msgType 
@@ -425,7 +427,9 @@ rgInt rg::updateAndDraw(rgDouble dt)
         rgFloat cameraViewRotOnlyMatrix[16];
         rgFloat cameraNear;
         rgFloat cameraFar;
-        rgFloat _padding2[2];
+        //rgFloat _padding2[2];
+        rgFloat timeDelta;
+        rgFloat timeGame;
     } commonParams;
     
     copyMatrix3ToFloatArray(commonParams.cameraBasisMatrix, g_GameState->cameraBasis);
@@ -437,6 +441,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
     copyMatrix4ToFloatArray(commonParams.cameraViewRotOnlyMatrix, g_GameState->cameraViewRotOnly);
     commonParams.cameraNear = g_GameState->cameraNear;
     commonParams.cameraFar  = g_GameState->cameraFar;
+    commonParams.timeDelta = (rgFloat)g_DeltaTime;
+    commonParams.timeGame  = (rgFloat)g_Time;
 
     GfxFrameResource cameraParamsBuffer = gfx::getFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
     
@@ -562,7 +568,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
             tonemapRenderEncoder->drawTriangles(0, 3, 1);
             tonemapRenderEncoder->end();
 #else
-            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", nullptr, sizeof(uint32_t) * (256 + 2), GfxBufferUsage_ShaderRW);
+            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", nullptr, sizeof(uint32_t) * (LUMINANCE_HISTOGRAM_BINS_COUNT + 1 + 1), GfxBufferUsage_ShaderRW);
             
             if(showPostFXEditor)
             {
@@ -574,16 +580,20 @@ rgInt rg::updateAndDraw(rgDouble dt)
                     
                     ImGui::SeparatorText("Histogram");
 #ifndef RG_D3D12_RNDR
-                    float histoBins[256];
-                    rgU32* histoBinsData = (rgU32*)outputLuminanceHistogramBuffer->map(0, 0) + 2;
-                    for(int i = 0; i < rgARRAY_COUNT(histoBins); ++i)
+                    rgU8* luminanceOutputBuffer = (rgU8*)outputLuminanceHistogramBuffer->map(0, 0);
+                    
+                    rgU32* histogramData = (rgU32*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_HISTOGRAM);
+                    float histogram[256];
+                    for(int i = 0; i < rgARRAY_COUNT(histogram); ++i)
                     {
-                        histoBins[i] = histoBinsData[i];
+                        histogram[i] = histogramData[i];
                     }
-                    outputLuminanceHistogramBuffer->unmap();
-                    ImGui::PlotHistogram("##luminanceHistogram", histoBins, 256, 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(512, 100));
-                    rgFloat avgLuminance = *((rgFloat*)histoBinsData + 256);
+                    
+                    ImGui::PlotHistogram("##luminanceHistogram", histogram, rgARRAY_COUNT(histogram), 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(512, 100));
+                    rgFloat avgLuminance = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_LUMINANCE);
                     ImGui::Text("Average Luminance %f", avgLuminance);
+                    
+                    outputLuminanceHistogramBuffer->unmap();
 #endif // !RG_D3D12_RNDR
                 }
                 ImGui::End();

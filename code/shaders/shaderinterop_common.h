@@ -1,19 +1,23 @@
+// define hlsl to cpp types here
+#if __cplusplus
 
-#if _cpp
 typedef uint32_t uint;
+
 #endif
 
+// common cpp and hlsl code here
 static uint const LUMINANCE_BLOCK_SIZE = 16;
 static uint const LUMINANCE_HISTOGRAM_BINS_COUNT = LUMINANCE_BLOCK_SIZE * LUMINANCE_BLOCK_SIZE;
 static uint const LUMINANCE_BUFFER_OFFSET_EXPOSURE = 0;
 static uint const LUMINANCE_BUFFER_OFFSET_LUMINANCE = LUMINANCE_BUFFER_OFFSET_EXPOSURE + 4;
 static uint const LUMINANCE_BUFFER_OFFSET_HISTOGRAM = LUMINANCE_BUFFER_OFFSET_LUMINANCE + 4;
 
-#ifndef _cpp
 
-// ---------------------------------
+// hlsl only code here
+#ifndef __cplusplus
+
 // common resources and params
-cbuffer commonParams : register(b0, space0)
+cbuffer commonParams// : register(b0, space0)
 {
     float3x3 cameraBasisMatrix;
     float4x4 cameraViewMatrix;
@@ -24,6 +28,8 @@ cbuffer commonParams : register(b0, space0)
     float4x4 cameraViewRotOnlyMatrix;
     float    cameraNear;
     float    cameraFar;
+    float    timeDelta;
+    float    timeGame;
 };
 
 

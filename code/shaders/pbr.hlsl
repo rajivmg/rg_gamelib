@@ -1,4 +1,4 @@
-#include "common.hlsl"
+#include "shaderinterop_common.h"
 
 #define MAX_INSTANCES 256
 
