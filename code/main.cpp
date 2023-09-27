@@ -287,6 +287,9 @@ rgInt rg::setup()
     g_GameState->tonemapperMinLogLuminance = -10.0f;
     g_GameState->tonemapperMaxLogLuminance = 2.0f;
     
+    // Initialize show/hide vars
+    g_GameState->debugShowGrid = false;
+    
     //updateCamera();
     
     g_PhysicSystem = rgNew(PhysicSystem);
@@ -294,10 +297,10 @@ rgInt rg::setup()
     g_GameState->baseColorRT = gfx::texture->create("baseColorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R16G16B16A16_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_RenderTarget, nullptr);
     g_GameState->depthStencilRT = gfx::texture->create("depthStencilRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_DepthStencil, nullptr);
     
-    ImageRef sanGiuseppeBridgeCube = loadImage("je_gray_02.dds");
+    ImageRef sanGiuseppeBridgeCube = loadImage("small_empty_room_1_alb.dds");
     gfx::texture->create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
     
-    ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("je_gray_02_irradiance.dds");
+    ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("small_empty_room_1_irr.dds");
     gfx::texture->create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
 
 #if 0
@@ -386,6 +389,11 @@ static void showDebugInterface(bool* open)
 
         if(ImGui::BeginPopupContextWindow())
         {
+            if(ImGui::MenuItem("debugShowGrid", NULL, g_GameState->debugShowGrid))
+            {
+                g_GameState->debugShowGrid = !g_GameState->debugShowGrid;
+            }
+            
             if(ImGui::MenuItem("PostFX Editor", NULL, showPostFXEditor))
             {
                 showPostFXEditor = !showPostFXEditor;
@@ -540,19 +548,22 @@ rgInt rg::updateAndDraw(rgDouble dt)
         skyboxRenderEncoder->drawTriangles(0, 36, 1);
         skyboxRenderEncoder->end();
         
-        GfxRenderPass gridRenderPass = {};
-        gridRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
-        gridRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
-        gridRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        gridRenderPass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
-        gridRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
-        gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
-        
-        GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass("DemoScene Pass", &gridRenderPass);
-        gridRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("gridPSO"_tag));
-        gridRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
-        gridRenderEncoder->drawTriangles(0, 6, 1);
-        gridRenderEncoder->end();
+        if(g_GameState->debugShowGrid)
+        {
+            GfxRenderPass gridRenderPass = {};
+            gridRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
+            gridRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
+            gridRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+            gridRenderPass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
+            gridRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
+            gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
+            
+            GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass("DemoScene Pass", &gridRenderPass);
+            gridRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("gridPSO"_tag));
+            gridRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
+            gridRenderEncoder->drawTriangles(0, 6, 1);
+            gridRenderEncoder->end();
+        }
         
         {
 #if 0

@@ -90,6 +90,8 @@ struct GameState
     rgFloat tonemapperMinLogLuminance;
     rgFloat tonemapperMaxLogLuminance;
     
+    rgBool  debugShowGrid;
+    
     GfxTexture* baseColorRT;
     GfxTexture* depthStencilRT;
 
