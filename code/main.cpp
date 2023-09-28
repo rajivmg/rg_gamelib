@@ -302,6 +302,12 @@ rgInt rg::setup()
     
     ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("small_empty_room_1_irr.dds");
     gfx::texture->create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
+    
+    
+    ///
+    ImageRef japaneseStoneWall1k = loadImage("japanese_stone_wall_1k/japanese_stone_wall_diff_1k.png");
+    gfx::texture->create("japanese_stone_wall_diff_1k", GfxTextureDim_2D, japaneseStoneWall1k->width, japaneseStoneWall1k->height, japaneseStoneWall1k->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, japaneseStoneWall1k->slices);
+    ///
 
 #if 0
     b2Vec2 gravity(0.0f, -9.8f);
@@ -513,6 +519,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         demoSceneEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         demoSceneEncoder->bindBuffer("instanceParams", &instanceParamsBuffer);
+        demoSceneEncoder->bindTexture("diffuseTexMap", gfx::texture->find("japanese_stone_wall_diff_1k"_tag));
         demoSceneEncoder->bindTexture("irradianceMap", gfx::texture->find("sangiuseppeBridgeCubeIrradiance"_tag));
         demoSceneEncoder->bindSamplerState("irradianceSampler", gfx::samplerBilinearClampEdge);
         

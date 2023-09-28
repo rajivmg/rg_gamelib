@@ -16,6 +16,7 @@ struct InstanceParams
 };
 
 ConstantBuffer<InstanceParams> instanceParams : register(b1, space0);
+Texture2D<float4> diffuseTexMap;
 TextureCube<float4> irradianceMap : register(t0, space0);
 SamplerState irradianceSampler : register(s0, space0);
 
@@ -51,7 +52,8 @@ VS_OUT vsPbr(in Obj2HeaderModelVertex v, uint instanceID : SV_InstanceID)
 half4 fsPbr(in VS_OUT f) : SV_TARGET
 {
     //half4 color = half4(1.0, 0.1, 0.1, 1.0);
-    half4 diffColor = half4(1.0, 1.0, 1.0, 1.0);
+    float4 texs = diffuseTexMap.Sample(irradianceSampler, f.texcoord);
+    half4 diffColor = texs;
     half4 irradiance = irradianceMap.Sample(irradianceSampler, f.normal);
     return diffColor * irradiance;
     //float4 color = float4(in.normal, 1.0);
