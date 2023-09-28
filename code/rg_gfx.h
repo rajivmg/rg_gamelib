@@ -136,9 +136,8 @@ enum GfxTextureDim
 
 enum GfxTextureMipFlag
 {
-    GfxTextureMipFlag_NoMips = 0,
-    GfxTextureMipFlag_GenMips = 1,
-    GfxTextureMipFlag_BEGIN_MIPS,
+    GfxTextureMipFlag_BEGIN_MIPS = 0u,
+    GfxTextureMipFlag_1Mip,
     GfxTextureMipFlag_2Mips,
     GfxTextureMipFlag_3Mips,
     GfxTextureMipFlag_4Mips,
@@ -151,6 +150,7 @@ enum GfxTextureMipFlag
     GfxTextureMipFlag_11Mips,
     GfxTextureMipFlag_12Mips,
     GfxTextureMipFlag_END_MIPS,
+    GfxTextureMipFlag_GenMips,
 };
 
 struct GfxTexture
@@ -160,7 +160,7 @@ struct GfxTexture
     rgUInt            width;
     rgUInt           height;
     TinyImageFormat  format;
-    rgUInt         mipCount;
+    rgUInt      mipmapCount;
     GfxTextureUsage   usage;
     rgU32             texID;
 
@@ -173,32 +173,36 @@ struct GfxTexture
     VkImage vkTexture;
     VmaAllocation vmaAlloc;
 #endif
-
-    static void fillStruct(GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
+    
+    static rgUInt calcMipmapCount(GfxTextureMipFlag mipFlag, rgUInt width, rgUInt height)
     {
-        rgUInt mip = 0;
-        if(mipFlag == GfxTextureMipFlag_NoMips)
+        rgUInt mip = 1;
+        if(mipFlag == GfxTextureMipFlag_GenMips)
         {
-            mip = 1;
-        }
-        else if(mipFlag == GfxTextureMipFlag_GenMips)
-        {
-            // TODO: Calculate based on width and height
-            // TODO: Calculate based on width and height
-            mip = 8;
+            mip = ((rgUInt)floor(log2(eastl::max(width, height)))) + 1;
         }
         else
         {
-            rgAssert(mipFlag != GfxTextureMipFlag_BEGIN_MIPS && mipFlag != GfxTextureMipFlag_END_MIPS);
-            mip = (rgInt)mipFlag - (rgInt)GfxTextureMipFlag_BEGIN_MIPS + 1;
+            rgAssert(mipFlag > GfxTextureMipFlag_BEGIN_MIPS && mipFlag < GfxTextureMipFlag_END_MIPS);
+            mip = (rgUInt)mipFlag;
         }
-        
+        return mip;
+    }
+
+    static void fillStruct(GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
+    {
         obj->dim = dim;
         obj->width = width;
         obj->height = height;
         obj->format = format;
-        obj->mipCount = mip;
+        obj->mipmapCount = calcMipmapCount(mipFlag, width, height);
         obj->usage = usage;
+        
+        if(dim != GfxTextureDim_2D)
+        {
+            rgAssert(obj->mipmapCount == 1);
+            // TODO: handle cube & 3D mips
+        }
     }
 
     static void create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj);
@@ -972,6 +976,8 @@ void            destroy();
 void            startNextFrame();
 void            endFrame();
 
+void            runOnFrameBeginJob();
+
 void            rendererImGuiInit();
 void            rendererImGuiNewFrame();
 void            rendererImGuiRenderDrawData();
@@ -1032,6 +1038,8 @@ extern GfxObjectRegistry<GfxComputePSO>*    computePSO;
 extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
 
 extern GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
+
+extern eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
 
 extern eastl::vector<GfxTexture*> debugTextureHandles; // test only
 

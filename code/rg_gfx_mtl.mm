@@ -361,6 +361,11 @@ MTLSamplerMipFilter toMTLSamplerMipFilter(GfxSamplerMipFilter filter)
     return result;
 }
 
+rgUInt toUInt(GfxTextureMipFlag mipFlag)
+{
+    return 1;
+}
+
 GfxTexture createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
 {
     // TODO: Add more info to texture2d
@@ -369,7 +374,7 @@ GfxTexture createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
     texture.width = (rgUInt)[drawable.texture width];
     texture.height = (rgUInt)[drawable.texture height];
     texture.format = TinyImageFormat_FromMTLPixelFormat((TinyImageFormat_MTLPixelFormat)[drawable.texture pixelFormat]);
-    texture.mipCount = 1;
+    texture.mipmapCount = 1;
     texture.usage = GfxTextureUsage_RenderTarget;
     texture.mtlTexture = drawable.texture;
     return texture;
@@ -461,10 +466,12 @@ void GfxSamplerState::destroy(GfxSamplerState* obj)
 
 void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
+    rgUInt mipmapLevelCount = calcMipmapCount(mipFlag, width, height);
     MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];
     texDesc.width = width;
     texDesc.height = height;
     texDesc.pixelFormat = toMTLPixelFormat(format);
+    texDesc.mipmapLevelCount = mipmapLevelCount;
     texDesc.textureType = toMTLTextureType(dim);
     texDesc.storageMode = MTLStorageModeShared;
     texDesc.usage = toMTLTextureUsage(usage);
@@ -473,15 +480,32 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
     te.label = [NSString stringWithUTF8String:tag];
     [texDesc release];
     
+    // mipmap0 data is required for mip-chain generation
+    if(mipFlag == GfxTextureMipFlag_GenMips)
+    {
+        rgAssert(slices && slices[0].data != NULL);
+    }
+    
     // copy the texture data
     if(slices && slices[0].data != NULL)
     {
+        // TODO: handle when mipmapLevelCount > 1 but mipFlag is not GenMips
+        // i.e. copy mip data from slices to texture memory
+        if(mipmapLevelCount > 1)
+        {
+            rgAssert(mipFlag == GfxTextureMipFlag_GenMips);
+        }
+        
         rgInt sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
         for(rgInt s = 0; s < sliceCount; ++s)
         {
             MTLRegion region = MTLRegionMake2D(0, 0, width, height);
             [te replaceRegion:region mipmapLevel:0 slice:s withBytes:slices[s].data bytesPerRow:(width * (TinyImageFormat_BitSizeOfBlock(format) / 8)) bytesPerImage:0];
-            //[te replaceRegion:region mipmapLevel:0 withBytes:slices[s].data bytesPerRow:width * TinyImageFormat_ChannelCount(format)];
+        }
+        
+        if(mipFlag == GfxTextureMipFlag_GenMips)
+        {
+            gfx::frameBeginJobGenTextureMipmaps.push_back(obj);
         }
     }
 
@@ -1574,7 +1598,7 @@ void testComputeAtomicsSetup()
     [histogramLibrary release];
     
     ImageRef histoTex = rg::loadImage("histogram_test.png");
-    gfx::texture->create("histogramTest", GfxTextureDim_2D, histoTex->width, histoTex->height, histoTex->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, histoTex->slices);
+    gfx::texture->create("histogramTest", GfxTextureDim_2D, histoTex->width, histoTex->height, histoTex->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, histoTex->slices);
     gfx::buffer->create("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
 }
 
@@ -1759,6 +1783,22 @@ void endFrame()
     [autoReleasePool release];
     
     return 0;
+}
+
+// TODO: should this be done at abstracted level?
+void runOnFrameBeginJob()
+{
+    if(gfx::frameBeginJobGenTextureMipmaps.size() > 0)
+    {
+        id<MTLBlitCommandEncoder> mipmapGenCmdList = [getMTLCommandBuffer() blitCommandEncoder];
+        mipmapGenCmdList.label = @"OnFrameBegin GenMipMap";
+        for(GfxTexture* tex : gfx::frameBeginJobGenTextureMipmaps)
+        {
+            [mipmapGenCmdList generateMipmapsForTexture:asMTLTexture(tex->mtlTexture)];
+        }
+        [mipmapGenCmdList endEncoding];
+        gfx::frameBeginJobGenTextureMipmaps.clear();
+    }
 }
 
 void rendererImGuiInit()

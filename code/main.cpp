@@ -124,7 +124,7 @@ rgInt rg::setup()
     g_GameState = rgNew(GameState);
 
     ImageRef tinyTexture = loadImage("tiny.tga");
-    gfx::texture->create("tiny", GfxTextureDim_2D, tinyTexture->width, tinyTexture->height, tinyTexture->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, tinyTexture->slices);
+    gfx::texture->create("tiny", GfxTextureDim_2D, tinyTexture->width, tinyTexture->height, tinyTexture->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, tinyTexture->slices);
     gfx::texture->destroy(rgCRC32("tiny"));
     
     for(rgInt i = 1; i <= 16; ++i)
@@ -132,12 +132,12 @@ rgInt rg::setup()
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
         ImageRef t = loadImage(path);
-        GfxTexture* t2d = gfx::texture->create(path, GfxTextureDim_2D, t->width, t->height, t->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, t->slices);
+        GfxTexture* t2d = gfx::texture->create(path, GfxTextureDim_2D, t->width, t->height, t->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, t->slices);
         gfx::debugTextureHandles.push_back(t2d);
     }
 
     ImageRef flowerTex = rg::loadImage("flower.png");
-    g_GameState->flowerTexture = gfx::texture->create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
+    g_GameState->flowerTexture = gfx::texture->create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
     
     //gfxDestroyBuffer("ocean_tile");
     g_GameState->shaderballModel = rg::loadModel("shaderball.xml");
@@ -294,19 +294,19 @@ rgInt rg::setup()
     
     g_PhysicSystem = rgNew(PhysicSystem);
     
-    g_GameState->baseColorRT = gfx::texture->create("baseColorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R16G16B16A16_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_RenderTarget, nullptr);
-    g_GameState->depthStencilRT = gfx::texture->create("depthStencilRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_DepthStencil, nullptr);
+    g_GameState->baseColorRT = gfx::texture->create("baseColorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R16G16B16A16_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
+    g_GameState->depthStencilRT = gfx::texture->create("depthStencilRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
     
     ImageRef sanGiuseppeBridgeCube = loadImage("small_empty_room_1_alb.dds");
-    gfx::texture->create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
+    gfx::texture->create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
     
     ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("small_empty_room_1_irr.dds");
-    gfx::texture->create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
+    gfx::texture->create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
     
     
     ///
     ImageRef japaneseStoneWall1k = loadImage("japanese_stone_wall_1k/japanese_stone_wall_diff_1k.png");
-    gfx::texture->create("japanese_stone_wall_diff_1k", GfxTextureDim_2D, japaneseStoneWall1k->width, japaneseStoneWall1k->height, japaneseStoneWall1k->format, GfxTextureMipFlag_NoMips, GfxTextureUsage_ShaderRead, japaneseStoneWall1k->slices);
+    gfx::texture->create("japanese_stone_wall_diff_1k", GfxTextureDim_2D, japaneseStoneWall1k->width, japaneseStoneWall1k->height, japaneseStoneWall1k->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, japaneseStoneWall1k->slices);
     ///
 
 #if 0
@@ -646,7 +646,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
             
             postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapGenerateHistogram"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
-            postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
+            //postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
             postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
@@ -920,6 +920,7 @@ int main(int argc, char* argv[])
         }
         
         gfx::startNextFrame();
+        gfx::runOnFrameBeginJob();
         
         gfx::rendererImGuiNewFrame();
         ImGui_ImplSDL2_NewFrame();

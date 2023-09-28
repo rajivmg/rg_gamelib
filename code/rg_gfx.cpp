@@ -253,6 +253,8 @@ GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
 GfxSamplerState*    bilinearSampler;
 GfxFrameAllocator*  frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
+eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
+
 GfxSamplerState*    samplerBilinearRepeat;
 GfxSamplerState*    samplerBilinearClampEdge;
 GfxSamplerState*    samplerTrilinearRepeatAniso;
