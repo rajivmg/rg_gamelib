@@ -6,7 +6,7 @@ typedef uint32_t uint;
 #endif
 
 // common cpp and hlsl code here
-static uint const LUMINANCE_BLOCK_SIZE = 16;
+static uint const LUMINANCE_BLOCK_SIZE = 32;
 static uint const LUMINANCE_HISTOGRAM_BINS_COUNT = LUMINANCE_BLOCK_SIZE * LUMINANCE_BLOCK_SIZE;
 static uint const LUMINANCE_BUFFER_OFFSET_EXPOSURE = 0;
 static uint const LUMINANCE_BUFFER_OFFSET_LUMINANCE = LUMINANCE_BUFFER_OFFSET_EXPOSURE + 4;

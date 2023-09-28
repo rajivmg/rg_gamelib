@@ -284,7 +284,7 @@ rgInt rg::setup()
     g_GameState->cameraYaw = 0.0f;
     
     // Initialize tonemapper params
-    g_GameState->tonemapperMinLogLuminance = -10.0f;
+    g_GameState->tonemapperMinLogLuminance = 0.22f;
     g_GameState->tonemapperMaxLogLuminance = 2.0f;
     
     // Initialize show/hide vars
@@ -579,7 +579,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
             tonemapRenderEncoder->drawTriangles(0, 3, 1);
             tonemapRenderEncoder->end();
 #else
-            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", nullptr, sizeof(uint32_t) * (LUMINANCE_HISTOGRAM_BINS_COUNT + 1 + 1), GfxBufferUsage_ShaderRW);
+            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", nullptr, (sizeof(uint32_t) * LUMINANCE_HISTOGRAM_BINS_COUNT) + (sizeof(float) * (1 + 1)), GfxBufferUsage_ShaderRW);
             
             if(showPostFXEditor)
             {
@@ -594,15 +594,17 @@ rgInt rg::updateAndDraw(rgDouble dt)
                     rgU8* luminanceOutputBuffer = (rgU8*)outputLuminanceHistogramBuffer->map(0, 0);
                     
                     rgU32* histogramData = (rgU32*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_HISTOGRAM);
-                    float histogram[256];
+                    float histogram[LUMINANCE_HISTOGRAM_BINS_COUNT];
                     for(int i = 0; i < rgARRAY_COUNT(histogram); ++i)
                     {
                         histogram[i] = histogramData[i];
                     }
                     
-                    ImGui::PlotHistogram("##luminanceHistogram", histogram, rgARRAY_COUNT(histogram), 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(512, 100));
-                    rgFloat avgLuminance = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_LUMINANCE);
-                    ImGui::Text("Average Luminance %f", avgLuminance);
+                    ImGui::PlotHistogram("##luminanceHistogram", histogram, rgARRAY_COUNT(histogram), 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(LUMINANCE_HISTOGRAM_BINS_COUNT * 1, 100));
+                    rgFloat adaptedLuminance = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_LUMINANCE);
+                    rgFloat exposure = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_EXPOSURE);
+                    ImGui::Text("Adapted Luminance %f", adaptedLuminance);
+                    ImGui::Text("Exposure %f", exposure);
                     
                     outputLuminanceHistogramBuffer->unmap();
 #endif // !RG_D3D12_RNDR
@@ -632,27 +634,27 @@ rgInt rg::updateAndDraw(rgDouble dt)
             GfxComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
                         
             postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapClearOutputLuminanceHistogram"_tag));
-            postfxCmdEncoder->bindBuffer("luminanceBuffer", outputLuminanceHistogramBuffer, 0);
-            postfxCmdEncoder->dispatch(16, 16, 1);
+            postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
+            postfxCmdEncoder->dispatch(LUMINANCE_BLOCK_SIZE, LUMINANCE_BLOCK_SIZE, 1);
             
             postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapGenerateHistogram"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
             postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
             postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
-            postfxCmdEncoder->bindBuffer("luminanceBuffer", outputLuminanceHistogramBuffer, 0);
+            postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
 
             postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapComputeAvgLuminance"_tag));
             postfxCmdEncoder->bindBuffer("commonParams", &commonParamsBuffer);
             postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
-            postfxCmdEncoder->bindBuffer("luminanceBuffer", outputLuminanceHistogramBuffer, 0);
-            postfxCmdEncoder->dispatch(16, 16, 1);
+            postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
+            postfxCmdEncoder->dispatch(LUMINANCE_BLOCK_SIZE, LUMINANCE_BLOCK_SIZE, 1);
             
             postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapReinhard"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
             postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
             //postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
-            postfxCmdEncoder->bindBuffer("luminanceBuffer", outputLuminanceHistogramBuffer, 0);
+            postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
             
             //.....
