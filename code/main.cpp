@@ -281,8 +281,10 @@ rgInt rg::setup()
     g_GameState->cameraYaw = 0.0f;
     
     // Initialize tonemapper params
-    g_GameState->tonemapperMinLogLuminance = 0.22f;
-    g_GameState->tonemapperMaxLogLuminance = 2.0f;
+    g_GameState->tonemapperMinLogLuminance = -2.0;
+    g_GameState->tonemapperMaxLogLuminance = 10.0f;
+    g_GameState->tonemapperAdaptationRate = 1.1f;
+    g_GameState->tonemapperExposureKey = 0.11f;
     
     // Initialize show/hide vars
     g_GameState->debugShowGrid = false;
@@ -294,10 +296,10 @@ rgInt rg::setup()
     g_GameState->baseColorRT = gfx::texture->create("baseColorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R16G16B16A16_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
     g_GameState->depthStencilRT = gfx::texture->create("depthStencilRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
     
-    ImageRef sanGiuseppeBridgeCube = loadImage("small_empty_room_1_alb.dds");
+    ImageRef sanGiuseppeBridgeCube = loadImage("small_empty_room_1_alb.dds"); // je_gray_02.dds
     gfx::texture->create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
     
-    ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("small_empty_room_1_irr.dds");
+    ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("small_empty_room_1_irr.dds"); // je_gray_02_irradiance.dds
     gfx::texture->create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
     
     
@@ -341,7 +343,7 @@ rgFloat sgn(rgFloat x)
     return (x > 0) - (x < 0);
 }
 
-static bool showPostFXEditor = false;
+static bool showPostFXEditor = true;
 static bool showImGuiDemo = false;
 static void showDebugInterface(bool* open)
 {
@@ -362,7 +364,7 @@ static void showDebugInterface(bool* open)
         ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPosPivot);
         windowFlags |= ImGuiWindowFlags_NoMove;
     }
-    ImGui::SetNextWindowBgAlpha(0.35f); // Transparent background
+    ImGui::SetNextWindowBgAlpha(0.2f); // Transparent background
     if(ImGui::Begin("RG DebugInterface", open, windowFlags))
     {
         //static rgDouble lastFewDeltaTs[60] = { 0 };
@@ -379,16 +381,16 @@ static void showDebugInterface(bool* open)
         ImGui::Text("%0.1f FPS (Avg)", io.Framerate);
         ImGui::Separator();
 
-        ImGui::Text("Harry Potter & The Secrets of Pandora");
+        ImGui::Text("GameLib");
         
-        if(ImGui::IsMousePosValid())
+        /*if(ImGui::IsMousePosValid())
         {
             ImGui::Text("Mouse Position: (%.1f,%.1f)", io.MousePos.x, io.MousePos.y);
         }
         else
         {
             ImGui::Text("Mouse Position: <invalid>");
-        }
+        }*/
 
         if(ImGui::BeginPopupContextWindow())
         {
@@ -587,12 +589,14 @@ rgInt rg::updateAndDraw(rgDouble dt)
             
             if(showPostFXEditor)
             {
+                ImGui::SetNextWindowBgAlpha(0.0f); // Transparent background
                 if(ImGui::Begin("PostFX Editor", &showPostFXEditor))
                 {
                     //ImGui::SliderFloat("minLogLuminance", &g_GameState->tonemapperMinLogLuminance, -15.0f, 5.0f, "%.3f");
                     //ImGui::SliderFloat("maxLogLuminance", &g_GameState->tonemapperMaxLogLuminance, -5.0f, 20.0f, "%.3f");
                     ImGui::DragFloatRange2("LogLuminance", &g_GameState->tonemapperMinLogLuminance, &g_GameState->tonemapperMaxLogLuminance, 0.1f, -20.0f, 20.0f, "Min: %.1f", "Max: %.1f", ImGuiSliderFlags_AlwaysClamp);
-                    
+                    ImGui::InputFloat("ExposureKey", &g_GameState->tonemapperExposureKey, 0.01f);
+                    ImGui::InputFloat("AdaptationRate", &g_GameState->tonemapperAdaptationRate, 0.1f);
                     ImGui::SeparatorText("Histogram");
 #ifndef RG_D3D12_RNDR
                     rgU8* luminanceOutputBuffer = (rgU8*)outputLuminanceHistogramBuffer->map(0, 0);
@@ -604,11 +608,10 @@ rgInt rg::updateAndDraw(rgDouble dt)
                         histogram[i] = histogramData[i];
                     }
                     
-                    ImGui::PlotHistogram("##luminanceHistogram", histogram, rgARRAY_COUNT(histogram), 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(LUMINANCE_HISTOGRAM_BINS_COUNT * 1, 100));
+                    ImGui::PlotHistogram("##luminanceHistogram", histogram, rgARRAY_COUNT(histogram), 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(LUMINANCE_HISTOGRAM_BINS_COUNT * (LUMINANCE_BLOCK_SIZE < 32 ? 2 : 1), 100));
                     rgFloat adaptedLuminance = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_LUMINANCE);
                     rgFloat exposure = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_EXPOSURE);
-                    ImGui::Text("Adapted Luminance %f", adaptedLuminance);
-                    ImGui::Text("Exposure %f", exposure);
+                    ImGui::Text("Adapted Luminance is %0.2f, and exposure is %0.2f", adaptedLuminance, exposure);
                     
                     outputLuminanceHistogramBuffer->unmap();
 #endif // !RG_D3D12_RNDR
@@ -624,6 +627,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
                 float   minLogLuminance;
                 float   logLuminanceRange;
                 float   oneOverLogLuminanceRange;
+                float   luminanceAdaptationKey;
                 float   tau;
             } tonemapParams;
             
@@ -633,7 +637,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
             tonemapParams.minLogLuminance = g_GameState->tonemapperMinLogLuminance;
             tonemapParams.logLuminanceRange = g_GameState->tonemapperMaxLogLuminance - g_GameState->tonemapperMinLogLuminance;
             tonemapParams.oneOverLogLuminanceRange = 1.0f / (g_GameState->tonemapperMaxLogLuminance - g_GameState->tonemapperMinLogLuminance);
-            tonemapParams.tau = 1.1f;
+            tonemapParams.luminanceAdaptationKey = g_GameState->tonemapperExposureKey;
+            tonemapParams.tau = g_GameState->tonemapperAdaptationRate;
             
             GfxComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
                         

@@ -10,6 +10,7 @@ cbuffer TonemapParams
     float   minLogLuminance;
     float   logLuminanceRange;
     float   oneOverLogLuminanceRange;
+    float   exposureKey;
     float   tau;
 };
 Texture2D<float4> inputImage;
@@ -94,7 +95,7 @@ void csComputeAvgLuminance(uint groupIndex : SV_GroupIndex)
         float luminanceLastFrame = outputBuffer.Load<float>(LUMINANCE_BUFFER_OFFSET_LUMINANCE);
         float adaptedLuminance = luminanceLastFrame + (weightedAvgLuminance - luminanceLastFrame) * (1 - exp(-timeDelta * tau));
         outputBuffer.Store<float>(LUMINANCE_BUFFER_OFFSET_LUMINANCE, adaptedLuminance);
-        outputBuffer.Store<float>(LUMINANCE_BUFFER_OFFSET_EXPOSURE, 1.0 / max(adaptedLuminance, 0.0001));
+        outputBuffer.Store<float>(LUMINANCE_BUFFER_OFFSET_EXPOSURE, exposureKey / max(adaptedLuminance, 0.0001));
     }
     
     //outputBuffer.Store(LUMINANCE_BUFFER_OFFSET_HISTOGRAM + groupIndex * 4, 0);
@@ -133,7 +134,7 @@ void csReinhard(uint3 id : SV_DispatchThreadID)
     float exposure = outputBuffer.Load<float>(LUMINANCE_BUFFER_OFFSET_EXPOSURE);
     float3 exposedColor = inputImage[id.xy].rgb * exposure;
     float3 tonemappedColor = ACESFilm(exposedColor);
-    float3 fc = tonemappedColor;//pow(tonemappedColor, float(1.0 / 2.2));
+    float3 fc = pow(tonemappedColor, float(1.0 / 2.2));
     outputImage[id.xy] = float4(fc, 1.0);
     return;
 #endif

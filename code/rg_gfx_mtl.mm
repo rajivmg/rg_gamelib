@@ -734,7 +734,7 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     bindlessTextureBinding.basetype = spirv_cross::SPIRType::Image;
     bindlessTextureBinding.desc_set = kBindlessTextureSetBinding;
     bindlessTextureBinding.binding = 0;
-    bindlessTextureBinding.count = 256; // TODO: increase
+    bindlessTextureBinding.count = 1024; // TODO: increase
     
     bindlessTextureBinding.stage = spv::ExecutionModelVertex;
     msl.add_msl_resource_binding(bindlessTextureBinding);

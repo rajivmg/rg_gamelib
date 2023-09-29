@@ -89,6 +89,8 @@ struct GameState
     
     rgFloat tonemapperMinLogLuminance;
     rgFloat tonemapperMaxLogLuminance;
+    rgFloat tonemapperAdaptationRate;
+    rgFloat tonemapperExposureKey;
     
     rgBool  debugShowGrid;
     
