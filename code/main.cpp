@@ -277,8 +277,8 @@ rgInt rg::setup()
     
     // Initialize camera params
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
-    g_GameState->cameraPitch = 0.0f;
-    g_GameState->cameraYaw = 0.0f;
+    g_GameState->cameraPitch = -M_PI_4 + 0.15f; // ~-45 deg
+    g_GameState->cameraYaw = M_PI_2 * 3.0f; // 270deg
     
     // Initialize tonemapper params
     g_GameState->tonemapperMinLogLuminance = -2.0;
