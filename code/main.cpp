@@ -12,9 +12,6 @@
 #include "game/game.h"
 #include "game/skybox.h"
 
-#include "shaders/metal/simple2d_shader.inl"
-#include "shaders/metal/principledbrdf_shader.inl"
-
 #include "shaders/shaderinterop_common.h"
 
 // TODO:

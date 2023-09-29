@@ -30,7 +30,6 @@
 
 RG_BEGIN_RG_NAMESPACE
 
-#include "shaders/metal/imm_shader.inl"
 #include "shaders/metal/histogram_shader.inl"
 
 
@@ -749,11 +748,11 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     // write generate msl shader src to a file
     char generatedFilepath[512];
     // TODO: create a generated/ folder and save the files there
-    strcpy(generatedFilepath, "../code/shaders/");
+    strcpy(generatedFilepath, "../code/shaders/tmp_autogen/");
     strncat(generatedFilepath, filename, 400);
     strncat(generatedFilepath, "_", 2);
     strncat(generatedFilepath, entrypoint, 64);
-    strncat(generatedFilepath, ".gen_msl", 9);
+    strncat(generatedFilepath, ".msl", 9);
     rg::writeFile(generatedFilepath, (void*)mslShaderSource.c_str(), mslShaderSource.size() * sizeof(char));
     
     // if compute shader, fetch the workgroup size

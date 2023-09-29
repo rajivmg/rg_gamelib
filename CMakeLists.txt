@@ -149,7 +149,7 @@ elseif(APPLE)
 
     # set source files
     set(IMGUI_METAL_SRC ${IMGUI_ROOT_DIR}/backends/imgui_impl_metal.mm ${IMGUI_ROOT_DIR}/backends/imgui_impl_metal.h ${IMGUI_ROOT_DIR}/backends/imgui_impl_sdl2.h ${IMGUI_ROOT_DIR}/backends/imgui_impl_sdl2.cpp ${IMGUI_SRC_FILES})
-    file(GLOB SRC_FILES "code/*.cpp" "code/*.mm" "code/*.h" "code/shaders/metal/*.inl" ${IMGUI_METAL_SRC})
+    file(GLOB SRC_FILES "code/*.cpp" "code/*.mm" "code/*.h" ${IMGUI_METAL_SRC})
 
     add_compile_definitions(RG_METAL_RNDR __EMULATE_UUID)
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${3RD_PARTY_DIR}/inc/metal-cpp ${3RD_PARTY_DIR}/inc/metal-cpp-extensions ${DXC_INCLUDE_DIR})
