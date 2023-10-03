@@ -1780,8 +1780,6 @@ void endFrame()
     
     // Autorelease pool END
     [autoReleasePool release];
-    
-    return 0;
 }
 
 // TODO: should this be done at abstracted level?
