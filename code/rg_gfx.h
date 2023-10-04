@@ -899,10 +899,6 @@ struct GfxComputeCmdEncoder
 
 struct GfxBlitCmdEncoder
 {
-    // TODO: Add a deferred cmds, they run just before the end of the current frame 
-    // TODO: Add a deferred cmds, they run just before the end of the current frame 
-    // TODO: Add a deferred cmds, they run just before the end of the current frame 
-
     struct Cmd
     {
         enum Type
@@ -927,7 +923,7 @@ struct GfxBlitCmdEncoder
         };
     };
 
-    void begin();
+    void begin(char const* tag);
     void end();
     void pushDebugTag(const char* tag);
     void genMips(GfxTexture* srcTexture); // TODO: Handle non 2D types

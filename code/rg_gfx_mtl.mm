@@ -1432,9 +1432,11 @@ void GfxComputeCmdEncoder::dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsG
 // GfxBlitCmdEncoder Implementation
 //*****************************************************************************
 
-void GfxBlitCmdEncoder::begin()
+void GfxBlitCmdEncoder::begin(char const* tag)
 {
     id<MTLBlitCommandEncoder> blitCmdEncoder = [getMTLCommandBuffer() blitCommandEncoder];
+    rgAssert(blitCmdEncoder != nil);
+    [blitCmdEncoder pushDebugGroup:[NSString stringWithUTF8String:tag]];
     mtlBlitCommandEncoder = (__bridge void*)blitCmdEncoder;
     hasEnded = false;
 }

@@ -437,40 +437,18 @@ GfxFrameAllocator* getFrameAllocator()
     return gfx::frameAllocators[g_FrameIndex];
 }
 
-GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass)
+static void endCurrentCmdEncoder()
 {
-    // TODO: handle case when there is already a compute or blit command encoder in progress
-    // TODO: handle case when there is already a compute or blit command encoder in progress
-    if(currentRenderPass != renderPass)
+    if(currentRenderCmdEncoder != nullptr)
     {
-        if(currentRenderPass != nullptr)
+        if(!currentRenderCmdEncoder->hasEnded)
         {
-            // end current render cmd list
-            if(!currentRenderCmdEncoder->hasEnded)
-            {
-                currentRenderCmdEncoder->end();
-            }
-            rgDelete(currentRenderCmdEncoder);
+            currentRenderCmdEncoder->end();
         }
-        // begin new cmd list
-        currentRenderCmdEncoder = rgNew(GfxRenderCmdEncoder);
-        currentRenderCmdEncoder->begin(tag, renderPass);
-
-        currentRenderPass = renderPass;
-    }
-    else
-    {
-        rgAssert(!"Wrong usage");
-        currentRenderCmdEncoder->pushDebugTag(tag);
+        rgDelete(currentRenderCmdEncoder);
+        currentRenderCmdEncoder = nullptr;
     }
     
-    return currentRenderCmdEncoder;
-}
-
-GfxComputeCmdEncoder* setComputePass(char const* tag)
-{
-    // TODO: handle case when there is already a blit or render command encoder in progress
-    // TODO: handle case when there is already a blit or render command encoder in progress
     if(currentComputeCmdEncoder != nullptr)
     {
         if(!currentComputeCmdEncoder->hasEnded)
@@ -478,7 +456,35 @@ GfxComputeCmdEncoder* setComputePass(char const* tag)
             currentComputeCmdEncoder->end();
         }
         rgDelete(currentComputeCmdEncoder);
+        currentComputeCmdEncoder = nullptr;
     }
+    
+    if(currentBlitCmdEncoder != nullptr)
+    {
+        if(!currentBlitCmdEncoder->hasEnded)
+        {
+            currentBlitCmdEncoder->end();
+        }
+        rgDelete(currentBlitCmdEncoder);
+        currentBlitCmdEncoder = nullptr;
+    }
+}
+
+GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass)
+{
+    endCurrentCmdEncoder();
+
+    currentRenderCmdEncoder = rgNew(GfxRenderCmdEncoder);
+    currentRenderCmdEncoder->begin(tag, renderPass);
+
+    currentRenderPass = renderPass;
+    
+    return currentRenderCmdEncoder;
+}
+
+GfxComputeCmdEncoder* setComputePass(char const* tag)
+{
+    endCurrentCmdEncoder();
     
     currentComputeCmdEncoder = rgNew(GfxComputeCmdEncoder);
     currentComputeCmdEncoder->begin(tag);
@@ -488,20 +494,10 @@ GfxComputeCmdEncoder* setComputePass(char const* tag)
 
 GfxBlitCmdEncoder* setBlitPass(char const* tag)
 {
-    // TODO: handle case when there is already a compute or render command encoder in progress
-    // TODO: handle case when there is already a compute or render command encoder in progress
-    if(currentBlitCmdEncoder != nullptr)
-    {
-        if(!currentBlitCmdEncoder->hasEnded)
-        {
-            currentBlitCmdEncoder->end();
-        }
-        
-        rgDelete(currentBlitCmdEncoder);
-    }
+    endCurrentCmdEncoder();
     
     currentBlitCmdEncoder = rgNew(GfxBlitCmdEncoder);
-    currentBlitCmdEncoder->begin();
+    currentBlitCmdEncoder->begin(tag);
     currentBlitCmdEncoder->pushDebugTag(tag);
     
     return currentBlitCmdEncoder;

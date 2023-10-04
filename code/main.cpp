@@ -440,7 +440,6 @@ rgInt rg::updateAndDraw(rgDouble dt)
         rgFloat cameraViewRotOnlyMatrix[16];
         rgFloat cameraNear;
         rgFloat cameraFar;
-        //rgFloat _padding2[2];
         rgFloat timeDelta;
         rgFloat timeGame;
     } commonParams;
@@ -509,7 +508,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
             rgFloat invTposeWorldXform[256][16];
         } instanceParams;
         
-        Matrix4 xform = Matrix4::identity();//Matrix4(Transform3::rotationY(sinf(g_Time * 0.5f)));
+        Matrix4 xform = Matrix4::identity();
         copyMatrix4ToFloatArray(&instanceParams.worldXform[0][0], xform);
         copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
         
@@ -572,19 +571,6 @@ rgInt rg::updateAndDraw(rgDouble dt)
         }
         
         {
-#if 0
-            GfxRenderPass tonemapRenderPass = {};
-            tonemapRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
-            tonemapRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
-            tonemapRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-            
-            GfxRenderCmdEncoder* tonemapRenderEncoder = gfx::setRenderPass("Tonemap Pass", &tonemapRenderPass);
-            tonemapRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("fullscreenHDR"_tag));
-            tonemapRenderEncoder->bindTexture("srcTexture", g_GameState->baseColorRT);
-            tonemapRenderEncoder->bindSamplerState("pointSampler", gfx::samplerNearestClampEdge);
-            tonemapRenderEncoder->drawTriangles(0, 3, 1);
-            tonemapRenderEncoder->end();
-#else
             GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", nullptr, (sizeof(uint32_t) * LUMINANCE_HISTOGRAM_BINS_COUNT) + (sizeof(float) * (1 + 1)), GfxBufferUsage_ShaderRW);
             
             if(showPostFXEditor)
@@ -592,8 +578,6 @@ rgInt rg::updateAndDraw(rgDouble dt)
                 ImGui::SetNextWindowBgAlpha(0.0f); // Transparent background
                 if(ImGui::Begin("PostFX Editor", &showPostFXEditor))
                 {
-                    //ImGui::SliderFloat("minLogLuminance", &g_GameState->tonemapperMinLogLuminance, -15.0f, 5.0f, "%.3f");
-                    //ImGui::SliderFloat("maxLogLuminance", &g_GameState->tonemapperMaxLogLuminance, -5.0f, 20.0f, "%.3f");
                     ImGui::DragFloatRange2("LogLuminance", &g_GameState->tonemapperMinLogLuminance, &g_GameState->tonemapperMaxLogLuminance, 0.1f, -20.0f, 20.0f, "Min: %.1f", "Max: %.1f", ImGuiSliderFlags_AlwaysClamp);
                     ImGui::InputFloat("ExposureKey", &g_GameState->tonemapperExposureKey, 0.01f);
                     ImGui::InputFloat("AdaptationRate", &g_GameState->tonemapperAdaptationRate, 0.1f);
@@ -670,7 +654,6 @@ rgInt rg::updateAndDraw(rgDouble dt)
             
             //postfxCmdEncoder->updateFence();
             postfxCmdEncoder->end();
-#endif
         }
     }
     
