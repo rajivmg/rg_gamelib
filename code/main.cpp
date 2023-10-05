@@ -284,7 +284,7 @@ rgInt rg::setup()
     g_GameState->tonemapperMinLogLuminance = -2.0;
     g_GameState->tonemapperMaxLogLuminance = 10.0f;
     g_GameState->tonemapperAdaptationRate = 1.1f;
-    g_GameState->tonemapperExposureKey = 0.11f;
+    g_GameState->tonemapperExposureKey = 0.15f;
     
     // Initialize show/hide vars
     g_GameState->debugShowGrid = false;

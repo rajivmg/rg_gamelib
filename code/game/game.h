@@ -31,7 +31,8 @@ struct GameControllerInput
 {
     union
     {
-        GameButtonState buttons[5];
+        // IMPORTANT: update the array count if a button is added or removed
+        GameButtonState buttons[7];
         struct
         {
             GameButtonState forward;
@@ -41,6 +42,7 @@ struct GameControllerInput
             GameButtonState up;
             GameButtonState down;
             GameButtonState jump;
+            // IMPORTANT: update the array count if a button is added or removed
         };
     };
 };
