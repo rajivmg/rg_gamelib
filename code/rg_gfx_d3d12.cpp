@@ -443,7 +443,7 @@ rgInt init()
 
     dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
     //gfx::depthStencilTexture = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, false, GfxTextureUsage_DepthStencil);
-    gfx::depthStencilTexture = gfx::texture->create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_NoMips, GfxTextureUsage_DepthStencil, nullptr);
+    gfx::depthStencilTexture = gfx::texture->create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -641,6 +641,10 @@ void endFrame()
 
     UINT64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
     BreakIfFail(commandQueue->Signal(frameFence.Get(), fenceValueToSignal));
+}
+
+void runOnFrameBeginJob()
+{
 }
 
 void onSizeChanged()
@@ -1539,7 +1543,7 @@ void GfxComputeCmdEncoder::dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsG
 // GfxBlitCmdEncoder Implementation
 //*****************************************************************************
 
-void GfxBlitCmdEncoder::begin()
+void GfxBlitCmdEncoder::begin(char const* tag)
 {
 }
 
