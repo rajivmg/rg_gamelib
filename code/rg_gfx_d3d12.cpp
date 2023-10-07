@@ -191,6 +191,11 @@ void waitForGpu()
     gfx::frameFenceValues[g_FrameIndex] += 1;
 }
 
+ComPtr<ID3D12CommandAllocator> getCommandAllocator()
+{
+    return gfx::commandAllocator[g_FrameIndex];
+}
+
 // https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Fullscreen/src/D3D12Fullscreen.cpp
 // TODO: Have this for now.. We won't have to worry about modifying descriptortables at runtime
 
@@ -215,10 +220,10 @@ ComPtr<ID3D12CommandAllocator> createCommandAllocator(D3D12_COMMAND_LIST_TYPE co
     return commandAllocator;
 }
 
-ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE type, ComPtr<ID3D12CommandAllocator> commandAllocator, ID3D12PipelineState* pipelineState)
+ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(ComPtr<ID3D12CommandAllocator> commandAllocator, ID3D12PipelineState* pipelineState)
 {
     ComPtr<ID3D12GraphicsCommandList> commandList;
-    BreakIfFail(getDevice()->CreateCommandList(0, type, commandAllocator.Get(), pipelineState, IID_PPV_ARGS(&commandList)));
+    BreakIfFail(getDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), pipelineState, IID_PPV_ARGS(&commandList)));
     BreakIfFail(commandList->Close());
     return commandList;
 }
@@ -459,7 +464,7 @@ rgInt init()
         commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
     }
 
-    commandList = createGraphicsCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator[0], nullptr);
+    commandList = createGraphicsCommandList(commandAllocator[0], nullptr);
 
     GfxVertexInputDesc simpleVertexDesc = {};
     simpleVertexDesc.elementCount = 3;
@@ -1322,6 +1327,11 @@ void GfxComputePSO::destroy(GfxComputePSO* obj)
 
 void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 {
+    // enabled this vvv later
+    //d3dGraphicsCommandlist = createGraphicsCommandList(getCommandAllocator(), nullptr);
+
+    // TODO REF: https://github.com/gpuweb/gpuweb/issues/23
+    //d3dGraphicsCommandlist->OMSetRenderTargets()
 }
 
 void GfxRenderCmdEncoder::end()

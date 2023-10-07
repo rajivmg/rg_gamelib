@@ -868,6 +868,8 @@ struct GfxRenderCmdEncoder
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)
     void* mtlRenderCommandEncoder; // type: id<MTLRenderCommandEncoder>
+#elif defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12GraphicsCommandList> d3dGraphicsCommandlist;
 #endif
 };
 
