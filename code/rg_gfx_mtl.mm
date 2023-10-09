@@ -390,7 +390,7 @@ struct SimpleVertexFormat1
 // GfxBuffer Implementation
 //-----------------------------------------------------------------------------
 
-void GfxBuffer::create(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
+void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
 {
     if(usage != GfxBufferUsage_ShaderRW)
     {
@@ -1600,7 +1600,7 @@ void testComputeAtomicsSetup()
     
     ImageRef histoTex = rg::loadImage("histogram_test.png");
     gfx::texture->create("histogramTest", GfxTextureDim_2D, histoTex->width, histoTex->height, histoTex->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, histoTex->slices);
-    gfx::buffer->create("histogramBuffer", nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
+    gfx::buffer->create("histogramBuffer", GfxMemoryType_Default, nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
 }
 
 void testComputeAtomicsRun()

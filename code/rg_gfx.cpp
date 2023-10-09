@@ -182,7 +182,7 @@ ModelRef loadModel(char const* filename)
     FileData binFileData = readFile(binFilename);
     rgAssert(binFileData.isValid);
     
-    outModel->vertexIndexBuffer = gfx::buffer->create(binFilename, binFileData.data, binFileData.dataSize, GfxBufferUsage_VertexBuffer | GfxBufferUsage_IndexBuffer);
+    outModel->vertexIndexBuffer = gfx::buffer->create(binFilename, GfxMemoryType_Default, binFileData.data, binFileData.dataSize, GfxBufferUsage_VertexBuffer | GfxBufferUsage_IndexBuffer);
     
     outModel->vertexBufferOffset = modelNode.attribute("vertexBufferOffset").as_uint();
     outModel->index32BufferOffset = modelNode.attribute("index32BufferOffset").as_uint();

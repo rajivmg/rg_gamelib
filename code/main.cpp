@@ -534,7 +534,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     
     // RENDER GRID AND EDITOR STUFF
     {
-        gfx::buffer->findOrCreate("skyboxVertexBuffer", g_SkyboxVertices, sizeof(g_SkyboxVertices), GfxBufferUsage_VertexBuffer);
+        gfx::buffer->findOrCreate("skyboxVertexBuffer", GfxMemoryType_Default, g_SkyboxVertices, sizeof(g_SkyboxVertices), GfxBufferUsage_VertexBuffer);
         GfxRenderPass skyboxRenderPass = {};
         skyboxRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
         skyboxRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
@@ -571,7 +571,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         }
         
         {
-            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", nullptr, (sizeof(uint32_t) * LUMINANCE_HISTOGRAM_BINS_COUNT) + (sizeof(float) * (1 + 1)), GfxBufferUsage_ShaderRW);
+            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", GfxMemoryType_Default, nullptr, (sizeof(uint32_t) * LUMINANCE_HISTOGRAM_BINS_COUNT) + (sizeof(float) * (1 + 1)), GfxBufferUsage_ShaderRW);
             
             if(showPostFXEditor)
             {

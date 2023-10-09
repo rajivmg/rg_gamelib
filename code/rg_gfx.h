@@ -66,16 +66,9 @@ RG_DEFINE_ENUM_FLAGS_OPERATOR(GfxBufferUsage);
 
 enum GfxMemoryType
 {
-    GfxMemoryType_CPUToGPU, // UploadHeap
-    GfxMemoryType_GPUToCPU, // ReadbackHeap
-    GfxMemoryType_GPUOnly,  // DefaultHeap
-    //GfxMemoryUsage_None     =   (0 << 0),
-    //GfxMemoryUsage_GPURead  =   (1 << 0),
-    //GfxMemoryUsage_GPUWrite =   (1 << 1),
-    //GfxMemoryUsage_GPUReadWrite = (GfxMemoryUsage_GPURead | GfxMemoryUsage_GPUWrite),
-    //GfxMemoryUsage_CPURead  =   (1 << 2),
-    //GfxMemoryUsage_CPUWrite =   (1 << 3),
-    //GfxMemoryUsage_CPUReadWrite = (GfxMemoryUsage_CPURead | GfxMemoryUsage_CPUWrite),
+    GfxMemoryType_Default  = 0, // DefaultHeap
+    GfxMemoryType_Upload   = 1, // UploadHeap
+    GfxMemoryType_Readback = 2, // ReadbackHeap
 };
 
 // Note:
@@ -83,9 +76,10 @@ enum GfxMemoryType
 // cpu updatable dynamic data can be stored in FrameAllocator
 struct GfxBuffer
 {
-    rgChar       tag[32];
-    rgU32           size;
-    GfxBufferUsage usage;
+    rgChar            tag[32];
+    rgU32                size;
+    GfxBufferUsage      usage;
+    GfxMemoryType  memoryType;
 #if defined(RG_D3D12_RNDR)
 #elif defined(RG_METAL_RNDR)
     void* mtlBuffer; // type: id<MTLBuffer>
@@ -94,16 +88,17 @@ struct GfxBuffer
     VmaAllocation vmaAlloc;
 #endif
 
-    static void fillStruct(void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
+    static void fillStruct(GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
     {
         obj->size = size;
         obj->usage = usage;
         obj->mappedMemory = nullptr;
+        obj->memoryType = memoryType;
     }
     
     // TODO: should change to first size then buffer??
     // create(const char* tag, rgU32 size, void* buf, GfxBufferUsage usage, GfxBuffer* obj);
-    static void create(const char* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj);
+    static void create(const char* tag, GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj);
     static void destroy(GfxBuffer* obj);
     
     void*   mappedMemory;
