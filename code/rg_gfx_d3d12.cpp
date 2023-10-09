@@ -709,7 +709,7 @@ RG_END_GFX_NAMESPACE
 using namespace gfx;
 
 // Buffer
-void GfxBuffer::create(char const* tag, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
+void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
 {
     ComPtr<ID3D12Resource> bufferResource;
 
