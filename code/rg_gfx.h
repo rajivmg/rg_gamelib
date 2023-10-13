@@ -81,6 +81,12 @@ struct GfxBuffer
     GfxBufferUsage      usage;
     GfxMemoryType  memoryType;
 #if defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Resource> d3dResource;
+    union
+    {
+        D3D12_VERTEX_BUFFER_VIEW d3dVertexBufferView;
+        D3D12_INDEX_BUFFER_VIEW d3dIndexBufferView;
+    };
 #elif defined(RG_METAL_RNDR)
     void* mtlBuffer; // type: id<MTLBuffer>
 #elif defined(RG_VULKAN_RNDR)

@@ -16,41 +16,55 @@
 #include <filesystem>
 
 RG_BEGIN_RG_NAMESPACE
+
+static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
+
 RG_BEGIN_GFX_NAMESPACE
+    ComPtr<ID3D12Device2> device;
+    ComPtr<ID3D12CommandQueue> commandQueue;
+    ComPtr<IDXGISwapChain4> dxgiSwapchain;
+    ComPtr<IDXGIFactory4> dxgiFactory;
 
-//D3d d3d; // TODO: Make this a pointer
+    ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
+    rgUInt rtvDescriptorSize;
 
-// __STRUCT_D3d
-ComPtr<ID3D12Device2> device;
-ComPtr<ID3D12CommandQueue> commandQueue;
-ComPtr<IDXGISwapChain4> dxgiSwapchain;
-ComPtr<IDXGIFactory4> dxgiFactory;
+    ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
 
-ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
-rgUInt rtvDescriptorSize;
+    ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
+    rgUInt cbvSrvUavDescriptorSize;
 
-ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
+    ComPtr<ID3D12Fence> frameFence;
+    UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+    HANDLE frameFenceEvent;
 
-ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
-rgUInt cbvSrvUavDescriptorSize;
+    /// test
+    ComPtr<ID3D12RootSignature> dummyRootSignature;
+    ComPtr<ID3D12PipelineState> dummyPSO;
+    ComPtr<ID3D12Resource> triVB;
+    D3D12_VERTEX_BUFFER_VIEW triVBView;
+    // __ENDSTRUCT
 
-ComPtr<ID3D12Fence> frameFence;
-UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
-HANDLE frameFenceEvent;
+    ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
+    ComPtr<ID3D12GraphicsCommandList> commandList;
 
-/// test
-ComPtr<ID3D12RootSignature> dummyRootSignature;
-ComPtr<ID3D12PipelineState> dummyPSO;
-ComPtr<ID3D12Resource> triVB;
-D3D12_VERTEX_BUFFER_VIEW triVBView;
-// __ENDSTRUCT
+    GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
+    GfxTexture* depthStencilTexture;
 
-ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
-ComPtr<ID3D12GraphicsCommandList> commandList;
+    struct ResourceCopyTask
+    {
+        enum ResourceType
+        {
+            ResourceType_Buffer,
+            ResourceType_Texture,
+        };
 
-GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
-GfxTexture* depthStencilTexture;
+        ResourceType  type;
+        ComPtr<ID3D12Resource> src;
+        ComPtr<ID3D12Resource> dst;
+    };
 
+    eastl::vector<ResourceCopyTask> pendingBufferCopyTasks;
+    eastl::vector<ResourceCopyTask> pendingTextureCopyTasks;
 RG_END_GFX_NAMESPACE
 
 // SECTION BEGIN -
@@ -66,11 +80,6 @@ inline void _BreakIfFail(HRESULT hr)
 }
 
 #define BreakIfFail(x) _BreakIfFail(x)
-
-//static D3d* d3d()
-//{
-//    return &d3d;
-//}
 
 static ComPtr<ID3D12Device> getDevice()
 {
@@ -423,7 +432,7 @@ rgInt init()
     BreakIfFail(dxgiSwapchain1.As(&dxgiSwapchain));
 
     // create swapchain RTV
-    rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RG_MAX_FRAMES_IN_FLIGHT, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 256, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
     rtvDescriptorSize = getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
@@ -446,8 +455,7 @@ rgInt init()
         gfx::swapchainTextures[i] = texRT;
     }
 
-    dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    //gfx::depthStencilTexture = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, false, GfxTextureUsage_DepthStencil);
+    dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
     gfx::depthStencilTexture = gfx::texture->create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
@@ -457,7 +465,7 @@ rgInt init()
     dsDesc.Flags = D3D12_DSV_FLAG_NONE;
     getDevice()->CreateDepthStencilView(gfx::depthStencilTexture->d3dTexture.Get(), &dsDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-    cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 400000, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, MAX_CBVSRVUAV_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
@@ -711,39 +719,50 @@ using namespace gfx;
 // Buffer
 void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
 {
-    ComPtr<ID3D12Resource> bufferResource;
+    rgAssert(size > 0);
 
-    rgFloat triangleVertices[] =
-    {
-            0.0f, 0.3f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.4f, -0.25f, 0.0f, 0.9f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
-            -0.25f, -0.1f, 0.0f, 0.0f, 0.3f, 1.0f, 0.0f, 0.0f, 1.0f,
-
-            0.0f, 0.25f, 0.1f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.25f, -0.25f, 0.1f, 0.9f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-            -0.25f, -0.25f, 0.1f, 0.0f, 0.3f, 0.0f, 0.0f, 1.0f, 1.0f
-    };
-
-    rgUInt vbSize = sizeof(triangleVertices);
+    ComPtr<ID3D12Resource> bufferDstResource;
 
     BreakIfFail(getDevice()->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(vbSize),
-        D3D12_RESOURCE_STATE_GENERIC_READ,
+        &CD3DX12_RESOURCE_DESC::Buffer(size),
+        D3D12_RESOURCE_STATE_COPY_DEST,
         nullptr,
-        IID_PPV_ARGS(&bufferResource)
+        IID_PPV_ARGS(&bufferDstResource)
     ));
 
-    rgU8* vbPtr;;
-    CD3DX12_RANGE readRange(0, 0);
-    BreakIfFail(triVB->Map(0, &readRange, (void**)&vbPtr));
-    memcpy(vbPtr, triangleVertices, vbSize);
-    triVB->Unmap(0, nullptr);
+    if(buf != nullptr)
+    {
+        ComPtr<ID3D12Resource> bufferSrcResouce;
+
+        BreakIfFail(getDevice()->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(size),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&bufferSrcResouce)
+        ));
+
+        void* mappedPtr;
+        CD3DX12_RANGE mapRange(0, 0);
+        BreakIfFail(bufferSrcResouce->Map(0, &mapRange, &mappedPtr));
+        memcpy(mappedPtr, buf, size);
+        bufferSrcResouce->Unmap(0, nullptr);
+
+        ResourceCopyTask  copyTask;
+        copyTask.type = ResourceCopyTask::ResourceType_Buffer;
+        copyTask.src = bufferSrcResouce;
+        copyTask.dst = bufferDstResource;
+        pendingBufferCopyTasks.push_back(copyTask);
+    }
+     
+    // TODO: view is part of GfxBuffer
 
     triVBView.BufferLocation = triVB->GetGPUVirtualAddress();
     triVBView.StrideInBytes = 36;
-    triVBView.SizeInBytes = vbSize;
+    //triVBView.SizeInBytes = vbSize;
 }
 
 void GfxBuffer::destroy(GfxBuffer* obj)
