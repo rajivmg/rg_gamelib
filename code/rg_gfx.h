@@ -78,15 +78,11 @@ struct GfxBuffer
 {
     rgChar            tag[32];
     rgU32                size;
-    GfxBufferUsage      usage;
+    GfxBufferUsage      usage; // TODO: This doesn't seem to be required in Metal & D3D12 backends.. remove?
     GfxMemoryType  memoryType;
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource> d3dResource;
-    union
-    {
-        D3D12_VERTEX_BUFFER_VIEW d3dVertexBufferView;
-        D3D12_INDEX_BUFFER_VIEW d3dIndexBufferView;
-    };
+    CD3DX12_RANGE mappedRange;
 #elif defined(RG_METAL_RNDR)
     void* mtlBuffer; // type: id<MTLBuffer>
 #elif defined(RG_VULKAN_RNDR)
@@ -246,6 +242,8 @@ struct GfxSamplerState
     
 #if defined(RG_METAL_RNDR)
     void* mtlSampler;
+#elif defined(RG_D3D12_RNDR)
+    D3D12_CPU_DESCRIPTOR_HANDLE d3dCPUDescriptorHandle;
 #else
 #endif
 
@@ -992,6 +990,7 @@ GfxBlitCmdEncoder*      setBlitPass(char const* tag);
 // Helper macros
 // ---------------
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
+#define ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS
 
 
 //-----------------------------------------------------------------------------

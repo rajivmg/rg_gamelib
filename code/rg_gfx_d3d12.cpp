@@ -17,7 +17,9 @@
 
 RG_BEGIN_RG_NAMESPACE
 
+static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
 static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
+static rgUInt const MAX_SAMPLER_DESCRIPTOR = 1024;
 
 RG_BEGIN_GFX_NAMESPACE
     ComPtr<ID3D12Device2> device;
@@ -32,6 +34,10 @@ RG_BEGIN_GFX_NAMESPACE
 
     ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
     rgUInt cbvSrvUavDescriptorSize;
+
+    ComPtr<ID3D12DescriptorHeap> samplerDescriptorHeap;
+    rgUInt samplerDescriptorSize;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE samplerNextCPUDescriptorHandle;
 
     ComPtr<ID3D12Fence> frameFence;
     UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
@@ -120,6 +126,35 @@ inline D3D12_COMPARISON_FUNC toD3DCompareFunc(GfxCompareFunc func)
     case GfxCompareFunc_GreaterEqual:
         result = D3D12_COMPARISON_FUNC_GREATER_EQUAL;
         break;
+    }
+    return result;
+}
+
+D3D12_TEXTURE_ADDRESS_MODE toD3DTextureAddressMode(GfxSamplerAddressMode rstAddressMode)
+{
+    D3D12_TEXTURE_ADDRESS_MODE result = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    switch(rstAddressMode)
+    {
+    case GfxSamplerAddressMode_Repeat:
+    {
+        result = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    } break;
+    case GfxSamplerAddressMode_ClampToEdge:
+    {
+        result = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    } break;
+    case GfxSamplerAddressMode_ClampToZero:
+    {
+        result = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    } break;
+    case GfxSamplerAddressMode_ClampToBorderColor:
+    {
+        result = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    } break;
+    default:
+    {
+        rgAssert(!"Invalid GfxSamplerAddressMode value");
+    }
     }
     return result;
 }
@@ -431,8 +466,13 @@ rgInt init()
     BreakIfFail(dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
     BreakIfFail(dxgiSwapchain1.As(&dxgiSwapchain));
 
+    // create sampler descriptor heap
+    samplerDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, MAX_SAMPLER_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    samplerDescriptorSize = getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+    samplerNextCPUDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(samplerDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
     // create swapchain RTV
-    rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 256, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, MAX_RTV_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
     rtvDescriptorSize = getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
@@ -716,25 +756,58 @@ RG_END_GFX_NAMESPACE
 
 using namespace gfx;
 
-// Buffer
+//*****************************************************************************
+// GfxBuffer Implementation
+//*****************************************************************************
+
 void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
 {
     rgAssert(size > 0);
 
-    ComPtr<ID3D12Resource> bufferDstResource;
+    ComPtr<ID3D12Resource> bufferResource;
 
-    BreakIfFail(getDevice()->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(size),
-        D3D12_RESOURCE_STATE_COPY_DEST,
-        nullptr,
-        IID_PPV_ARGS(&bufferDstResource)
-    ));
-
-    if(buf != nullptr)
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+    D3D12_RESOURCE_STATES afterState = D3D12_RESOURCE_STATE_COMMON;
+    if(memoryType == GfxMemoryType_Default)
     {
-        ComPtr<ID3D12Resource> bufferSrcResouce;
+        if(buf == nullptr)
+        {
+            initialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        }
+        else
+        {
+            initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+        }
+    }
+    else if(memoryType == GfxMemoryType_Upload)
+    {
+        initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+    }
+
+    CD3DX12_HEAP_PROPERTIES heapProps(memoryType == GfxMemoryType_Default ? D3D12_HEAP_TYPE_DEFAULT : D3D12_HEAP_TYPE_UPLOAD);
+    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(size, initialState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE);
+    BreakIfFail(getDevice()->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDesc,
+        initialState,
+        nullptr,
+        IID_PPV_ARGS(&bufferResource)
+    ));
+    bufferResource->SetName(eastl::wstring(tag).c_str());
+
+    if(memoryType == GfxMemoryType_Upload && buf != nullptr)
+    {
+        void* mappedPtr = nullptr;
+        CD3DX12_RANGE mapRange(0, 0); // map whole buffer
+        BreakIfFail(bufferResource->Map(0, &mapRange, &mappedPtr));
+        memcpy(mappedPtr, buf, size);
+        bufferResource->Unmap(0, nullptr);
+    }
+
+    if(memoryType == GfxMemoryType_Default && buf != nullptr)
+    {
+        ComPtr<ID3D12Resource> cpuVisibleBufferResouce;
 
         BreakIfFail(getDevice()->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -742,54 +815,166 @@ void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgU
             &CD3DX12_RESOURCE_DESC::Buffer(size),
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
-            IID_PPV_ARGS(&bufferSrcResouce)
+            IID_PPV_ARGS(&cpuVisibleBufferResouce)
         ));
 
         void* mappedPtr;
         CD3DX12_RANGE mapRange(0, 0);
-        BreakIfFail(bufferSrcResouce->Map(0, &mapRange, &mappedPtr));
+        BreakIfFail(cpuVisibleBufferResouce->Map(0, &mapRange, &mappedPtr));
         memcpy(mappedPtr, buf, size);
-        bufferSrcResouce->Unmap(0, nullptr);
+        cpuVisibleBufferResouce->Unmap(0, nullptr);
 
         ResourceCopyTask  copyTask;
         copyTask.type = ResourceCopyTask::ResourceType_Buffer;
-        copyTask.src = bufferSrcResouce;
-        copyTask.dst = bufferDstResource;
+        copyTask.src = cpuVisibleBufferResouce;
+        copyTask.dst = bufferResource;
         pendingBufferCopyTasks.push_back(copyTask);
     }
      
-    // TODO: view is part of GfxBuffer
-
-    triVBView.BufferLocation = triVB->GetGPUVirtualAddress();
-    triVBView.StrideInBytes = 36;
-    //triVBView.SizeInBytes = vbSize;
+    obj->d3dResource = bufferResource;
 }
 
 void GfxBuffer::destroy(GfxBuffer* obj)
 {
-
+#if defined(ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS)
+    // Check is this resource has pending copy task
+    for(auto& itr : pendingBufferCopyTasks)
+    {
+        if(itr.dst == obj->d3dResource)
+        {
+            rgAssert(!"GfxBuffer resource has a pending copy task");
+        }
+    }
+#endif
 }
 
-void* GfxBuffer::map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes) // TODO: MTL D3D12 - handle ranges
+void* GfxBuffer::map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes)
 {
-    return nullptr;
+    void* mappedPtr = nullptr;
+    mappedRange = CD3DX12_RANGE(rangeBeginOffset, rangeBeginOffset + rangeSizeInBytes);
+    BreakIfFail(d3dResource->Map(0, &mappedRange, &mappedPtr));
+    return mappedPtr;
 }
 
 void GfxBuffer::unmap()
 {
+    d3dResource->Unmap(0, &mappedRange);
 }
+
+
+//*****************************************************************************
+// GfxSamplerState Implementation
+//*****************************************************************************
 
 void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
 {
+    auto toD3DFilter = [minFilter, magFilter, mipFilter, anisotropy]() -> D3D12_FILTER
+    {
+        if(!anisotropy)
+        {
+            if(minFilter == GfxSamplerMinMagFilter_Nearest)
+            {
+                if(magFilter == GfxSamplerMinMagFilter_Nearest)
+                {
+                    if(mipFilter == GfxSamplerMipFilter_Nearest)
+                    {
+                        return D3D12_FILTER_MIN_MAG_MIP_POINT;
+                    }
+                    else if(mipFilter == GfxSamplerMipFilter_Linear)
+                    {
+                        return D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+                    }
+                }
+                else if(magFilter == GfxSamplerMinMagFilter_Linear)
+                {
+                    if(mipFilter == GfxSamplerMipFilter_Nearest)
+                    {
+                        return D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+                    }
+                    else if(mipFilter == GfxSamplerMipFilter_Linear)
+                    {
+                        return D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+                    }
+                }
+            }
+            else if(minFilter == GfxSamplerMinMagFilter_Linear)
+            {
+                if(magFilter == GfxSamplerMinMagFilter_Nearest)
+                {
+                    if(mipFilter == GfxSamplerMipFilter_Nearest)
+                    {
+                        return D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+                    }
+                    else if(mipFilter == GfxSamplerMipFilter_Linear)
+                    {
+                        return D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+                    }
+                }
+                else if(magFilter == GfxSamplerMinMagFilter_Linear)
+                {
+                    if(mipFilter == GfxSamplerMipFilter_Nearest)
+                    {
+                        return D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+                    }
+                    else if(mipFilter == GfxSamplerMipFilter_Linear)
+                    {
+                        return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // TODO: Review the anisotropy related enums
+            // TODO: Review the anisotropy related enums
+            if(minFilter == GfxSamplerMinMagFilter_Nearest
+                && magFilter == GfxSamplerMinMagFilter_Nearest
+                && mipFilter == GfxSamplerMipFilter_Nearest)
+            {
+                return D3D12_FILTER_MIN_MAG_ANISOTROPIC_MIP_POINT;
+            }
+            else if(minFilter == GfxSamplerMinMagFilter_Linear
+                && magFilter == GfxSamplerMinMagFilter_Linear
+                && mipFilter == GfxSamplerMipFilter_Linear)
+            {
+                return D3D12_FILTER_ANISOTROPIC;
+            }
+            else
+            {
+                rgAssert(!"Unrecognized filtering and anisotropy combination");
+            }
+        }
+
+        return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    };
+
+    D3D12_TEXTURE_ADDRESS_MODE addressMode = toD3DTextureAddressMode(rstAddressMode);
+    D3D12_SAMPLER_DESC samplerDesc = {};
+    samplerDesc.Filter = toD3DFilter();
+    samplerDesc.AddressU = addressMode;
+    samplerDesc.AddressV = addressMode;
+    samplerDesc.AddressW = addressMode;
+    samplerDesc.MaxAnisotropy = anisotropy ? 16 : 1;
+
+    getDevice()->CreateSampler(&samplerDesc, samplerNextCPUDescriptorHandle);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle = samplerNextCPUDescriptorHandle;
+    samplerNextCPUDescriptorHandle.Offset(1, samplerDescriptorSize);
+
+    obj->d3dCPUDescriptorHandle = cpuDescriptorHandle;
 }
 
 void GfxSamplerState::destroy(GfxSamplerState* obj)
 {
 }
 
+
+//*****************************************************************************
+// GfxTexture Implementation
+//*****************************************************************************
+
 void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
-    ComPtr<ID3D12Resource> textureResouce;
+    ComPtr<ID3D12Resource> textureResource;
 
     DXGI_FORMAT textureFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
 
@@ -841,8 +1026,8 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
         &resourceDesc,
         resourceState,
         clearValue,
-        IID_PPV_ARGS(&textureResouce)));
-
+        IID_PPV_ARGS(&textureResource)));
+    textureResource->SetName(eastl::wstring(tag).c_str());
     //CD3DX12_CPU_DESCRIPTOR_HANDLE resourceView 
 
     if(usage & GfxTextureUsage_ShaderReadWrite)
@@ -865,14 +1050,18 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
 
     }
 
-    obj->d3dTexture = textureResouce;
+    obj->d3dTexture = textureResource;
 }
 
 void GfxTexture::destroy(GfxTexture* obj)
 {
 }
 
-// PSO
+
+//*****************************************************************************
+// GfxGraphicsPSO Implementation
+//*****************************************************************************
+
 struct BuildShaderResult
 {
     ComPtr<IDxcBlob> shaderBlob;
