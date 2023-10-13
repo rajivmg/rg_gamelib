@@ -240,6 +240,20 @@ ComPtr<ID3D12CommandAllocator> getCommandAllocator()
     return gfx::commandAllocator[g_FrameIndex];
 }
 
+void setResourceDebugName(ComPtr<ID3D12Resource> resource, char const* name)
+{
+    const rgUInt maxWCharLength = 1024;
+    wchar_t wc[maxWCharLength];
+
+    size_t size = eastl::CharStrlen(name) + 1;
+    rgAssert(size <= maxWCharLength);
+
+    size_t convertedChars = 0;
+    mbstowcs_s(&convertedChars, wc, maxWCharLength, name, _TRUNCATE);
+
+    BreakIfFail(resource->SetName(wc));
+};
+
 // https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Fullscreen/src/D3D12Fullscreen.cpp
 // TODO: Have this for now.. We won't have to worry about modifying descriptortables at runtime
 
@@ -572,6 +586,7 @@ rgInt init()
             __uuidof(triVB),
             (void**)&(triVB)
         ));
+        setResourceDebugName(triVB, "henlo");
 
         rgU8* vbPtr;;
         CD3DX12_RANGE readRange(0, 0);
@@ -794,7 +809,7 @@ void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgU
         nullptr,
         IID_PPV_ARGS(&bufferResource)
     ));
-    bufferResource->SetName(eastl::wstring(tag).c_str());
+    setResourceDebugName(bufferResource, tag);
 
     if(memoryType == GfxMemoryType_Upload && buf != nullptr)
     {
@@ -1027,7 +1042,7 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
         resourceState,
         clearValue,
         IID_PPV_ARGS(&textureResource)));
-    textureResource->SetName(eastl::wstring(tag).c_str());
+    setResourceDebugName(textureResource, tag);
     //CD3DX12_CPU_DESCRIPTOR_HANDLE resourceView 
 
     if(usage & GfxTextureUsage_ShaderReadWrite)
