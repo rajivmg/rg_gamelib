@@ -17,41 +17,36 @@
 
 RG_BEGIN_RG_NAMESPACE
 
-static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
-static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
-static rgUInt const MAX_SAMPLER_DESCRIPTOR = 1024;
-
 RG_BEGIN_GFX_NAMESPACE
+
+    static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
+    static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
+    static rgUInt const MAX_SAMPLER_DESCRIPTOR = 1024;
+
     ComPtr<ID3D12Device2> device;
     ComPtr<ID3D12CommandQueue> commandQueue;
     ComPtr<IDXGISwapChain4> dxgiSwapchain;
     ComPtr<IDXGIFactory4> dxgiFactory;
 
+    ComPtr<ID3D12Fence> frameFence;
+    UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+    HANDLE frameFenceEvent;
+
     ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
     rgUInt rtvDescriptorSize;
 
     ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
-
-    ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
-    rgUInt cbvSrvUavDescriptorSize;
+    rgUInt dsvDescriptorSize;
 
     ComPtr<ID3D12DescriptorHeap> samplerDescriptorHeap;
     rgUInt samplerDescriptorSize;
     CD3DX12_CPU_DESCRIPTOR_HANDLE samplerNextCPUDescriptorHandle;
 
-    ComPtr<ID3D12Fence> frameFence;
-    UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
-    HANDLE frameFenceEvent;
-
-    /// test
-    ComPtr<ID3D12RootSignature> dummyRootSignature;
-    ComPtr<ID3D12PipelineState> dummyPSO;
-    ComPtr<ID3D12Resource> triVB;
-    D3D12_VERTEX_BUFFER_VIEW triVBView;
-    // __ENDSTRUCT
+    ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
+    rgUInt cbvSrvUavDescriptorSize;
 
     ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
-    ComPtr<ID3D12GraphicsCommandList> commandList;
+    ComPtr<ID3D12GraphicsCommandList> currentCommandList;
 
     GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
     GfxTexture* depthStencilTexture;
@@ -71,6 +66,14 @@ RG_BEGIN_GFX_NAMESPACE
 
     eastl::vector<ResourceCopyTask> pendingBufferCopyTasks;
     eastl::vector<ResourceCopyTask> pendingTextureCopyTasks;
+
+    // test --
+    ComPtr<ID3D12RootSignature> dummyRootSignature;
+    ComPtr<ID3D12PipelineState> dummyPSO;
+    ComPtr<ID3D12Resource> triVB;
+    D3D12_VERTEX_BUFFER_VIEW triVBView;
+    // -- 
+
 RG_END_GFX_NAMESPACE
 
 // SECTION BEGIN -
@@ -521,12 +524,14 @@ rgInt init()
 
     cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, MAX_CBVSRVUAV_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
+    // create command allocators
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
     }
 
-    commandList = createGraphicsCommandList(commandAllocator[0], nullptr);
+    // create commandlist
+    currentCommandList = createGraphicsCommandList(commandAllocator[0], nullptr);
 
     GfxVertexInputDesc simpleVertexDesc = {};
     simpleVertexDesc.elementCount = 3;
@@ -622,41 +627,30 @@ void destroy()
 
 rgInt draw()
 {
-    commandList->SetGraphicsRootSignature(dummyRootSignature.Get());
+    currentCommandList->SetGraphicsRootSignature(dummyRootSignature.Get());
 
-    commandList->SetPipelineState(dummyPSO.Get());
+    currentCommandList->SetPipelineState(dummyPSO.Get());
 
     CD3DX12_VIEWPORT vp(0.0f, 0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height);
-    commandList->RSSetViewports(1, &vp);
+    currentCommandList->RSSetViewports(1, &vp);
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
-    commandList->RSSetScissorRects(1, &scissorRect);
+    currentCommandList->RSSetScissorRects(1, &scissorRect);
 
     GfxTexture* currentRenderTarget = gfx::swapchainTextures[g_FrameIndex];
-    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, rtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-    commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
+    currentCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+    currentCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
 
     const rgFloat clearColor[] = { 0.5f, 0.5f, 0.5f, 1.0f };
-    commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &triVBView);
+    currentCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    currentCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    currentCommandList->IASetVertexBuffers(0, 1, &triVBView);
     //commandList->DrawInstanced(6, 1, 0, 0);
-    commandList->DrawInstanced(3, 1, 0, 0);
-    commandList->DrawInstanced(3, 1, 3, 0);
-    
-    // TODO: This vvv line should not be here 
-    //ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
-
-    //commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
-    //BreakIfFail(commandList->Close());
-
-    //ID3D12CommandList* commandLists[] = { commandList.Get() };
-    //commandQueue->ExecuteCommandLists(1, commandLists);
-    //BreakIfFail(dxgiSwapchain->Present(1, 0));
+    currentCommandList->DrawInstanced(3, 1, 0, 0);
+    currentCommandList->DrawInstanced(3, 1, 3, 0);
 
     return 0;
 }
@@ -691,7 +685,7 @@ void startNextFrame()
 
     // Reset command allocator and command list
     BreakIfFail(commandAllocator[g_FrameIndex]->Reset());
-    BreakIfFail(commandList->Reset(commandAllocator[g_FrameIndex].Get(), NULL));
+    BreakIfFail(currentCommandList->Reset(commandAllocator[g_FrameIndex].Get(), NULL));
 
     draw();
 }
@@ -699,11 +693,11 @@ void startNextFrame()
 void endFrame()
 {
     GfxTexture* currentRenderTarget = gfx::swapchainTextures[g_FrameIndex];
-    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
-    BreakIfFail(commandList->Close());
+    BreakIfFail(currentCommandList->Close());
 
-    ID3D12CommandList* commandLists[] = { commandList.Get() };
+    ID3D12CommandList* commandLists[] = { currentCommandList.Get() };
     commandQueue->ExecuteCommandLists(1, commandLists);
     BreakIfFail(dxgiSwapchain->Present(1, 0));
 
@@ -711,29 +705,14 @@ void endFrame()
     BreakIfFail(commandQueue->Signal(frameFence.Get(), fenceValueToSignal));
 }
 
-void runOnFrameBeginJob()
-{
-}
-
 void onSizeChanged()
 {
     waitForGpu();
-
-
 }
 
-// -----------------------------------------------
-// GFX Function
-// -----------------------------------------------
-// SECTION ENDS -
-
-
-
-
-// SECTION BEGIN -
-// -----------------------------------------------
-// GPU Resource Creators Deleters and Modifers
-// -----------------------------------------------
+void runOnFrameBeginJob()
+{
+}
 
 void setterBindlessResource(rgU32 slot, GfxTexture* ptr)
 {
@@ -753,8 +732,8 @@ void rendererImGuiNewFrame()
 
 void rendererImGuiRenderDrawData()
 {
-    commandList->SetDescriptorHeaps(1, cbvSrvUavDescriptorHeap.GetAddressOf());
-    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
+    currentCommandList->SetDescriptorHeaps(1, cbvSrvUavDescriptorHeap.GetAddressOf());
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), currentCommandList.Get());
 }
 
 GfxTexture* getCurrentRenderTargetColorBuffer()
@@ -762,12 +741,9 @@ GfxTexture* getCurrentRenderTargetColorBuffer()
     return swapchainTextures[g_FrameIndex];
 }
 
-// -----------------------------------------------
-// GPU Resource Creators Deleters and Modifers
-// -----------------------------------------------
-// SECTION ENDS -
-
 RG_END_GFX_NAMESPACE
+//***********************************************************************
+
 
 using namespace gfx;
 
