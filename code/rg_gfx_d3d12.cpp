@@ -1797,6 +1797,8 @@ void startNextFrame()
     // This frame fence value is one more than prev frame fence value
     frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
 
+    gfx::atFrameStart();
+
     // Reset command allocator and command list
     BreakIfFail(commandAllocator[g_FrameIndex]->Reset());
     BreakIfFail(currentCommandList->Reset(commandAllocator[g_FrameIndex].Get(), NULL));

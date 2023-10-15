@@ -1743,10 +1743,6 @@ void startNextFrame()
     
     gfx::atFrameStart();
     
-    // Reset finished frame allocator
-    // TODO: Move this as common gfx class
-    frameAllocators[getFinishedFrameIndex()]->reset();
-    
     // Autorelease pool BEGIN
     autoReleasePool = [[NSAutoreleasePool alloc]init];
     

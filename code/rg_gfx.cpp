@@ -413,7 +413,8 @@ void atFrameStart()
         currentRenderCmdEncoder = nullptr;
     }
     
-    // TODO: reset unused frame allocator
+    // reset unused frame allocator
+    gfx::frameAllocators[getFinishedFrameIndex()]->reset();
 }
 
 rgInt getFrameIndex()
