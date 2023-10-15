@@ -1469,6 +1469,12 @@ void GfxFrameAllocator::destroy()
 
 void GfxFrameAllocator::releaseResources()
 {
+    rgInt l = d3dResources.size();
+    for(rgInt i = 0; i < l; ++i)
+    {
+        d3dResources[i]->Release();
+    }
+    d3dResources.clear();
 }
 
 GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void* initialData)

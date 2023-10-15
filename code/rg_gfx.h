@@ -683,6 +683,7 @@ protected:
     ComPtr<ID3D12Heap> d3dBufferHeap;
     ComPtr<ID3D12Heap> d3dNonRTDSTextureHeap;
     ComPtr<ID3D12Heap> d3dRTDSTextureHeap;
+    eastl::vector<ComPtr<ID3D12Resource>> d3dResources;
 #else
     void* heap;
 #endif
