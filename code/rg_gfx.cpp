@@ -375,7 +375,7 @@ rgInt initCommonStuff()
     // Initialize frame buffer allocators
     for(rgS32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMEGABYTE(16));
+        frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMEGABYTE(8), rgMEGABYTE(64), rgMEGABYTE(64));
     }
     
     // Initialize IMGUI

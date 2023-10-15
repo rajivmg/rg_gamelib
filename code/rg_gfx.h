@@ -679,19 +679,23 @@ protected:
 #if defined(RG_METAL_RNDR)
     void* heap; //type: id<MTLHeap>
     eastl::vector<void*> mtlResources;
+#elif defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Heap> d3dBufferHeap;
+    ComPtr<ID3D12Heap> d3dNonRTDSTextureHeap;
+    ComPtr<ID3D12Heap> d3dRTDSTextureHeap;
 #else
     void* heap;
 #endif
     
-    void create(rgU32 sizeInBytes);
+    void create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize);
     void destroy();
     void releaseResources();
 public:
-    GfxFrameAllocator(rgU32 sizeInBytes)
+    GfxFrameAllocator(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
     : offset(0)
-    , capacity(sizeInBytes)
+    , capacity(0) // TODO: Use this to prevent overflow.. // TODO: Use this to prevent overflow
     {
-        create(capacity);
+        create(bufferHeapSize, nonRTDSTextureHeapSize, rtDSTextureHeapSize);
     }
     
     ~GfxFrameAllocator()
@@ -719,9 +723,15 @@ public:
         releaseResources();
     }
     
+    // TODO: Remove this function. We can directly access the respective heap resource var
     void* getHeap()
     {
+        // TODO: rework this function
+#if !defined(RG_D3D12_RNDR)
         return (void*)heap;
+#else
+        return nullptr;
+#endif
     }
 };
 

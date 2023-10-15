@@ -472,6 +472,8 @@ void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgU
         memcpy(mappedPtr, buf, size);
         cpuVisibleBufferResouce->Unmap(0, nullptr);
 
+        // TODO: This copy task is not needed if we begin ResourceBatchUpload in startNextFrame
+        // and end it before submitting our commandlist
         gfx::ResourceCopyTask copyTask;
         copyTask.type = gfx::ResourceCopyTask::ResourceType_Buffer;
         copyTask.src = cpuVisibleBufferResouce;
@@ -1432,8 +1434,33 @@ void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTextu
 // Frame Resource Allocator
 //*****************************************************************************
 
-void GfxFrameAllocator::create(rgU32 sizeInBytes)
+void GfxFrameAllocator::create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
 {
+    D3D12_HEAP_DESC bufferHeapDesc = {};
+    bufferHeapDesc.SizeInBytes = bufferHeapSize;
+    bufferHeapDesc.Properties.Type = D3D12_HEAP_TYPE_CUSTOM;
+    bufferHeapDesc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE;
+    bufferHeapDesc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+    bufferHeapDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+    bufferHeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+    BreakIfFail(getDevice()->CreateHeap(&bufferHeapDesc, IID_PPV_ARGS(&d3dBufferHeap)));
+    d3dBufferHeap->SetName(L"GfxFrameAllocator::d3dBufferHeap");
+
+    D3D12_HEAP_DESC nonRTDSTextureHeapDesc = {};
+    nonRTDSTextureHeapDesc.SizeInBytes = bufferHeapSize;
+    nonRTDSTextureHeapDesc.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+    nonRTDSTextureHeapDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+    nonRTDSTextureHeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+    BreakIfFail(getDevice()->CreateHeap(&nonRTDSTextureHeapDesc, IID_PPV_ARGS(&d3dNonRTDSTextureHeap)));
+    d3dBufferHeap->SetName(L"GfxFrameAllocator::d3dNonRTDSTextureHeap");
+
+    D3D12_HEAP_DESC rtDSTextureHeapDesc = {};
+    rtDSTextureHeapDesc.SizeInBytes = bufferHeapSize;
+    rtDSTextureHeapDesc.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+    rtDSTextureHeapDesc.Alignment = D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT;
+    rtDSTextureHeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES;
+    BreakIfFail(getDevice()->CreateHeap(&rtDSTextureHeapDesc, IID_PPV_ARGS(&d3dRTDSTextureHeap)));
+    d3dBufferHeap->SetName(L"GfxFrameAllocator::d3dRTDSTextureHeap");
 }
 
 void GfxFrameAllocator::destroy()
@@ -1497,7 +1524,11 @@ rgInt init()
     // create device
     ComPtr<IDXGIAdapter1> hardwareAdapter;
     getHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter, true);
-    BreakIfFail(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), (void**)&(device)));
+    BreakIfFail(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), (void**)&(device)));
+    
+    // query available features from the driver
+    D3D12_FEATURE_DATA_D3D12_OPTIONS features = {};
+    BreakIfFail(getDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &features, sizeof(features)));
     
     // create command queue
     D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
