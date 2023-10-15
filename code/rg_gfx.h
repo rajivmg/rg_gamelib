@@ -668,6 +668,8 @@ struct GfxFrameResource
 #if defined(RG_METAL_RNDR)
     void* mtlBuffer; //type: id<MTLBuffer>
     void* mtlTexture; //type: id<MTLTexture>
+#elif defined(RG_D3D12_RNDR)
+    ID3D12Resource* d3dResource;
 #endif
 };
 

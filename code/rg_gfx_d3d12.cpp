@@ -1479,9 +1479,35 @@ void GfxFrameAllocator::releaseResources()
 
 GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void* initialData)
 {
-    // TODO: Incorrect implementation
+    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(size, D3D12_RESOURCE_FLAG_NONE);
+    rgU32 alignedStartOffset = bumpStorageAligned(size, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+
+    ComPtr<ID3D12Resource> bufferResource;
+    BreakIfFail(getDevice()->CreatePlacedResource(
+        d3dBufferHeap.Get(),
+        alignedStartOffset,
+        &resourceDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&bufferResource)
+    ));
+
+    setResourceDebugName(bufferResource, tag);
+
+    if(initialData != nullptr)
+    {
+        void* mappedPtr = nullptr;
+        CD3DX12_RANGE mapRange(0, 0);
+        BreakIfFail(bufferResource->Map(0, &mapRange, &mappedPtr));
+        memcpy(mappedPtr, initialData, size);
+        bufferResource->Unmap(0, nullptr);
+    }
+
+    d3dResources.push_back(bufferResource);
+
     GfxFrameResource output;
     output.type = GfxFrameResource::Type_Buffer;
+    output.d3dResource = bufferResource.Get();
     return output;
 }
 
