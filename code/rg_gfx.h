@@ -78,9 +78,11 @@ struct GfxBuffer
 {
     rgChar            tag[32];
     rgU32                size;
-    GfxBufferUsage      usage;
+    GfxBufferUsage      usage; // TODO: This doesn't seem to be required in Metal & D3D12 backends.. remove?
     GfxMemoryType  memoryType;
 #if defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Resource> d3dResource;
+    CD3DX12_RANGE mappedRange;
 #elif defined(RG_METAL_RNDR)
     void* mtlBuffer; // type: id<MTLBuffer>
 #elif defined(RG_VULKAN_RNDR)
@@ -240,6 +242,8 @@ struct GfxSamplerState
     
 #if defined(RG_METAL_RNDR)
     void* mtlSampler;
+#elif defined(RG_D3D12_RNDR)
+    D3D12_CPU_DESCRIPTOR_HANDLE d3dCPUDescriptorHandle;
 #else
 #endif
 
@@ -675,19 +679,23 @@ protected:
 #if defined(RG_METAL_RNDR)
     void* heap; //type: id<MTLHeap>
     eastl::vector<void*> mtlResources;
+#elif defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Heap> d3dBufferHeap;
+    ComPtr<ID3D12Heap> d3dNonRTDSTextureHeap;
+    ComPtr<ID3D12Heap> d3dRTDSTextureHeap;
 #else
     void* heap;
 #endif
     
-    void create(rgU32 sizeInBytes);
+    void create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize);
     void destroy();
     void releaseResources();
 public:
-    GfxFrameAllocator(rgU32 sizeInBytes)
+    GfxFrameAllocator(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
     : offset(0)
-    , capacity(sizeInBytes)
+    , capacity(0) // TODO: Use this to prevent overflow.. // TODO: Use this to prevent overflow
     {
-        create(capacity);
+        create(bufferHeapSize, nonRTDSTextureHeapSize, rtDSTextureHeapSize);
     }
     
     ~GfxFrameAllocator()
@@ -715,9 +723,15 @@ public:
         releaseResources();
     }
     
+    // TODO: Remove this function. We can directly access the respective heap resource var
     void* getHeap()
     {
+        // TODO: rework this function
+#if !defined(RG_D3D12_RNDR)
         return (void*)heap;
+#else
+        return nullptr;
+#endif
     }
 };
 
@@ -986,6 +1000,7 @@ GfxBlitCmdEncoder*      setBlitPass(char const* tag);
 // Helper macros
 // ---------------
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
+#define ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS
 
 
 //-----------------------------------------------------------------------------

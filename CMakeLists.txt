@@ -52,10 +52,14 @@ set(DIRECTXMATH_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/DirectXMath-dec2022)
 
 set(DIRECTXTEX_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/DirectXTex-jun2023/DirectXTex)
 file(GLOB DIRECTXTEX_SRC_FILES "${DIRECTXTEX_ROOT_DIR}/*.cpp" "${DIRECTXTEX_ROOT_DIR}/*.h" "${DIRECTXTEX_ROOT_DIR}/*.inl")
-# TODO: We shouldn't need to remove some files on WIN32, these files could be useful to process textures
-# TODO: REMOVE from WIN32
-list(REMOVE_ITEM DIRECTXTEX_SRC_FILES "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D11.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D12.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexWIC.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.h" "${DIRECTXTEX_ROOT_DIR}/DirectXTexCompressGPU.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexFlipRotate.cpp")
+set(DIRECTXTEX_INCLUDE_DIR ${DIRECTXTEX_ROOT_DIR}/Shaders/Compiled)
 source_group("DirectXTex" FILES ${DIRECTXTEX_SRC_FILES})
+
+set(DIRECTXTK12_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/DirectXTK12-sept2023)
+file(GLOB_RECURSE DIRECTXTK12_SRC_FILES "${DIRECTXTK12_ROOT_DIR}/Src/*.cpp" "${DIRECTXTK12_ROOT_DIR}/Src/*.h" "${DIRECTXTK12_ROOT_DIR}/Inc/*.h")
+list(REMOVE_ITEM DIRECTXTK12_SRC_FILES "${DIRECTXTK12_ROOT_DIR}/Src/ScreenGrab.cpp" "${DIRECTXTK12_ROOT_DIR}/Src/WICTextureLoader.cpp" "${DIRECTXTK12_ROOT_DIR}/Src/XboxDDSTextureLoader.cpp" "${DIRECTXTK12_ROOT_DIR}/Src/EffectTextureFactory.cpp" "${DIRECTXTK12_ROOT_DIR}/Src/Model.cpp" "${DIRECTXTK12_ROOT_DIR}/Src/ModelLoadCMO.cpp" "${DIRECTXTK12_ROOT_DIR}/Src/ModelLoadSDKMESH.cpp" "${DIRECTXTK12_ROOT_DIR}/Src/ModelLoadVBO.cpp")
+set(DIRECTXTK12_INCLUDE_DIR ${DIRECTXTK12_ROOT_DIR}/Inc ${DIRECTXTK12_ROOT_DIR}/Src/Shaders/Compiled)
+source_group("DirectXTK12" FILES ${DIRECTXTK12_SRC_FILES})
 
 set(DXC_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/dxc_preview_2023_06_21)
 set(DXC_INCLUDE_DIR ${DXC_ROOT_DIR}/inc)
@@ -93,7 +97,7 @@ if(WIN32)
         include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc/Vulkan-Headers/include)
         add_compile_definitions(RG_VULKAN_RNDR VK_NO_PROTOTYPES)
     elseif(D3D12)
-        include_directories(${CMAKE_SOURCE_DIR}/3rdparty/DirectX-Headers-1.610.0/include/directx ${DXC_INCLUDE_DIR})
+        include_directories(${CMAKE_SOURCE_DIR}/3rdparty/DirectX-Headers-1.610.0/include/directx ${DXC_INCLUDE_DIR} ${DIRECTXTEX_INCLUDE_DIR} ${DIRECTXTK12_INCLUDE_DIR})
         link_directories(${DXC_LIB_DIR}/x64)
         add_compile_definitions(RG_D3D12_RNDR)
         set(GRAPHICS_LIBS D3d12.lib d3dcompiler.lib DXGI.lib dxcompiler.lib)
@@ -117,7 +121,7 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES} ${BOX2D_SRC_FILES} ${DIRECTXTEX_SRC_FILES} ${PUGIXML_SRC_FILES} ${GRAPHICS_SRC} ${SHADER_FILES})
+    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES} ${BOX2D_SRC_FILES} ${DIRECTXTEX_SRC_FILES} ${DIRECTXTK12_SRC_FILES} ${PUGIXML_SRC_FILES} ${GRAPHICS_SRC} ${SHADER_FILES})
     target_link_libraries(rg_gamelib SDL2main SDL2 ${EASTL_LIBRARY} ${GRAPHICS_LIBS})
     set_target_properties(rg_gamelib PROPERTIES OUTPUT_NAME ${EXECUTABLE_NAME})
     set_target_properties(rg_gamelib PROPERTIES CXX_STANDARD 17)
@@ -155,7 +159,7 @@ elseif(APPLE)
     include_directories(${CMAKE_SOURCE_DIR}/3rdparty/inc ${3RD_PARTY_DIR}/inc ${3RD_PARTY_DIR}/inc/metal-cpp ${3RD_PARTY_DIR}/inc/metal-cpp-extensions ${DXC_INCLUDE_DIR})
     link_directories(${DXC_LIB_DIR}/arm64)
 
-    #list(REMOVE_ITEM DIRECTXTEX_SRC_FILES "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D11.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D12.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexWIC.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.h" "${DIRECTXTEX_ROOT_DIR}/DirectXTexCompressGPU.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexFlipRotate.cpp")
+    list(REMOVE_ITEM DIRECTXTEX_SRC_FILES "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D11.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexD3D12.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexWIC.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.cpp" "${DIRECTXTEX_ROOT_DIR}/BCDirectCompute.h" "${DIRECTXTEX_ROOT_DIR}/DirectXTexCompressGPU.cpp" "${DIRECTXTEX_ROOT_DIR}/DirectXTexFlipRotate.cpp")
 
     include_directories(${SPIRVCROSS_ROOT_DIR} ${DIRECXHEADERS_ROOT_DIR}/include ${DIRECXHEADERS_ROOT_DIR}/include/wsl/stubs ${DIRECTXMATH_ROOT_DIR}/Inc ${DIRECTXTEX_ROOT_DIR})
     

@@ -1470,15 +1470,17 @@ void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTextu
 // Frame Resource Allocator
 //*****************************************************************************
 
-void GfxFrameAllocator::create(rgU32 sizeInBytes)
+void GfxFrameAllocator::create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
 {
+    rgU32 totalSizeInBytes = bufferHeapSize + nonRTDSTextureHeapSize + rtDSTextureHeapSize;
+
     MTLHeapDescriptor* heapDesc = [MTLHeapDescriptor new];
     heapDesc.type = MTLHeapTypePlacement;
     heapDesc.storageMode = MTLStorageModeShared;
     heapDesc.cpuCacheMode = MTLCPUCacheModeWriteCombined;
     heapDesc.hazardTrackingMode = MTLHazardTrackingModeTracked; // TODO: use untracked for better perf. Similar to D3D12
     heapDesc.resourceOptions = MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined | MTLResourceHazardTrackingModeTracked;
-    heapDesc.size = sizeInBytes;
+    heapDesc.size = totalSizeInBytes;
     
     id<MTLHeap> hp = [getMTLDevice() newHeapWithDescriptor:heapDesc];
     rgAssert(hp != nil);

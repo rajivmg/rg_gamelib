@@ -16,47 +16,70 @@
 #include <filesystem>
 
 RG_BEGIN_RG_NAMESPACE
+
 RG_BEGIN_GFX_NAMESPACE
 
-//D3d d3d; // TODO: Make this a pointer
+    static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
+    static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
+    static rgUInt const MAX_SAMPLER_DESCRIPTOR = 1024;
 
-// __STRUCT_D3d
-ComPtr<ID3D12Device2> device;
-ComPtr<ID3D12CommandQueue> commandQueue;
-ComPtr<IDXGISwapChain4> dxgiSwapchain;
-ComPtr<IDXGIFactory4> dxgiFactory;
+    ComPtr<ID3D12Device2> device;
+    ComPtr<ID3D12CommandQueue> commandQueue;
+    ComPtr<IDXGISwapChain4> dxgiSwapchain;
+    ComPtr<IDXGIFactory4> dxgiFactory;
 
-ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
-rgUInt rtvDescriptorSize;
+    ComPtr<ID3D12Fence> frameFence;
+    UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+    HANDLE frameFenceEvent;
 
-ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
+    ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
+    rgUInt rtvDescriptorSize;
 
-ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
-rgUInt cbvSrvUavDescriptorSize;
+    ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
+    rgUInt dsvDescriptorSize;
 
-ComPtr<ID3D12Fence> frameFence;
-UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
-HANDLE frameFenceEvent;
+    ComPtr<ID3D12DescriptorHeap> samplerDescriptorHeap;
+    rgUInt samplerDescriptorSize;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE samplerNextCPUDescriptorHandle;
 
-/// test
-ComPtr<ID3D12RootSignature> dummyRootSignature;
-ComPtr<ID3D12PipelineState> dummyPSO;
-ComPtr<ID3D12Resource> triVB;
-D3D12_VERTEX_BUFFER_VIEW triVBView;
-// __ENDSTRUCT
+    ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
+    rgUInt cbvSrvUavDescriptorSize;
 
-ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
-ComPtr<ID3D12GraphicsCommandList> commandList;
+    ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
+    ComPtr<ID3D12GraphicsCommandList> currentCommandList;
 
-GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
-GfxTexture* depthStencilTexture;
+    GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
+    GfxTexture* depthStencilTexture;
+
+    struct ResourceCopyTask
+    {
+        enum ResourceType
+        {
+            ResourceType_Buffer,
+            ResourceType_Texture,
+        };
+
+        ResourceType  type;
+        ComPtr<ID3D12Resource> src;
+        ComPtr<ID3D12Resource> dst;
+    };
+
+    eastl::vector<ResourceCopyTask> pendingBufferCopyTasks;
+    eastl::vector<ResourceCopyTask> pendingTextureCopyTasks;
+
+    // test --
+    ComPtr<ID3D12RootSignature> dummyRootSignature;
+    ComPtr<ID3D12PipelineState> dummyPSO;
+    ComPtr<ID3D12Resource> triVB;
+    D3D12_VERTEX_BUFFER_VIEW triVBView;
+    // -- 
 
 RG_END_GFX_NAMESPACE
 
-// SECTION BEGIN -
-// -----------------------------------------------
+//*****************************************************************************
 // Helper Functions
-// -----------------------------------------------
+//*****************************************************************************
+
 inline void _BreakIfFail(HRESULT hr)
 {
     if(FAILED(hr))
@@ -66,11 +89,6 @@ inline void _BreakIfFail(HRESULT hr)
 }
 
 #define BreakIfFail(x) _BreakIfFail(x)
-
-//static D3d* d3d()
-//{
-//    return &d3d;
-//}
 
 static ComPtr<ID3D12Device> getDevice()
 {
@@ -115,89 +133,39 @@ inline D3D12_COMPARISON_FUNC toD3DCompareFunc(GfxCompareFunc func)
     return result;
 }
 
-// -----------------------------------------------
-// Helper Functions
-// -----------------------------------------------
-// SECTION ENDS -
-
-void getHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter)
+D3D12_TEXTURE_ADDRESS_MODE toD3DTextureAddressMode(GfxSamplerAddressMode rstAddressMode)
 {
-    *ppAdapter = nullptr;
-
-    ComPtr<IDXGIAdapter1> adapter;
-
-    ComPtr<IDXGIFactory6> factory6;
-    if(SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
+    D3D12_TEXTURE_ADDRESS_MODE result = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    switch(rstAddressMode)
     {
-        for(
-            UINT adapterIndex = 0;
-            SUCCEEDED(factory6->EnumAdapterByGpuPreference(
-                adapterIndex,
-                requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
-                IID_PPV_ARGS(&adapter)));
-            ++adapterIndex)
-        {
-            DXGI_ADAPTER_DESC1 desc;
-            adapter->GetDesc1(&desc);
-
-            if(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            {
-                // Don't select the Basic Render Driver adapter.
-                // If you want a software adapter, pass in "/warp" on the command line.
-                continue;
-            }
-
-            // Check to see whether the adapter supports Direct3D 12, but don't create the
-            // actual device yet.
-            if(SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
-            {
-                break;
-            }
-        }
-    }
-
-    if(adapter.Get() == nullptr)
+    case GfxSamplerAddressMode_Repeat:
     {
-        for(UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex)
-        {
-            DXGI_ADAPTER_DESC1 desc;
-            adapter->GetDesc1(&desc);
-
-            if(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            {
-                // Don't select the Basic Render Driver adapter.
-                // If you want a software adapter, pass in "/warp" on the command line.
-                continue;
-            }
-
-            // Check to see whether the adapter supports Direct3D 12, but don't create the
-            // actual device yet.
-            if(SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
-            {
-                break;
-            }
-        }
+        result = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    } break;
+    case GfxSamplerAddressMode_ClampToEdge:
+    {
+        result = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    } break;
+    case GfxSamplerAddressMode_ClampToZero:
+    {
+        result = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    } break;
+    case GfxSamplerAddressMode_ClampToBorderColor:
+    {
+        result = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    } break;
+    default:
+    {
+        rgAssert(!"Invalid GfxSamplerAddressMode value");
     }
-
-    *ppAdapter = adapter.Detach();
-}
-
-void waitForGpu()
-{
-    BreakIfFail(gfx::commandQueue->Signal(gfx::frameFence.Get(), gfx::frameFenceValues[g_FrameIndex]));
-    BreakIfFail(gfx::frameFence->SetEventOnCompletion(gfx::frameFenceValues[g_FrameIndex], gfx::frameFenceEvent));
-    ::WaitForSingleObject(gfx::frameFenceEvent, INFINITE);
-
-    gfx::frameFenceValues[g_FrameIndex] += 1;
+    }
+    return result;
 }
 
 ComPtr<ID3D12CommandAllocator> getCommandAllocator()
 {
     return gfx::commandAllocator[g_FrameIndex];
 }
-
-// https://github.com/microsoft/DirectX-Graphics-Samples/blob/master/Samples/Desktop/D3D12Fullscreen/src/D3D12Fullscreen.cpp
-// TODO: Have this for now.. We won't have to worry about modifying descriptortables at runtime
 
 ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, rgUInt descriptorsCount, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
 {
@@ -216,7 +184,7 @@ ComPtr<ID3D12CommandAllocator> createCommandAllocator(D3D12_COMMAND_LIST_TYPE co
 {
     ComPtr<ID3D12CommandAllocator> commandAllocator;
     BreakIfFail(getDevice()->CreateCommandAllocator(commandListType, IID_PPV_ARGS(&commandAllocator)));
-    
+
     return commandAllocator;
 }
 
@@ -227,6 +195,20 @@ ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(ComPtr<ID3D12Command
     BreakIfFail(commandList->Close());
     return commandList;
 }
+
+void setResourceDebugName(ComPtr<ID3D12Resource> resource, char const* name)
+{
+    const rgUInt maxWCharLength = 1024;
+    wchar_t wc[maxWCharLength];
+
+    size_t size = eastl::CharStrlen(name) + 1;
+    rgAssert(size <= maxWCharLength);
+
+    size_t convertedChars = 0;
+    mbstowcs_s(&convertedChars, wc, maxWCharLength, name, _TRUNCATE);
+
+    BreakIfFail(resource->SetName(wc));
+};
 
 //struct ResourceUploader
 //{
@@ -351,426 +333,298 @@ protected:
 static GfxFrameResourceMemory* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 #endif 
 
-// SECTION BEGIN -
-RG_BEGIN_GFX_NAMESPACE
-// -----------------------------------------------
-// GFX Functions
-// -----------------------------------------------
-rgInt init()
+void getHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter)
 {
-    // TODO: correctly initialize d3d12 device https://walbourn.github.io/anatomy-of-direct3d-12-create-device/
+    *ppAdapter = nullptr;
 
-    // create factory
-    UINT factoryCreateFlag = 0;
-#if defined(_DEBUG)
-    factoryCreateFlag = DXGI_CREATE_FACTORY_DEBUG;
-#endif
-    BreakIfFail(CreateDXGIFactory2(factoryCreateFlag, __uuidof(dxgiFactory), (void**)&(dxgiFactory)));
+    ComPtr<IDXGIAdapter1> adapter;
 
-    // create debug validation interface
-#ifdef _DEBUG
-    ComPtr<ID3D12Debug> debugInterface;
-    BreakIfFail(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
-    debugInterface->EnableDebugLayer();
-
-    //ComPtr<ID3D12InfoQueue> debugInfoQueue;
-    //if(SUCCEEDED(d3d.device.As(&debugInfoQueue)))
-    //{
-    //    debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-    //    debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-    //    debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
-    //}
-#endif
-
-    // create device
-    ComPtr<IDXGIAdapter1> hardwareAdapter;
-    getHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter, true);
-    BreakIfFail(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), (void**)&(device)));
-    
-    // create command queue
-    D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
-    commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    commandQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-    commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-
-    BreakIfFail(getDevice()->CreateCommandQueue(&commandQueueDesc, __uuidof(ID3D12CommandQueue), (void**)&(commandQueue)));
-
-    // create swapchain
-    DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
-    swapchainDesc.Width = g_WindowInfo.width;
-    swapchainDesc.Height = g_WindowInfo.height;
-    swapchainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-    swapchainDesc.Stereo = FALSE;
-    swapchainDesc.SampleDesc = { 1, 0 };
-    swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapchainDesc.BufferCount = RG_MAX_FRAMES_IN_FLIGHT;
-    swapchainDesc.Scaling = DXGI_SCALING_NONE;
-    swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    swapchainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-    swapchainDesc.Flags = 0;
-    HWND hWnd = ::GetActiveWindow();
-
-    ComPtr<IDXGISwapChain1> dxgiSwapchain1;
-    BreakIfFail(dxgiFactory->CreateSwapChainForHwnd(
-        commandQueue.Get(),
-        hWnd,
-        &swapchainDesc,
-        nullptr,
-        nullptr,
-        &dxgiSwapchain1
-    ));
-    BreakIfFail(dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
-    BreakIfFail(dxgiSwapchain1.As(&dxgiSwapchain));
-
-    // create swapchain RTV
-    rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, RG_MAX_FRAMES_IN_FLIGHT, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    rtvDescriptorSize = getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-    for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    ComPtr<IDXGIFactory6> factory6;
+    if(SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
     {
-        ComPtr<ID3D12Resource> texResource;
-        BreakIfFail(dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
-        getDevice()->CreateRenderTargetView(texResource.Get(), nullptr, rtvDescriptorHandle);
-        rtvDescriptorHandle.Offset(1, rtvDescriptorSize);
-
-        D3D12_RESOURCE_DESC desc = texResource->GetDesc();
-        GfxTexture* texRT = rgNew(GfxTexture);
-        strncpy(texRT->tag, "RenderTarget", 32);
-        texRT->dim = GfxTextureDim_2D;
-        texRT->width = (rgUInt)desc.Width;
-        texRT->height = (rgUInt)desc.Height;
-        texRT->usage = GfxTextureUsage_RenderTarget;
-        texRT->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
-        texRT->d3dTexture = texResource;
-        gfx::swapchainTextures[i] = texRT;
-    }
-
-    dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    //gfx::depthStencilTexture = createTexture2D("DepthStencilTarget", nullptr, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, false, GfxTextureUsage_DepthStencil);
-    gfx::depthStencilTexture = gfx::texture->create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
-
-    D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
-    dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
-    dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    dsDesc.Texture2D.MipSlice = 0;
-    dsDesc.Flags = D3D12_DSV_FLAG_NONE;
-    getDevice()->CreateDepthStencilView(gfx::depthStencilTexture->d3dTexture.Get(), &dsDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-    cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 400000, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-
-    for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
-    {
-        commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
-    }
-
-    commandList = createGraphicsCommandList(commandAllocator[0], nullptr);
-
-    GfxVertexInputDesc simpleVertexDesc = {};
-    simpleVertexDesc.elementCount = 3;
-    simpleVertexDesc.elements[0].semanticName = "POSITION";
-    simpleVertexDesc.elements[0].semanticIndex = 0;
-    simpleVertexDesc.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
-    simpleVertexDesc.elements[0].bufferIndex = 0;
-    simpleVertexDesc.elements[0].offset = 0;
-    simpleVertexDesc.elements[1].semanticName = "TEXCOORD";
-    simpleVertexDesc.elements[1].semanticIndex = 0;
-    simpleVertexDesc.elements[1].format = TinyImageFormat_R32G32_SFLOAT;
-    simpleVertexDesc.elements[1].bufferIndex = 0;
-    simpleVertexDesc.elements[1].offset = 12;
-    simpleVertexDesc.elements[2].semanticName = "COLOR";
-    simpleVertexDesc.elements[2].semanticIndex = 0;
-    simpleVertexDesc.elements[2].format = TinyImageFormat_R32G32B32A32_SFLOAT;
-    simpleVertexDesc.elements[2].bufferIndex = 0;
-    simpleVertexDesc.elements[2].offset = 20;
-
-    GfxShaderDesc simple2dShaderDesc = {};
-    simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
-    simple2dShaderDesc.vsEntrypoint = "vsSimple2dTest";
-    simple2dShaderDesc.fsEntrypoint = "fsSimple2dTest";
-    simple2dShaderDesc.defines = "RIGHT";
-
-    GfxRenderStateDesc simple2dRenderStateDesc = {};
-    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
-    simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
-    simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
-    simple2dRenderStateDesc.depthWriteEnabled = true;
-    simple2dRenderStateDesc.depthCompareFunc = GfxCompareFunc_Less;
-    //GfxGraphicsPSO* simplePSO = createGraphicsPSO("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
-    GfxGraphicsPSO* simplePSO = gfx::graphicsPSO->create("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
-    dummyPSO = simplePSO->d3dPSO;
-    dummyRootSignature = simplePSO->d3dRootSignature;
-
-    {
-        rgFloat triangleVertices[] =
+        for(
+            UINT adapterIndex = 0;
+            SUCCEEDED(factory6->EnumAdapterByGpuPreference(
+                adapterIndex,
+                requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
+                IID_PPV_ARGS(&adapter)));
+            ++adapterIndex)
         {
-            0.0f, 0.4f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.4f, -0.25f, 0.0f, 0.9f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
-            -0.25f, -0.1f, 0.0f, 0.0f, 0.3f, 1.0f, 0.0f, 0.0f, 1.0f,
+            DXGI_ADAPTER_DESC1 desc;
+            adapter->GetDesc1(&desc);
 
-            0.0f, 1.25f, 0.1f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.25f, -0.25f, 0.1f, 0.9f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-            -0.25f, -0.25f, 0.1f, 0.0f, 0.3f, 0.0f, 0.0f, 1.0f, 1.0f
-        };
+            if(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            {
+                // Don't select the Basic Render Driver adapter.
+                // If you want a software adapter, pass in "/warp" on the command line.
+                continue;
+            }
 
-        rgUInt vbSize = sizeof(triangleVertices);
+            // Check to see whether the adapter supports Direct3D 12, but don't create the
+            // actual device yet.
+            if(SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+            {
+                break;
+            }
+        }
+    }
+
+    if(adapter.Get() == nullptr)
+    {
+        for(UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex)
+        {
+            DXGI_ADAPTER_DESC1 desc;
+            adapter->GetDesc1(&desc);
+
+            if(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            {
+                // Don't select the Basic Render Driver adapter.
+                // If you want a software adapter, pass in "/warp" on the command line.
+                continue;
+            }
+
+            // Check to see whether the adapter supports Direct3D 12, but don't create the
+            // actual device yet.
+            if(SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+            {
+                break;
+            }
+        }
+    }
+
+    *ppAdapter = adapter.Detach();
+}
+
+void waitForGpu()
+{
+    BreakIfFail(gfx::commandQueue->Signal(gfx::frameFence.Get(), gfx::frameFenceValues[g_FrameIndex]));
+    BreakIfFail(gfx::frameFence->SetEventOnCompletion(gfx::frameFenceValues[g_FrameIndex], gfx::frameFenceEvent));
+    ::WaitForSingleObject(gfx::frameFenceEvent, INFINITE);
+
+    gfx::frameFenceValues[g_FrameIndex] += 1;
+}
+
+//*****************************************************************************
+// GfxBuffer Implementation
+//*****************************************************************************
+
+void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
+{
+    rgAssert(size > 0);
+
+    ComPtr<ID3D12Resource> bufferResource;
+
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+    D3D12_RESOURCE_STATES afterState = D3D12_RESOURCE_STATE_COMMON;
+    if(memoryType == GfxMemoryType_Default)
+    {
+        if(buf == nullptr)
+        {
+            initialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        }
+        else
+        {
+            initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+        }
+    }
+    else if(memoryType == GfxMemoryType_Upload)
+    {
+        initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+    }
+
+    CD3DX12_HEAP_PROPERTIES heapProps(memoryType == GfxMemoryType_Default ? D3D12_HEAP_TYPE_DEFAULT : D3D12_HEAP_TYPE_UPLOAD);
+    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(size, initialState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE);
+    BreakIfFail(getDevice()->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &resourceDesc,
+        initialState,
+        nullptr,
+        IID_PPV_ARGS(&bufferResource)
+    ));
+    setResourceDebugName(bufferResource, tag);
+
+    if(memoryType == GfxMemoryType_Upload && buf != nullptr)
+    {
+        void* mappedPtr = nullptr;
+        CD3DX12_RANGE mapRange(0, 0); // map whole buffer
+        BreakIfFail(bufferResource->Map(0, &mapRange, &mappedPtr));
+        memcpy(mappedPtr, buf, size);
+        bufferResource->Unmap(0, nullptr);
+    }
+
+    if(memoryType == GfxMemoryType_Default && buf != nullptr)
+    {
+        ComPtr<ID3D12Resource> cpuVisibleBufferResouce;
 
         BreakIfFail(getDevice()->CreateCommittedResource(
             &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
             D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(vbSize),
+            &CD3DX12_RESOURCE_DESC::Buffer(size),
             D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
-            __uuidof(triVB),
-            (void**)&(triVB)
+            IID_PPV_ARGS(&cpuVisibleBufferResouce)
         ));
 
-        rgU8* vbPtr;;
-        CD3DX12_RANGE readRange(0, 0);
-        BreakIfFail(triVB->Map(0, &readRange, (void**)&vbPtr));
-        memcpy(vbPtr, triangleVertices, vbSize);
-        triVB->Unmap(0, nullptr);
+        void* mappedPtr;
+        CD3DX12_RANGE mapRange(0, 0);
+        BreakIfFail(cpuVisibleBufferResouce->Map(0, &mapRange, &mappedPtr));
+        memcpy(mappedPtr, buf, size);
+        cpuVisibleBufferResouce->Unmap(0, nullptr);
 
-        triVBView.BufferLocation = triVB->GetGPUVirtualAddress();
-        triVBView.StrideInBytes = 36;
-        triVBView.SizeInBytes = vbSize;
+        // TODO: This copy task is not needed if we begin ResourceBatchUpload in startNextFrame
+        // and end it before submitting our commandlist
+        gfx::ResourceCopyTask copyTask;
+        copyTask.type = gfx::ResourceCopyTask::ResourceType_Buffer;
+        copyTask.src = cpuVisibleBufferResouce;
+        copyTask.dst = bufferResource;
+        gfx::pendingBufferCopyTasks.push_back(copyTask);
     }
 
-    {
-        // Create a fence with initial value 0 which is equal to d3d.nextFrameFenceValues[g_FrameIndex=0]
-        BreakIfFail(getDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(frameFence), (void**)&(frameFence)));
-        
-        // Create an framefence event
-        frameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if(frameFenceEvent == nullptr)
-        {
-            BreakIfFail(HRESULT_FROM_WIN32(::GetLastError()));
-        }
-    }
-
-    return 0;
-}
-
-void destroy()
-{
-    waitForGpu();
-    ::CloseHandle(frameFenceEvent);
-}
-
-rgInt draw()
-{
-    commandList->SetGraphicsRootSignature(dummyRootSignature.Get());
-
-    commandList->SetPipelineState(dummyPSO.Get());
-
-    CD3DX12_VIEWPORT vp(0.0f, 0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height);
-    commandList->RSSetViewports(1, &vp);
-    CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
-    commandList->RSSetScissorRects(1, &scissorRect);
-
-    GfxTexture* currentRenderTarget = gfx::swapchainTextures[g_FrameIndex];
-    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, rtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-    commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
-
-    const rgFloat clearColor[] = { 0.5f, 0.5f, 0.5f, 1.0f };
-    commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &triVBView);
-    //commandList->DrawInstanced(6, 1, 0, 0);
-    commandList->DrawInstanced(3, 1, 0, 0);
-    commandList->DrawInstanced(3, 1, 3, 0);
-    
-    // TODO: This vvv line should not be here 
-    //ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
-
-    //commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
-    //BreakIfFail(commandList->Close());
-
-    //ID3D12CommandList* commandLists[] = { commandList.Get() };
-    //commandQueue->ExecuteCommandLists(1, commandLists);
-    //BreakIfFail(dxgiSwapchain->Present(1, 0));
-
-    return 0;
-}
-
-void checkerWaitTillFrameCompleted(rgInt frameIndex)
-{
-    rgAssert(frameIndex >= 0);
-    UINT64 valueToWaitFor = frameFenceValues[frameIndex];
-    while(frameFence->GetCompletedValue() < valueToWaitFor)
-    {
-        BreakIfFail(frameFence->SetEventOnCompletion(valueToWaitFor, frameFenceEvent));
-        ::WaitForSingleObject(frameFenceEvent, INFINITE);
-    }
-}
-
-void startNextFrame()
-{
-    UINT64 prevFrameFenceValue = (g_FrameIndex != -1) ? frameFenceValues[g_FrameIndex] : 0;
-
-    g_FrameIndex = dxgiSwapchain->GetCurrentBackBufferIndex();
-
-    // check if this next frame is finised on the GPU
-    UINT64 nextFrameFenceValueToWaitFor = frameFenceValues[g_FrameIndex];
-    while(frameFence->GetCompletedValue() < nextFrameFenceValueToWaitFor)
-    {
-        BreakIfFail(frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, frameFenceEvent));
-        ::WaitForSingleObject(frameFenceEvent, INFINITE);
-    }
-
-    // This frame fence value is one more than prev frame fence value
-    frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
-
-    // Reset command allocator and command list
-    BreakIfFail(commandAllocator[g_FrameIndex]->Reset());
-    BreakIfFail(commandList->Reset(commandAllocator[g_FrameIndex].Get(), NULL));
-
-    draw();
-}
-
-void endFrame()
-{
-    GfxTexture* currentRenderTarget = gfx::swapchainTextures[g_FrameIndex];
-    commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
-    BreakIfFail(commandList->Close());
-
-    ID3D12CommandList* commandLists[] = { commandList.Get() };
-    commandQueue->ExecuteCommandLists(1, commandLists);
-    BreakIfFail(dxgiSwapchain->Present(1, 0));
-
-    UINT64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
-    BreakIfFail(commandQueue->Signal(frameFence.Get(), fenceValueToSignal));
-}
-
-void runOnFrameBeginJob()
-{
-}
-
-void onSizeChanged()
-{
-    waitForGpu();
-
-
-}
-
-// -----------------------------------------------
-// GFX Function
-// -----------------------------------------------
-// SECTION ENDS -
-
-
-
-
-// SECTION BEGIN -
-// -----------------------------------------------
-// GPU Resource Creators Deleters and Modifers
-// -----------------------------------------------
-
-void setterBindlessResource(rgU32 slot, GfxTexture* ptr)
-{
-}
-
-void rendererImGuiInit()
-{
-    //ImGui_ImplDX12_Init(ID3D12Device * device, int num_frames_in_flight, DXGI_FORMAT rtv_format, ID3D12DescriptorHeap * cbv_srv_heap, D3D12_CPU_DESCRIPTOR_HANDLE font_srv_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE font_srv_gpu_desc_handle);
-    ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, gfx::cbvSrvUavDescriptorHeap.Get(), gfx::cbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), gfx::cbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-    ImGui_ImplSDL2_InitForD3D(gfx::mainWindow);
-}
-
-void rendererImGuiNewFrame()
-{
-    ImGui_ImplDX12_NewFrame();
-}
-
-void rendererImGuiRenderDrawData()
-{
-    commandList->SetDescriptorHeaps(1, cbvSrvUavDescriptorHeap.GetAddressOf());
-    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.Get());
-}
-
-GfxTexture* getCurrentRenderTargetColorBuffer()
-{
-    return swapchainTextures[g_FrameIndex];
-}
-
-// -----------------------------------------------
-// GPU Resource Creators Deleters and Modifers
-// -----------------------------------------------
-// SECTION ENDS -
-
-RG_END_GFX_NAMESPACE
-
-using namespace gfx;
-
-// Buffer
-void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
-{
-    ComPtr<ID3D12Resource> bufferResource;
-
-    rgFloat triangleVertices[] =
-    {
-            0.0f, 0.3f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.4f, -0.25f, 0.0f, 0.9f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
-            -0.25f, -0.1f, 0.0f, 0.0f, 0.3f, 1.0f, 0.0f, 0.0f, 1.0f,
-
-            0.0f, 0.25f, 0.1f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.25f, -0.25f, 0.1f, 0.9f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-            -0.25f, -0.25f, 0.1f, 0.0f, 0.3f, 0.0f, 0.0f, 1.0f, 1.0f
-    };
-
-    rgUInt vbSize = sizeof(triangleVertices);
-
-    BreakIfFail(getDevice()->CreateCommittedResource(
-        &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-        D3D12_HEAP_FLAG_NONE,
-        &CD3DX12_RESOURCE_DESC::Buffer(vbSize),
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(&bufferResource)
-    ));
-
-    rgU8* vbPtr;;
-    CD3DX12_RANGE readRange(0, 0);
-    BreakIfFail(triVB->Map(0, &readRange, (void**)&vbPtr));
-    memcpy(vbPtr, triangleVertices, vbSize);
-    triVB->Unmap(0, nullptr);
-
-    triVBView.BufferLocation = triVB->GetGPUVirtualAddress();
-    triVBView.StrideInBytes = 36;
-    triVBView.SizeInBytes = vbSize;
+    obj->d3dResource = bufferResource;
 }
 
 void GfxBuffer::destroy(GfxBuffer* obj)
 {
-
+#if defined(ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS)
+    // Check is this resource has pending copy task
+    for(auto& itr : gfx::pendingBufferCopyTasks)
+    {
+        if(itr.dst == obj->d3dResource)
+        {
+            rgAssert(!"GfxBuffer resource has a pending copy task");
+        }
+    }
+#endif
 }
 
-void* GfxBuffer::map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes) // TODO: MTL D3D12 - handle ranges
+void* GfxBuffer::map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes)
 {
-    return nullptr;
+    void* mappedPtr = nullptr;
+    mappedRange = CD3DX12_RANGE(rangeBeginOffset, rangeBeginOffset + rangeSizeInBytes);
+    BreakIfFail(d3dResource->Map(0, &mappedRange, &mappedPtr));
+    return mappedPtr;
 }
 
 void GfxBuffer::unmap()
 {
+    d3dResource->Unmap(0, &mappedRange);
 }
+
+
+//*****************************************************************************
+// GfxSamplerState Implementation
+//*****************************************************************************
 
 void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
 {
+    auto toD3DFilter = [minFilter, magFilter, mipFilter, anisotropy]() -> D3D12_FILTER
+    {
+        if(!anisotropy)
+        {
+            if(minFilter == GfxSamplerMinMagFilter_Nearest)
+            {
+                if(magFilter == GfxSamplerMinMagFilter_Nearest)
+                {
+                    if(mipFilter == GfxSamplerMipFilter_Nearest)
+                    {
+                        return D3D12_FILTER_MIN_MAG_MIP_POINT;
+                    }
+                    else if(mipFilter == GfxSamplerMipFilter_Linear)
+                    {
+                        return D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR;
+                    }
+                }
+                else if(magFilter == GfxSamplerMinMagFilter_Linear)
+                {
+                    if(mipFilter == GfxSamplerMipFilter_Nearest)
+                    {
+                        return D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
+                    }
+                    else if(mipFilter == GfxSamplerMipFilter_Linear)
+                    {
+                        return D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
+                    }
+                }
+            }
+            else if(minFilter == GfxSamplerMinMagFilter_Linear)
+            {
+                if(magFilter == GfxSamplerMinMagFilter_Nearest)
+                {
+                    if(mipFilter == GfxSamplerMipFilter_Nearest)
+                    {
+                        return D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT;
+                    }
+                    else if(mipFilter == GfxSamplerMipFilter_Linear)
+                    {
+                        return D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
+                    }
+                }
+                else if(magFilter == GfxSamplerMinMagFilter_Linear)
+                {
+                    if(mipFilter == GfxSamplerMipFilter_Nearest)
+                    {
+                        return D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+                    }
+                    else if(mipFilter == GfxSamplerMipFilter_Linear)
+                    {
+                        return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // TODO: Review the anisotropy related enums
+            // TODO: Review the anisotropy related enums
+            if(minFilter == GfxSamplerMinMagFilter_Nearest
+                && magFilter == GfxSamplerMinMagFilter_Nearest
+                && mipFilter == GfxSamplerMipFilter_Nearest)
+            {
+                return D3D12_FILTER_MIN_MAG_ANISOTROPIC_MIP_POINT;
+            }
+            else if(minFilter == GfxSamplerMinMagFilter_Linear
+                && magFilter == GfxSamplerMinMagFilter_Linear
+                && mipFilter == GfxSamplerMipFilter_Linear)
+            {
+                return D3D12_FILTER_ANISOTROPIC;
+            }
+            else
+            {
+                rgAssert(!"Unrecognized filtering and anisotropy combination");
+            }
+        }
+
+        return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    };
+
+    D3D12_TEXTURE_ADDRESS_MODE addressMode = toD3DTextureAddressMode(rstAddressMode);
+    D3D12_SAMPLER_DESC samplerDesc = {};
+    samplerDesc.Filter = toD3DFilter();
+    samplerDesc.AddressU = addressMode;
+    samplerDesc.AddressV = addressMode;
+    samplerDesc.AddressW = addressMode;
+    samplerDesc.MaxAnisotropy = anisotropy ? 16 : 1;
+
+    getDevice()->CreateSampler(&samplerDesc, gfx::samplerNextCPUDescriptorHandle);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle = gfx::samplerNextCPUDescriptorHandle;
+    gfx::samplerNextCPUDescriptorHandle.Offset(1, gfx::samplerDescriptorSize);
+
+    obj->d3dCPUDescriptorHandle = cpuDescriptorHandle;
 }
 
 void GfxSamplerState::destroy(GfxSamplerState* obj)
 {
 }
 
+
+//*****************************************************************************
+// GfxTexture Implementation
+//*****************************************************************************
+
 void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
-    ComPtr<ID3D12Resource> textureResouce;
+    ComPtr<ID3D12Resource> textureResource;
 
     DXGI_FORMAT textureFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
 
@@ -822,8 +676,8 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
         &resourceDesc,
         resourceState,
         clearValue,
-        IID_PPV_ARGS(&textureResouce)));
-
+        IID_PPV_ARGS(&textureResource)));
+    setResourceDebugName(textureResource, tag);
     //CD3DX12_CPU_DESCRIPTOR_HANDLE resourceView 
 
     if(usage & GfxTextureUsage_ShaderReadWrite)
@@ -846,14 +700,18 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
 
     }
 
-    obj->d3dTexture = textureResouce;
+    obj->d3dTexture = textureResource;
 }
 
 void GfxTexture::destroy(GfxTexture* obj)
 {
 }
 
-// PSO
+
+//*****************************************************************************
+// GfxGraphicsPSO Implementation
+//*****************************************************************************
+
 struct BuildShaderResult
 {
     ComPtr<IDxcBlob> shaderBlob;
@@ -1320,10 +1178,9 @@ void GfxComputePSO::destroy(GfxComputePSO* obj)
 {
 }
 
-// SECTION BEGIN -
-// -----------------------------------------------
-// RenderCmd Handlers
-// -----------------------------------------------
+//*****************************************************************************
+// GfxRenderCmdEncoder Implementation
+//*****************************************************************************
 
 void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 {
@@ -1577,8 +1434,33 @@ void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTextu
 // Frame Resource Allocator
 //*****************************************************************************
 
-void GfxFrameAllocator::create(rgU32 sizeInBytes)
+void GfxFrameAllocator::create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
 {
+    D3D12_HEAP_DESC bufferHeapDesc = {};
+    bufferHeapDesc.SizeInBytes = bufferHeapSize;
+    bufferHeapDesc.Properties.Type = D3D12_HEAP_TYPE_CUSTOM;
+    bufferHeapDesc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE;
+    bufferHeapDesc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+    bufferHeapDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+    bufferHeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+    BreakIfFail(getDevice()->CreateHeap(&bufferHeapDesc, IID_PPV_ARGS(&d3dBufferHeap)));
+    d3dBufferHeap->SetName(L"GfxFrameAllocator::d3dBufferHeap");
+
+    D3D12_HEAP_DESC nonRTDSTextureHeapDesc = {};
+    nonRTDSTextureHeapDesc.SizeInBytes = bufferHeapSize;
+    nonRTDSTextureHeapDesc.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+    nonRTDSTextureHeapDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+    nonRTDSTextureHeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+    BreakIfFail(getDevice()->CreateHeap(&nonRTDSTextureHeapDesc, IID_PPV_ARGS(&d3dNonRTDSTextureHeap)));
+    d3dBufferHeap->SetName(L"GfxFrameAllocator::d3dNonRTDSTextureHeap");
+
+    D3D12_HEAP_DESC rtDSTextureHeapDesc = {};
+    rtDSTextureHeapDesc.SizeInBytes = bufferHeapSize;
+    rtDSTextureHeapDesc.Properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+    rtDSTextureHeapDesc.Alignment = D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT;
+    rtDSTextureHeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES;
+    BreakIfFail(getDevice()->CreateHeap(&rtDSTextureHeapDesc, IID_PPV_ARGS(&d3dRTDSTextureHeap)));
+    d3dBufferHeap->SetName(L"GfxFrameAllocator::d3dRTDSTextureHeap");
 }
 
 void GfxFrameAllocator::destroy()
@@ -1608,12 +1490,341 @@ GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialD
     return output;
 }
 
-// -----------------------------------------------
-// RenderCmd Handlers
-// -----------------------------------------------
-// SECTION ENDS -
+RG_BEGIN_GFX_NAMESPACE
+//*****************************************************************************
+// Call from main | loop init() destroy() startNextFrame() endFrame()
+//*****************************************************************************
+
+rgInt init()
+{
+    // TODO: correctly initialize d3d12 device https://walbourn.github.io/anatomy-of-direct3d-12-create-device/
+
+    // create factory
+    UINT factoryCreateFlag = 0;
+#if defined(_DEBUG)
+    factoryCreateFlag = DXGI_CREATE_FACTORY_DEBUG;
+#endif
+    BreakIfFail(CreateDXGIFactory2(factoryCreateFlag, __uuidof(dxgiFactory), (void**)&(dxgiFactory)));
+
+    // create debug validation interface
+#ifdef _DEBUG
+    ComPtr<ID3D12Debug> debugInterface;
+    BreakIfFail(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
+    debugInterface->EnableDebugLayer();
+
+    //ComPtr<ID3D12InfoQueue> debugInfoQueue;
+    //if(SUCCEEDED(d3d.device.As(&debugInfoQueue)))
+    //{
+    //    debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+    //    debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+    //    debugInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+    //}
+#endif
+
+    // create device
+    ComPtr<IDXGIAdapter1> hardwareAdapter;
+    getHardwareAdapter(dxgiFactory.Get(), &hardwareAdapter, true);
+    BreakIfFail(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), (void**)&(device)));
+    
+    // query available features from the driver
+    D3D12_FEATURE_DATA_D3D12_OPTIONS features = {};
+    BreakIfFail(getDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &features, sizeof(features)));
+    
+    // create command queue
+    D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
+    commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    commandQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+    commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+
+    BreakIfFail(getDevice()->CreateCommandQueue(&commandQueueDesc, __uuidof(ID3D12CommandQueue), (void**)&(commandQueue)));
+
+    // create swapchain
+    DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
+    swapchainDesc.Width = g_WindowInfo.width;
+    swapchainDesc.Height = g_WindowInfo.height;
+    swapchainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    swapchainDesc.Stereo = FALSE;
+    swapchainDesc.SampleDesc = { 1, 0 };
+    swapchainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapchainDesc.BufferCount = RG_MAX_FRAMES_IN_FLIGHT;
+    swapchainDesc.Scaling = DXGI_SCALING_NONE;
+    swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapchainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+    swapchainDesc.Flags = 0;
+    HWND hWnd = ::GetActiveWindow();
+
+    ComPtr<IDXGISwapChain1> dxgiSwapchain1;
+    BreakIfFail(dxgiFactory->CreateSwapChainForHwnd(
+        commandQueue.Get(),
+        hWnd,
+        &swapchainDesc,
+        nullptr,
+        nullptr,
+        &dxgiSwapchain1
+    ));
+    BreakIfFail(dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
+    BreakIfFail(dxgiSwapchain1.As(&dxgiSwapchain));
+
+    // create sampler descriptor heap
+    samplerDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, MAX_SAMPLER_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    samplerDescriptorSize = getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+    samplerNextCPUDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(samplerDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+    // create swapchain RTV
+    rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, MAX_RTV_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    rtvDescriptorSize = getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+    for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        ComPtr<ID3D12Resource> texResource;
+        BreakIfFail(dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
+        getDevice()->CreateRenderTargetView(texResource.Get(), nullptr, rtvDescriptorHandle);
+        rtvDescriptorHandle.Offset(1, rtvDescriptorSize);
+
+        D3D12_RESOURCE_DESC desc = texResource->GetDesc();
+        GfxTexture* texRT = rgNew(GfxTexture);
+        strncpy(texRT->tag, "RenderTarget", 32);
+        texRT->dim = GfxTextureDim_2D;
+        texRT->width = (rgUInt)desc.Width;
+        texRT->height = (rgUInt)desc.Height;
+        texRT->usage = GfxTextureUsage_RenderTarget;
+        texRT->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
+        texRT->d3dTexture = texResource;
+        gfx::swapchainTextures[i] = texRT;
+    }
+
+    dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    gfx::depthStencilTexture = gfx::texture->create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
+
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
+    dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsDesc.Texture2D.MipSlice = 0;
+    dsDesc.Flags = D3D12_DSV_FLAG_NONE;
+    getDevice()->CreateDepthStencilView(gfx::depthStencilTexture->d3dTexture.Get(), &dsDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+    cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, MAX_CBVSRVUAV_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+
+    // create command allocators
+    for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    }
+
+    // create commandlist
+    currentCommandList = createGraphicsCommandList(commandAllocator[0], nullptr);
+
+    GfxVertexInputDesc simpleVertexDesc = {};
+    simpleVertexDesc.elementCount = 3;
+    simpleVertexDesc.elements[0].semanticName = "POSITION";
+    simpleVertexDesc.elements[0].semanticIndex = 0;
+    simpleVertexDesc.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
+    simpleVertexDesc.elements[0].bufferIndex = 0;
+    simpleVertexDesc.elements[0].offset = 0;
+    simpleVertexDesc.elements[1].semanticName = "TEXCOORD";
+    simpleVertexDesc.elements[1].semanticIndex = 0;
+    simpleVertexDesc.elements[1].format = TinyImageFormat_R32G32_SFLOAT;
+    simpleVertexDesc.elements[1].bufferIndex = 0;
+    simpleVertexDesc.elements[1].offset = 12;
+    simpleVertexDesc.elements[2].semanticName = "COLOR";
+    simpleVertexDesc.elements[2].semanticIndex = 0;
+    simpleVertexDesc.elements[2].format = TinyImageFormat_R32G32B32A32_SFLOAT;
+    simpleVertexDesc.elements[2].bufferIndex = 0;
+    simpleVertexDesc.elements[2].offset = 20;
+
+    GfxShaderDesc simple2dShaderDesc = {};
+    simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
+    simple2dShaderDesc.vsEntrypoint = "vsSimple2dTest";
+    simple2dShaderDesc.fsEntrypoint = "fsSimple2dTest";
+    simple2dShaderDesc.defines = "RIGHT";
+
+    GfxRenderStateDesc simple2dRenderStateDesc = {};
+    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
+    simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
+    simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
+    simple2dRenderStateDesc.depthWriteEnabled = true;
+    simple2dRenderStateDesc.depthCompareFunc = GfxCompareFunc_Less;
+    //GfxGraphicsPSO* simplePSO = createGraphicsPSO("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    GfxGraphicsPSO* simplePSO = gfx::graphicsPSO->create("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    dummyPSO = simplePSO->d3dPSO;
+    dummyRootSignature = simplePSO->d3dRootSignature;
+
+    {
+        rgFloat triangleVertices[] =
+        {
+            0.0f, 0.4f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.4f, -0.25f, 0.0f, 0.9f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
+            -0.25f, -0.1f, 0.0f, 0.0f, 0.3f, 1.0f, 0.0f, 0.0f, 1.0f,
+
+            0.0f, 1.25f, 0.1f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            0.25f, -0.25f, 0.1f, 0.9f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
+            -0.25f, -0.25f, 0.1f, 0.0f, 0.3f, 0.0f, 0.0f, 1.0f, 1.0f
+        };
+
+        rgUInt vbSize = sizeof(triangleVertices);
+
+        BreakIfFail(getDevice()->CreateCommittedResource(
+            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+            D3D12_HEAP_FLAG_NONE,
+            &CD3DX12_RESOURCE_DESC::Buffer(vbSize),
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            __uuidof(triVB),
+            (void**)&(triVB)
+        ));
+        setResourceDebugName(triVB, "henlo");
+
+        rgU8* vbPtr;;
+        CD3DX12_RANGE readRange(0, 0);
+        BreakIfFail(triVB->Map(0, &readRange, (void**)&vbPtr));
+        memcpy(vbPtr, triangleVertices, vbSize);
+        triVB->Unmap(0, nullptr);
+
+        triVBView.BufferLocation = triVB->GetGPUVirtualAddress();
+        triVBView.StrideInBytes = 36;
+        triVBView.SizeInBytes = vbSize;
+    }
+
+    {
+        // Create a fence with initial value 0 which is equal to d3d.nextFrameFenceValues[g_FrameIndex=0]
+        BreakIfFail(getDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(frameFence), (void**)&(frameFence)));
+        
+        // Create an framefence event
+        frameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if(frameFenceEvent == nullptr)
+        {
+            BreakIfFail(HRESULT_FROM_WIN32(::GetLastError()));
+        }
+    }
+
+    return 0;
+}
+
+void destroy()
+{
+    waitForGpu();
+    ::CloseHandle(frameFenceEvent);
+}
+
+rgInt draw()
+{
+    currentCommandList->SetGraphicsRootSignature(dummyRootSignature.Get());
+
+    currentCommandList->SetPipelineState(dummyPSO.Get());
+
+    CD3DX12_VIEWPORT vp(0.0f, 0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height);
+    currentCommandList->RSSetViewports(1, &vp);
+    CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
+    currentCommandList->RSSetScissorRects(1, &scissorRect);
+
+    GfxTexture* currentRenderTarget = gfx::swapchainTextures[g_FrameIndex];
+    currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    currentCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+    currentCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
+
+    const rgFloat clearColor[] = { 0.5f, 0.5f, 0.5f, 1.0f };
+    currentCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    currentCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    currentCommandList->IASetVertexBuffers(0, 1, &triVBView);
+    //commandList->DrawInstanced(6, 1, 0, 0);
+    currentCommandList->DrawInstanced(3, 1, 0, 0);
+    currentCommandList->DrawInstanced(3, 1, 3, 0);
+
+    return 0;
+}
+
+void checkerWaitTillFrameCompleted(rgInt frameIndex)
+{
+    rgAssert(frameIndex >= 0);
+    UINT64 valueToWaitFor = frameFenceValues[frameIndex];
+    while(frameFence->GetCompletedValue() < valueToWaitFor)
+    {
+        BreakIfFail(frameFence->SetEventOnCompletion(valueToWaitFor, frameFenceEvent));
+        ::WaitForSingleObject(frameFenceEvent, INFINITE);
+    }
+}
+
+void startNextFrame()
+{
+    UINT64 prevFrameFenceValue = (g_FrameIndex != -1) ? frameFenceValues[g_FrameIndex] : 0;
+
+    g_FrameIndex = dxgiSwapchain->GetCurrentBackBufferIndex();
+
+    // check if this next frame is finised on the GPU
+    UINT64 nextFrameFenceValueToWaitFor = frameFenceValues[g_FrameIndex];
+    while(frameFence->GetCompletedValue() < nextFrameFenceValueToWaitFor)
+    {
+        BreakIfFail(frameFence->SetEventOnCompletion(nextFrameFenceValueToWaitFor, frameFenceEvent));
+        ::WaitForSingleObject(frameFenceEvent, INFINITE);
+    }
+
+    // This frame fence value is one more than prev frame fence value
+    frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
+
+    // Reset command allocator and command list
+    BreakIfFail(commandAllocator[g_FrameIndex]->Reset());
+    BreakIfFail(currentCommandList->Reset(commandAllocator[g_FrameIndex].Get(), NULL));
+
+    draw();
+}
+
+void endFrame()
+{
+    GfxTexture* currentRenderTarget = gfx::swapchainTextures[g_FrameIndex];
+    currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+    BreakIfFail(currentCommandList->Close());
+
+    ID3D12CommandList* commandLists[] = { currentCommandList.Get() };
+    commandQueue->ExecuteCommandLists(1, commandLists);
+    BreakIfFail(dxgiSwapchain->Present(1, 0));
+
+    UINT64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
+    BreakIfFail(commandQueue->Signal(frameFence.Get(), fenceValueToSignal));
+}
+
+void onSizeChanged()
+{
+    waitForGpu();
+}
+
+void runOnFrameBeginJob()
+{
+}
+
+void setterBindlessResource(rgU32 slot, GfxTexture* ptr)
+{
+}
+
+void rendererImGuiInit()
+{
+    //ImGui_ImplDX12_Init(ID3D12Device * device, int num_frames_in_flight, DXGI_FORMAT rtv_format, ID3D12DescriptorHeap * cbv_srv_heap, D3D12_CPU_DESCRIPTOR_HANDLE font_srv_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE font_srv_gpu_desc_handle);
+    ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, gfx::cbvSrvUavDescriptorHeap.Get(), gfx::cbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), gfx::cbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+    ImGui_ImplSDL2_InitForD3D(gfx::mainWindow);
+}
+
+void rendererImGuiNewFrame()
+{
+    ImGui_ImplDX12_NewFrame();
+}
+
+void rendererImGuiRenderDrawData()
+{
+    currentCommandList->SetDescriptorHeaps(1, cbvSrvUavDescriptorHeap.GetAddressOf());
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), currentCommandList.Get());
+}
+
+GfxTexture* getCurrentRenderTargetColorBuffer()
+{
+    return swapchainTextures[g_FrameIndex];
+}
+
+RG_END_GFX_NAMESPACE
 
 #undef BreakIfFail
-
 RG_END_RG_NAMESPACE
 #endif
