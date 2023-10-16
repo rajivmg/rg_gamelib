@@ -8,6 +8,8 @@ set(EXECUTABLE_NAME "rg_gamelib" CACHE STRING "Output executable name")
 option(VULKAN "Enable Vulkan Graphics API (Windows)" OFF)
 option(D3D12 "Enable D3D12 Graphics API (Windows)" ON)
 
+option(MACOS_COMPILE_ONLY_NO_LINKING "To only compile the src files and not link. Used on CI Runners" OFF)
+
 # set output folder
 set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/build)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -163,8 +165,12 @@ elseif(APPLE)
 
     include_directories(${SPIRVCROSS_ROOT_DIR} ${DIRECXHEADERS_ROOT_DIR}/include ${DIRECXHEADERS_ROOT_DIR}/include/wsl/stubs ${DIRECTXMATH_ROOT_DIR}/Inc ${DIRECTXTEX_ROOT_DIR})
     
-    add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${BOX2D_SRC_FILES} ${SPIRVCROSS_SRC_FILES} ${PUGIXML_SRC_FILES} ${DIRECTXTEX_SRC_FILES} ${SHADER_FILES})
-    target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2} ${EASTL_LIBRARY} ${DXC_LIBRARY})
+    if(MACOS_COMPILE_ONLY_NO_LINKING)
+        add_library(rg_gamelib OBJECT ${SRC_FILES} ${GAME_SRC_FILES} ${BOX2D_SRC_FILES} ${SPIRVCROSS_SRC_FILES} ${PUGIXML_SRC_FILES} ${DIRECTXTEX_SRC_FILES} ${SHADER_FILES})
+    else()
+        add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${BOX2D_SRC_FILES} ${SPIRVCROSS_SRC_FILES} ${PUGIXML_SRC_FILES} ${DIRECTXTEX_SRC_FILES} ${SHADER_FILES})
+        target_link_libraries(rg_gamelib ${APPL_FOUNDATION} ${APPL_QUARTZ} ${APPL_METAL} ${SDL2} ${EASTL_LIBRARY} ${DXC_LIBRARY})
+    endif()
 
     set_source_files_properties(${SHADER_FILES} PROPERTIES XCODE_EXPLICIT_FILE_TYPE HLSL)
     
