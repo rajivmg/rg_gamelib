@@ -1,6 +1,9 @@
 #include "rg_gfx_dxc.h"
 
+#ifndef _WIN32
 #include "ComPtr.hpp"
+#endif
+
 #include "dxcapi.h"
 
 #include <EASTL/hash_set.h>
