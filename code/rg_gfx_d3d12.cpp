@@ -10,6 +10,9 @@
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_dx12.h"
 
+#include "ResourceUploadBatch.h"
+using namespace DirectX;
+
 #include <EASTL/string.h>
 #include <EASTL/hash_set.h>
 
@@ -18,7 +21,6 @@
 RG_BEGIN_RG_NAMESPACE
 
 RG_BEGIN_GFX_NAMESPACE
-
     static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
     static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
     static rgUInt const MAX_SAMPLER_DESCRIPTOR = 1024;
@@ -67,13 +69,14 @@ RG_BEGIN_GFX_NAMESPACE
     eastl::vector<ResourceCopyTask> pendingBufferCopyTasks;
     eastl::vector<ResourceCopyTask> pendingTextureCopyTasks;
 
+    ResourceUploadBatch* resourceUploader;
+
     // test --
     ComPtr<ID3D12RootSignature> dummyRootSignature;
     ComPtr<ID3D12PipelineState> dummyPSO;
     ComPtr<ID3D12Resource> triVB;
     D3D12_VERTEX_BUFFER_VIEW triVBView;
     // -- 
-
 RG_END_GFX_NAMESPACE
 
 //*****************************************************************************
@@ -1647,6 +1650,9 @@ rgInt init()
     // create commandlist
     currentCommandList = createGraphicsCommandList(commandAllocator[0], nullptr);
 
+    // crate resource uploader
+    resourceUploader = rgNew(ResourceUploadBatch)(getDevice().Get());
+
     GfxVertexInputDesc simpleVertexDesc = {};
     simpleVertexDesc.elementCount = 3;
     simpleVertexDesc.elements[0].semanticName = "POSITION";
@@ -1803,6 +1809,8 @@ void startNextFrame()
     BreakIfFail(commandAllocator[g_FrameIndex]->Reset());
     BreakIfFail(currentCommandList->Reset(commandAllocator[g_FrameIndex].Get(), NULL));
 
+    resourceUploader->Begin();
+
     draw();
 }
 
@@ -1812,6 +1820,8 @@ void endFrame()
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     BreakIfFail(currentCommandList->Close());
+
+    resourceUploader->End(commandQueue.Get());
 
     ID3D12CommandList* commandLists[] = { currentCommandList.Get() };
     commandQueue->ExecuteCommandLists(1, commandLists);
@@ -1836,7 +1846,6 @@ void setterBindlessResource(rgU32 slot, GfxTexture* ptr)
 
 void rendererImGuiInit()
 {
-    //ImGui_ImplDX12_Init(ID3D12Device * device, int num_frames_in_flight, DXGI_FORMAT rtv_format, ID3D12DescriptorHeap * cbv_srv_heap, D3D12_CPU_DESCRIPTOR_HANDLE font_srv_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE font_srv_gpu_desc_handle);
     ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, gfx::cbvSrvUavDescriptorHeap.Get(), gfx::cbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), gfx::cbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
     ImGui_ImplSDL2_InitForD3D(gfx::mainWindow);
 }
