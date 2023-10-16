@@ -6,7 +6,6 @@
 #include <EASTL/fixed_vector.h>
 #include <EASTL/string.h>
 #include <EASTL/hash_map.h>
-#include <EASTL/hash_set.h>
 
 #import <Metal/Metal.h>
 #import <Metal/MTLArgumentEncoder.h>
@@ -17,10 +16,14 @@
 #include <sstream>
 #include <string>
 
-#include "rg_gfx_dxc.inl"
+#include "rg_gfx_dxc.h"
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_metal.h"
+
+#include "spirv_cross.hpp"
+#include "spirv_parser.hpp"
+#include "spirv_msl.hpp"
 
 RG_BEGIN_RG_NAMESPACE
 
@@ -518,13 +521,12 @@ template<typename PSOType>
 id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, PSOType* obj)
 {
     // first we generate spirv from hlsl
-    gfx::ShaderBlob shaderBlob;
-    gfx::compileShader(filename, stage, entrypoint, defines, true, &shaderBlob);
+    gfx::ShaderBlobRef shaderBlob = gfx::createShaderBlob(filename, stage, entrypoint, defines, true);
     
     // now we convert spirv to msl
     // 1. convert spirv to ms	l
-    uint32_t* spvPtr = (uint32_t*)shaderBlob.bufferPtr;
-    size_t spvWordCount = (size_t)(shaderBlob.bufferSize/sizeof(uint32_t));
+    uint32_t* spvPtr = (uint32_t*)shaderBlob->bufferPtr;
+    size_t spvWordCount = (size_t)(shaderBlob->bufferSize/sizeof(uint32_t));
     
     spirv_cross::Parser spirvParser(spvPtr, spvWordCount);
     spirvParser.parse();

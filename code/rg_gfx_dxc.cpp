@@ -1,10 +1,9 @@
+#include "rg_gfx_dxc.h"
 
 #include "ComPtr.hpp"
 #include "dxcapi.h"
 
-#include "spirv_cross.hpp"
-#include "spirv_parser.hpp"
-#include "spirv_msl.hpp"
+#include <EASTL/hash_set.h>
 
 static ComPtr<IDxcUtils> g_DxcUtils;
 
@@ -69,16 +68,7 @@ public:
     eastl::hash_set<eastl::wstring> alreadyIncludedFiles;
 };
 
-struct ShaderBlob
-{
-    void* bufferPtr;
-    rgSize bufferSize;
-    
-    ComPtr<IDxcBlob> dxcBlob;
-};
-
-///compileAndGenerateShaderBlobWithDXC
-bool compileShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, bool genSPIRV, ShaderBlob* outShaderBlob)
+ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, bool genSPIRV)
 {
     rgAssert(entrypoint);
     rgAssert(filename);
@@ -207,20 +197,28 @@ bool compileShader(char const* filename, GfxStage stage, char const* entrypoint,
     }
 
     // get the compiled shader blob from compilatino result
-    ComPtr<IDxcBlob> shaderBlob;
+    IDxcBlob* shaderBlob;
     checkResult(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr));
     rgAssert(shaderBlob->GetBufferSize());
     
     rg::freeFileData(&shaderFileData);
 
-    // copy to outShaderBlob
-    outShaderBlob->bufferPtr = shaderBlob->GetBufferPointer();
-    outShaderBlob->bufferSize = shaderBlob->GetBufferSize();
-    outShaderBlob->dxcBlob = shaderBlob;
+    ShaderBlobRef output = eastl::shared_ptr<ShaderBlob>(rgNew(ShaderBlob), destroyShaderBlob);
     
-    return true;
+    // copy to output
+    output->bufferPtr = shaderBlob->GetBufferPointer();
+    output->bufferSize = shaderBlob->GetBufferSize();
+    output->dxcBlob = shaderBlob;
+    
+    return output;
 }
 
+
+void destroyShaderBlob(ShaderBlob* shaderBlob)
+{
+    IDxcBlob* blob = (IDxcBlob*)shaderBlob->dxcBlob;
+    blob->Release();
+}
 
 RG_END_GFX_NAMESPACE
 RG_END_RG_NAMESPACE
