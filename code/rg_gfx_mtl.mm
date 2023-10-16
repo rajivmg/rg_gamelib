@@ -17,13 +17,7 @@
 #include <sstream>
 #include <string>
 
-#include <wchar.h>
-#include "ComPtr.hpp"
-#include "dxcapi.h"
-
-#include "spirv_cross.hpp"
-#include "spirv_parser.hpp"
-#include "spirv_msl.hpp"
+#include "rg_gfx_dxc.inl"
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_metal.h"
@@ -519,195 +513,18 @@ void GfxTexture::destroy(GfxTexture* obj)
 //*****************************************************************************
 // GfxGraphicsPSO Implementation
 //*****************************************************************************
-static ComPtr<IDxcUtils> g_DxcUtils;
 
 template<typename PSOType>
-id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, PSOType* obj)
+id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, PSOType* obj)
 {
-    rgAssert(entrypoint);
+    // first we generate spirv from hlsl
+    gfx::ShaderBlob shaderBlob;
+    gfx::compileShader(filename, stage, entrypoint, defines, true, &shaderBlob);
     
-    auto getStageStr = [](GfxStage s) -> const char*
-    {
-        switch(s)
-        {
-        case GfxStage_VS:
-            return "vs";
-            break;
-        case GfxStage_FS:
-            return "fs";
-            break;
-        case GfxStage_CS:
-            return "cs";
-            break;
-        }
-        return nullptr;
-    };
-
-    auto checkHR = [&](HRESULT hr) -> void
-    {
-        if(FAILED(hr))
-        {
-            rgAssert(!"Operation failed");
-        }
-    };
-
-    rgAssert(filename);
-    rgAssert(entrypoint);
-
-    rgHash hash = rgCRC32(filename);
-    hash = rgCRC32(getStageStr(stage), 2, hash);
-    hash = rgCRC32(entrypoint, (rgU32)strlen(entrypoint), hash);
-    if(defines != nullptr)
-    {
-        hash = rgCRC32(defines, (rgU32)strlen(defines), hash);
-    }
-
-    // entrypoint
-    eastl::vector<LPCWSTR> dxcArgs;
-    dxcArgs.push_back(L"-E");
-
-    wchar_t entrypointWide[256];
-    std::mbstowcs(entrypointWide, entrypoint, 256);
-    dxcArgs.push_back(entrypointWide);
-
-    // shader model
-    dxcArgs.push_back(L"-T");
-    if(stage == GfxStage_VS)
-    {
-        dxcArgs.push_back(L"vs_6_0");
-    }
-    else if(stage == GfxStage_FS)
-    {
-        dxcArgs.push_back(L"ps_6_0");
-    }
-    else if(stage == GfxStage_CS)
-    {
-        dxcArgs.push_back(L"cs_6_0");
-    }
-    
-    // include dir
-    dxcArgs.push_back(L"-I");
-    dxcArgs.push_back(L"../code/shaders");
-
-    // generate SPIRV
-    dxcArgs.push_back(L"-spirv");
-    dxcArgs.push_back(L"-fspv-target-env=vulkan1.1");
-    dxcArgs.push_back(L"-fvk-use-dx-layout");
-
-    // defines
-    eastl::vector<eastl::wstring> defineArgs;
-    if(defines != nullptr)
-    {
-        char const* definesCursorA = defines;
-        char const* definesCursorB = definesCursorA;
-        while(*definesCursorB != '\0')
-        {
-            definesCursorB = definesCursorB + 1;
-            if(*definesCursorB == ' ' || *definesCursorB == '\0')
-            {
-                if(*definesCursorB == '\0' && (definesCursorA == definesCursorB))
-                {
-                    break;
-                }
-
-                wchar_t d[256];
-                wchar_t wterm = 0;
-                rgUPtr lenWithoutNull = definesCursorB - definesCursorA;
-                std::mbstowcs(d, definesCursorA, lenWithoutNull);
-                wcsncpy(&d[lenWithoutNull], &wterm, 1);
-                defineArgs.push_back(eastl::wstring(d));
-                definesCursorA = definesCursorB + 1;
-            }
-        }
-        if(defineArgs.size() > 0)
-        {
-            dxcArgs.push_back(L"-D");
-            for(auto& s : defineArgs)
-            {
-                dxcArgs.push_back(s.c_str());
-            }
-        }
-    }
-
-    // create include handler
-    if(!g_DxcUtils)
-    {
-        checkHR(DxcCreateInstance(CLSID_DxcUtils, __uuidof(IDxcUtils), (void**)&g_DxcUtils));
-    }
-
-    class CustomIncludeHandler : public IDxcIncludeHandler
-    {
-    public:
-        HRESULT LoadSource(LPCWSTR pFilename, IDxcBlob **ppIncludeSource) override
-        {
-            
-            ComPtr<IDxcBlobEncoding> blobEncoding;
-            std::filesystem::path filepath = std::filesystem::absolute(std::filesystem::path(pFilename));
-            
-            if(alreadyIncludedFiles.count(eastl::wstring(filepath.string().c_str())) > 0)
-            {
-                static const char emptyStr[] = " ";
-                g_DxcUtils->CreateBlobFromPinned(emptyStr, rgARRAY_COUNT(emptyStr), DXC_CP_ACP, &blobEncoding);
-                return S_OK;
-            }
-            
-            HRESULT hr = g_DxcUtils->LoadFile(pFilename, nullptr, &blobEncoding);
-            if(SUCCEEDED(hr))
-            {
-                alreadyIncludedFiles.insert(eastl::wstring(pFilename));
-                *ppIncludeSource = blobEncoding.Detach();
-            }
-            
-            return hr;
-        }
-        
-        HRESULT QueryInterface(REFIID riid,  void** ppvObject) override { return E_NOINTERFACE; }
-        ULONG   AddRef(void) override     { return 0; }
-        ULONG   Release(void) override    { return 0; }
-        
-        eastl::hash_set<eastl::wstring> alreadyIncludedFiles;
-    };
-    
-    ComPtr<CustomIncludeHandler> customIncludeHandler(rgNew(CustomIncludeHandler));
-    
-    // load shader file
-    char filepath[512];
-    strcpy(filepath, "../code/shaders/");
-    strncat(filepath, filename, 490);
-
-    rg::FileData shaderFileData = rg::readFile(filepath); // TODO: destructor deleter for FileData
-    rgAssert(shaderFileData.isValid);
-
-    DxcBuffer shaderSource;
-    shaderSource.Ptr = shaderFileData.data;
-    shaderSource.Size = shaderFileData.dataSize;
-    shaderSource.Encoding = 0;
-
-    // compile shader
-    ComPtr<IDxcCompiler3> compiler3;
-    checkHR(DxcCreateInstance(CLSID_DxcCompiler, __uuidof(IDxcCompiler3), (void**)&compiler3));
-
-    ComPtr<IDxcResult> result;
-    checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), customIncludeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
-
-    rg::freeFileData(&shaderFileData);
-
-    // process errors
-    ComPtr<IDxcBlobUtf8> errorMsg;
-    result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errorMsg), nullptr);
-    if(errorMsg && errorMsg->GetStringLength())
-    {
-        rgLogError("***Shader Compile Warn/Error(%s, %s),Defines:%s***\n%s", filename, entrypoint, defines, errorMsg->GetStringPointer());
-    }
-
-    // shader blob
-    ComPtr<IDxcBlob> shaderBlob;
-    checkHR(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr));
-    rgAssert(shaderBlob->GetBufferSize());
-    
-    // Convert spirv to msl
-    uint32_t* spvPtr = (uint32_t*)shaderBlob->GetBufferPointer();
-    size_t spvWordCount = (size_t)(shaderBlob->GetBufferSize()/sizeof(uint32_t));
+    // now we convert spirv to msl
+    // 1. convert spirv to ms	l
+    uint32_t* spvPtr = (uint32_t*)shaderBlob.bufferPtr;
+    size_t spvWordCount = (size_t)(shaderBlob.bufferSize/sizeof(uint32_t));
     
     spirv_cross::Parser spirvParser(spvPtr, spvWordCount);
     spirvParser.parse();
@@ -745,9 +562,8 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     
     std::string mslShaderSource = msl.compile();
     
-    // write generate msl shader src to a file
+    // 2. write generate msl shader src to a file for debugging purpose
     char generatedFilepath[512];
-    // TODO: create a generated/ folder and save the files there
     strcpy(generatedFilepath, "../code/shaders/tmp_autogen/");
     strncat(generatedFilepath, filename, 400);
     strncat(generatedFilepath, "_", 2);
@@ -844,8 +660,6 @@ id<MTLFunction> buildShader(char const* filename, GfxStage stage, char const* en
     id<MTLFunction> shaderFunction = [shaderLibrary newFunctionWithName:[NSString stringWithUTF8String: entrypoint]];
     
     return shaderFunction;
-
-    // TODO: release shader lib
 }
 
 //-----------------------------------------------------------------------------
@@ -857,11 +671,11 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
         id<MTLFunction> vs, fs;
         if(shaderDesc->vsEntrypoint)
         {
-            vs = buildShader(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines, obj);
+            vs = compileShaderForMetal(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines, obj);
         }
         if(shaderDesc->fsEntrypoint)
         {
-            fs = buildShader(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines, obj);
+            fs = compileShaderForMetal(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines, obj);
         }
     
         MTLRenderPipelineDescriptor* psoDesc = [[MTLRenderPipelineDescriptor alloc] init];
@@ -967,7 +781,8 @@ void GfxComputePSO::create(const char* tag, GfxShaderDesc* shaderDesc, GfxComput
     @autoreleasepool
     {
         rgAssert(shaderDesc->csEntrypoint);
-        id<MTLFunction> cs = buildShader(shaderDesc->shaderSrc, GfxStage_CS, shaderDesc->csEntrypoint, shaderDesc->defines, obj);
+        id<MTLFunction> cs = compileShaderForMetal(shaderDesc->shaderSrc, GfxStage_CS, shaderDesc->csEntrypoint, shaderDesc->defines, obj);
+        
         rgAssert(cs != nil);
         
         NSError* err;
