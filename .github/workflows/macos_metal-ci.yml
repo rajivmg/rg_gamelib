@@ -2,11 +2,13 @@
 # See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-multi-platform.yml
 name: macOS Metal
 
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+#on:
+#  push:
+#    branches: [ "master" ]
+#  pull_request:
+#    branches: [ "master" ]
+
+on: workflow_dispatch
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
