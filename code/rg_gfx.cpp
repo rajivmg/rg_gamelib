@@ -87,7 +87,7 @@ ImageRef loadImage(char const* filename)
             output->slices[i].data = basememory + offset;
             output->slices[i].dataSize = (rgU32)img->slicePitch;
         
-            offset += img->slicePitch;
+            offset += (rgU32)img->slicePitch;
         }
         rgAssert(offset == scratchImage.GetPixelsSize());
     }

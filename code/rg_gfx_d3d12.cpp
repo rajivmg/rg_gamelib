@@ -755,10 +755,10 @@ BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char con
 
     rgHash hash = rgCRC32(filename);
     hash = rgCRC32(getStageStr(stage), 2, hash);
-    hash = rgCRC32(entrypoint, strlen(entrypoint), hash);
+    hash = rgCRC32(entrypoint, (rgU32)strlen(entrypoint), hash);
     if(defines != nullptr)
     {
-        hash = rgCRC32(defines, strlen(defines), hash);
+        hash = rgCRC32(defines, (rgU32)strlen(defines), hash);
     }
 
     // entrypoint
@@ -1310,7 +1310,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         rgFloat view2d[16];
     } cameraParams;
 
-    copyMatrix4ToFloatArray(cameraParams.projection2d, gfx::makeOrthographicProjectionMatrix(0.0f, g_WindowInfo.width, g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
+    copyMatrix4ToFloatArray(cameraParams.projection2d, gfx::makeOrthographicProjectionMatrix(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
     copyMatrix4ToFloatArray(cameraParams.view2d, Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0)));
 
     GfxFrameResource cameraBuffer = gfx::getFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
@@ -1472,7 +1472,7 @@ void GfxFrameAllocator::destroy()
 
 void GfxFrameAllocator::releaseResources()
 {
-    rgInt l = d3dResources.size();
+    rgInt l = (rgInt)d3dResources.size();
     for(rgInt i = 0; i < l; ++i)
     {
         d3dResources[i]->Release();

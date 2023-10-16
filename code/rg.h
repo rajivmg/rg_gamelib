@@ -73,6 +73,7 @@ static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(rgU32) != sizeof(uint3
 #define rgGIGABYTE(x) 1024LL * rgMEGABYTE(x)
 #define rgARRAY_COUNT(a) (sizeof(a)/sizeof((a)[0]))
 #define rgOFFSET_OF(type, member) ((uintptr_t)&(((type *)0)->member))
+#define rgSizeOfU32(x) ((rgU32)sizeof(x))
 #define rgAssert(exp) SDL_assert(exp)
 #define rgMalloc(s) malloc((s))
 #define rgFree(p) free((p))
@@ -190,12 +191,12 @@ struct FileData
 
 FileData readFile(const char* filepath);
 void     freeFileData(FileData* fd);
-rgBool   writeFile(char const* filepath, void* bufferPtr, rgU32 bufferSizeInBytes);
+rgBool   writeFile(char const* filepath, void* bufferPtr, rgSize bufferSizeInBytes);
 
 struct WindowInfo
 {
-    rgFloat width;
-    rgFloat height;
+    rgUInt width;
+    rgUInt height;
 };
 
 char* getPrefPath();
@@ -281,7 +282,7 @@ void freeFileData(FileData* fd)
     rgFree(fd->data);
 }
 
-rgBool writeFile(char const* filepath, void* bufferPtr, rgU32 bufferSizeInBytes)
+rgBool writeFile(char const* filepath, void* bufferPtr, rgSize bufferSizeInBytes)
 {
     // Open file for writing
     SDL_RWops* fp = SDL_RWFromFile(filepath, "wb");

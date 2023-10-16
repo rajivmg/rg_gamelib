@@ -69,16 +69,16 @@ void updateCamera()
     const Vector3 worldEast = Vector3(1.0f, 0.0f, 0.0f);
     const Vector3 worldUp = Vector3(0.0f, 1.0f, 0.0f);
     
-    const rgDouble camMoveSpeed = 2.9;
-    const rgDouble camStrafeSpeed = 3.6;
+    const rgFloat camMoveSpeed = 2.9f;
+    const rgFloat camStrafeSpeed = 3.6f;
     // TODO: take FOV in account
-    const rgDouble camHorizonalRotateSpeed = (M_PI / g_WindowInfo.width);
-    const rgDouble camVerticalRotateSpeed = (M_PI / g_WindowInfo.height);
+    const rgFloat camHorizonalRotateSpeed = (rgFloat)M_PI / g_WindowInfo.width;
+    const rgFloat camVerticalRotateSpeed = (rgFloat)M_PI / g_WindowInfo.height;
 
     // Position Delta
-    const rgFloat forward = camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0));
-    const rgFloat strafe = camStrafeSpeed * ((controller->right.endedDown ? g_DeltaTime : 0.0) + (controller->left.endedDown ? -g_DeltaTime : 0.0));
-    const rgFloat ascent = camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0));
+    const rgFloat forward = (rgFloat)(camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0)));
+    const rgFloat strafe = (rgFloat)(camStrafeSpeed * ((controller->right.endedDown ? g_DeltaTime : 0.0) + (controller->left.endedDown ? -g_DeltaTime : 0.0)));
+    const rgFloat ascent = (rgFloat)(camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0)));
     
     // Orientation Delta
     const rgFloat yaw = (mouse->relX * camHorizonalRotateSpeed) + g_GameState->cameraYaw;
@@ -108,7 +108,7 @@ void updateCamera()
     g_GameState->cameraFar  = 100.0f;
     
     g_GameState->cameraView = orthoInverse(Matrix4(g_GameState->cameraBasis, Vector3(g_GameState->cameraPosition)));
-    g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(1.4f, g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
+    g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(1.4f, (rgFloat)g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
     g_GameState->cameraViewProjection = g_GameState->cameraProjection * g_GameState->cameraView;
     g_GameState->cameraInvView = inverse(g_GameState->cameraView);
     g_GameState->cameraInvProjection = inverse(g_GameState->cameraProjection);
@@ -277,11 +277,11 @@ rgInt rg::setup()
     
     // Initialize camera params
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
-    g_GameState->cameraPitch = -(M_PI / 4.0) + 0.15f; // ~-45 deg
-    g_GameState->cameraYaw = (M_PI / 2.0) * 3.0f; // 270deg
+    g_GameState->cameraPitch = -((rgFloat)M_PI / 4.0f) + 0.15f; // ~-45 deg
+    g_GameState->cameraYaw = ((rgFloat)M_PI / 2.0f) * 3.0f; // 270deg
     
     // Initialize tonemapper params
-    g_GameState->tonemapperMinLogLuminance = -2.0;
+    g_GameState->tonemapperMinLogLuminance = -2.0f;
     g_GameState->tonemapperMaxLogLuminance = 10.0f;
     g_GameState->tonemapperAdaptationRate = 1.1f;
     g_GameState->tonemapperExposureKey = 0.15f;
@@ -340,7 +340,7 @@ rgInt rg::setup()
 
 rgFloat sgn(rgFloat x)
 {
-    return (x > 0) - (x < 0);
+    return (x > 0.0f) - (x < 0.0f);
 }
 
 static bool showPostFXEditor = true;
@@ -465,8 +465,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         {
             for(rgInt j = 0; j < 4; ++j)
             {
-                rgFloat px = j * (100) + 10 * (j + 1) + sin(g_Time) * 30;
-                rgFloat py = i * (100) + 10 * (i + 1) + cos(g_Time) * 30;
+                rgFloat px = (rgFloat)(j * (100) + 10 * (j + 1) + sin(g_Time) * 30);
+                rgFloat py = (rgFloat)(i * (100) + 10 * (i + 1) + cos(g_Time) * 30);
                 
                 pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
             }
@@ -779,11 +779,11 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
 rgInt createSDLWindow()
 {
 #if 0
-    g_WindowInfo.width = 1056.0f;
-    g_WindowInfo.height = 594.0f;
+    g_WindowInfo.width = 1056;
+    g_WindowInfo.height = 594;
 #else
-    g_WindowInfo.width = 1280.0f;
-    g_WindowInfo.height = 720.0f;
+    g_WindowInfo.width = 1280;
+    g_WindowInfo.height = 720;
 #endif
 
     Uint32 windowFlags = 0;
