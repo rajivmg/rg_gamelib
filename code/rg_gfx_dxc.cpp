@@ -8,6 +8,8 @@
 
 #include <EASTL/hash_set.h>
 
+#include <filesystem>
+
 static ComPtr<IDxcUtils> g_DxcUtils;
 
 RG_BEGIN_RG_NAMESPACE
