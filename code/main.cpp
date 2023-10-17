@@ -488,18 +488,19 @@ rgInt rg::updateAndDraw(rgDouble dt)
         simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits);
         simple2dRenderEncoder->end();
     }
-        
+     
+    // 1. demo scene render - draw ground plane and shaderball instances
     {
-        GfxRenderPass demoScenePass = {};
-        demoScenePass.colorAttachments[0].texture = g_GameState->baseColorRT;
-        demoScenePass.colorAttachments[0].loadAction = GfxLoadAction_Load;
-        demoScenePass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        demoScenePass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
-        demoScenePass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
-        demoScenePass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
+        GfxRenderPass sceneForwardPass = {};
+        sceneForwardPass.colorAttachments[0].texture = g_GameState->baseColorRT;
+        sceneForwardPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
+        sceneForwardPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+        sceneForwardPass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
+        sceneForwardPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
+        sceneForwardPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* demoSceneEncoder = gfx::setRenderPass("DemoScene Pass", &demoScenePass);
-        demoSceneEncoder->setGraphicsPSO(gfx::graphicsPSO->find("principledBrdf"_tag));
+        GfxRenderCmdEncoder* sceneFowardRenderEncoder = gfx::setRenderPass("Scene Forward", &sceneForwardPass);
+        sceneFowardRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("principledBrdf"_tag));
         
         // instance
         struct
@@ -513,23 +514,23 @@ rgInt rg::updateAndDraw(rgDouble dt)
         copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
         
         
-        GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBufferBunny", sizeof(instanceParams), &instanceParams);
+        GfxFrameResource demoSceneMeshInstanceParams = gfx::getFrameAllocator()->newBuffer("demoSceneMeshInstanceParams", sizeof(instanceParams), &instanceParams);
         
-        demoSceneEncoder->bindBuffer("commonParams", &commonParamsBuffer);
-        demoSceneEncoder->bindBuffer("instanceParams", &instanceParamsBuffer);
-        demoSceneEncoder->bindTexture("diffuseTexMap", gfx::texture->find("japanese_stone_wall_diff_1k"_tag));
-        demoSceneEncoder->bindTexture("irradianceMap", gfx::texture->find("sangiuseppeBridgeCubeIrradiance"_tag));
-        demoSceneEncoder->bindSamplerState("irradianceSampler", gfx::samplerBilinearClampEdge);
+        sceneFowardRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
+        sceneFowardRenderEncoder->bindBuffer("instanceParams", &demoSceneMeshInstanceParams);
+        sceneFowardRenderEncoder->bindTexture("diffuseTexMap", gfx::texture->find("japanese_stone_wall_diff_1k"_tag));
+        sceneFowardRenderEncoder->bindTexture("irradianceMap", gfx::texture->find("sangiuseppeBridgeCubeIrradiance"_tag));
+        sceneFowardRenderEncoder->bindSamplerState("irradianceSampler", gfx::samplerBilinearClampEdge);
         
         for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
         {
             rg::Mesh* m = &g_GameState->shaderballModel->meshes[i];
             
-            demoSceneEncoder->setVertexBuffer(g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->vertexBufferOffset +  m->vertexDataOffset, 0);
-            demoSceneEncoder->drawIndexedTriangles(m->indexCount, true, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
+            sceneFowardRenderEncoder->setVertexBuffer(g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->vertexBufferOffset +  m->vertexDataOffset, 0);
+            sceneFowardRenderEncoder->drawIndexedTriangles(m->indexCount, true, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
         }
 
-        demoSceneEncoder->end();
+        sceneFowardRenderEncoder->end();
     }
     
     // RENDER GRID AND EDITOR STUFF

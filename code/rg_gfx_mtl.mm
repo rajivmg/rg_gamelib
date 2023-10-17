@@ -376,13 +376,6 @@ GfxTexture createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
     return texture;
 }
 
-struct SimpleVertexFormat1
-{
-    simd::float3 position;
-    simd::float2 texcoord;
-    simd::float4 color;
-};
-
 //-----------------------------------------------------------------------------
 // GfxBuffer Implementation
 //-----------------------------------------------------------------------------
