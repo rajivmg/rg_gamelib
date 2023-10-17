@@ -77,7 +77,7 @@ enum GfxMemoryType
 struct GfxBuffer
 {
     rgChar            tag[32];
-    rgU32                size;
+    rgSize                size;
     GfxBufferUsage      usage; // TODO: This doesn't seem to be required in Metal & D3D12 backends.. remove?
     GfxMemoryType  memoryType;
 #if defined(RG_D3D12_RNDR)
@@ -90,7 +90,7 @@ struct GfxBuffer
     VmaAllocation vmaAlloc;
 #endif
 
-    static void fillStruct(GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
+    static void fillStruct(GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj)
     {
         obj->size = size;
         obj->usage = usage;
@@ -99,8 +99,7 @@ struct GfxBuffer
     }
     
     // TODO: should change to first size then buffer??
-    // create(const char* tag, rgU32 size, void* buf, GfxBufferUsage usage, GfxBuffer* obj);
-    static void create(const char* tag, GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj);
+    static void create(const char* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj);
     static void destroy(GfxBuffer* obj);
     
     void*   mappedMemory;
