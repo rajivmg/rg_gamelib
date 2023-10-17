@@ -752,22 +752,26 @@ void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix);
 // -------------
 struct ImageSlice
 {
-    rgU8* data;
-    rgU32 dataSize;
+    rgU16  width;
+    rgU16  height;
+    rgU32  rowPitch;
+    rgU32  slicePitch;
+    rgU8*  pixels;
 };
 
 struct Image
 {
-    rgChar tag[32];
-    rgUInt width;
-    rgUInt height;
-    rgUInt mipCount;
-    rgUInt sliceCount;
-    rgBool isDDS;
+    rgChar          tag[32];
+    rgU16           width;
+    rgU16           height;
     TinyImageFormat format;
-    ImageSlice slices[12];
-    rgU8* memory;
-    void* dxTexScratchImage;
+    rgBool          isDDS;
+    rgU8            mipCount;
+    rgU8            sliceCount;
+    ImageSlice      slices[12];
+    rgU8*           memory;
+
+    void*           dxTexScratchImage;
 };
 typedef eastl::shared_ptr<Image> ImageRef;
 

@@ -83,9 +83,12 @@ ImageRef loadImage(char const* filename)
         {
             const DirectX::Image* img = scratchImage.GetImages() + i;
             memcpy(basememory + offset, img->pixels, img->slicePitch);
-            
-            output->slices[i].data = basememory + offset;
-            output->slices[i].dataSize = (rgU32)img->slicePitch;
+
+            output->slices[i].width = img->width;
+            output->slices[i].height = img->height;
+            output->slices[i].rowPitch = img->rowPitch;
+            output->slices[i].slicePitch = img->slicePitch;
+            output->slices[i].pixels = basememory + offset;
         
             offset += (rgU32)img->slicePitch;
         }
@@ -109,8 +112,14 @@ ImageRef loadImage(char const* filename)
         output->sliceCount = 1;
         output->isDDS = false;
         output->memory = texData;
-        output->slices[0].data = texData;
-        output->slices[0].dataSize = rgUInt(width * height * 4);
+
+        rgU16 bytesPerPixel = TinyImageFormat_BitSizeOfBlock(output->format) / 8;
+
+        output->slices[0].width = width;
+        output->slices[0].height = height;
+        output->slices[0].rowPitch = width * bytesPerPixel;
+        output->slices[0].slicePitch = width * height * bytesPerPixel;
+        output->slices[0].pixels = texData;
     }
     return output;
 }

@@ -447,41 +447,21 @@ void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgS
     ));
     setResourceDebugName(bufferResource, tag);
 
-    if(memoryType == GfxMemoryType_Upload && buf != nullptr)
+    if(buf != nullptr)
     {
-        void* mappedPtr = nullptr;
-        CD3DX12_RANGE mapRange(0, 0); // map whole buffer
-        BreakIfFail(bufferResource->Map(0, &mapRange, &mappedPtr));
-        memcpy(mappedPtr, buf, size);
-        bufferResource->Unmap(0, nullptr);
-    }
-
-    if(memoryType == GfxMemoryType_Default && buf != nullptr)
-    {
-        ComPtr<ID3D12Resource> cpuVisibleBufferResouce;
-
-        BreakIfFail(getDevice()->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(size),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&cpuVisibleBufferResouce)
-        ));
-
-        void* mappedPtr;
-        CD3DX12_RANGE mapRange(0, 0);
-        BreakIfFail(cpuVisibleBufferResouce->Map(0, &mapRange, &mappedPtr));
-        memcpy(mappedPtr, buf, size);
-        cpuVisibleBufferResouce->Unmap(0, nullptr);
-
-        // TODO: This copy task is not needed if we begin ResourceBatchUpload in startNextFrame
-        // and end it before submitting our commandlist
-        gfx::ResourceCopyTask copyTask;
-        copyTask.type = gfx::ResourceCopyTask::ResourceType_Buffer;
-        copyTask.src = cpuVisibleBufferResouce;
-        copyTask.dst = bufferResource;
-        gfx::pendingBufferCopyTasks.push_back(copyTask);
+        if(memoryType == GfxMemoryType_Upload)
+        {
+            void* mappedPtr = nullptr;
+            CD3DX12_RANGE mapRange(0, 0); // map whole buffer
+            BreakIfFail(bufferResource->Map(0, &mapRange, &mappedPtr));
+            memcpy(mappedPtr, buf, size);
+            bufferResource->Unmap(0, nullptr);
+        }
+        else if(memoryType == GfxMemoryType_Default)
+        {
+            D3D12_SUBRESOURCE_DATA initData = { buf, 0, 0 };
+            gfx::resourceUploader->Upload(bufferResource.Get(), 0, &initData, 1);
+        }
     }
 
     obj->d3dResource = bufferResource;
@@ -630,6 +610,7 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
     ComPtr<ID3D12Resource> textureResource;
 
     DXGI_FORMAT textureFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
+    rgUInt mipmapLevelCount = calcMipmapCount(mipFlag, width, height);
 
     D3D12_CLEAR_VALUE* clearValue = nullptr;
     D3D12_CLEAR_VALUE initialClearValue = {};
@@ -649,58 +630,76 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
         clearValue = &initialClearValue;
     }
 
+    rgBool isUAV = (usage & GfxTextureUsage_ShaderReadWrite);
     D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_NONE;
-    D3D12_RESOURCE_STATES resourceState = D3D12_RESOURCE_STATE_COMMON;
-    if(usage & GfxTextureUsage_ShaderReadWrite)
-    {
-        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-        resourceState |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-    }
+    D3D12_RESOURCE_STATES initialState = (slices == nullptr) ? D3D12_RESOURCE_STATE_COMMON : D3D12_RESOURCE_STATE_COPY_DEST;
+    
     if(usage & GfxTextureUsage_RenderTarget)
     {
+        rgAssert(slices == nullptr);
         resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-        resourceState |= D3D12_RESOURCE_STATE_RENDER_TARGET;
+        initialState |= D3D12_RESOURCE_STATE_RENDER_TARGET;
     }
     if(usage & GfxTextureUsage_DepthStencil)
     {
+        rgAssert(slices == nullptr);
         resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-        resourceState |= D3D12_RESOURCE_STATE_DEPTH_WRITE;
+        initialState |= D3D12_RESOURCE_STATE_DEPTH_WRITE;
     }
-    if(usage & GfxTextureUsage_ShaderRead)
+
+    if(usage & GfxTextureUsage_ShaderReadWrite)
     {
-
+        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        initialState |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS; // TODO: handle this case with texture upload
     }
 
-    CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(textureFormat, width, height, 1, 1, 1, 0, resourceFlags);
+    CD3DX12_RESOURCE_DESC resourceDesc = {};
+    switch(dim)
+    {
+    case GfxTextureDim_2D:
+    case GfxTextureDim_Cube:
+    {
+        rgU16 arraySize = (dim == GfxTextureDim_Cube) ? 6 : 1;
+        resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(textureFormat, width, height, arraySize, mipmapLevelCount, 1, 0, resourceFlags);
+    } break;
+
+    case GfxTextureDim_Buffer:
+    {
+        resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(width, resourceFlags);
+    } break;
+
+    default:
+        rgAssert(!"Unsupported texture dim");
+    }
 
     BreakIfFail(getDevice()->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
         &resourceDesc,
-        resourceState,
+        initialState,
         clearValue,
         IID_PPV_ARGS(&textureResource)));
     setResourceDebugName(textureResource, tag);
-    //CD3DX12_CPU_DESCRIPTOR_HANDLE resourceView 
 
-    if(usage & GfxTextureUsage_ShaderReadWrite)
+    if(slices != nullptr)
     {
-        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-        resourceState |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-    }
-    if(usage & GfxTextureUsage_RenderTarget)
-    {
-        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-        resourceState |= D3D12_RESOURCE_STATE_RENDER_TARGET;
-    }
-    if(usage & GfxTextureUsage_DepthStencil)
-    {
-        resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-        resourceState |= D3D12_RESOURCE_STATE_DEPTH_WRITE;
-    }
-    if(usage & GfxTextureUsage_ShaderRead)
-    {
+        // TODO: handle when mipmapLevelCount > 1 but mipFlag is not GenMips
+        // i.e. copy mip data from slices to texture memory
+        if(mipmapLevelCount > 1)
+        {
+            rgAssert(mipFlag == GfxTextureMipFlag_GenMips);
+        }
+        rgInt sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
+        
+        D3D12_SUBRESOURCE_DATA subResourceData[6] = {};
+        for(rgUInt s = 0; s < sliceCount; ++s)
+        {
+            subResourceData[s].pData = slices->pixels;
+            subResourceData[s].RowPitch = slices->rowPitch;
+            subResourceData[s].SlicePitch = slices->slicePitch;
+        }
 
+        gfx::resourceUploader->Upload(textureResource.Get(), 0, subResourceData, sliceCount);
     }
 
     obj->d3dTexture = textureResource;
@@ -1516,6 +1515,8 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
 
 GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
 {
+
+
     // TODO: Incorrect implementation
     GfxFrameResource output;
     output.type = GfxFrameResource::Type_Texture;
@@ -1652,6 +1653,7 @@ rgInt init()
 
     // crate resource uploader
     resourceUploader = rgNew(ResourceUploadBatch)(getDevice().Get());
+    resourceUploader->Begin();
 
     GfxVertexInputDesc simpleVertexDesc = {};
     simpleVertexDesc.elementCount = 3;
@@ -1809,8 +1811,6 @@ void startNextFrame()
     BreakIfFail(commandAllocator[g_FrameIndex]->Reset());
     BreakIfFail(currentCommandList->Reset(commandAllocator[g_FrameIndex].Get(), NULL));
 
-    resourceUploader->Begin();
-
     draw();
 }
 
@@ -1821,7 +1821,8 @@ void endFrame()
 
     BreakIfFail(currentCommandList->Close());
 
-    resourceUploader->End(commandQueue.Get());
+    auto resourceUploaderFinish = resourceUploader->End(commandQueue.Get());
+    resourceUploaderFinish.wait();
 
     ID3D12CommandList* commandLists[] = { currentCommandList.Get() };
     commandQueue->ExecuteCommandLists(1, commandLists);
@@ -1829,6 +1830,8 @@ void endFrame()
 
     UINT64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
     BreakIfFail(commandQueue->Signal(frameFence.Get(), fenceValueToSignal));
+
+    resourceUploader->Begin();
 }
 
 void onSizeChanged()
