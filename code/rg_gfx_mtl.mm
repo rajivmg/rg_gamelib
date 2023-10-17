@@ -387,7 +387,7 @@ struct SimpleVertexFormat1
 // GfxBuffer Implementation
 //-----------------------------------------------------------------------------
 
-void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgU32 size, GfxBufferUsage usage, GfxBuffer* obj)
+void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj)
 {
     if(usage != GfxBufferUsage_ShaderRW)
     {
