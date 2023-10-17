@@ -122,7 +122,10 @@ rgInt rg::setup()
 
     ImageRef tinyTexture = loadImage("tiny.tga");
     gfx::texture->create("tiny", GfxTextureDim_2D, tinyTexture->width, tinyTexture->height, tinyTexture->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, tinyTexture->slices);
-    gfx::texture->destroy(rgCRC32("tiny"));
+    //gfx::texture->destroy(rgCRC32("tiny"));
+    // TODO: don't call destoy on first frame 
+    // TODO: don't call destoy on first frame 
+    // TODO: don't call destoy on first frame  gfx::onFrameBegin
     
     for(rgInt i = 1; i <= 16; ++i)
     {

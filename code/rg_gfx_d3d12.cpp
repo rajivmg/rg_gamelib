@@ -1454,7 +1454,7 @@ void GfxFrameAllocator::create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSiz
     nonRTDSTextureHeapDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
     nonRTDSTextureHeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
     BreakIfFail(getDevice()->CreateHeap(&nonRTDSTextureHeapDesc, IID_PPV_ARGS(&d3dNonRTDSTextureHeap)));
-    d3dBufferHeap->SetName(L"GfxFrameAllocator::d3dNonRTDSTextureHeap");
+    d3dNonRTDSTextureHeap->SetName(L"GfxFrameAllocator::d3dNonRTDSTextureHeap");
 
     D3D12_HEAP_DESC rtDSTextureHeapDesc = {};
     rtDSTextureHeapDesc.SizeInBytes = bufferHeapSize;
@@ -1462,7 +1462,7 @@ void GfxFrameAllocator::create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSiz
     rtDSTextureHeapDesc.Alignment = D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT;
     rtDSTextureHeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES;
     BreakIfFail(getDevice()->CreateHeap(&rtDSTextureHeapDesc, IID_PPV_ARGS(&d3dRTDSTextureHeap)));
-    d3dBufferHeap->SetName(L"GfxFrameAllocator::d3dRTDSTextureHeap");
+    d3dRTDSTextureHeap->SetName(L"GfxFrameAllocator::d3dRTDSTextureHeap");
 }
 
 void GfxFrameAllocator::destroy()
