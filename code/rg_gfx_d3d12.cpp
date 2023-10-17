@@ -199,7 +199,7 @@ ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(ComPtr<ID3D12Command
     return commandList;
 }
 
-void setResourceDebugName(ComPtr<ID3D12Resource> resource, char const* name)
+void setDebugName(ComPtr<ID3D12Object> d3dObject, char const* name)
 {
     const rgUInt maxWCharLength = 1024;
     wchar_t wc[maxWCharLength];
@@ -210,7 +210,7 @@ void setResourceDebugName(ComPtr<ID3D12Resource> resource, char const* name)
     size_t convertedChars = 0;
     mbstowcs_s(&convertedChars, wc, maxWCharLength, name, _TRUNCATE);
 
-    BreakIfFail(resource->SetName(wc));
+    BreakIfFail(d3dObject->SetName(wc));
 };
 
 //struct ResourceUploader
@@ -445,7 +445,8 @@ void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgS
         nullptr,
         IID_PPV_ARGS(&bufferResource)
     ));
-    setResourceDebugName(bufferResource, tag);
+
+    setDebugName(bufferResource, tag);
 
     if(buf != nullptr)
     {
@@ -679,7 +680,8 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
         initialState,
         clearValue,
         IID_PPV_ARGS(&textureResource)));
-    setResourceDebugName(textureResource, tag);
+
+    setDebugName(textureResource, tag);
 
     if(slices != nullptr)
     {
@@ -1155,6 +1157,7 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
     }
 
     BreakIfFail(getDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
+    setDebugName(pso.Get(), tag);
 
     // explicitly release shaders
     // TODO: Remove as this is released automatically
@@ -1494,7 +1497,7 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
         IID_PPV_ARGS(&bufferResource)
     ));
 
-    setResourceDebugName(bufferResource, tag);
+    setDebugName(bufferResource, tag);
 
     if(initialData != nullptr)
     {
@@ -1713,7 +1716,8 @@ rgInt init()
             __uuidof(triVB),
             (void**)&(triVB)
         ));
-        setResourceDebugName(triVB, "henlo");
+
+        setDebugName(triVB, "henlo");
 
         rgU8* vbPtr;;
         CD3DX12_RANGE readRange(0, 0);
