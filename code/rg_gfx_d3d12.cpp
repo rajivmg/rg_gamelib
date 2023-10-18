@@ -510,15 +510,23 @@ ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim,
         D3D12_SUBRESOURCE_DATA subResourceData[6] = {};
         for(rgUInt s = 0; s < sliceCount; ++s)
         {
-            subResourceData[s].pData = slices->pixels;
-            subResourceData[s].RowPitch = slices->rowPitch;
-            subResourceData[s].SlicePitch = slices->slicePitch;
+            subResourceData[s].pData = slices[s].pixels;
+            subResourceData[s].RowPitch = slices[s].rowPitch;
+            subResourceData[s].SlicePitch = slices[s].slicePitch;
         }
 
         gfx::resourceUploader->Upload(texRes.Get(), 0, subResourceData, sliceCount);
+
+        if(mipFlag == GfxTextureMipFlag_GenMips)
+        {
+            gfx::resourceUploader->Transition(texRes.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            gfx::resourceUploader->GenerateMips(texRes.Get());
+        }
+
         if(isUAV)
         {
-            gfx::resourceUploader->Transition(texRes.Get(), initialState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            rgAssert(!"Unhandled case!");
+            //gfx::resourceUploader->Transition(texRes.Get(), initialState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         }
     }
 
