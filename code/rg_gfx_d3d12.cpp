@@ -213,191 +213,6 @@ void setDebugName(ComPtr<ID3D12Object> d3dObject, char const* name)
     BreakIfFail(d3dObject->SetName(wc));
 };
 
-//struct ResourceUploader
-//{
-//    struct Resource
-//    {
-//        enum Type
-//        {
-//            Type_Texture,
-//            Type_Buffer,
-//        };
-//
-//        Type type;
-//        rgU32 uploadBufferOffset;
-//        union
-//        {
-//            GfxTexture2D* texture;
-//            GfxBuffer* buffer;
-//        };
-//    };
-//
-//    ResourceUploader(rgU32 uploadHeapSizeInBytes)
-//        : uploadHeapSize(uploadHeapSizeInBytes)
-//    {
-//        BreakIfFail(device()->CreateCommittedResource(
-//            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-//            D3D12_HEAP_FLAG_NONE,
-//            &CD3DX12_RESOURCE_DESC::Buffer(uploadHeapSize),
-//            D3D12_RESOURCE_STATE_GENERIC_READ,
-//            nullptr,
-//            IID_PPV_ARGS(&uploadHeap)
-//        ));
-//
-//        CD3DX12_RANGE range(0, 0);
-//        uploadHeap->Map(0, &range, (void**)&uploadHeapPtr);
-//    }
-//
-//    void uploadBuffer();
-//
-//    eastl::vector<Resource> resources;
-//    ComPtr<ID3D12Resource> uploadHeap;
-//    rgU8* uploadHeapPtr;
-//    rgU32 uploadHeapSize;
-//};
-
-// TODO: Create a frameallocator and use it as upload heap for texture and buffers
-// https://learn.microsoft.com/en-us/windows/win32/direct3d12/upload-and-readback-of-texture-data
-
-#if 0 // not needed here anymore
-struct GfxFrameResourceMemory
-{
-    rgU32 offset;
-    void* ptr;
-    // TODO: SRV, UAV, CBV
-    //id<MTLBuffer> parentBuffer; 
-};
-
-class GfxFrameResourceAllocator
-{
-public:
-    GfxFrameResourceAllocator(rgU32 heapSizeInBytes)
-        : heapSize(heapSizeInBytes)
-    {
-        offset = 0;
-
-        BreakIfFail(device()->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(heapSize),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&heap)
-        ));
-
-        CD3DX12_RANGE range(0, 0);
-        heap->Map(0, &range, (void**)&heapPtr);
-    }
-
-    ~GfxFrameResourceAllocator()
-    {
-        heap->Release();
-    }
-
-    void reset()
-    {
-        offset = 0;
-    }
-
-    GfxFrameResourceMemory allocate(char const* tag, rgU32 size)
-    {
-        rgAssert(offset + size <= capacity);
-
-        //void* ptr = (bufferPtr + offset);
-
-        GfxFrameResourceMemory result;
-        result.offset = offset;
-        //result.ptr = ptr;
-        //result.parentBuffer = buffer;
-
-        rgU32 alignment = 4;
-        offset += (size + alignment - 1) & ~(alignment - 1);
-
-        //[buffer addDebugMarker : [NSString stringWithUTF8String : tag] range : NSMakeRange(result.offset, (offset - result.offset))] ;
-
-        return result;
-    }
-
-    GfxFrameResourceMemory allocate(char const* tag, rgU32 size, void* initialData)
-    {
-        GfxFrameResourceMemory result = allocate(tag, size);
-        memcpy(result.ptr, initialData, size);
-        return result;
-    }
-
-protected:
-    rgU32 offset;
-    rgU32 capacity;
-    ComPtr<ID3D12Resource> heap;
-    rgU8* heapPtr;
-    rgU32 heapSize;
-};
-
-static GfxFrameResourceMemory* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
-#endif 
-
-void getHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter)
-{
-    *ppAdapter = nullptr;
-
-    ComPtr<IDXGIAdapter1> adapter;
-
-    ComPtr<IDXGIFactory6> factory6;
-    if(SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
-    {
-        for(
-            UINT adapterIndex = 0;
-            SUCCEEDED(factory6->EnumAdapterByGpuPreference(
-                adapterIndex,
-                requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
-                IID_PPV_ARGS(&adapter)));
-            ++adapterIndex)
-        {
-            DXGI_ADAPTER_DESC1 desc;
-            adapter->GetDesc1(&desc);
-
-            if(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            {
-                // Don't select the Basic Render Driver adapter.
-                // If you want a software adapter, pass in "/warp" on the command line.
-                continue;
-            }
-
-            // Check to see whether the adapter supports Direct3D 12, but don't create the
-            // actual device yet.
-            if(SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
-            {
-                break;
-            }
-        }
-    }
-
-    if(adapter.Get() == nullptr)
-    {
-        for(UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex)
-        {
-            DXGI_ADAPTER_DESC1 desc;
-            adapter->GetDesc1(&desc);
-
-            if(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            {
-                // Don't select the Basic Render Driver adapter.
-                // If you want a software adapter, pass in "/warp" on the command line.
-                continue;
-            }
-
-            // Check to see whether the adapter supports Direct3D 12, but don't create the
-            // actual device yet.
-            if(SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
-            {
-                break;
-            }
-        }
-    }
-
-    *ppAdapter = adapter.Detach();
-}
-
 void waitForGpu()
 {
     BreakIfFail(gfx::commandQueue->Signal(gfx::frameFence.Get(), gfx::frameFenceValues[g_FrameIndex]));
@@ -1534,6 +1349,68 @@ RG_BEGIN_GFX_NAMESPACE
 // Call from main | loop init() destroy() startNextFrame() endFrame()
 //*****************************************************************************
 
+void getHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter)
+{
+    *ppAdapter = nullptr;
+
+    ComPtr<IDXGIAdapter1> adapter;
+
+    ComPtr<IDXGIFactory6> factory6;
+    if(SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
+    {
+        for(
+            UINT adapterIndex = 0;
+            SUCCEEDED(factory6->EnumAdapterByGpuPreference(
+                adapterIndex,
+                requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
+                IID_PPV_ARGS(&adapter)));
+            ++adapterIndex)
+        {
+            DXGI_ADAPTER_DESC1 desc;
+            adapter->GetDesc1(&desc);
+
+            if(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            {
+                // Don't select the Basic Render Driver adapter.
+                // If you want a software adapter, pass in "/warp" on the command line.
+                continue;
+            }
+
+            // Check to see whether the adapter supports Direct3D 12, but don't create the
+            // actual device yet.
+            if(SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+            {
+                break;
+            }
+        }
+    }
+
+    if(adapter.Get() == nullptr)
+    {
+        for(UINT adapterIndex = 0; SUCCEEDED(pFactory->EnumAdapters1(adapterIndex, &adapter)); ++adapterIndex)
+        {
+            DXGI_ADAPTER_DESC1 desc;
+            adapter->GetDesc1(&desc);
+
+            if(desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+            {
+                // Don't select the Basic Render Driver adapter.
+                // If you want a software adapter, pass in "/warp" on the command line.
+                continue;
+            }
+
+            // Check to see whether the adapter supports Direct3D 12, but don't create the
+            // actual device yet.
+            if(SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+            {
+                break;
+            }
+        }
+    }
+
+    *ppAdapter = adapter.Detach();
+}
+
 rgInt init()
 {
     // TODO: correctly initialize d3d12 device https://walbourn.github.io/anatomy-of-direct3d-12-create-device/
@@ -1783,7 +1660,7 @@ rgInt draw()
 
 void checkerWaitTillFrameCompleted(rgInt frameIndex)
 {
-    rgAssert(frameIndex >= 0);
+    rgAssert(frameIndex >= 0 && frameIndex < RG_MAX_FRAMES_IN_FLIGHT);
     UINT64 valueToWaitFor = frameFenceValues[frameIndex];
     while(frameFence->GetCompletedValue() < valueToWaitFor)
     {

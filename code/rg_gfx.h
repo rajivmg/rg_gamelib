@@ -972,8 +972,8 @@ RG_BEGIN_GFX_NAMESPACE
 //-----------------------------------------------------------------------------
 // General Common Stuff
 //-----------------------------------------------------------------------------
-rgInt               preInit(); // TODO: IS THIS EVEN NEEDED? TRY TO REMOVE THIS
-rgInt               initCommonStuff(); // TODO: merge with preInit()
+rgInt               preInit();
+rgInt               initCommonStuff();
 void                atFrameStart();
 rgInt               getFrameIndex(); // Returns 0 if g_FrameIndex is -1
 rgInt               getFinishedFrameIndex();
