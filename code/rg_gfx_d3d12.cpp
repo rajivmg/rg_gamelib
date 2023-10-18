@@ -466,7 +466,7 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
     if(usage & GfxTextureUsage_ShaderReadWrite)
     {
         resourceFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-        initialState |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS; // TODO: handle this case with texture upload
+        initialState |= (slices == nullptr) ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : D3D12_RESOURCE_STATE_COMMON;
     }
 
     CD3DX12_RESOURCE_DESC resourceDesc = {};
@@ -517,6 +517,10 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
         }
 
         gfx::resourceUploader->Upload(textureResource.Get(), 0, subResourceData, sliceCount);
+        if(isUAV)
+        {
+            gfx::resourceUploader->Transition(textureResource.Get(), initialState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        }
     }
 
     obj->d3dTexture = textureResource;

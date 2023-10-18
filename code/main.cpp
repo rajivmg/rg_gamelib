@@ -126,6 +126,14 @@ rgInt rg::setup()
     // TODO: don't call destoy on first frame 
     // TODO: don't call destoy on first frame 
     // TODO: don't call destoy on first frame  gfx::onFrameBegin
+    // TODO: don't call destoy on first frame  gfx::onFrameBegin
+    // TODO: don't call destoy on first frame  gfx::onFrameBegin
+    // TODO: don't call destoy on first frame  gfx::onFrameBegin
+    // TODO: don't call destoy on first frame  gfx::onFrameBegin
+    // TODO: don't call destoy on first frame  gfx::onFrameBegin
+    // TODO: don't call destoy on first frame  gfx::onFrameBegin
+    // TODO: don't call destoy on first frame  gfx::onFrameBegin
+    // TODO: don't call destoy on first frame  gfx::onFrameBegin
     
     for(rgInt i = 1; i <= 16; ++i)
     {
