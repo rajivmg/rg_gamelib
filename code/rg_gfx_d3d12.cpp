@@ -421,12 +421,10 @@ void GfxSamplerState::destroy(GfxSamplerState* obj)
 // GfxTexture Implementation
 //*****************************************************************************
 
-void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
+ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices)
 {
-    ComPtr<ID3D12Resource> textureResource;
-
     DXGI_FORMAT textureFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
-    rgUInt mipmapLevelCount = calcMipmapCount(mipFlag, width, height);
+    rgUInt mipmapLevelCount = GfxTexture::calcMipmapCount(mipFlag, width, height);
 
     D3D12_CLEAR_VALUE* clearValue = nullptr;
     D3D12_CLEAR_VALUE initialClearValue = {};
@@ -449,7 +447,7 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
     rgBool isUAV = (usage & GfxTextureUsage_ShaderReadWrite);
     D3D12_RESOURCE_FLAGS resourceFlags = D3D12_RESOURCE_FLAG_NONE;
     D3D12_RESOURCE_STATES initialState = (slices == nullptr) ? D3D12_RESOURCE_STATE_COMMON : D3D12_RESOURCE_STATE_COPY_DEST;
-    
+
     if(usage & GfxTextureUsage_RenderTarget)
     {
         rgAssert(slices == nullptr);
@@ -488,15 +486,16 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
         rgAssert(!"Unsupported texture dim");
     }
 
+    ComPtr<ID3D12Resource> texRes;
     BreakIfFail(getDevice()->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
         &resourceDesc,
         initialState,
         clearValue,
-        IID_PPV_ARGS(&textureResource)));
+        IID_PPV_ARGS(&texRes)));
 
-    setDebugName(textureResource, tag);
+    setDebugName(texRes, tag);
 
     if(slices != nullptr)
     {
@@ -507,7 +506,7 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
             rgAssert(mipFlag == GfxTextureMipFlag_GenMips);
         }
         rgInt sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
-        
+
         D3D12_SUBRESOURCE_DATA subResourceData[6] = {};
         for(rgUInt s = 0; s < sliceCount; ++s)
         {
@@ -516,14 +515,19 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
             subResourceData[s].SlicePitch = slices->slicePitch;
         }
 
-        gfx::resourceUploader->Upload(textureResource.Get(), 0, subResourceData, sliceCount);
+        gfx::resourceUploader->Upload(texRes.Get(), 0, subResourceData, sliceCount);
         if(isUAV)
         {
-            gfx::resourceUploader->Transition(textureResource.Get(), initialState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            gfx::resourceUploader->Transition(texRes.Get(), initialState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         }
     }
 
-    obj->d3dTexture = textureResource;
+    return texRes;
+}
+
+void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
+{
+    obj->d3dTexture = createTextureResource(tag, dim, width, height, format, mipFlag, usage, slices);
 }
 
 void GfxTexture::destroy(GfxTexture* obj)
@@ -1337,13 +1341,12 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
 
 GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
 {
+    ComPtr<ID3D12Resource> texRes = createTextureResource(tag, GfxTextureDim_2D, width, height, format, GfxTextureMipFlag_1Mip, usage, nullptr);
+    d3dResources.push_back(texRes);
 
-
-    // TODO: Incorrect implementation
     GfxFrameResource output;
     output.type = GfxFrameResource::Type_Texture;
-    // ....
-
+    output.d3dResource = texRes.Get();
 
     return output;
 }
