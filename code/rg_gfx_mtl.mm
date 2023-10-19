@@ -518,8 +518,8 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
     
     // now we convert spirv to msl
     // 1. convert spirv to ms	l
-    uint32_t* spvPtr = (uint32_t*)shaderBlob->bufferPtr;
-    size_t spvWordCount = (size_t)(shaderBlob->bufferSize/sizeof(uint32_t));
+    uint32_t* spvPtr = (uint32_t*)shaderBlob->shaderObjectBufferPtr;
+    size_t spvWordCount = (size_t)(shaderBlob->shaderObjectBufferSize/sizeof(uint32_t));
     
     spirv_cross::Parser spirvParser(spvPtr, spvWordCount);
     spirvParser.parse();
