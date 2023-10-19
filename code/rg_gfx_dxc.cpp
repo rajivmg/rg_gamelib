@@ -206,6 +206,12 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
         rgLogError("***Shader Compile Warn/Error(%s, %s),Defines:%s***\n%s", filename, entrypoint, defines, errorMsg->GetStringPointer());
     }
 
+    // get the compiled shader blob from compilation result
+    IDxcBlob* shaderObjectBlob;
+    checkResult(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderObjectBlob), nullptr));
+    rgAssert(shaderObjectBlob->GetBufferSize());
+    
+#if defined(RG_D3D12_RNDR)
     // save shader pdb
     char pdbFilepath[512];
     ComPtr<IDxcBlob> shaderPdbBlob;
@@ -214,12 +220,6 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     wcstombs(pdbFilepath, shaderPdbPath->GetStringPointer(), 512);
     rg::writeFile(pdbFilepath, shaderPdbBlob->GetBufferPointer(), shaderPdbBlob->GetBufferSize());
 
-    // get the compiled shader blob from compilation result
-    IDxcBlob* shaderObjectBlob;
-    checkResult(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderObjectBlob), nullptr));
-    rgAssert(shaderObjectBlob->GetBufferSize());
-    
-#if defined(RG_D3D12_RNDR)
     // create shader reflection
     ComPtr<IDxcBlob> shaderReflectionBlob;
     checkResult(result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&shaderReflectionBlob), nullptr));
