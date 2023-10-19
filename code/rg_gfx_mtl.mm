@@ -472,11 +472,11 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
     // mipmap0 data is required for mip-chain generation
     if(mipFlag == GfxTextureMipFlag_GenMips)
     {
-        rgAssert(slices && slices[0].data != NULL);
+        rgAssert(slices && slices[0].pixels != NULL);
     }
     
     // copy the texture data
-    if(slices && slices[0].data != NULL)
+    if(slices && slices[0].pixels != NULL)
     {
         // TODO: handle when mipmapLevelCount > 1 but mipFlag is not GenMips
         // i.e. copy mip data from slices to texture memory
@@ -489,7 +489,7 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
         for(rgInt s = 0; s < sliceCount; ++s)
         {
             MTLRegion region = MTLRegionMake2D(0, 0, width, height);
-            [te replaceRegion:region mipmapLevel:0 slice:s withBytes:slices[s].data bytesPerRow:(width * (TinyImageFormat_BitSizeOfBlock(format) / 8)) bytesPerImage:0];
+            [te replaceRegion:region mipmapLevel:0 slice:s withBytes:slices[s].pixels bytesPerRow:slices[s].rowPitch bytesPerImage:0];
         }
         
         if(mipFlag == GfxTextureMipFlag_GenMips)
