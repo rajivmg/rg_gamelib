@@ -210,6 +210,12 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     IDxcBlob* shaderObjectBlob;
     checkResult(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderObjectBlob), nullptr));
     rgAssert(shaderObjectBlob->GetBufferSize());
+
+    // copy to output
+    ShaderBlobRef output = eastl::shared_ptr<ShaderBlob>(rgNew(ShaderBlob), destroyShaderBlob);
+    output->shaderObjectBufferPtr = shaderObjectBlob->GetBufferPointer();
+    output->shaderObjectBufferSize = shaderObjectBlob->GetBufferSize();
+    output->dxcBlobShaderObject = shaderObjectBlob;
     
 #if defined(RG_D3D12_RNDR)
     // save shader pdb
@@ -232,16 +238,8 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
 
     ID3D12ShaderReflection* shaderReflection;
     g_DxcUtils->CreateReflection(&shaderReflectionBuffer, IID_PPV_ARGS(&shaderReflection));
-#endif
-
-    ShaderBlobRef output = eastl::shared_ptr<ShaderBlob>(rgNew(ShaderBlob), destroyShaderBlob);
-    
-    // copy to output
-    output->shaderObjectBufferPtr = shaderObjectBlob->GetBufferPointer();
-    output->shaderObjectBufferSize = shaderObjectBlob->GetBufferSize();
-
-    output->dxcBlobShaderObject = shaderObjectBlob;
     output->d3d12ShaderReflection = shaderReflection;
+#endif
     
     return output;
 }
