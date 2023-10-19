@@ -8,9 +8,13 @@ RG_BEGIN_GFX_NAMESPACE
 
 struct ShaderBlob
 {
-    void*   bufferPtr;
-    rgSize  bufferSize;
-    void*   dxcBlob; // type: IDxcBlob*
+    void*   shaderObjectBufferPtr;
+    rgSize  shaderObjectBufferSize;
+
+    void*   dxcBlobShaderObject;      // type: IDxcBlob*
+#if defined(RG_D3D12_RNDR)
+    void*   d3d12ShaderReflection;    // typeL ID3D12ShaderReflection*
+#endif
 };
 
 typedef eastl::shared_ptr<ShaderBlob> ShaderBlobRef;

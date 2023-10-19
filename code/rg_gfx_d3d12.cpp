@@ -1,11 +1,7 @@
 #if defined(RG_D3D12_RNDR)
 #include "rg_gfx.h"
 
-#ifndef _WIN32
-#include "ComPtr.hpp"
-#endif
-#include "dxcapi.h"
-#include "d3d12shader.h"
+#include "rg_gfx_dxc.h"
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_dx12.h"
@@ -15,8 +11,6 @@ using namespace DirectX;
 
 #include <EASTL/string.h>
 #include <EASTL/hash_set.h>
-
-#include <filesystem>
 
 RG_BEGIN_RG_NAMESPACE
 
@@ -547,235 +541,7 @@ void GfxTexture::destroy(GfxTexture* obj)
 // GfxGraphicsPSO Implementation
 //*****************************************************************************
 
-struct BuildShaderResult
-{
-    ComPtr<IDxcBlob> shaderBlob;
-    ComPtr<ID3D12ShaderReflection> shaderReflection;
-};
-
-static ComPtr<IDxcUtils> g_DxcUtils;
-
-BuildShaderResult buildShaderBlob(char const* filename, GfxStage stage, char const* entrypoint, char const* defines)
-{
-    auto getStageStr = [](GfxStage s) -> const char*
-    {
-        switch(s)
-        {
-            case GfxStage_VS:
-                return "vs";
-                break;
-            case GfxStage_FS:
-                return "fs";
-                break;
-            case GfxStage_CS:
-                return "cs";
-                break;
-        }
-        return nullptr;
-    };
-
-    auto checkHR = [&](HRESULT hr) -> void
-    {
-        if(FAILED(hr))
-        {
-            rgAssert(!"Operation failed");
-        }
-    };
-
-    rgAssert(filename);
-    rgAssert(entrypoint);
-
-    rgHash hash = rgCRC32(filename);
-    hash = rgCRC32(getStageStr(stage), 2, hash);
-    hash = rgCRC32(entrypoint, (rgU32)strlen(entrypoint), hash);
-    if(defines != nullptr)
-    {
-        hash = rgCRC32(defines, (rgU32)strlen(defines), hash);
-    }
-
-    // entrypoint
-    eastl::vector<LPCWSTR> dxcArgs;
-    dxcArgs.push_back(L"-E");
-
-    wchar_t entrypointWide[256];
-    std::mbstowcs(entrypointWide, entrypoint, 256);
-    dxcArgs.push_back(entrypointWide);
-
-    // shader model
-    dxcArgs.push_back(L"-T");
-    if(stage == GfxStage_VS)
-    {
-        dxcArgs.push_back(L"vs_6_0");
-    }
-    else if(stage == GfxStage_FS)
-    {
-        dxcArgs.push_back(L"ps_6_0");
-    }
-    else if(stage == GfxStage_CS)
-    {
-        dxcArgs.push_back(L"cs_6_0");
-    }
-
-    // include dir
-    dxcArgs.push_back(L"-I");
-    dxcArgs.push_back(L"../code/shaders");
-
-    // generate debug symbols
-    wchar_t debugSymPath[512];
-    wchar_t prefPath[256];
-    wchar_t hashWString[128];
-    _ultow(hash, hashWString, 16);
-    std::mbstowcs(prefPath, rg::getPrefPath(), 256);
-    wcsncpy(debugSymPath, prefPath, 280);
-    //wcsncat(debugSymPath, L"shaderpdb\\", 10);
-    wcsncat(debugSymPath, hashWString, 120);
-    wcsncat(debugSymPath, L".bin", 8);
-    // TODO: check there is no file with same name
-
-    dxcArgs.push_back(L"-Zi");
-    dxcArgs.push_back(L"-Fd");
-    dxcArgs.push_back(debugSymPath);
-
-    // defines
-    eastl::vector<eastl::wstring> defineArgs;
-    if(defines != nullptr)
-    {
-        char const* definesCursorA = defines;
-        char const* definesCursorB = definesCursorA;
-        while(*definesCursorB != '\0')
-        {
-            definesCursorB = definesCursorB + 1;
-            if(*definesCursorB == ' ' || *definesCursorB == '\0')
-            {
-                if(*definesCursorB == '\0' && (definesCursorA == definesCursorB))
-                {
-                    break;
-                }
-
-                wchar_t d[256];
-                wchar_t wterm = 0;
-                rgUPtr lenWithoutNull = definesCursorB - definesCursorA;
-                std::mbstowcs(d, definesCursorA, lenWithoutNull);
-                wcsncpy(&d[lenWithoutNull], &wterm, 1);
-                defineArgs.push_back(eastl::wstring(d));
-                definesCursorA = definesCursorB + 1;
-            }
-        }
-        if(defineArgs.size() > 0)
-        {
-            dxcArgs.push_back(L"-D");
-            for(auto& s : defineArgs)
-            {
-                dxcArgs.push_back(s.c_str());
-            }
-        }
-    }
-
-    // create include handler
-    if(!g_DxcUtils)
-    {
-        checkHR(DxcCreateInstance(CLSID_DxcUtils, __uuidof(IDxcUtils), (void**)&g_DxcUtils));
-    }
-
-    class CustomIncludeHandler : public IDxcIncludeHandler
-    {
-    public:
-        HRESULT LoadSource(LPCWSTR pFilename, IDxcBlob **ppIncludeSource) override
-        {
-
-            ComPtr<IDxcBlobEncoding> blobEncoding;
-            std::filesystem::path filepath = std::filesystem::absolute(std::filesystem::path(pFilename));
-            if(alreadyIncludedFiles.count(eastl::wstring(filepath.string().c_str())) > 0)
-            {
-                static const char emptyStr[] = " ";
-                g_DxcUtils->CreateBlobFromPinned(emptyStr, rgARRAY_COUNT(emptyStr), DXC_CP_ACP, &blobEncoding);
-                return S_OK;
-            }
-
-            HRESULT hr = g_DxcUtils->LoadFile(pFilename, nullptr, &blobEncoding);
-            if(SUCCEEDED(hr))
-            {
-                alreadyIncludedFiles.insert(eastl::wstring(pFilename));
-                *ppIncludeSource = blobEncoding.Detach();
-            }
-
-            return hr;
-        }
-
-        HRESULT QueryInterface(REFIID riid, void** ppvObject) override { return E_NOINTERFACE; }
-        ULONG   AddRef(void) override { return 0; }
-        ULONG   Release(void) override { return 0; }
-
-        eastl::hash_set<eastl::wstring> alreadyIncludedFiles;
-    };
-
-    ComPtr<CustomIncludeHandler> customIncludeHandler(rgNew(CustomIncludeHandler));
-
-    // load shader file
-    char filepath[512];
-    strcpy(filepath, "../code/shaders/");
-    strncat(filepath, filename, 490);
-
-    rg::FileData shaderFileData = rg::readFile(filepath);
-    rgAssert(shaderFileData.isValid);
-
-    DxcBuffer shaderSource;
-    shaderSource.Ptr = shaderFileData.data;
-    shaderSource.Size = shaderFileData.dataSize;
-    shaderSource.Encoding = 0;
-
-    // compile shader
-    ComPtr<IDxcCompiler3> compiler3;
-    checkHR(DxcCreateInstance(CLSID_DxcCompiler, __uuidof(IDxcCompiler3), (void**)&compiler3));
-
-    ComPtr<IDxcResult> result;
-    checkHR(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), customIncludeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
-
-    // process errors
-    ComPtr<IDxcBlobUtf8> errorMsg;
-    result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errorMsg), nullptr);
-    if(errorMsg && errorMsg->GetStringLength())
-    {
-        rgLogError("***Shader Compile Warn/Error(%s, %s),Defines:%s***\n%s", filename, entrypoint, defines, errorMsg->GetStringPointer());
-    }
-
-    //ComPtr<IDxcBlob> shaderHashBlob;
-    //checkHR(result->GetOutput(DXC_OUT_SHADER_HASH, IID_PPV_ARGS(&shaderHashBlob), nullptr));
-    //DxcShaderHash* shaderHashBuffer = (DxcShaderHash*)shaderHashBlob->GetBufferPointer();
-
-    // write pdb to preferred write path
-    ComPtr<IDxcBlob> shaderPdbBlob;
-    ComPtr<IDxcBlobUtf16> shaderPdbPath;
-    checkHR(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&shaderPdbBlob), shaderPdbPath.GetAddressOf()));
-
-    char pdbFilepath[512];
-    wcstombs(pdbFilepath, shaderPdbPath->GetStringPointer(), 512);
-    rg::writeFile(pdbFilepath, shaderPdbBlob->GetBufferPointer(), shaderPdbBlob->GetBufferSize());
-
-    // shader blob
-    ComPtr<IDxcBlob> shaderBlob;
-    checkHR(result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr));
-
-    // reflection information
-    ComPtr<IDxcBlob> shaderReflectionBlob;
-    checkHR(result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&shaderReflectionBlob), nullptr));
-
-    DxcBuffer shaderReflectionBuffer;
-    shaderReflectionBuffer.Ptr = shaderReflectionBlob->GetBufferPointer();
-    shaderReflectionBuffer.Size = shaderReflectionBlob->GetBufferSize();
-    shaderReflectionBuffer.Encoding = 0;
-
-    ComPtr<ID3D12ShaderReflection> shaderReflection;
-    g_DxcUtils->CreateReflection(&shaderReflectionBuffer, IID_PPV_ARGS(&shaderReflection));
-
-    BuildShaderResult output;
-    output.shaderBlob = shaderBlob;
-    output.shaderReflection = shaderReflection;
-
-    return output;
-}
-
-void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, GfxGraphicsPSO::ResourceInfo>& resourceInfo)
+void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, GfxGraphicsPSO::ResourceInfo>& resourceInfo)
 {
     D3D12_SHADER_DESC shaderDesc = { 0 };
     shaderReflection->GetDesc(&shaderDesc);
@@ -853,11 +619,11 @@ void reflectShader(ComPtr<ID3D12ShaderReflection> shaderReflection, eastl::vecto
 void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     // compile shader
-    BuildShaderResult vertexShader, fragmentShader;
+    gfx::ShaderBlobRef vertexShader, fragmentShader;
     if(shaderDesc->vsEntrypoint && shaderDesc->fsEntrypoint)
     {
-        vertexShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines);
-        fragmentShader = buildShaderBlob(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines);
+        vertexShader = gfx::createShaderBlob(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines, false);
+        fragmentShader = gfx::createShaderBlob(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines, false);
     }
 
     // do shader reflection
@@ -865,8 +631,8 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
     eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> cbvSrvUavDescTableRanges;
     eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> samplerDescTableRanges;
 
-    reflectShader(vertexShader.shaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo);
-    reflectShader(fragmentShader.shaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo);
+    reflectShader((ID3D12ShaderReflection*)vertexShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo);
+    reflectShader((ID3D12ShaderReflection*)fragmentShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo);
 
     if(cbvSrvUavDescTableRanges.size() > 0)
     {
@@ -955,10 +721,10 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
     }
 
     // shaders
-    psoDesc.VS.pShaderBytecode = vertexShader.shaderBlob->GetBufferPointer();
-    psoDesc.VS.BytecodeLength = vertexShader.shaderBlob->GetBufferSize();
-    psoDesc.PS.pShaderBytecode = fragmentShader.shaderBlob->GetBufferPointer();
-    psoDesc.PS.BytecodeLength = fragmentShader.shaderBlob->GetBufferSize();
+    psoDesc.VS.pShaderBytecode = vertexShader->shaderObjectBufferPtr;
+    psoDesc.VS.BytecodeLength = vertexShader->shaderObjectBufferSize;
+    psoDesc.PS.pShaderBytecode = fragmentShader->shaderObjectBufferPtr;
+    psoDesc.PS.BytecodeLength = fragmentShader->shaderObjectBufferSize;
 
     // render state
     psoDesc.RasterizerState = rasterDesc;
@@ -989,11 +755,6 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
 
     BreakIfFail(getDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
     setDebugName(pso.Get(), tag);
-
-    // explicitly release shaders
-    // TODO: Remove as this is released automatically
-    //vertexShader.shaderBlob->Release();
-    //fragmentShader.shaderBlob->Release();
 
     obj->d3dPSO = pso;
 }
