@@ -81,8 +81,8 @@ void updateCamera()
     const rgFloat ascent = (rgFloat)(camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0)));
     
     // Orientation Delta
-    const rgFloat yaw = (mouse->relX * camHorizonalRotateSpeed) + g_GameState->cameraYaw;
-    const rgFloat pitch = (mouse->relY * camVerticalRotateSpeed) + g_GameState->cameraPitch;
+    const rgFloat yaw = (-mouse->relX * camHorizonalRotateSpeed) + g_GameState->cameraYaw;
+    const rgFloat pitch = (-mouse->relY * camVerticalRotateSpeed) + g_GameState->cameraPitch;
     
     // COMPUTE VIEW MATRIX
     // Apply Yaw
@@ -100,7 +100,7 @@ void updateCamera()
 
     g_GameState->cameraBasis = Matrix3(g_GameState->cameraRight, g_GameState->cameraUp, g_GameState->cameraForward);
 
-    g_GameState->cameraPosition += g_GameState->cameraBasis * Vector3(strafe, ascent, -forward);
+    g_GameState->cameraPosition += g_GameState->cameraBasis * Vector3(strafe, ascent, forward);
     g_GameState->cameraPitch = pitch;
     g_GameState->cameraYaw = yaw;
     
@@ -288,8 +288,8 @@ rgInt rg::setup()
     
     // Initialize camera params
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
-    g_GameState->cameraPitch = -((rgFloat)M_PI / 4.0f) + 0.15f; // ~-45 deg
-    g_GameState->cameraYaw = ((rgFloat)M_PI / 2.0f) * 3.0f; // 270deg
+    g_GameState->cameraPitch = ((rgFloat)M_PI / 4.0f) - 0.15f; // ~45 deg
+    g_GameState->cameraYaw = (rgFloat)M_PI / 2.0f; // 90deg
     
     // Initialize tonemapper params
     g_GameState->tonemapperMinLogLuminance = -2.0f;
