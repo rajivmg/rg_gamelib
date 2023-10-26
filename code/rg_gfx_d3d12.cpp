@@ -7,6 +7,7 @@
 #include "backends/imgui_impl_dx12.h"
 
 #include "ResourceUploadBatch.h"
+#include "DescriptorHeap.h"
 using namespace DirectX;
 
 #include <EASTL/string.h>
@@ -215,6 +216,71 @@ void waitForGpu()
 
     gfx::frameFenceValues[g_FrameIndex] += 1;
 }
+
+//*****************************************************************************
+class DescriptorAllocationCtx : DescriptorHeap // TODO: implement functionality of DescriptorHeap ourself
+{
+public: // TODO: RENAME bindless stuff with persistent/static
+    DescriptorAllocationCtx(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, rgU32 count, rgU32 bindlessCount)
+        : DescriptorHeap(device, type, flags, count)
+        , numDescriptors(count)
+        , numBindlessDescriptors(bindlessCount)
+        , top(numBindlessDescriptors)
+        , bindlessTop(0)
+    {
+        
+    }
+
+    void reset()
+    {
+        top = numBindlessDescriptors;
+
+        rgInt finishedFrame = gfx::getFinishedFrameIndex();
+        for(rgInt i = 0, l = bindlessIndicesToFree[finishedFrame].size(); i < l; ++i)
+        {
+            releaseBindlessIndex(bindlessIndicesToFree[finishedFrame][i]);
+        }
+        bindlessIndicesToFree[finishedFrame].clear();
+    }
+
+protected:
+    rgU32 allocateIndex()
+    {
+        rgU32 result = top;
+        top += 1;
+        rgAssert(top < numDescriptors);
+    }
+
+    rgU32 allocateBindlessIndex()
+    {
+        rgU32 result;
+        if(freeBindlessIndices.empty())
+        {
+            result = bindlessTop;
+            bindlessTop += 1;
+            rgAssert(bindlessTop < numBindlessDescriptors);
+        }
+        else
+        {
+            result = freeBindlessIndices.back();
+            freeBindlessIndices.pop_back();
+        }
+    }
+
+    void releaseBindlessIndex(rgU32 index)
+    {
+        freeBindlessIndices.push_back(index);
+    }
+    
+    rgU32                   numDescriptors;
+    rgU32                   numBindlessDescriptors;
+    
+    rgU32                   top;
+    rgU32                   bindlessTop;
+    eastl::vector<rgU32>    freeBindlessIndices;
+    eastl::vector<rgU32>    bindlessIndicesToFree[RG_MAX_FRAMES_IN_FLIGHT];
+};
+
 
 //*****************************************************************************
 // GfxBuffer Implementation
@@ -1296,6 +1362,7 @@ rgInt init()
     dsDesc.Flags = D3D12_DSV_FLAG_NONE;
     getDevice()->CreateDepthStencilView(gfx::depthStencilTexture->d3dTexture.Get(), &dsDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
+    // create CBV SRV UAV descriptor heap
     cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, MAX_CBVSRVUAV_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
     // create command allocators
@@ -1307,9 +1374,11 @@ rgInt init()
     // create commandlist
     currentCommandList = createGraphicsCommandList(commandAllocator[0], nullptr);
 
-    // crate resource uploader
+    // create resource uploader
     resourceUploader = rgNew(ResourceUploadBatch)(getDevice().Get());
     resourceUploader->Begin();
+
+    // create bindless texture 
 
     GfxVertexInputDesc simpleVertexDesc = {};
     simpleVertexDesc.elementCount = 3;
