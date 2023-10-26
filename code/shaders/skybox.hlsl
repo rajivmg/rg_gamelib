@@ -25,7 +25,8 @@ SkyboxVertexShaderOut vsSkybox(in SkyboxVertex v)
 
 float4 fsSkybox(in SkyboxVertexShaderOut f) : SV_TARGET
 {
-    float4 diffuse = diffuseCubeMap.Sample(skyboxSampler, f.texcoord);
+    float3 texcoord = float3(f.texcoord.x, f.texcoord.y, f.texcoord.z);
+    float4 diffuse = diffuseCubeMap.Sample(skyboxSampler, texcoord);
     diffuse.xyz = pow(diffuse.xyz, 1/ 2.2);
     return diffuse;
 }

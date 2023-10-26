@@ -25,6 +25,9 @@ include_directories(${EASTL_ROOT_DIR}/test/packages/EAStdC/include)
 include_directories(${EASTL_ROOT_DIR}/test/packages/EATest/include)
 include_directories(${EASTL_ROOT_DIR}/test/packages/EAThread/include)
 
+set(GLM_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/glm)
+#include_directories(${GLM_ROOT_DIR})
+
 set(IMGUI_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/imgui-1.89.4)
 set(IMGUI_BACKEND_DIR ${IMGUI_ROOT_DIR}/backends)
 include_directories(${IMGUI_ROOT_DIR})

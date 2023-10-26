@@ -357,11 +357,6 @@ MTLSamplerMipFilter toMTLSamplerMipFilter(GfxSamplerMipFilter filter)
     return result;
 }
 
-rgUInt toUInt(GfxTextureMipFlag mipFlag)
-{
-    return 1;
-}
-
 GfxTexture createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
 {
     // TODO: Add more info to texture2d
