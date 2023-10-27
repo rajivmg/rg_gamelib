@@ -976,7 +976,8 @@ rgInt               preInit();
 rgInt               initCommonStuff();
 void                atFrameStart();
 rgInt               getFrameIndex(); // Returns 0 if g_FrameIndex is -1
-rgInt               getFinishedFrameIndex();
+// TODO: Remove this function, it adds a wait for prev frame to finish. This make the actual frames in flight = RG_MAX_FRAMES_IN_FLIGHT - 1
+//rgInt               getFinishedFrameIndex();
 GfxFrameAllocator*  getFrameAllocator();
 Matrix4             makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
 Matrix4             makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);

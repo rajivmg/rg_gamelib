@@ -231,16 +231,17 @@ public: // TODO: RENAME bindless stuff with persistent/static
         
     }
 
+    // NOTE: call this at the beginning of a frame
     void reset()
     {
         top = numBindlessDescriptors;
 
-        rgInt finishedFrame = gfx::getFinishedFrameIndex();
-        for(rgInt i = 0, l = bindlessIndicesToFree[finishedFrame].size(); i < l; ++i)
+        rgInt thisFrameIndex = gfx::getFrameIndex();
+        for(rgInt i = 0, l = bindlessIndicesToFree[thisFrameIndex].size(); i < l; ++i)
         {
-            releaseBindlessIndex(bindlessIndicesToFree[finishedFrame][i]);
+            releaseBindlessIndex(bindlessIndicesToFree[thisFrameIndex][i]);
         }
-        bindlessIndicesToFree[finishedFrame].clear();
+        bindlessIndicesToFree[thisFrameIndex].clear();
     }
 
 protected:

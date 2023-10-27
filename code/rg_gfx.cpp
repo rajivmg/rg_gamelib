@@ -440,8 +440,8 @@ void atFrameStart()
         currentRenderCmdEncoder = nullptr;
     }
     
-    // reset unused frame allocator
-    gfx::frameAllocators[getFinishedFrameIndex()]->reset();
+    // reset this frame's allocations
+    gfx::frameAllocators[g_FrameIndex]->reset();
 }
 
 rgInt getFrameIndex()
@@ -449,8 +449,8 @@ rgInt getFrameIndex()
     return (g_FrameIndex != -1) ? g_FrameIndex : 0;
 }
 
-// TODO: rename -> getCompletedFrameIndex
-rgInt getFinishedFrameIndex()
+// TODO: remove
+/*rgInt getFinishedFrameIndex()
 {
     rgInt completedFrameIndex = g_FrameIndex - RG_MAX_FRAMES_IN_FLIGHT + 1;
     completedFrameIndex = completedFrameIndex < 0 ? (RG_MAX_FRAMES_IN_FLIGHT + completedFrameIndex) : completedFrameIndex;
@@ -458,7 +458,7 @@ rgInt getFinishedFrameIndex()
     checkerWaitTillFrameCompleted(completedFrameIndex);
 
     return completedFrameIndex;
-}
+}*/
 
 GfxFrameAllocator* getFrameAllocator()
 {
