@@ -976,6 +976,7 @@ rgInt               preInit();
 rgInt               initCommonStuff();
 void                atFrameStart();
 rgInt               getFrameIndex(); // Returns 0 if g_FrameIndex is -1
+rgInt               getPrevFrameIndex();
 // TODO: Remove this function, it adds a wait for prev frame to finish. This make the actual frames in flight = RG_MAX_FRAMES_IN_FLIGHT - 1
 //rgInt               getFinishedFrameIndex();
 GfxFrameAllocator*  getFrameAllocator();

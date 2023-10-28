@@ -449,6 +449,20 @@ rgInt getFrameIndex()
     return (g_FrameIndex != -1) ? g_FrameIndex : 0;
 }
 
+rgInt getPrevFrameIndex()
+{
+    rgInt prevFrameIndex = 0;
+    if(g_FrameIndex != -1)
+    {
+        prevFrameIndex = g_FrameIndex - 1;
+        if(prevFrameIndex < 0)
+        {
+            prevFrameIndex = RG_MAX_FRAMES_IN_FLIGHT - 1;
+        }
+    }
+    return prevFrameIndex;
+}
+
 // TODO: remove
 /*rgInt getFinishedFrameIndex()
 {

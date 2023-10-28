@@ -220,66 +220,71 @@ void waitForGpu()
 //*****************************************************************************
 class DescriptorAllocationCtx : DescriptorHeap // TODO: implement functionality of DescriptorHeap ourself
 {
-public: // TODO: RENAME bindless stuff with persistent/static
-    DescriptorAllocationCtx(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, rgU32 count, rgU32 bindlessCount)
+public:
+    DescriptorAllocationCtx(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, rgU32 count, rgU32 persistentCount)
         : DescriptorHeap(device, type, flags, count)
         , numDescriptors(count)
-        , numBindlessDescriptors(bindlessCount)
-        , top(numBindlessDescriptors)
-        , bindlessTop(0)
+        , numPersistentDescriptors(persistentCount)
+        , top(numPersistentDescriptors)
+        , persistentTop(0)
     {
         
     }
 
-    // NOTE: call this at the beginning of a frame
-    void reset()
+    void beginFrame()
     {
-        top = numBindlessDescriptors;
-
         rgInt thisFrameIndex = gfx::getFrameIndex();
-        for(rgInt i = 0, l = bindlessIndicesToFree[thisFrameIndex].size(); i < l; ++i)
+
+        endOffset[gfx::getPrevFrameIndex()] = top;
+        beginOffset[thisFrameIndex] = top;
+
+        for(rgInt i = 0, l = persistentIndicesToFree[thisFrameIndex].size(); i < l; ++i)
         {
-            releaseBindlessIndex(bindlessIndicesToFree[thisFrameIndex][i]);
+            releasePersistentIndex(persistentIndicesToFree[thisFrameIndex][i]);
         }
-        bindlessIndicesToFree[thisFrameIndex].clear();
+        persistentIndicesToFree[thisFrameIndex].clear();
     }
 
 protected:
     rgU32 allocateIndex()
     {
-        rgU32 result = top;
-        top += 1;
+        rgU32 index = top;
+        top = (top + 1) % numDescriptors;
         rgAssert(top < numDescriptors);
+        return index;
     }
 
-    rgU32 allocateBindlessIndex()
+    rgU32 allocatePersistentIndex()
     {
         rgU32 result;
-        if(freeBindlessIndices.empty())
+        if(freePersistentIndices.empty())
         {
-            result = bindlessTop;
-            bindlessTop += 1;
-            rgAssert(bindlessTop < numBindlessDescriptors);
+            result = persistentTop;
+            persistentTop += 1;
+            rgAssert(persistentTop < numPersistentDescriptors);
         }
         else
         {
-            result = freeBindlessIndices.back();
-            freeBindlessIndices.pop_back();
+            result = freePersistentIndices.back();
+            freePersistentIndices.pop_back();
         }
     }
 
-    void releaseBindlessIndex(rgU32 index)
+    void releasePersistentIndex(rgU32 index)
     {
-        freeBindlessIndices.push_back(index);
+        freePersistentIndices.push_back(index);
     }
     
     rgU32                   numDescriptors;
-    rgU32                   numBindlessDescriptors;
+    rgU32                   numPersistentDescriptors;
     
     rgU32                   top;
-    rgU32                   bindlessTop;
-    eastl::vector<rgU32>    freeBindlessIndices;
-    eastl::vector<rgU32>    bindlessIndicesToFree[RG_MAX_FRAMES_IN_FLIGHT];
+    rgU32                   persistentTop;
+    eastl::vector<rgU32>    freePersistentIndices;
+    eastl::vector<rgU32>    persistentIndicesToFree[RG_MAX_FRAMES_IN_FLIGHT];
+
+    rgU32                   beginOffset[RG_MAX_FRAMES_IN_FLIGHT];
+    rgU32                   endOffset[RG_MAX_FRAMES_IN_FLIGHT];
 };
 
 
