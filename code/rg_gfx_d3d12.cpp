@@ -246,12 +246,17 @@ public:
     }
 
 protected:
-    rgU32 allocateIndex()
+    
+    // return indices [start, end)
+    void allocateIndexRange(rgU32 count, rgU32* startOffset, rgU32* endOffset)
     {
-        rgU32 index = top;
-        top = (top + 1) % numDescriptors;
+        // TODO: do we even need to return endOffset???
+        *startOffset = top;
+        top = (top + count) % numDescriptors;
+        *endOffset = top;
         rgAssert(top < numDescriptors);
-        return index;
+
+        // TODO: add check for overwrite of currently inuse descriptor indices
     }
 
     rgU32 allocatePersistentIndex()
