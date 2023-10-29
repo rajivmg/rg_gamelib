@@ -223,40 +223,41 @@ class DescriptorAllocationCtx : DescriptorHeap // TODO: implement functionality 
 public:
     DescriptorAllocationCtx(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, rgU32 count, rgU32 persistentCount)
         : DescriptorHeap(device, type, flags, count)
-        , numDescriptors(count)
-        , numPersistentDescriptors(persistentCount)
-        , top(numPersistentDescriptors)
+        , descriptorCount(count)
+        , persistentDescriptorCount(persistentCount)
+        , top(persistentCount)
+        , freeDescriptorCount(count)
         , persistentTop(0)
+        , frameUsedDescriptorCount()
     {
         
     }
 
     void beginFrame()
     {
-        rgInt thisFrameIndex = gfx::getFrameIndex();
+        freeDescriptorCount += frameUsedDescriptorCount[g_FrameIndex];
+        frameUsedDescriptorCount[g_FrameIndex] = 0;
 
-        endOffset[gfx::getPrevFrameIndex()] = top;
-        beginOffset[thisFrameIndex] = top;
-
-        for(rgInt i = 0, l = persistentIndicesToFree[thisFrameIndex].size(); i < l; ++i)
+        for(rgInt i = 0, l = persistentIndicesToFree[g_FrameIndex].size(); i < l; ++i)
         {
-            releasePersistentIndex(persistentIndicesToFree[thisFrameIndex][i]);
+            releasePersistentIndex(persistentIndicesToFree[g_FrameIndex][i]);
         }
-        persistentIndicesToFree[thisFrameIndex].clear();
+        persistentIndicesToFree[g_FrameIndex].clear();
     }
 
 protected:
     
-    // return indices [start, end)
-    void allocateIndexRange(rgU32 count, rgU32* startOffset, rgU32* endOffset)
+    rgU32 allocateIndex(rgU32 count)
     {
-        // TODO: do we even need to return endOffset???
-        *startOffset = top;
-        top = (top + count) % numDescriptors;
-        *endOffset = top;
-        rgAssert(top < numDescriptors);
+        rgAssert(freeDescriptorCount > 0);
+        
+        rgU32 index = top;
+        top = (top + 1) % descriptorCount;
 
-        // TODO: add check for overwrite of currently inuse descriptor indices
+        --freeDescriptorCount;
+        ++frameUsedDescriptorCount[g_FrameIndex];
+
+        return index;
     }
 
     rgU32 allocatePersistentIndex()
@@ -266,7 +267,7 @@ protected:
         {
             result = persistentTop;
             persistentTop += 1;
-            rgAssert(persistentTop < numPersistentDescriptors);
+            rgAssert(persistentTop < persistentDescriptorCount);
         }
         else
         {
@@ -280,16 +281,16 @@ protected:
         freePersistentIndices.push_back(index);
     }
     
-    rgU32                   numDescriptors;
-    rgU32                   numPersistentDescriptors;
+    rgU32                   descriptorCount;
+    rgU32                   persistentDescriptorCount;
     
     rgU32                   top;
     rgU32                   persistentTop;
     eastl::vector<rgU32>    freePersistentIndices;
     eastl::vector<rgU32>    persistentIndicesToFree[RG_MAX_FRAMES_IN_FLIGHT];
 
-    rgU32                   beginOffset[RG_MAX_FRAMES_IN_FLIGHT];
-    rgU32                   endOffset[RG_MAX_FRAMES_IN_FLIGHT];
+    rgU32                   freeDescriptorCount;
+    rgU32                   frameUsedDescriptorCount[RG_MAX_FRAMES_IN_FLIGHT];
 };
 
 
