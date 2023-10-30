@@ -426,7 +426,7 @@ struct GfxGraphicsPSO
     struct ResourceInfo
     {
         D3D_SHADER_INPUT_TYPE type;
-        rgU16 offsetInDescTable;
+        rgU32 offsetInDescTable;
     };
     eastl::hash_map<eastl::string, ResourceInfo> d3dResourceInfo; // TODO: reserve a big enough space
     ComPtr<ID3D12RootSignature> d3dRootSignature;

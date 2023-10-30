@@ -624,70 +624,117 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
     D3D12_SHADER_DESC shaderDesc = { 0 };
     shaderReflection->GetDesc(&shaderDesc);
 
+    auto isDescriptorAlreadyInRange = [&resourceInfo](D3D12_SHADER_INPUT_BIND_DESC const& shaderInputBindDesc) -> bool
+    {
+        if(resourceInfo.count(shaderInputBindDesc.Name))
+        {
+            auto existingSameNameResInfoIter = resourceInfo.find(shaderInputBindDesc.Name);
+            if(existingSameNameResInfoIter->second.type == shaderInputBindDesc.Type)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    auto shaderInputTypeToDescriptorRangeType = [](D3D_SHADER_INPUT_TYPE sit) -> D3D12_DESCRIPTOR_RANGE_TYPE
+    {
+        D3D12_DESCRIPTOR_RANGE_TYPE out;
+        switch(sit)
+        {
+        case D3D_SIT_CBUFFER:
+        {
+            out = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+        } break;
+
+        case D3D_SIT_TEXTURE:
+        case D3D_SIT_TBUFFER:
+        case D3D_SIT_STRUCTURED:
+        case D3D_SIT_BYTEADDRESS:
+        case D3D_SIT_RTACCELERATIONSTRUCTURE:
+        {
+            out = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        } break;
+
+        case D3D_SIT_UAV_RWTYPED:
+        case D3D_SIT_UAV_RWSTRUCTURED:
+        case D3D_SIT_UAV_RWBYTEADDRESS:
+        case D3D_SIT_UAV_APPEND_STRUCTURED:
+        case D3D_SIT_UAV_CONSUME_STRUCTURED:
+        case D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER:
+        case D3D_SIT_UAV_FEEDBACKTEXTURE:
+        {
+            out = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+        } break;
+
+        case D3D_SIT_SAMPLER:
+        {
+            out = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+        } break;
+
+        default:
+        {
+            rgAssert("Unknown shader input type");
+        } break;
+        }
+
+        return out;
+    };
+
+    // https://rtarun9.github.io/blogs/shader_reflection/
+    // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html
+
     for(rgU32 i = 0; i < shaderDesc.BoundResources; ++i)
     {
         D3D12_SHADER_INPUT_BIND_DESC shaderInputBindDesc = { 0 };
         BreakIfFail(shaderReflection->GetResourceBindingDesc(i, &shaderInputBindDesc));
-        switch(shaderInputBindDesc.Type)
+        D3D12_DESCRIPTOR_RANGE_TYPE descRangeType = shaderInputTypeToDescriptorRangeType(shaderInputBindDesc.Type);
+
+        // NOTE: descriptor are visible to all shader stages.
+        // so we don't need to create separate range for all the 
+        // stages the resource binding appears in.
+
+        if(isDescriptorAlreadyInRange(shaderInputBindDesc))
         {
-            case D3D_SIT_CBUFFER:
-            case D3D_SIT_TEXTURE:
+            continue;
+        }
+
+        if(shaderInputBindDesc.BindCount < 1)
+        {
+            // this is a bindless resource
+            // TODO: handle this type of resource
+            // A separate descriptor table should be bound
+            shaderInputBindDesc.BindCount = 65536;
+            // for now setting it to 65536. 
+            // We need to we need to set it in a separate descriptor table
+        }
+
+        // TODO: store more info needed to copy and bind correct descriptors
+        resourceInfo[shaderInputBindDesc.Name] = { shaderInputBindDesc.Type, (rgU32)cbvSrvUavDescTableRanges.size() };
+
+        // TODO verify correct usage
+        // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html#descriptor-range-flags
+        D3D12_DESCRIPTOR_RANGE_FLAGS rangeFlags = descRangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER ?
+            D3D12_DESCRIPTOR_RANGE_FLAG_NONE : D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
+
+        CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(descRangeType,
+            shaderInputBindDesc.BindCount,
+            shaderInputBindDesc.BindPoint,
+            shaderInputBindDesc.Space,
+            rangeFlags);
+
+        switch(descRangeType)
+        {
+            case D3D12_DESCRIPTOR_RANGE_TYPE_CBV:
+            case D3D12_DESCRIPTOR_RANGE_TYPE_SRV:
+            case D3D12_DESCRIPTOR_RANGE_TYPE_UAV:
             {
-                // TODO: BEGIN -- Improve this logic
-                // TODO: BEGIN -- Improve this logic
-                if(resourceInfo.count(shaderInputBindDesc.Name))
-                {
-                    auto existingSameNameResInfoIter = resourceInfo.find(shaderInputBindDesc.Name);
-                    if(existingSameNameResInfoIter->second.type == shaderInputBindDesc.Type)
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        rgAssert(!"Same name resouce but type is different");
-                    }
-                }
-                // END
-
-                GfxGraphicsPSO::ResourceInfo info;
-                info.type = shaderInputBindDesc.Type;
-                info.offsetInDescTable = (rgU16)cbvSrvUavDescTableRanges.size();
-                resourceInfo[shaderInputBindDesc.Name] = info;
-
-                D3D12_DESCRIPTOR_RANGE_TYPE descRangeType = shaderInputBindDesc.Type == D3D_SIT_CBUFFER ?
-                    D3D12_DESCRIPTOR_RANGE_TYPE_CBV : D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-
-                // zero means bindless
-                rgU32 bindCount = shaderInputBindDesc.BindCount ? shaderInputBindDesc.BindCount : 65536;
-
-                CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(descRangeType,
-                    bindCount,
-                    shaderInputBindDesc.BindPoint,
-                    shaderInputBindDesc.Space,
-                    D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-
                 cbvSrvUavDescTableRanges.push_back(descriptorRange);
-
-                // TODO: https://rtarun9.github.io/blogs/shader_reflection/
-                // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html
-
-                //ID3D12ShaderReflectionConstantBuffer* shaderReflectionConstBuffer = shaderReflection->GetConstantBufferByIndex(i);
-                //D3D12_SHADER_BUFFER_DESC constBufferDesc = { 0 };
-                //shaderReflectionConstBuffer->GetDesc(&constBufferDesc);
             } break;
 
-            case D3D_SIT_SAMPLER:
+            case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER:
             {
-                GfxGraphicsPSO::ResourceInfo info;
-                info.type = shaderInputBindDesc.Type;
-                info.offsetInDescTable = (rgU16)samplerDescTableRanges.size();
-                resourceInfo[shaderInputBindDesc.Name] = info;
-
-                CD3DX12_DESCRIPTOR_RANGE1 descriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
-                    shaderInputBindDesc.BindCount,
-                    shaderInputBindDesc.BindPoint,
-                    shaderInputBindDesc.Space,
-                    D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
                 samplerDescTableRanges.push_back(descriptorRange);
             } break;
         }
