@@ -251,23 +251,23 @@ static void waitForGpu()
 }
 
 //*****************************************************************************
-class DescriptorAllocationCtx : DescriptorHeap // TODO: implement functionality of DescriptorHeap ourself
+class DescriptorAllocator
 {
 public:
-    DescriptorAllocationCtx(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, rgU32 count, rgU32 persistentCount)
-        : DescriptorHeap(device, type, flags, count)
-        , descriptorCount(count)
+    DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, rgU32 count, rgU32 persistentCount)
+        : descriptorCount(count)
         , persistentDescriptorCount(persistentCount)
         , top(persistentCount)
-        , freeDescriptorCount(count)
         , persistentTop(0)
+        , freeDescriptorCount(count)
         , frameUsedDescriptorCount()
     {
-        
+        descriptorHeap = createDescriptorHeap(type, count, flags);
     }
 
     void beginFrame()
     {
+        // Free and release unused indices back to allocation pool
         freeDescriptorCount += frameUsedDescriptorCount[g_FrameIndex];
         frameUsedDescriptorCount[g_FrameIndex] = 0;
 
@@ -278,6 +278,11 @@ public:
         persistentIndicesToFree[g_FrameIndex].clear();
     }
 
+    rgU32 getCurrentDescriptorOffset()
+    {
+        return top;
+    }
+
 protected:
     
     rgU32 allocateIndex(rgU32 count)
@@ -286,6 +291,10 @@ protected:
         
         rgU32 index = top;
         top = (top + 1) % descriptorCount;
+
+        // TODO: we cannot use ring buffer stategy because 
+        // we have to provide contiguous range, cannot go
+        // from end to begin
 
         --freeDescriptorCount;
         ++frameUsedDescriptorCount[g_FrameIndex];
@@ -314,11 +323,14 @@ protected:
         freePersistentIndices.push_back(index);
     }
     
+    ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+
     rgU32                   descriptorCount;
     rgU32                   persistentDescriptorCount;
     
     rgU32                   top;
     rgU32                   persistentTop;
+
     eastl::vector<rgU32>    freePersistentIndices;
     eastl::vector<rgU32>    persistentIndicesToFree[RG_MAX_FRAMES_IN_FLIGHT];
 
@@ -326,6 +338,8 @@ protected:
     rgU32                   frameUsedDescriptorCount[RG_MAX_FRAMES_IN_FLIGHT];
 };
 
+DescriptorAllocator* cbvSrvUavDescriptorAllocator;
+DescriptorAllocator* samplerDescriptorAllocator;
 
 //*****************************************************************************
 // GfxBuffer Implementation
