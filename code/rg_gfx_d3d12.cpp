@@ -162,6 +162,39 @@ D3D12_TEXTURE_ADDRESS_MODE toD3DTextureAddressMode(GfxSamplerAddressMode rstAddr
     return result;
 }
 
+GfxPipelineArgument::Type toGfxPipelineArgumentType(D3D12_SHADER_INPUT_BIND_DESC const& d3dShaderInputBindDesc)
+{
+    GfxPipelineArgument::Type outType = GfxPipelineArgument::Type_Unknown;
+    switch(d3dShaderInputBindDesc.Type)
+    {
+    case D3D_SIT_CBUFFER:
+    {
+        outType = GfxPipelineArgument::Type_ConstantBuffer;
+    } break;
+    case D3D_SIT_TEXTURE:
+    {
+        if(d3dShaderInputBindDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2D)
+        {
+            outType = GfxPipelineArgument::Type_Texture2D;
+        }
+        else if(d3dShaderInputBindDesc.Dimension == D3D_SRV_DIMENSION_TEXTURECUBE)
+        {
+            outType = GfxPipelineArgument::Type_TextureCube;
+        }
+        else
+        {
+            rgAssert("Unsupported Texture dimension");
+        }
+    } break;
+    default:
+    {
+        rgAssert("Unssported Shader Input Type");
+    } break;
+    }
+
+    return outType;
+};
+
 ComPtr<ID3D12CommandAllocator> getCommandAllocator()
 {
     return gfx::commandAllocator[g_FrameIndex];
@@ -621,17 +654,17 @@ void GfxTexture::destroy(GfxTexture* obj)
 // GfxGraphicsPSO Implementation
 //*****************************************************************************
 
-void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, GfxGraphicsPSO::ResourceInfo>& resourceInfo, rgBool* hasBindlessTexture2D)
+void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, GfxPipelineArgument>* outArguments, rgBool* outHasBindlessTexture2D)
 {
     D3D12_SHADER_DESC shaderDesc = { 0 };
     shaderReflection->GetDesc(&shaderDesc);
 
-    auto isDescriptorAlreadyInRange = [&resourceInfo](D3D12_SHADER_INPUT_BIND_DESC const& shaderInputBindDesc) -> bool
+    auto isDescriptorAlreadyInRange = [&outArguments](D3D12_SHADER_INPUT_BIND_DESC const& shaderInputBindDesc) -> bool
     {
-        if(resourceInfo.count(shaderInputBindDesc.Name))
+        if(outArguments->count(shaderInputBindDesc.Name))
         {
-            auto existingSameNameResInfoIter = resourceInfo.find(shaderInputBindDesc.Name);
-            if(existingSameNameResInfoIter->second.type == shaderInputBindDesc.Type)
+            auto existingSameNameResInfoIter = outArguments->find(shaderInputBindDesc.Name);
+            if(existingSameNameResInfoIter->second.type == toGfxPipelineArgumentType(shaderInputBindDesc))
             {
                 return true;
             }
@@ -706,15 +739,22 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
         {
             if(shaderInputBindDesc.Type == D3D_SIT_TEXTURE && shaderInputBindDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2D)
             {
-                *hasBindlessTexture2D = true;
+                *outHasBindlessTexture2D = true;
                 continue;
             }
 
             rgAssert("Only Texture2D bindless resources are supported");
         }
 
-        // TODO: store more info needed to copy and bind correct descriptors
-        resourceInfo[shaderInputBindDesc.Name] = { shaderInputBindDesc.Type, (rgU32)cbvSrvUavDescTableRanges.size() };
+        GfxPipelineArgument arg = {};
+        strncpy(arg.tag, shaderInputBindDesc.Name, rgARRAY_COUNT(GfxPipelineArgument::tag));
+        arg.stages = GfxStage_VS; // TODO: fill correct stage info
+        arg.type = toGfxPipelineArgumentType(shaderInputBindDesc);
+        arg.registerIndex = shaderInputBindDesc.BindPoint;
+        arg.spaceIndex = shaderInputBindDesc.Space;
+        arg.d3dOffsetInDescriptorTable = (rgU32)cbvSrvUavDescTableRanges.size();
+
+        (*outArguments)[shaderInputBindDesc.Name] = arg;
 
         // TODO verify correct usage
         // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html#descriptor-range-flags
@@ -760,8 +800,8 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
     eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> samplerDescTableRanges;
     rgBool hasBindlessTexture2D;
 
-    reflectShader((ID3D12ShaderReflection*)vertexShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo, &hasBindlessTexture2D);
-    reflectShader((ID3D12ShaderReflection*)fragmentShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo, &hasBindlessTexture2D);
+    reflectShader((ID3D12ShaderReflection*)vertexShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, &obj->arguments, &hasBindlessTexture2D);
+    reflectShader((ID3D12ShaderReflection*)fragmentShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, &obj->arguments, &hasBindlessTexture2D);
 
     if(cbvSrvUavDescTableRanges.size() > 0)
     {
@@ -983,19 +1023,19 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU3
 }
 
 //-----------------------------------------------------------------------------
-GfxObjectBinding& GfxRenderCmdEncoder::getPipelineArgumentInfo(char const* bindingTag)
+GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
     rgAssert(gfx::currentGraphicsPSO != nullptr);
     rgAssert(bindingTag);
 
-    auto infoIter = gfx::currentGraphicsPSO->reflection.find(bindingTag);
-    if(infoIter == gfx::currentGraphicsPSO->reflection.end())
+    auto infoIter = gfx::currentGraphicsPSO->arguments.find(bindingTag);
+    if(infoIter == gfx::currentGraphicsPSO->arguments.end())
     {
         rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
         rgAssert(false);
     }
 
-    GfxObjectBinding& info = infoIter->second;
+    GfxPipelineArgument& info = infoIter->second;
 
     if(((info.stages & GfxStage_VS) != GfxStage_VS) && (info.stages & GfxStage_FS) != GfxStage_FS)
     {
@@ -1106,13 +1146,13 @@ void GfxComputeCmdEncoder::setComputePSO(GfxComputePSO* pso)
 }
 
 //-----------------------------------------------------------------------------
-GfxObjectBinding* GfxComputeCmdEncoder::getPipelineArgumentInfo(char const* bindingTag)
+GfxPipelineArgument* GfxComputeCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
     rgAssert(gfx::currentComputePSO != nullptr);
     rgAssert(bindingTag);
 
-    auto infoIter = gfx::currentComputePSO->reflection.find(bindingTag);
-    if(infoIter == gfx::currentComputePSO->reflection.end())
+    auto infoIter = gfx::currentComputePSO->arguments.find(bindingTag);
+    if(infoIter == gfx::currentComputePSO->arguments.end())
     {
         rgLogWarn("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
         return nullptr;

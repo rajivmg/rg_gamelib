@@ -400,6 +400,7 @@ struct GfxPipelineArgument
     
     enum Type
     {
+        Type_Unknown,
         Type_ConstantBuffer,
         Type_Texture2D,
         Type_TextureCube,
@@ -410,6 +411,10 @@ struct GfxPipelineArgument
     
     rgU16 registerIndex;
     rgU16 spaceIndex;
+
+#if defined(RG_D3D12_RNDR)
+    rgU32 d3dOffsetInDescriptorTable;
+#endif
 };
 
 struct GfxGraphicsPSO
@@ -422,12 +427,6 @@ struct GfxGraphicsPSO
     eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
 
 #if defined(RG_D3D12_RNDR)
-    struct ResourceInfo
-    {
-        D3D_SHADER_INPUT_TYPE type;
-        rgU32 offsetInDescTable;
-    };
-    eastl::hash_map<eastl::string, ResourceInfo> d3dResourceInfo; // TODO: reserve a big enough space
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
