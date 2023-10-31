@@ -1,8 +1,6 @@
 // define hlsl to cpp types here
 #if __cplusplus
-
 typedef uint32_t uint;
-
 #endif
 
 // common cpp and hlsl code here
@@ -12,9 +10,13 @@ static uint const LUMINANCE_BUFFER_OFFSET_EXPOSURE = 0;
 static uint const LUMINANCE_BUFFER_OFFSET_LUMINANCE = LUMINANCE_BUFFER_OFFSET_EXPOSURE + 4;
 static uint const LUMINANCE_BUFFER_OFFSET_HISTOGRAM = LUMINANCE_BUFFER_OFFSET_LUMINANCE + 4;
 
+static uint const kBindlessTexture2DBindSpace = 7;
+#define BINDLESS_TEXTURE2D_SPACE space7
 
 // hlsl only code here
 #ifndef __cplusplus
+
+#define Bindless_Texture2D(textureResource) Texture2D<float4> textureResource[] : register(t0, BINDLESS_TEXTURE2D_SPACE);
 
 // common resources and params
 cbuffer commonParams// : register(b0, space0)

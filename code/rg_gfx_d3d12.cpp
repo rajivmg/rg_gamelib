@@ -13,6 +13,8 @@ using namespace DirectX;
 #include <EASTL/string.h>
 #include <EASTL/hash_set.h>
 
+#include "shaders/shaderinterop_common.h"
+
 RG_BEGIN_RG_NAMESPACE
 
 RG_BEGIN_GFX_NAMESPACE
@@ -619,7 +621,7 @@ void GfxTexture::destroy(GfxTexture* obj)
 // GfxGraphicsPSO Implementation
 //*****************************************************************************
 
-void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, GfxGraphicsPSO::ResourceInfo>& resourceInfo)
+void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, GfxGraphicsPSO::ResourceInfo>& resourceInfo, rgBool* hasBindlessTexture2D)
 {
     D3D12_SHADER_DESC shaderDesc = { 0 };
     shaderReflection->GetDesc(&shaderDesc);
@@ -702,12 +704,13 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
 
         if(shaderInputBindDesc.BindCount < 1)
         {
-            // this is a bindless resource
-            // TODO: handle this type of resource
-            // A separate descriptor table should be bound
-            shaderInputBindDesc.BindCount = 65536;
-            // for now setting it to 65536. 
-            // We need to we need to set it in a separate descriptor table
+            if(shaderInputBindDesc.Type == D3D_SIT_TEXTURE && shaderInputBindDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2D)
+            {
+                *hasBindlessTexture2D = true;
+                continue;
+            }
+
+            rgAssert("Only Texture2D bindless resources are supported");
         }
 
         // TODO: store more info needed to copy and bind correct descriptors
@@ -755,9 +758,10 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
     eastl::vector<D3D12_ROOT_PARAMETER1> rootParameters;
     eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> cbvSrvUavDescTableRanges;
     eastl::vector<CD3DX12_DESCRIPTOR_RANGE1> samplerDescTableRanges;
+    rgBool hasBindlessTexture2D;
 
-    reflectShader((ID3D12ShaderReflection*)vertexShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo);
-    reflectShader((ID3D12ShaderReflection*)fragmentShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo);
+    reflectShader((ID3D12ShaderReflection*)vertexShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo, &hasBindlessTexture2D);
+    reflectShader((ID3D12ShaderReflection*)fragmentShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, obj->d3dResourceInfo, &hasBindlessTexture2D);
 
     if(cbvSrvUavDescTableRanges.size() > 0)
     {
@@ -777,6 +781,22 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
         rootParameter.DescriptorTable.pDescriptorRanges = samplerDescTableRanges.data();
         rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         rootParameters.push_back(rootParameter);
+    }
+
+    // bindless texture descriptor range and root parameter
+    if(hasBindlessTexture2D)
+    {
+        CD3DX12_DESCRIPTOR_RANGE1 descRangeBindlessTexture2D(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+            RG_MAX_BINDLESS_TEXTURE_RESOURCES,
+            0,
+            kBindlessTexture2DBindSpace);
+
+        D3D12_ROOT_PARAMETER1 bindlessTexture2DRootParam = {};
+        bindlessTexture2DRootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        bindlessTexture2DRootParam.DescriptorTable.NumDescriptorRanges = 1;
+        bindlessTexture2DRootParam.DescriptorTable.pDescriptorRanges = &descRangeBindlessTexture2D;
+        bindlessTexture2DRootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        rootParameters.push_back(bindlessTexture2DRootParam);
     }
 
     // create root signature

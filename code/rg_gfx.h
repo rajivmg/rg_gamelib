@@ -27,6 +27,7 @@
 #include <EASTL/fixed_vector.h>
 
 #define RG_MAX_FRAMES_IN_FLIGHT 3
+#define RG_MAX_BINDLESS_TEXTURE_RESOURCES 100000
 
 #define RG_BEGIN_GFX_NAMESPACE namespace gfx {
 #define RG_END_GFX_NAMESPACE }
@@ -391,7 +392,7 @@ struct GfxShaderDesc
 };
 
 // Object in a Pipeline
-struct GfxObjectBinding // TODO: Rename GfxPipelineArgumentInfo
+struct GfxObjectBinding // TODO: Rename GfxPipelineArgument
 {
     char tag[32];
     
