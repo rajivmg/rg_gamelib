@@ -17,64 +17,62 @@ using namespace DirectX;
 
 RG_BEGIN_RG_NAMESPACE
 
-RG_BEGIN_GFX_NAMESPACE
-    static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
-    static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
-    static rgUInt const MAX_SAMPLER_DESCRIPTOR = 1024;
+static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
+static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
+static rgUInt const MAX_SAMPLER_DESCRIPTOR = 1024;
 
-    ComPtr<ID3D12Device2> device;
-    ComPtr<ID3D12CommandQueue> commandQueue;
-    ComPtr<IDXGISwapChain4> dxgiSwapchain;
-    ComPtr<IDXGIFactory4> dxgiFactory;
+ComPtr<ID3D12Device2> device;
+ComPtr<ID3D12CommandQueue> commandQueue;
+ComPtr<IDXGISwapChain4> dxgiSwapchain;
+ComPtr<IDXGIFactory4> dxgiFactory;
 
-    ComPtr<ID3D12Fence> frameFence;
-    UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
-    HANDLE frameFenceEvent;
+ComPtr<ID3D12Fence> frameFence;
+UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+HANDLE frameFenceEvent;
 
-    ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
-    rgUInt rtvDescriptorSize;
+ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
+rgUInt rtvDescriptorSize;
 
-    ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
-    rgUInt dsvDescriptorSize;
+ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
+rgUInt dsvDescriptorSize;
 
-    ComPtr<ID3D12DescriptorHeap> samplerDescriptorHeap;
-    rgUInt samplerDescriptorSize;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE samplerNextCPUDescriptorHandle;
+ComPtr<ID3D12DescriptorHeap> samplerDescriptorHeap;
+rgUInt samplerDescriptorSize;
+CD3DX12_CPU_DESCRIPTOR_HANDLE samplerNextCPUDescriptorHandle;
 
-    ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
-    rgUInt cbvSrvUavDescriptorSize;
+ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
+rgUInt cbvSrvUavDescriptorSize;
 
-    ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
-    ComPtr<ID3D12GraphicsCommandList> currentCommandList;
+ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
+ComPtr<ID3D12GraphicsCommandList> currentCommandList;
 
-    GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
-    GfxTexture* depthStencilTexture;
+GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
+GfxTexture* depthStencilTexture;
 
-    struct ResourceCopyTask
+struct ResourceCopyTask
+{
+    enum ResourceType
     {
-        enum ResourceType
-        {
-            ResourceType_Buffer,
-            ResourceType_Texture,
-        };
-
-        ResourceType  type;
-        ComPtr<ID3D12Resource> src;
-        ComPtr<ID3D12Resource> dst;
+        ResourceType_Buffer,
+        ResourceType_Texture,
     };
 
-    eastl::vector<ResourceCopyTask> pendingBufferCopyTasks;
-    eastl::vector<ResourceCopyTask> pendingTextureCopyTasks;
+    ResourceType  type;
+    ComPtr<ID3D12Resource> src;
+    ComPtr<ID3D12Resource> dst;
+};
 
-    ResourceUploadBatch* resourceUploader;
+eastl::vector<ResourceCopyTask> pendingBufferCopyTasks;
+eastl::vector<ResourceCopyTask> pendingTextureCopyTasks;
 
-    // test --
-    ComPtr<ID3D12RootSignature> dummyRootSignature;
-    ComPtr<ID3D12PipelineState> dummyPSO;
-    ComPtr<ID3D12Resource> triVB;
-    D3D12_VERTEX_BUFFER_VIEW triVBView;
-    // -- 
-RG_END_GFX_NAMESPACE
+ResourceUploadBatch* resourceUploader;
+
+// test --
+ComPtr<ID3D12RootSignature> dummyRootSignature;
+ComPtr<ID3D12PipelineState> dummyPSO;
+ComPtr<ID3D12Resource> triVB;
+D3D12_VERTEX_BUFFER_VIEW triVBView;
+// -- 
 
 //*****************************************************************************
 // Helper Functions
@@ -92,15 +90,15 @@ inline void _BreakIfFail(HRESULT hr)
 
 static ComPtr<ID3D12Device> getDevice()
 {
-    return gfx::device;
+    return device;
 }
 
-inline DXGI_FORMAT toDXGIFormat(TinyImageFormat fmt)
+static inline DXGI_FORMAT toDXGIFormat(TinyImageFormat fmt)
 {
     return (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(fmt);
 }
 
-inline D3D12_COMPARISON_FUNC toD3DCompareFunc(GfxCompareFunc func)
+static inline D3D12_COMPARISON_FUNC toD3DCompareFunc(GfxCompareFunc func)
 {
     D3D12_COMPARISON_FUNC result = D3D12_COMPARISON_FUNC_NONE;
     switch(func)
@@ -133,7 +131,7 @@ inline D3D12_COMPARISON_FUNC toD3DCompareFunc(GfxCompareFunc func)
     return result;
 }
 
-D3D12_TEXTURE_ADDRESS_MODE toD3DTextureAddressMode(GfxSamplerAddressMode rstAddressMode)
+static D3D12_TEXTURE_ADDRESS_MODE toD3DTextureAddressMode(GfxSamplerAddressMode rstAddressMode)
 {
     D3D12_TEXTURE_ADDRESS_MODE result = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     switch(rstAddressMode)
@@ -162,7 +160,7 @@ D3D12_TEXTURE_ADDRESS_MODE toD3DTextureAddressMode(GfxSamplerAddressMode rstAddr
     return result;
 }
 
-GfxPipelineArgument::Type toGfxPipelineArgumentType(D3D12_SHADER_INPUT_BIND_DESC const& d3dShaderInputBindDesc)
+static GfxPipelineArgument::Type toGfxPipelineArgumentType(D3D12_SHADER_INPUT_BIND_DESC const& d3dShaderInputBindDesc)
 {
     GfxPipelineArgument::Type outType = GfxPipelineArgument::Type_Unknown;
     switch(d3dShaderInputBindDesc.Type)
@@ -195,12 +193,12 @@ GfxPipelineArgument::Type toGfxPipelineArgumentType(D3D12_SHADER_INPUT_BIND_DESC
     return outType;
 };
 
-ComPtr<ID3D12CommandAllocator> getCommandAllocator()
+static ComPtr<ID3D12CommandAllocator> getCommandAllocator()
 {
-    return gfx::commandAllocator[g_FrameIndex];
+    return commandAllocator[g_FrameIndex];
 }
 
-ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, rgUInt descriptorsCount, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
+static ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, rgUInt descriptorsCount, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
 {
     ComPtr<ID3D12DescriptorHeap> descriptorHeap;
     D3D12_DESCRIPTOR_HEAP_DESC desc = {};
@@ -213,7 +211,7 @@ ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE typ
     return descriptorHeap;
 }
 
-ComPtr<ID3D12CommandAllocator> createCommandAllocator(D3D12_COMMAND_LIST_TYPE commandListType)
+static ComPtr<ID3D12CommandAllocator> createCommandAllocator(D3D12_COMMAND_LIST_TYPE commandListType)
 {
     ComPtr<ID3D12CommandAllocator> commandAllocator;
     BreakIfFail(getDevice()->CreateCommandAllocator(commandListType, IID_PPV_ARGS(&commandAllocator)));
@@ -221,7 +219,7 @@ ComPtr<ID3D12CommandAllocator> createCommandAllocator(D3D12_COMMAND_LIST_TYPE co
     return commandAllocator;
 }
 
-ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(ComPtr<ID3D12CommandAllocator> commandAllocator, ID3D12PipelineState* pipelineState)
+static ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(ComPtr<ID3D12CommandAllocator> commandAllocator, ID3D12PipelineState* pipelineState)
 {
     ComPtr<ID3D12GraphicsCommandList> commandList;
     BreakIfFail(getDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), pipelineState, IID_PPV_ARGS(&commandList)));
@@ -229,7 +227,7 @@ ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(ComPtr<ID3D12Command
     return commandList;
 }
 
-void setDebugName(ComPtr<ID3D12Object> d3dObject, char const* name)
+static void setDebugName(ComPtr<ID3D12Object> d3dObject, char const* name)
 {
     const rgUInt maxWCharLength = 1024;
     wchar_t wc[maxWCharLength];
@@ -243,13 +241,13 @@ void setDebugName(ComPtr<ID3D12Object> d3dObject, char const* name)
     BreakIfFail(d3dObject->SetName(wc));
 };
 
-void waitForGpu()
+static void waitForGpu()
 {
-    BreakIfFail(gfx::commandQueue->Signal(gfx::frameFence.Get(), gfx::frameFenceValues[g_FrameIndex]));
-    BreakIfFail(gfx::frameFence->SetEventOnCompletion(gfx::frameFenceValues[g_FrameIndex], gfx::frameFenceEvent));
-    ::WaitForSingleObject(gfx::frameFenceEvent, INFINITE);
+    BreakIfFail(commandQueue->Signal(frameFence.Get(), frameFenceValues[g_FrameIndex]));
+    BreakIfFail(frameFence->SetEventOnCompletion(frameFenceValues[g_FrameIndex], frameFenceEvent));
+    ::WaitForSingleObject(frameFenceEvent, INFINITE);
 
-    gfx::frameFenceValues[g_FrameIndex] += 1;
+    frameFenceValues[g_FrameIndex] += 1;
 }
 
 //*****************************************************************************
@@ -273,7 +271,7 @@ public:
         freeDescriptorCount += frameUsedDescriptorCount[g_FrameIndex];
         frameUsedDescriptorCount[g_FrameIndex] = 0;
 
-        for(rgInt i = 0, l = persistentIndicesToFree[g_FrameIndex].size(); i < l; ++i)
+        for(rgInt i = 0, l = (rgInt)persistentIndicesToFree[g_FrameIndex].size(); i < l; ++i)
         {
             releasePersistentIndex(persistentIndicesToFree[g_FrameIndex][i]);
         }
@@ -383,7 +381,7 @@ void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgS
         else if(memoryType == GfxMemoryType_Default)
         {
             D3D12_SUBRESOURCE_DATA initData = { buf, 0, 0 };
-            gfx::resourceUploader->Upload(bufferResource.Get(), 0, &initData, 1);
+            resourceUploader->Upload(bufferResource.Get(), 0, &initData, 1);
         }
     }
 
@@ -394,7 +392,7 @@ void GfxBuffer::destroy(GfxBuffer* obj)
 {
 #if defined(ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS)
     // Check is this resource has pending copy task
-    for(auto& itr : gfx::pendingBufferCopyTasks)
+    for(auto& itr : pendingBufferCopyTasks)
     {
         if(itr.dst == obj->d3dResource)
         {
@@ -512,9 +510,9 @@ void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMo
     samplerDesc.AddressW = addressMode;
     samplerDesc.MaxAnisotropy = anisotropy ? 16 : 1;
 
-    getDevice()->CreateSampler(&samplerDesc, gfx::samplerNextCPUDescriptorHandle);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle = gfx::samplerNextCPUDescriptorHandle;
-    gfx::samplerNextCPUDescriptorHandle.Offset(1, gfx::samplerDescriptorSize);
+    getDevice()->CreateSampler(&samplerDesc, samplerNextCPUDescriptorHandle);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle = samplerNextCPUDescriptorHandle;
+    samplerNextCPUDescriptorHandle.Offset(1, samplerDescriptorSize);
 
     obj->d3dCPUDescriptorHandle = cpuDescriptorHandle;
 }
@@ -612,7 +610,7 @@ ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim,
         {
             rgAssert(mipFlag == GfxTextureMipFlag_GenMips);
         }
-        rgInt sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
+        rgUInt sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
 
         D3D12_SUBRESOURCE_DATA subResourceData[6] = {};
         for(rgUInt s = 0; s < sliceCount; ++s)
@@ -622,12 +620,12 @@ ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim,
             subResourceData[s].SlicePitch = slices[s].slicePitch;
         }
 
-        gfx::resourceUploader->Upload(texRes.Get(), 0, subResourceData, sliceCount);
+        resourceUploader->Upload(texRes.Get(), 0, subResourceData, sliceCount);
 
         if(mipFlag == GfxTextureMipFlag_GenMips)
         {
-            gfx::resourceUploader->Transition(texRes.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-            gfx::resourceUploader->GenerateMips(texRes.Get());
+            resourceUploader->Transition(texRes.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            resourceUploader->GenerateMips(texRes.Get());
         }
 
         if(isUAV)
@@ -1108,6 +1106,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 //-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount)
 {
+    currentCommandList->DrawInstanced(vertexCount, instanceCount, vertexStart, 0);
 }
 
 void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount)
@@ -1468,18 +1467,18 @@ rgInt init()
         texRT->usage = GfxTextureUsage_RenderTarget;
         texRT->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
         texRT->d3dTexture = texResource;
-        gfx::swapchainTextures[i] = texRT;
+        swapchainTextures[i] = texRT;
     }
 
     dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    gfx::depthStencilTexture = gfx::texture->create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
+    depthStencilTexture = gfx::texture->create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsDesc.Texture2D.MipSlice = 0;
     dsDesc.Flags = D3D12_DSV_FLAG_NONE;
-    getDevice()->CreateDepthStencilView(gfx::depthStencilTexture->d3dTexture.Get(), &dsDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    getDevice()->CreateDepthStencilView(depthStencilTexture->d3dTexture.Get(), &dsDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
     // create CBV SRV UAV descriptor heap
     cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, MAX_CBVSRVUAV_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
@@ -1603,7 +1602,7 @@ rgInt draw()
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
     currentCommandList->RSSetScissorRects(1, &scissorRect);
 
-    GfxTexture* currentRenderTarget = gfx::swapchainTextures[g_FrameIndex];
+    GfxTexture* currentRenderTarget = swapchainTextures[g_FrameIndex];
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, rtvDescriptorSize);
@@ -1661,7 +1660,7 @@ void startNextFrame()
 
 void endFrame()
 {
-    GfxTexture* currentRenderTarget = gfx::swapchainTextures[g_FrameIndex];
+    GfxTexture* currentRenderTarget = swapchainTextures[g_FrameIndex];
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     BreakIfFail(currentCommandList->Close());
@@ -1694,7 +1693,7 @@ void setterBindlessResource(rgU32 slot, GfxTexture* ptr)
 
 void rendererImGuiInit()
 {
-    ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, gfx::cbvSrvUavDescriptorHeap.Get(), gfx::cbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), gfx::cbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+    ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, cbvSrvUavDescriptorHeap.Get(), cbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), cbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
     ImGui_ImplSDL2_InitForD3D(gfx::mainWindow);
 }
 
