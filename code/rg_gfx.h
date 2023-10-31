@@ -391,12 +391,12 @@ struct GfxShaderDesc
     char const* defines;
 };
 
-// Object in a Pipeline
-struct GfxObjectBinding // TODO: Rename GfxPipelineArgument
+// Resources/States in a Pipeline
+struct GfxPipelineArgument
 {
     char tag[32];
     
-    GfxStage stages; // Stages in the pipeline where object is bound
+    GfxStage stages;
     
     enum Type
     {
@@ -421,7 +421,7 @@ struct GfxGraphicsPSO
     rgU32 threadsPerThreadgroupX;
     rgU32 threadsPerThreadgroupY;
     rgU32 threadsPerThreadgroupZ;
-    eastl::hash_map<eastl::string, GfxObjectBinding> reflection;
+    eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
 
 #if defined(RG_D3D12_RNDR)
     struct ResourceInfo
@@ -453,7 +453,7 @@ struct GfxComputePSO
 {
     rgChar tag[32];
     
-    eastl::hash_map<eastl::string, GfxObjectBinding> reflection;
+    eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
     rgU32 threadsPerThreadgroupX;
     rgU32 threadsPerThreadgroupY;
     rgU32 threadsPerThreadgroupZ;
@@ -879,7 +879,7 @@ struct GfxRenderCmdEncoder
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount);
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount);
 
-    GfxObjectBinding& getPipelineArgumentInfo(char const* bindingTag);
+    GfxPipelineArgument& getPipelineArgument(char const* bindingTag);
     
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)
@@ -907,7 +907,7 @@ struct GfxComputeCmdEncoder
     
     void dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ);
     
-    GfxObjectBinding* getPipelineArgumentInfo(char const* bindingTag);
+    GfxPipelineArgument* getPipelineArgument(char const* bindingTag);
     
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)

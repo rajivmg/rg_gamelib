@@ -578,7 +578,7 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
     // perform reflection
     spirv_cross::ShaderResources shaderResources = msl.get_shader_resources();
     
-    auto pushMSLResourceInfo = [&](uint32_t varId, GfxObjectBinding::Type type) -> void
+    auto pushMSLResourceInfo = [&](uint32_t varId, GfxPipelineArgument::Type type) -> void
     {
         uint32_t mslBinding = msl.get_automatic_msl_resource_binding(varId);
         if(mslBinding != uint32_t(-1))
@@ -586,10 +586,10 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
             std::string const name = msl.get_name(varId);
             eastl::string const ourName = eastl::string(name.c_str());
             
-            auto existingInfoIter = obj->reflection.find(ourName);
-            if(existingInfoIter != obj->reflection.end())
+            auto existingInfoIter = obj->arguments.find(ourName);
+            if(existingInfoIter != obj->arguments.end())
             {
-                GfxObjectBinding& existingInfo = existingInfoIter->second;
+                GfxPipelineArgument& existingInfo = existingInfoIter->second;
                 
                 rgAssert(existingInfo.type == type);
                 rgAssert(existingInfo.registerIndex == mslBinding);
@@ -598,24 +598,24 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
                 return;
             }
             
-            GfxObjectBinding info;
+            GfxPipelineArgument info;
             info.type = type;
             info.registerIndex = mslBinding;
             info.stages = stage;
             
             rgLog("%s %s -> %d", obj->tag, name.c_str(), mslBinding);
             
-            obj->reflection[eastl::string(name.c_str())] = info;
+            obj->arguments[eastl::string(name.c_str())] = info;
         }
     };
     
     for(auto& r : shaderResources.uniform_buffers)
     {
-        pushMSLResourceInfo(r.id, GfxObjectBinding::Type_ConstantBuffer);
+        pushMSLResourceInfo(r.id, GfxPipelineArgument::Type_ConstantBuffer);
     }
     for(auto& r : shaderResources.separate_images)
     {
-        pushMSLResourceInfo(r.id, GfxObjectBinding::Type_Texture2D);
+        pushMSLResourceInfo(r.id, GfxPipelineArgument::Type_Texture2D);
     }
     
     // TODO: HANDLE THIS CORRECTLY
@@ -624,16 +624,16 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
     // TODO: HANDLE THIS CORRECTLY
     for(auto& r : shaderResources.storage_images)
     {
-        pushMSLResourceInfo(r.id, GfxObjectBinding::Type_Texture2D);
+        pushMSLResourceInfo(r.id, GfxPipelineArgument::Type_Texture2D);
     }
     
     for(auto& r : shaderResources.separate_samplers)
     {
-        pushMSLResourceInfo(r.id, GfxObjectBinding::Type_Sampler);
+        pushMSLResourceInfo(r.id, GfxPipelineArgument::Type_Sampler);
     }
     for(auto& r : shaderResources.storage_buffers) // RW Bigger than CBuffer like StructuredBuffer
     {
-        pushMSLResourceInfo(r.id, GfxObjectBinding::Type_ConstantBuffer);
+        pushMSLResourceInfo(r.id, GfxPipelineArgument::Type_ConstantBuffer);
     }
     
     NSError* err;
@@ -926,19 +926,19 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU3
 }
 
 //-----------------------------------------------------------------------------
-GfxObjectBinding& GfxRenderCmdEncoder::getPipelineArgumentInfo(char const* bindingTag)
+GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
     rgAssert(gfx::currentGraphicsPSO != nullptr);
     rgAssert(bindingTag);
     
-    auto infoIter = gfx::currentGraphicsPSO->reflection.find(bindingTag);
-    if(infoIter == gfx::currentGraphicsPSO->reflection.end())
+    auto infoIter = gfx::currentGraphicsPSO->arguments.find(bindingTag);
+    if(infoIter == gfx::currentGraphicsPSO->arguments.end())
     {
         rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
         rgAssert(false);
     }
     
-    GfxObjectBinding& info = infoIter->second;
+    GfxPipelineArgument& info = infoIter->second;
     
     if(((info.stages & GfxStage_VS) != GfxStage_VS) && (info.stages & GfxStage_FS) != GfxStage_FS)
     {
@@ -953,7 +953,7 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, 
 {
     rgAssert(buffer != nullptr);
 
-    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
+    GfxPipelineArgument& info = getPipelineArgument(bindingTag);
     
     // TODO: Assert check valid Stage
     
@@ -974,7 +974,7 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource co
 {
     rgAssert(resource && resource->type == GfxFrameResource::Type_Buffer);
     
-    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
+    GfxPipelineArgument& info = getPipelineArgument(bindingTag);
     
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     
@@ -995,7 +995,7 @@ void GfxRenderCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSta
 {
     rgAssert(sampler != nullptr);
     
-    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
+    GfxPipelineArgument& info = getPipelineArgument(bindingTag);
     
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     if((info.stages & GfxStage_VS) == GfxStage_VS)
@@ -1013,7 +1013,7 @@ void GfxRenderCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* textur
 {
     rgAssert(texture != nullptr);
     
-    GfxObjectBinding& info = getPipelineArgumentInfo(bindingTag);
+    GfxPipelineArgument& info = getPipelineArgument(bindingTag);
 
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     // TODO: Look into the logic of binding on both stages..
@@ -1137,13 +1137,13 @@ void GfxComputeCmdEncoder::setComputePSO(GfxComputePSO* pso)
 }
 
 //-----------------------------------------------------------------------------
-GfxObjectBinding* GfxComputeCmdEncoder::getPipelineArgumentInfo(char const* bindingTag)
+GfxPipelineArgument* GfxComputeCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
     rgAssert(gfx::currentComputePSO != nullptr);
     rgAssert(bindingTag);
     
-    auto infoIter = gfx::currentComputePSO->reflection.find(bindingTag);
-    if(infoIter == gfx::currentComputePSO->reflection.end())
+    auto infoIter = gfx::currentComputePSO->arguments.find(bindingTag);
+    if(infoIter == gfx::currentComputePSO->arguments.end())
     {
         rgLogWarn("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
         return nullptr;
@@ -1159,7 +1159,7 @@ void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer,
 {
     rgAssert(buffer != nullptr);
 
-    GfxObjectBinding* info = getPipelineArgumentInfo(bindingTag);
+    GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     if(info == nullptr)
     {
         rgLogWarn("Skipping binding buffer(%s) for pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
@@ -1174,7 +1174,7 @@ void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource c
 {
     rgAssert(resource != nullptr);
 
-    GfxObjectBinding* info = getPipelineArgumentInfo(bindingTag);
+    GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     if(info == nullptr)
     {
         rgLogWarn("Skipping binding buffer(%s) for pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
@@ -1198,7 +1198,7 @@ void GfxComputeCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* textu
 {
     rgAssert(texture != nullptr);
 
-    GfxObjectBinding* info = getPipelineArgumentInfo(bindingTag);
+    GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     if(info == nullptr)
     {
         rgLogWarn("Skipping binding texture(%s) for pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
@@ -1213,7 +1213,7 @@ void GfxComputeCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSt
 {
     rgAssert(sampler != nullptr);
 
-    GfxObjectBinding* info = getPipelineArgumentInfo(bindingTag);
+    GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     if(info == nullptr)
     {
         rgLogWarn("Skipping binding sampler(%s) for pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
