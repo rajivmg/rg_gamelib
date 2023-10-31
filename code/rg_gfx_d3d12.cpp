@@ -1014,10 +1014,16 @@ rgU32 slotToVertexBinding(rgU32 slot)
 
 void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset, rgU32 slot)
 {
+    // We might be able to directly add offset to gpu address
+    // https://www.milty.nl/grad_guide/basic_implementation/d3d12/buffers.html
 }
 
 void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU32 slot)
 {
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+    vertexBufferView.BufferLocation = resource->d3dResource->GetGPUVirtualAddress();
+    // TODO: ... create view
+    //currentCommandList->IASetVertexBuffers(slot, 1, )
 }
 
 //-----------------------------------------------------------------------------
