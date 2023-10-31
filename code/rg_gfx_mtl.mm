@@ -505,8 +505,9 @@ void GfxTexture::destroy(GfxTexture* obj)
 // GfxGraphicsPSO Implementation
 //*****************************************************************************
 
-template<typename PSOType>
-id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, PSOType* obj)
+id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char const* entrypoint, char const* defines,
+                                      eastl::hash_map<eastl::string, GfxPipelineArgument>* outArguments,
+                                      rgU32* outThreadsPerThreadgroupX = nullptr, rgU32* outThreadsPerThreadgroupY = nullptr, rgU32* outThreadsPerThreadgroupZ = nullptr)
 {
     // first we generate spirv from hlsl
     gfx::ShaderBlobRef shaderBlob = gfx::createShaderBlob(filename, stage, entrypoint, defines, true);
@@ -562,21 +563,23 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
     rg::writeFile(generatedFilepath, (void*)mslShaderSource.c_str(), mslShaderSource.size() * sizeof(char));
     
     // if compute shader, fetch the workgroup size
-    if(typeid(PSOType) == typeid(GfxComputePSO))
+    if(outThreadsPerThreadgroupX != nullptr && outThreadsPerThreadgroupY != nullptr && outThreadsPerThreadgroupZ != nullptr)
     {
         if (msl.get_execution_model() == spv::ExecutionModelGLCompute)
         {
             uint32_t x = msl.get_execution_mode_argument(spv::ExecutionModeLocalSize, 0);
             uint32_t y = msl.get_execution_mode_argument(spv::ExecutionModeLocalSize, 1);
             uint32_t z = msl.get_execution_mode_argument(spv::ExecutionModeLocalSize, 2);
-            obj->threadsPerThreadgroupX = x;
-            obj->threadsPerThreadgroupY = y;
-            obj->threadsPerThreadgroupZ = z;
+            *outThreadsPerThreadgroupX = x;
+            *outThreadsPerThreadgroupY = y;
+            *outThreadsPerThreadgroupZ = z;
         }
     }
     
     // perform reflection
     spirv_cross::ShaderResources shaderResources = msl.get_shader_resources();
+    
+    rgAssert(outArguments != nullptr);
     
     auto pushMSLResourceInfo = [&](uint32_t varId, GfxPipelineArgument::Type type) -> void
     {
@@ -586,8 +589,8 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
             std::string const name = msl.get_name(varId);
             eastl::string const ourName = eastl::string(name.c_str());
             
-            auto existingInfoIter = obj->arguments.find(ourName);
-            if(existingInfoIter != obj->arguments.end())
+            auto existingInfoIter = outArguments->find(ourName);
+            if(existingInfoIter != outArguments->end())
             {
                 GfxPipelineArgument& existingInfo = existingInfoIter->second;
                 
@@ -603,9 +606,7 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
             info.registerIndex = mslBinding;
             info.stages = stage;
             
-            rgLog("%s %s -> %d", obj->tag, name.c_str(), mslBinding);
-            
-            obj->arguments[eastl::string(name.c_str())] = info;
+            (*outArguments)[eastl::string(name.c_str())] = info;
         }
     };
     
@@ -617,16 +618,10 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
     {
         pushMSLResourceInfo(r.id, GfxPipelineArgument::Type_Texture2D);
     }
-    
-    // TODO: HANDLE THIS CORRECTLY
-    // TODO: HANDLE THIS CORRECTLY
-    // TODO: HANDLE THIS CORRECTLY
-    // TODO: HANDLE THIS CORRECTLY
     for(auto& r : shaderResources.storage_images)
     {
-        pushMSLResourceInfo(r.id, GfxPipelineArgument::Type_Texture2D);
+        pushMSLResourceInfo(r.id, GfxPipelineArgument::Type_RWTexture2D);
     }
-    
     for(auto& r : shaderResources.separate_samplers)
     {
         pushMSLResourceInfo(r.id, GfxPipelineArgument::Type_Sampler);
@@ -661,11 +656,11 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
         id<MTLFunction> vs, fs;
         if(shaderDesc->vsEntrypoint)
         {
-            vs = compileShaderForMetal(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines, obj);
+            vs = compileShaderForMetal(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines, &obj->arguments);
         }
         if(shaderDesc->fsEntrypoint)
         {
-            fs = compileShaderForMetal(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines, obj);
+            fs = compileShaderForMetal(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines, &obj->arguments);
         }
     
         MTLRenderPipelineDescriptor* psoDesc = [[MTLRenderPipelineDescriptor alloc] init];
@@ -771,7 +766,9 @@ void GfxComputePSO::create(const char* tag, GfxShaderDesc* shaderDesc, GfxComput
     @autoreleasepool
     {
         rgAssert(shaderDesc->csEntrypoint);
-        id<MTLFunction> cs = compileShaderForMetal(shaderDesc->shaderSrc, GfxStage_CS, shaderDesc->csEntrypoint, shaderDesc->defines, obj);
+        
+        id<MTLFunction> cs = compileShaderForMetal(shaderDesc->shaderSrc, GfxStage_CS, shaderDesc->csEntrypoint, shaderDesc->defines, &obj->arguments,
+                                                   &obj->threadsPerThreadgroupX, &obj->threadsPerThreadgroupY, &obj->threadsPerThreadgroupZ);
         
         rgAssert(cs != nil);
         

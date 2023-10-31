@@ -402,6 +402,8 @@ struct GfxPipelineArgument
     {
         Type_ConstantBuffer,
         Type_Texture2D,
+        Type_TextureCube,
+        Type_RWTexture2D,
         Type_Sampler,
     };
     Type type;
@@ -417,10 +419,6 @@ struct GfxGraphicsPSO
     GfxWinding winding;
     GfxTriangleFillMode triangleFillMode;
 
-    // TODO: remove remove remove, this is needed only because buildShader() is used for all type shaders
-    rgU32 threadsPerThreadgroupX;
-    rgU32 threadsPerThreadgroupY;
-    rgU32 threadsPerThreadgroupZ;
     eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
 
 #if defined(RG_D3D12_RNDR)
@@ -453,11 +451,13 @@ struct GfxComputePSO
 {
     rgChar tag[32];
     
-    eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
+    // TODO: This info might only be needed for metal
     rgU32 threadsPerThreadgroupX;
     rgU32 threadsPerThreadgroupY;
     rgU32 threadsPerThreadgroupZ;
-    
+
+    eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
+        
 #if defined(RG_METAL_RNDR)
     void* mtlPSO; // type: id<MTLComputePipelineState>
 #endif
