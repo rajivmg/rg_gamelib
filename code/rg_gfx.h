@@ -243,7 +243,7 @@ struct GfxSamplerState
 #if defined(RG_METAL_RNDR)
     void* mtlSampler;
 #elif defined(RG_D3D12_RNDR)
-    D3D12_CPU_DESCRIPTOR_HANDLE d3dCPUDescriptorHandle;
+    rgU32 d3dDescriptorIndex;
 #else
 #endif
 
@@ -427,6 +427,7 @@ struct GfxGraphicsPSO
     eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
 
 #if defined(RG_D3D12_RNDR)
+    rgU32                       d3dVertexStrideInBytes;
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
@@ -663,7 +664,9 @@ struct GfxFrameResource
         Type_Texture,
     };
     
-    Type type;
+    Type    type;
+    rgU32   sizeInBytes;
+
 #if defined(RG_METAL_RNDR)
     void* mtlBuffer; //type: id<MTLBuffer>
     void* mtlTexture; //type: id<MTLTexture>

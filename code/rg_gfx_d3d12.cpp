@@ -20,6 +20,9 @@ RG_BEGIN_RG_NAMESPACE
 static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
 static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
 static rgUInt const MAX_SAMPLER_DESCRIPTOR = 1024;
+static rgUInt const CBVSRVUAV_ROOT_PARAMETER_INDEX = 0;
+static rgUInt const SAMPLER_ROOT_PARAMETER_INDEX = 1;
+static rgUInt const BINDLESS_CBVSRVUAV_ROOT_PARAMETER_INDEX = 2;
 
 ComPtr<ID3D12Device2> device;
 ComPtr<ID3D12CommandQueue> commandQueue;
@@ -35,10 +38,6 @@ rgUInt rtvDescriptorSize;
 
 ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
 rgUInt dsvDescriptorSize;
-
-ComPtr<ID3D12DescriptorHeap> samplerDescriptorHeap;
-rgUInt samplerDescriptorSize;
-CD3DX12_CPU_DESCRIPTOR_HANDLE samplerNextCPUDescriptorHandle;
 
 ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
 ComPtr<ID3D12GraphicsCommandList> currentCommandList;
@@ -567,11 +566,9 @@ void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMo
     samplerDesc.AddressW = addressMode;
     samplerDesc.MaxAnisotropy = anisotropy ? 16 : 1;
 
-    getDevice()->CreateSampler(&samplerDesc, samplerNextCPUDescriptorHandle);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle = samplerNextCPUDescriptorHandle;
-    samplerNextCPUDescriptorHandle.Offset(1, samplerDescriptorSize);
-
-    obj->d3dCPUDescriptorHandle = cpuDescriptorHandle;
+    rgU32 descriptorIndex = samplerDescriptorAllocator->allocatePersistentDescriptor();
+    getDevice()->CreateSampler(&samplerDesc, samplerDescriptorAllocator->getCpuHandle(descriptorIndex));
+    obj->d3dDescriptorIndex = descriptorIndex;
 }
 
 void GfxSamplerState::destroy(GfxSamplerState* obj)
@@ -920,9 +917,12 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
     {
         inputElementDesc.reserve(vertexInputDesc->elementCount);
         {
+            rgU32 vertexStrideInBytes = 0;
             for(rgInt i = 0; i < vertexInputDesc->elementCount; ++i)
             {
                 auto& elementDesc = vertexInputDesc->elements[i];
+                vertexStrideInBytes += TinyImageFormat_BitSizeOfBlock(elementDesc.format) / 8;
+
                 D3D12_INPUT_ELEMENT_DESC e = {};
                 e.SemanticName = elementDesc.semanticName;
                 e.SemanticIndex = elementDesc.semanticIndex;
@@ -934,6 +934,7 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
                 e.InstanceDataStepRate = elementDesc.stepFunc == GfxVertexStepFunc_PerInstance ? 1 : 0;
                 inputElementDesc.push_back(e);
             }
+            obj->d3dVertexStrideInBytes = vertexStrideInBytes;
         }
     }
 
@@ -1058,17 +1059,11 @@ void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 wid
 //-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
+    gfx::currentGraphicsPSO = pso;
+    //currentCommandList->SetGraphicsRootDescriptorTable()
 }
 
 //-----------------------------------------------------------------------------
-rgU32 slotToVertexBinding(rgU32 slot)
-{
-    rgU32 const maxBufferBindIndex = 30;
-    rgU32 bindpoint = maxBufferBindIndex - slot;
-    rgAssert(bindpoint > 0 && bindpoint < 31);
-    return bindpoint;
-}
-
 void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset, rgU32 slot)
 {
     // We might be able to directly add offset to gpu address
@@ -1079,8 +1074,9 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU3
 {
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
     vertexBufferView.BufferLocation = resource->d3dResource->GetGPUVirtualAddress();
-    // TODO: ... create view
-    //currentCommandList->IASetVertexBuffers(slot, 1, )
+    vertexBufferView.SizeInBytes = resource->sizeInBytes;
+    vertexBufferView.StrideInBytes = gfx::currentGraphicsPSO->d3dVertexStrideInBytes;
+    currentCommandList->IASetVertexBuffers(slot, 1, &vertexBufferView);
 }
 
 //-----------------------------------------------------------------------------
@@ -1351,6 +1347,7 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
 
     GfxFrameResource output;
     output.type = GfxFrameResource::Type_Buffer;
+    output.sizeInBytes = size;
     output.d3dResource = bufferResource.Get();
     return output;
 }
@@ -1504,11 +1501,6 @@ rgInt init()
     BreakIfFail(dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
     BreakIfFail(dxgiSwapchain1.As(&dxgiSwapchain));
 
-    // create sampler descriptor heap
-    samplerDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, MAX_SAMPLER_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
-    samplerDescriptorSize = getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
-    samplerNextCPUDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(samplerDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
     // create swapchain RTV
     rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, MAX_RTV_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
     rtvDescriptorSize = getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -1543,8 +1535,9 @@ rgInt init()
     dsDesc.Flags = D3D12_DSV_FLAG_NONE;
     getDevice()->CreateDepthStencilView(depthStencilTexture->d3dTexture.Get(), &dsDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
-    // create CBV SRV UAV descriptor heap
+    // create descriptor heaps
     cbvSrvUavDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 100000, 100000);
+    samplerDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 0, 256);
 
     // create command allocators
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
