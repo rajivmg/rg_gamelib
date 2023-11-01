@@ -427,6 +427,10 @@ struct GfxGraphicsPSO
     eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
 
 #if defined(RG_D3D12_RNDR)
+
+    rgBool                      d3dHasCBVSRVUAVs;
+    rgBool                      d3dHasSamplers;
+    rgBool                      d3dHasBindlessResources;
     rgU32                       d3dVertexStrideInBytes;
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;

@@ -808,7 +808,7 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
 
         (*outArguments)[shaderInputBindDesc.Name] = arg;
 
-        // TODO verify correct usage
+        // PERF: this flag can be optimized
         // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html#descriptor-range-flags
         D3D12_DESCRIPTOR_RANGE_FLAGS rangeFlags = descRangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER ?
             D3D12_DESCRIPTOR_RANGE_FLAG_NONE : D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
@@ -855,6 +855,7 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
     reflectShader((ID3D12ShaderReflection*)vertexShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, &obj->arguments, &hasBindlessTexture2D);
     reflectShader((ID3D12ShaderReflection*)fragmentShader->d3d12ShaderReflection, cbvSrvUavDescTableRanges, samplerDescTableRanges, &obj->arguments, &hasBindlessTexture2D);
 
+    // ROOT PARAMETER INDEX 0
     if(cbvSrvUavDescTableRanges.size() > 0)
     {
         D3D12_ROOT_PARAMETER1 rootParameter = {};
@@ -863,8 +864,11 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
         rootParameter.DescriptorTable.pDescriptorRanges = cbvSrvUavDescTableRanges.data();
         rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         rootParameters.push_back(rootParameter);
+
+        obj->d3dHasCBVSRVUAVs = true;
     }
 
+    // ROOT PARAMETER INDEX 1
     if(samplerDescTableRanges.size() > 0)
     {
         D3D12_ROOT_PARAMETER1 rootParameter = {};
@@ -873,15 +877,20 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
         rootParameter.DescriptorTable.pDescriptorRanges = samplerDescTableRanges.data();
         rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         rootParameters.push_back(rootParameter);
+
+        obj->d3dHasSamplers = true;
     }
 
+    // ROOT PARAMETER INDEX 2
     // bindless texture descriptor range and root parameter
     if(hasBindlessTexture2D)
     {
         CD3DX12_DESCRIPTOR_RANGE1 descRangeBindlessTexture2D(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
             RG_MAX_BINDLESS_TEXTURE_RESOURCES,
             0,
-            kBindlessTexture2DBindSpace);
+            kBindlessTexture2DBindSpace,
+            // PERF: this flag can be optimized
+            D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
         D3D12_ROOT_PARAMETER1 bindlessTexture2DRootParam = {};
         bindlessTexture2DRootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -889,6 +898,8 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
         bindlessTexture2DRootParam.DescriptorTable.pDescriptorRanges = &descRangeBindlessTexture2D;
         bindlessTexture2DRootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
         rootParameters.push_back(bindlessTexture2DRootParam);
+
+        obj->d3dHasBindlessResources = hasBindlessTexture2D;
     }
 
     // create root signature
@@ -1060,7 +1071,24 @@ void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 wid
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
     gfx::currentGraphicsPSO = pso;
-    //currentCommandList->SetGraphicsRootDescriptorTable()
+    currentCommandList->SetPipelineState(pso->d3dPSO.Get());
+    currentCommandList->SetGraphicsRootSignature(pso->d3dRootSignature.Get());
+
+    // cbv srv uav descriptor table
+    if(gfx::currentGraphicsPSO->d3dHasCBVSRVUAVs)
+    {
+        //currentCommandList->SetGraphicsRootDescriptorTable(CBVSRVUAV_ROOT_PARAMETER_INDEX, )
+    }
+    // sampler descriptor table
+    if(gfx::currentGraphicsPSO->d3dHasSamplers)
+    {
+        currentCommandList->SetGraphicsRootDescriptorTable(SAMPLER_ROOT_PARAMETER_INDEX, samplerDescriptorAllocator->getGpuHandle(0));
+    }
+    // bindless resources are stored in persistent part
+    if(gfx::currentGraphicsPSO->d3dHasBindlessResources)
+    {
+        currentCommandList->SetGraphicsRootDescriptorTable(BINDLESS_CBVSRVUAV_ROOT_PARAMETER_INDEX, cbvSrvUavDescriptorAllocator->getGpuHandle(0));
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1712,7 +1740,7 @@ void startNextFrame()
     BreakIfFail(currentCommandList->Reset(commandAllocator[g_FrameIndex].Get(), NULL));
 
     // set descriptor related stuff
-    ID3D12DescriptorHeap* descHeaps[] = { cbvSrvUavDescriptorAllocator->getHeap() };
+    ID3D12DescriptorHeap* descHeaps[] = { cbvSrvUavDescriptorAllocator->getHeap(), samplerDescriptorAllocator->getHeap() };
     currentCommandList->SetDescriptorHeaps(rgARRAY_COUNT(descHeaps), descHeaps);
 
     draw();
