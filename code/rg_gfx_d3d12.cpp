@@ -40,9 +40,6 @@ ComPtr<ID3D12DescriptorHeap> samplerDescriptorHeap;
 rgUInt samplerDescriptorSize;
 CD3DX12_CPU_DESCRIPTOR_HANDLE samplerNextCPUDescriptorHandle;
 
-ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
-rgUInt cbvSrvUavDescriptorSize;
-
 ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
 ComPtr<ID3D12GraphicsCommandList> currentCommandList;
 
@@ -257,84 +254,130 @@ public:
     DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, rgU32 count, rgU32 persistentCount)
         : descriptorCount(count)
         , persistentDescriptorCount(persistentCount)
-        , top(persistentCount)
-        , persistentTop(0)
-        , freeDescriptorCount(count)
+        , persistentHead(0)
+        , maxPerFrameDescriptorCount(count)
         , frameUsedDescriptorCount()
+        , cpuDescriptorHandle()
+        , gpuDescriptorHandle()
     {
-        descriptorHeap = createDescriptorHeap(type, count, flags);
+        totalDescriptorCount = persistentCount + (count * RG_MAX_FRAMES_IN_FLIGHT);
+        descriptorHeap = createDescriptorHeap(type, totalDescriptorCount, flags);
+
+        cpuDescriptorHandle = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+        if(flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE)
+        {
+            gpuDescriptorHandle = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+        }
+
+        descriptorIncrementSize = getDevice()->GetDescriptorHandleIncrementSize(type);
     }
 
     void beginFrame()
     {
         // Free and release unused indices back to allocation pool
-        freeDescriptorCount += frameUsedDescriptorCount[g_FrameIndex];
         frameUsedDescriptorCount[g_FrameIndex] = 0;
 
         for(rgInt i = 0, l = (rgInt)persistentIndicesToFree[g_FrameIndex].size(); i < l; ++i)
         {
-            releasePersistentIndex(persistentIndicesToFree[g_FrameIndex][i]);
+            releasePersistentDescriptorIndex(persistentIndicesToFree[g_FrameIndex][i]);
         }
         persistentIndicesToFree[g_FrameIndex].clear();
+
+        // 
+        tailOffset = maxPerFrameDescriptorCount * g_FrameIndex;
+        headOffset = tailOffset;
     }
 
-    rgU32 getCurrentDescriptorOffset()
+    rgU32 allocatePersistentDescriptor()
     {
-        return top;
+        rgU32 index = allocatePersistentDescriptorIndex();
+        return index;
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE getGpuHandle(rgU32 index)
+    {
+        if(index >= totalDescriptorCount)
+        {
+            rgAssert(!"Descriptor index out of range");
+        }
+
+        D3D12_GPU_DESCRIPTOR_HANDLE handle;
+        handle.ptr = gpuDescriptorHandle.ptr + index * descriptorIncrementSize;
+        return handle;
+    }
+
+    D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(rgU32 index)
+    {
+        if(index >= totalDescriptorCount)
+        {
+            rgAssert(!"Descriptor index out of range");
+        }
+
+        D3D12_CPU_DESCRIPTOR_HANDLE handle;
+        handle.ptr = (SIZE_T)(cpuDescriptorHandle.ptr + index * descriptorIncrementSize);
+        return handle;
+    }
+
+    ID3D12DescriptorHeap* getDescriptorHeap()
+    {
+        return descriptorHeap.Get();
     }
 
 protected:
     
-    rgU32 allocateIndex(rgU32 count)
+    rgU32 allocateDescriptorIndex()
     {
-        rgAssert(freeDescriptorCount > 0);
-        
-        rgU32 index = top;
-        top = (top + 1) % descriptorCount;
+        rgAssert(frameUsedDescriptorCount[g_FrameIndex] <= maxPerFrameDescriptorCount);
+        rgAssert(headOffset <= (maxPerFrameDescriptorCount* (g_FrameIndex + 1)));
 
-        // TODO: we cannot use ring buffer stategy because 
-        // we have to provide contiguous range, cannot go
-        // from end to begin
-
-        --freeDescriptorCount;
+        rgU32 descriptorOffset = headOffset;
+        headOffset += 1;
         ++frameUsedDescriptorCount[g_FrameIndex];
 
-        return index;
+        return descriptorOffset;
     }
 
-    rgU32 allocatePersistentIndex()
+    rgU32 allocatePersistentDescriptorIndex()
     {
-        rgU32 result;
+        rgU32 descriptorOffset;
         if(freePersistentIndices.empty())
         {
-            result = persistentTop;
-            persistentTop += 1;
-            rgAssert(persistentTop < persistentDescriptorCount);
+            // check if the persistent range is full
+            rgAssert(persistentHead <= persistentDescriptorCount);
+
+            descriptorOffset = persistentHead;
+            persistentHead += 1;
         }
         else
         {
-            result = freePersistentIndices.back();
+            descriptorOffset = freePersistentIndices.back();
             freePersistentIndices.pop_back();
         }
+        return descriptorOffset;
     }
 
-    void releasePersistentIndex(rgU32 index)
+    void releasePersistentDescriptorIndex(rgU32 index)
     {
         freePersistentIndices.push_back(index);
     }
     
-    ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+    ComPtr<ID3D12DescriptorHeap>    descriptorHeap;
+    D3D12_CPU_DESCRIPTOR_HANDLE     cpuDescriptorHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE     gpuDescriptorHandle;
+    uint32_t                        descriptorIncrementSize;
 
     rgU32                   descriptorCount;
     rgU32                   persistentDescriptorCount;
     
-    rgU32                   top;
-    rgU32                   persistentTop;
+    rgU32                   headOffset;
+    rgU32                   tailOffset;
+    rgU32                   persistentHead;
 
     eastl::vector<rgU32>    freePersistentIndices;
     eastl::vector<rgU32>    persistentIndicesToFree[RG_MAX_FRAMES_IN_FLIGHT];
 
-    rgU32                   freeDescriptorCount;
+    rgU32                   totalDescriptorCount;
+    rgU32                   maxPerFrameDescriptorCount;
     rgU32                   frameUsedDescriptorCount[RG_MAX_FRAMES_IN_FLIGHT];
 };
 
@@ -1501,7 +1544,7 @@ rgInt init()
     getDevice()->CreateDepthStencilView(depthStencilTexture->d3dTexture.Get(), &dsDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
     // create CBV SRV UAV descriptor heap
-    cbvSrvUavDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, MAX_CBVSRVUAV_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    cbvSrvUavDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 100000, 100000);
 
     // create command allocators
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
@@ -1713,7 +1756,8 @@ void setterBindlessResource(rgU32 slot, GfxTexture* ptr)
 
 void rendererImGuiInit()
 {
-    ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, cbvSrvUavDescriptorHeap.Get(), cbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), cbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+    rgU32 fontSrvDescriptorindex = cbvSrvUavDescriptorAllocator->allocatePersistentDescriptor();
+    ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, cbvSrvUavDescriptorAllocator->getDescriptorHeap(), cbvSrvUavDescriptorAllocator->getCpuHandle(fontSrvDescriptorindex), cbvSrvUavDescriptorAllocator->getGpuHandle(fontSrvDescriptorindex));
     ImGui_ImplSDL2_InitForD3D(gfx::mainWindow);
 }
 
@@ -1724,7 +1768,9 @@ void rendererImGuiNewFrame()
 
 void rendererImGuiRenderDrawData()
 {
-    currentCommandList->SetDescriptorHeaps(1, cbvSrvUavDescriptorHeap.GetAddressOf());
+    ID3D12DescriptorHeap* descHeaps[1];
+    descHeaps[0] = cbvSrvUavDescriptorAllocator->getDescriptorHeap();
+    currentCommandList->SetDescriptorHeaps(1, descHeaps);
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), currentCommandList.Get());
 }
 
