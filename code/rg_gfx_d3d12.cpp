@@ -318,7 +318,7 @@ public:
         return handle;
     }
 
-    ID3D12DescriptorHeap* getDescriptorHeap()
+    ID3D12DescriptorHeap* getHeap()
     {
         return descriptorHeap.Get();
     }
@@ -1718,6 +1718,10 @@ void startNextFrame()
     BreakIfFail(commandAllocator[g_FrameIndex]->Reset());
     BreakIfFail(currentCommandList->Reset(commandAllocator[g_FrameIndex].Get(), NULL));
 
+    // set descriptor related stuff
+    ID3D12DescriptorHeap* descHeaps[] = { cbvSrvUavDescriptorAllocator->getHeap() };
+    currentCommandList->SetDescriptorHeaps(rgARRAY_COUNT(descHeaps), descHeaps);
+
     draw();
 }
 
@@ -1750,14 +1754,30 @@ void runOnFrameBeginJob()
 {
 }
 
-void setterBindlessResource(rgU32 slot, GfxTexture* ptr)
+void setterBindlessResource(rgU32 slot, GfxTexture* resource)
 {
+    // Only 2D bindless textures are supported
+    rgAssert(resource->dim == GfxTextureDim_2D);
+
+    rgU32 descriptorIndex = cbvSrvUavDescriptorAllocator->allocatePersistentDescriptor();
+    
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(resource->format);
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.MipLevels = resource->mipmapCount;
+    srvDesc.Texture2D.PlaneSlice = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    getDevice()->CreateShaderResourceView(resource->d3dTexture.Get(), nullptr, cbvSrvUavDescriptorAllocator->getCpuHandle(descriptorIndex));
+
 }
 
 void rendererImGuiInit()
 {
     rgU32 fontSrvDescriptorindex = cbvSrvUavDescriptorAllocator->allocatePersistentDescriptor();
-    ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, cbvSrvUavDescriptorAllocator->getDescriptorHeap(), cbvSrvUavDescriptorAllocator->getCpuHandle(fontSrvDescriptorindex), cbvSrvUavDescriptorAllocator->getGpuHandle(fontSrvDescriptorindex));
+    ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, cbvSrvUavDescriptorAllocator->getHeap(), cbvSrvUavDescriptorAllocator->getCpuHandle(fontSrvDescriptorindex), cbvSrvUavDescriptorAllocator->getGpuHandle(fontSrvDescriptorindex));
     ImGui_ImplSDL2_InitForD3D(gfx::mainWindow);
 }
 
@@ -1768,9 +1788,6 @@ void rendererImGuiNewFrame()
 
 void rendererImGuiRenderDrawData()
 {
-    ID3D12DescriptorHeap* descHeaps[1];
-    descHeaps[0] = cbvSrvUavDescriptorAllocator->getDescriptorHeap();
-    currentCommandList->SetDescriptorHeaps(1, descHeaps);
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), currentCommandList.Get());
 }
 
