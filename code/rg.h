@@ -180,6 +180,12 @@ RG_INLINE void rgPrintImplementation(const char* varName, rgFloat3& a)
 extern rgBool g_ShouldQuit;
 
 RG_BEGIN_RG_NAMESPACE
+
+inline uint32_t roundUp(uint32_t value, uint32_t multiple)
+{
+    return (value + multiple - 1) & ~(multiple - 1);
+}
+
 struct PhysicSystem;
 
 struct FileData

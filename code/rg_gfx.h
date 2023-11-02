@@ -243,7 +243,7 @@ struct GfxSamplerState
 #if defined(RG_METAL_RNDR)
     void* mtlSampler;
 #elif defined(RG_D3D12_RNDR)
-    rgU32 d3dDescriptorIndex;
+    rgU32 d3dStagedDescriptorIndex;
 #else
 #endif
 
@@ -432,6 +432,8 @@ struct GfxGraphicsPSO
     rgBool                      d3dHasSamplers;
     rgBool                      d3dHasBindlessResources;
     rgU32                       d3dVertexStrideInBytes;
+    rgU32                       d3dCbvSrvUavDescriptorCount;
+    rgU32                       d3dSamplerDescriptorCount;
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
