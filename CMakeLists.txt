@@ -151,6 +151,8 @@ elseif(APPLE)
     find_library(APPL_FOUNDATION Foundation REQUIRED)
     find_library(APPL_QUARTZ QuartzCore REQUIRED)
     find_library(APPL_METAL Metal REQUIRED)
+
+    set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${3RD_PARTY_DIR})
     find_library(SDL2 SDL2 REQUIRED)
 
     set(EASTL_LIBRARY ${EASTL_ROOT_DIR}/build-apple/libEASTL.a)
