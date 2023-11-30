@@ -1,5 +1,5 @@
-#ifndef __RG_H__
-#define __RG_H__
+#ifndef __RG_CORE_H__
+#define __RG_CORE_H__
 
 #include <stdint.h>
 

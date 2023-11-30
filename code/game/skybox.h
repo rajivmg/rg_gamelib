@@ -1,6 +1,4 @@
-#include "../rg.h"
-
-rgFloat g_SkyboxVertices[] = {
+float g_SkyboxVertices[] = {
     // positions
     -1.0f,  1.0f, -1.0f,
     -1.0f, -1.0f, -1.0f,
