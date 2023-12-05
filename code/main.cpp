@@ -180,7 +180,7 @@ rgInt rg::setup()
     simple2dShaderDesc.defines = "RIGHT";
     
     GfxRenderStateDesc simple2dRenderStateDesc = {};
-    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
+    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_R8G8B8A8_UNORM;
     simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     //simple2dRenderStateDesc.triangleFillMode = GfxTriangleFillMode_Lines;
@@ -285,6 +285,12 @@ rgInt rg::setup()
     tonemapShaderDesc.csEntrypoint = "csReinhard";
     gfx::computePSO->create("tonemapReinhard", &tonemapShaderDesc);
     //
+    GfxShaderDesc compositeShaderDesc = {};
+    compositeShaderDesc.shaderSrc = "composite.hlsl";
+    compositeShaderDesc.csEntrypoint = "csComposite";
+    gfx::computePSO->create("composite", &compositeShaderDesc);
+    
+    //
     
     // Initialize camera params
     g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
@@ -303,6 +309,8 @@ rgInt rg::setup()
     //updateCamera();
     
     g_PhysicSystem = rgNew(PhysicSystem);
+    
+    g_GameState->baseColor2DRT = gfx::texture->create("baseColor2DRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R8G8B8A8_UNORM, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
     
     g_GameState->baseColorRT = gfx::texture->create("baseColorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R16G16B16A16_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
     g_GameState->depthStencilRT = gfx::texture->create("depthStencilRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
@@ -485,10 +493,10 @@ rgInt rg::updateAndDraw(rgDouble dt)
         pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameState->flowerTexture);
         
         GfxRenderPass simple2dRenderPass = {};
-        simple2dRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
+        simple2dRenderPass.colorAttachments[0].texture = g_GameState->baseColor2DRT;
         simple2dRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         simple2dRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        simple2dRenderPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
+        simple2dRenderPass.colorAttachments[0].clearColor = { 0.0f, 0.0f, 0.0f, 0.0f };
         simple2dRenderPass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
         simple2dRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
         simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
@@ -504,8 +512,9 @@ rgInt rg::updateAndDraw(rgDouble dt)
     {
         GfxRenderPass sceneForwardPass = {};
         sceneForwardPass.colorAttachments[0].texture = g_GameState->baseColorRT;
-        sceneForwardPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
+        sceneForwardPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         sceneForwardPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
+        sceneForwardPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
         sceneForwardPass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
         sceneForwardPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         sceneForwardPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
@@ -663,6 +672,19 @@ rgInt rg::updateAndDraw(rgDouble dt)
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
             
             //.....
+            struct
+            {
+                uint32_t inputImageDim[2];
+            } compositeParams;
+            
+            compositeParams.inputImageDim[0] = g_WindowInfo.width;
+            compositeParams.inputImageDim[1] = g_WindowInfo.height;
+            postfxCmdEncoder->setComputePSO(gfx::computePSO->find("composite"_tag));
+            postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColor2DRT);
+            postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->bindBufferFromData("CompositeParams", sizeof(compositeParams), &compositeParams);
+            postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
+            //
             
             //postfxCmdEncoder->updateFence();
             postfxCmdEncoder->end();

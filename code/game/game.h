@@ -96,6 +96,7 @@ struct GameState
     
     rgBool  debugShowGrid;
     
+    GfxTexture* baseColor2DRT;
     GfxTexture* baseColorRT;
     GfxTexture* depthStencilRT;
 
