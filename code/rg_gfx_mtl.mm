@@ -687,7 +687,7 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
                     
                     psoDesc.colorAttachments[i].alphaBlendOperation = MTLBlendOperationAdd;
                     psoDesc.colorAttachments[i].sourceAlphaBlendFactor = MTLBlendFactorOne;
-                    psoDesc.colorAttachments[i].destinationAlphaBlendFactor = MTLBlendFactorZero;
+                    psoDesc.colorAttachments[i].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
                 }
             }
         }
