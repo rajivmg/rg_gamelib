@@ -67,13 +67,6 @@ eastl::vector<ResourceCopyTask> pendingTextureCopyTasks;
 
 ResourceUploadBatch* resourceUploader;
 
-// test --
-ComPtr<ID3D12RootSignature> dummyRootSignature;
-ComPtr<ID3D12PipelineState> dummyPSO;
-ComPtr<ID3D12Resource> triVB;
-D3D12_VERTEX_BUFFER_VIEW triVBView;
-// -- 
-
 //*****************************************************************************
 // Helper Functions
 //*****************************************************************************
@@ -1679,80 +1672,6 @@ rgInt init()
     resourceUploader = rgNew(ResourceUploadBatch)(getDevice().Get());
     resourceUploader->Begin();
 
-    // create bindless texture 
-
-    GfxVertexInputDesc simpleVertexDesc = {};
-    simpleVertexDesc.elementCount = 3;
-    simpleVertexDesc.elements[0].semanticName = "POSITION";
-    simpleVertexDesc.elements[0].semanticIndex = 0;
-    simpleVertexDesc.elements[0].format = TinyImageFormat_R32G32B32_SFLOAT;
-    simpleVertexDesc.elements[0].bufferIndex = 0;
-    simpleVertexDesc.elements[0].offset = 0;
-    simpleVertexDesc.elements[1].semanticName = "TEXCOORD";
-    simpleVertexDesc.elements[1].semanticIndex = 0;
-    simpleVertexDesc.elements[1].format = TinyImageFormat_R32G32_SFLOAT;
-    simpleVertexDesc.elements[1].bufferIndex = 0;
-    simpleVertexDesc.elements[1].offset = 12;
-    simpleVertexDesc.elements[2].semanticName = "COLOR";
-    simpleVertexDesc.elements[2].semanticIndex = 0;
-    simpleVertexDesc.elements[2].format = TinyImageFormat_R32G32B32A32_SFLOAT;
-    simpleVertexDesc.elements[2].bufferIndex = 0;
-    simpleVertexDesc.elements[2].offset = 20;
-
-    GfxShaderDesc simple2dShaderDesc = {};
-    simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
-    simple2dShaderDesc.vsEntrypoint = "vsSimple2dTest";
-    simple2dShaderDesc.fsEntrypoint = "fsSimple2dTest";
-    simple2dShaderDesc.defines = "RIGHT";
-
-    GfxRenderStateDesc simple2dRenderStateDesc = {};
-    simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_B8G8R8A8_UNORM;
-    simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
-    simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
-    simple2dRenderStateDesc.depthWriteEnabled = true;
-    simple2dRenderStateDesc.depthCompareFunc = GfxCompareFunc_Less;
-    //GfxGraphicsPSO* simplePSO = createGraphicsPSO("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
-    GfxGraphicsPSO* simplePSO = gfx::graphicsPSO->create("simple2d", &simpleVertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
-    dummyPSO = simplePSO->d3dPSO;
-    dummyRootSignature = simplePSO->d3dRootSignature;
-
-    {
-        rgFloat triangleVertices[] =
-        {
-            0.0f, 0.4f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.4f, -0.25f, 0.0f, 0.9f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
-            -0.25f, -0.1f, 0.0f, 0.0f, 0.3f, 1.0f, 0.0f, 0.0f, 1.0f,
-
-            0.0f, 1.25f, 0.1f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.25f, -0.25f, 0.1f, 0.9f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-            -0.25f, -0.25f, 0.1f, 0.0f, 0.3f, 0.0f, 0.0f, 1.0f, 1.0f
-        };
-
-        rgUInt vbSize = sizeof(triangleVertices);
-
-        BreakIfFail(getDevice()->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(vbSize),
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            __uuidof(triVB),
-            (void**)&(triVB)
-        ));
-
-        setDebugName(triVB, "henlo");
-
-        rgU8* vbPtr;;
-        CD3DX12_RANGE readRange(0, 0);
-        BreakIfFail(triVB->Map(0, &readRange, (void**)&vbPtr));
-        memcpy(vbPtr, triangleVertices, vbSize);
-        triVB->Unmap(0, nullptr);
-
-        triVBView.BufferLocation = triVB->GetGPUVirtualAddress();
-        triVBView.StrideInBytes = 36;
-        triVBView.SizeInBytes = vbSize;
-    }
-
     {
         // Create a fence with initial value 0 which is equal to d3d.nextFrameFenceValues[g_FrameIndex=0]
         BreakIfFail(getDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(frameFence), (void**)&(frameFence)));
@@ -1776,10 +1695,6 @@ void destroy()
 
 rgInt draw()
 {
-    currentCommandList->SetGraphicsRootSignature(dummyRootSignature.Get());
-
-    currentCommandList->SetPipelineState(dummyPSO.Get());
-
     CD3DX12_VIEWPORT vp(0.0f, 0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height);
     currentCommandList->RSSetViewports(1, &vp);
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
@@ -1795,11 +1710,6 @@ rgInt draw()
 
     const rgFloat clearColor[] = { 0.5f, 0.5f, 0.5f, 1.0f };
     currentCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    currentCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    //currentCommandList->IASetVertexBuffers(0, 1, &triVBView);
-    ////commandList->DrawInstanced(6, 1, 0, 0);
-    //currentCommandList->DrawInstanced(3, 1, 0, 0);
-    //currentCommandList->DrawInstanced(3, 1, 3, 0);
 
     return 0;
 }
