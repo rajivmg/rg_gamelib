@@ -53,13 +53,13 @@ ImageRef loadImage(char const* filename)
     
     if(strcmp(extStr, "dds") == 0 || strcmp(extStr, "DDS") == 0)
     {
-        rg::FileData file = rg::readFile(filename);
+        core::FileData file = core::readFile(filename);
         rgAssert(file.isValid);
         
         DirectX::TexMetadata metadata;
         DirectX::ScratchImage scratchImage;
         HRESULT result = DirectX::LoadFromDDSMemory(file.data, file.dataSize, DirectX::DDS_FLAGS_NONE, &metadata, scratchImage);
-        rg::freeFileData(&file);
+        core::freeFileData(&file);
         
         if(FAILED(result))
         {

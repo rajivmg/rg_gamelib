@@ -182,7 +182,7 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     strcpy(filepath, "../code/shaders/");
     strncat(filepath, filename, 490);
 
-    rg::FileData shaderFileData = rg::readFile(filepath); // TODO: destructor deleter for FileData
+    core::FileData shaderFileData = core::readFile(filepath); // TODO: destructor deleter for FileData
     rgAssert(shaderFileData.isValid);
     
     // prepare for passing shader to dxc
@@ -196,7 +196,7 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     checkResult(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), customIncludeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
 
     // free shader file data
-    rg::freeFileData(&shaderFileData);
+    core::freeFileData(&shaderFileData);
 
     // print warnings and errors from compilation result
     ComPtr<IDxcBlobUtf8> errorMsg;
@@ -224,7 +224,7 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     ComPtr<IDxcBlobUtf16> shaderPdbPath;
     checkResult(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&shaderPdbBlob), shaderPdbPath.GetAddressOf()));
     wcstombs(pdbFilepath, shaderPdbPath->GetStringPointer(), 512);
-    rg::writeFile(pdbFilepath, shaderPdbBlob->GetBufferPointer(), shaderPdbBlob->GetBufferSize());
+    core::writeFile(pdbFilepath, shaderPdbBlob->GetBufferPointer(), shaderPdbBlob->GetBufferSize());
 
     // create shader reflection
     ComPtr<IDxcBlob> shaderReflectionBlob;

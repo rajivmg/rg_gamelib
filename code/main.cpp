@@ -20,7 +20,7 @@
 // 4. Integrate EASTL
 //
 
-using namespace rg;
+using namespace core;
 
 // Important: make this a pointer, otherwise if a type with constructor is added to struct, the compiler will complain because it will try to call the constructor of anonymous structs
 //rg::GfxCtx* rg::g_GfxCtx;
@@ -41,8 +41,8 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
 
 GameState* g_GameState;
 GameInput* g_GameInput;
-rg::PhysicSystem* g_PhysicSystem;
-rg::WindowInfo g_WindowInfo;
+core::PhysicSystem* g_PhysicSystem;
+core::WindowInfo g_WindowInfo;
 
 rgDouble g_DeltaTime;
 rgDouble g_Time;
@@ -116,7 +116,7 @@ void updateCamera()
     g_GameState->cameraViewRotOnly = Matrix4(g_GameState->cameraView.getUpper3x3(), Vector3(0, 0, 0));
 }
 
-rgInt rg::setup()
+rgInt core::setup()
 {
     g_GameState = rgNew(GameState);
 
@@ -144,11 +144,11 @@ rgInt rg::setup()
         gfx::debugTextureHandles.push_back(t2d);
     }
 
-    ImageRef flowerTex = rg::loadImage("flower.png");
+    ImageRef flowerTex = core::loadImage("flower.png");
     g_GameState->flowerTexture = gfx::texture->create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
     
     //gfxDestroyBuffer("ocean_tile");
-    g_GameState->shaderballModel = rg::loadModel("shaderball.xml");
+    g_GameState->shaderballModel = core::loadModel("shaderball.xml");
     
     GfxVertexInputDesc vertexDesc = {};
     vertexDesc.elementCount = 3;
@@ -435,7 +435,7 @@ static void showDebugInterface(bool* open)
     ImGui::End();
 }
 
-rgInt rg::updateAndDraw(rgDouble dt)
+rgInt core::updateAndDraw(rgDouble dt)
 {
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
     if(showImGuiDemo) { ImGui::ShowDemoWindow(&showImGuiDemo); }
@@ -544,7 +544,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
         
         for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
         {
-            rg::Mesh* m = &g_GameState->shaderballModel->meshes[i];
+            core::Mesh* m = &g_GameState->shaderballModel->meshes[i];
             
             sceneFowardRenderEncoder->setVertexBuffer(g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->vertexBufferOffset +  m->vertexDataOffset, 0);
             sceneFowardRenderEncoder->drawIndexedTriangles(m->indexCount, true, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
@@ -876,7 +876,7 @@ int main(int argc, char* argv[])
         return gfxInitResult | gfxCommonInitResult;
     }
 
-    rg::setup();
+    core::setup();
 
     g_ShouldQuit = false;
     SDL_Event event;
@@ -945,7 +945,7 @@ int main(int argc, char* argv[])
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
         
-        rg::updateAndDraw(g_DeltaTime);
+        core::updateAndDraw(g_DeltaTime);
          
         ImGui::Render();
         gfx::rendererImGuiRenderDrawData();

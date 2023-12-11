@@ -1434,7 +1434,7 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
 {
     rgAssert(size > 0);
 
-    rgU32 alignedSize = rg::roundUp(size, 256); // CBVs size needs to be 256 bytes multiple
+    rgU32 alignedSize = core::roundUp(size, 256); // CBVs size needs to be 256 bytes multiple
     rgU32 alignedStartOffset = bumpStorageAligned(alignedSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
 
     CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(alignedSize, D3D12_RESOURCE_FLAG_NONE);

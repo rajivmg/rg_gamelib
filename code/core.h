@@ -8,7 +8,7 @@
 #include <vectormath/vectormath.hpp>
 #include <compile_time_crc.h>
 
-#define RG_BEGIN_CORE_NAMESPACE namespace rg {
+#define RG_BEGIN_CORE_NAMESPACE namespace core {
 #define RG_END_CORE_NAMESPACE }
 
 /*
@@ -181,6 +181,7 @@ extern rgBool g_ShouldQuit;
 
 RG_BEGIN_CORE_NAMESPACE
 
+// TODO: move to utils.h
 inline uint32_t roundUp(uint32_t value, uint32_t multiple)
 {
     return (value + multiple - 1) & ~(multiple - 1);
@@ -214,8 +215,8 @@ extern rgDouble g_Time;
 
 extern rgInt g_FrameIndex;
 
-extern rg::WindowInfo g_WindowInfo;
-extern rg::PhysicSystem* g_PhysicSystem;
+extern core::WindowInfo g_WindowInfo;
+extern core::PhysicSystem* g_PhysicSystem;
 
 /// ----- Implementation
 #ifdef RG_H_IMPLEMENTATION
