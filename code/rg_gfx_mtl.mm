@@ -25,7 +25,7 @@
 #include "spirv_parser.hpp"
 #include "spirv_msl.hpp"
 
-RG_BEGIN_RG_NAMESPACE
+RG_BEGIN_CORE_NAMESPACE
 
 #include "shaders/metal/histogram_shader.inl"
 
@@ -560,7 +560,7 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
     strncat(generatedFilepath, "_", 2);
     strncat(generatedFilepath, entrypoint, 64);
     strncat(generatedFilepath, ".msl", 9);
-    rg::writeFile(generatedFilepath, (void*)mslShaderSource.c_str(), mslShaderSource.size() * sizeof(char));
+    core::writeFile(generatedFilepath, (void*)mslShaderSource.c_str(), mslShaderSource.size() * sizeof(char));
     
     // if compute shader, fetch the workgroup size
     if(outThreadsPerThreadgroupX != nullptr && outThreadsPerThreadgroupY != nullptr && outThreadsPerThreadgroupZ != nullptr)
@@ -1402,7 +1402,7 @@ void testComputeAtomicsSetup()
     [computeHistogram release];
     [histogramLibrary release];
     
-    ImageRef histoTex = rg::loadImage("histogram_test.png");
+    ImageRef histoTex = core::loadImage("histogram_test.png");
     gfx::texture->create("histogramTest", GfxTextureDim_2D, histoTex->width, histoTex->height, histoTex->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, histoTex->slices);
     gfx::buffer->create("histogramBuffer", GfxMemoryType_Default, nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
 }
@@ -1657,5 +1657,5 @@ void checkerWaitTillFrameCompleted(rgInt frameIndex)
 RG_END_GFX_NAMESPACE
 //***********************************************************************
 
-RG_END_RG_NAMESPACE
+RG_END_CORE_NAMESPACE
 #endif
