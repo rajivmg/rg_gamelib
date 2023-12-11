@@ -1,5 +1,5 @@
 #define RG_H_IMPLEMENTATION
-#include "rg_core.h"
+#include "core.h"
 
 #include "rg_gfx.h"
 #include "rg_physic.h"

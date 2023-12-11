@@ -18,7 +18,7 @@
     #include <GL/glew.h>
 #endif
 
-#include "rg_core.h"
+#include "core.h"
 #include "imgui.h"
 #include <EASTL/shared_ptr.h>
 #include <EASTL/hash_map.h>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "rg_core.h"
+#include "core.h"
 
 RG_BEGIN_RG_NAMESPACE
 
