@@ -8,8 +8,8 @@
 #include <vectormath/vectormath.hpp>
 #include <compile_time_crc.h>
 
-#define RG_BEGIN_RG_NAMESPACE namespace rg {
-#define RG_END_RG_NAMESPACE }
+#define RG_BEGIN_CORE_NAMESPACE namespace rg {
+#define RG_END_CORE_NAMESPACE }
 
 /*
 typedef int64_t     S64;
@@ -179,7 +179,7 @@ RG_INLINE void rgPrintImplementation(const char* varName, rgFloat3& a)
 
 extern rgBool g_ShouldQuit;
 
-RG_BEGIN_RG_NAMESPACE
+RG_BEGIN_CORE_NAMESPACE
 
 inline uint32_t roundUp(uint32_t value, uint32_t multiple)
 {
@@ -207,7 +207,7 @@ struct WindowInfo
 
 char* getPrefPath();
 
-RG_END_RG_NAMESPACE
+RG_END_CORE_NAMESPACE
 
 extern rgDouble g_DeltaTime;
 extern rgDouble g_Time;

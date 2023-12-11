@@ -1,6 +1,6 @@
 #include "rg_physic.h"
 
-RG_BEGIN_RG_NAMESPACE
+RG_BEGIN_CORE_NAMESPACE
 
 static void Verlet(PhysicSystem* sys)
 {
@@ -37,4 +37,4 @@ void TickPhysicSystem(PhysicSystem* system)
     SatisfyConstraints(system);
 }
 
-RG_END_RG_NAMESPACE
+RG_END_CORE_NAMESPACE

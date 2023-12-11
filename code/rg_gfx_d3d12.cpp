@@ -15,7 +15,7 @@ using namespace DirectX;
 
 #include "shaders/shaderinterop_common.h"
 
-RG_BEGIN_RG_NAMESPACE
+RG_BEGIN_CORE_NAMESPACE
 
 static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
 static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
@@ -1831,5 +1831,5 @@ GfxTexture* getCurrentRenderTargetColorBuffer()
 RG_END_GFX_NAMESPACE
 
 #undef BreakIfFail
-RG_END_RG_NAMESPACE
+RG_END_CORE_NAMESPACE
 #endif

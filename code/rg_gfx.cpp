@@ -10,7 +10,7 @@
 #include "pugixml.hpp"
 #include "DirectXTex.h"
 
-RG_BEGIN_RG_NAMESPACE
+RG_BEGIN_CORE_NAMESPACE
 
 // DEFAULT RESOURCES
 QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
@@ -610,4 +610,4 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 } 
 
 RG_END_GFX_NAMESPACE
-RG_END_RG_NAMESPACE
+RG_END_CORE_NAMESPACE

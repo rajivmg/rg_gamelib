@@ -32,7 +32,7 @@
 #define RG_BEGIN_GFX_NAMESPACE namespace gfx {
 #define RG_END_GFX_NAMESPACE }
 
-RG_BEGIN_RG_NAMESPACE
+RG_BEGIN_CORE_NAMESPACE
 
 static const rgU32 kInvalidValue = ~(0x0);
 static const rgU32 kUninitializedValue = 0;
@@ -1152,6 +1152,6 @@ struct GL
 #endif
 
 RG_END_GFX_NAMESPACE
-RG_END_RG_NAMESPACE
+RG_END_CORE_NAMESPACE
 
 #endif

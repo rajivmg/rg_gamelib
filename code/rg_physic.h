@@ -2,7 +2,7 @@
 
 #include "core.h"
 
-RG_BEGIN_RG_NAMESPACE
+RG_BEGIN_CORE_NAMESPACE
 
 static constexpr rgInt kMaxParticles = 2048;
 
@@ -19,4 +19,4 @@ struct PhysicSystem
 
 void TickPhysicSystem(PhysicSystem* system);
 
-RG_END_RG_NAMESPACE
+RG_END_CORE_NAMESPACE
