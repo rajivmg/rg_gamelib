@@ -62,12 +62,12 @@ struct GameState
 {
     TexturedQuads characterPortraits;
     TexturedQuads terrainAndOcean;
-    GfxTexture* oceanTileTexture;
-    GfxTexture* flowerTexture;
+    Texture* oceanTileTexture;
+    Texture* flowerTexture;
 
     ModelRef shaderballModel;
     
-    GfxGraphicsPSO* simple2dPSO;
+    GraphicsPSO* simple2dPSO;
     
     // part of in-game editor state
     Vector3    cameraRight;
@@ -96,9 +96,9 @@ struct GameState
     
     rgBool  debugShowGrid;
     
-    GfxTexture* baseColor2DRT;
-    GfxTexture* baseColorRT;
-    GfxTexture* depthStencilRT;
+    Texture* baseColor2DRT;
+    Texture* baseColorRT;
+    Texture* depthStencilRT;
 
     b2World* phyWorld;
 };

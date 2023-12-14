@@ -23,7 +23,7 @@ void checkResult(HRESULT hr)
     }
 }
 
-char const* getGfxStageString(GfxStage stage)
+char const* getGfxStageString(Stage stage)
 {
     switch(stage)
     {
@@ -73,7 +73,7 @@ public:
     eastl::hash_set<eastl::wstring> alreadyIncludedFiles;
 };
 
-ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, bool genSPIRV)
+ShaderBlobRef createShaderBlob(char const* filename, Stage stage, char const* entrypoint, char const* defines, bool genSPIRV)
 {
     rgAssert(entrypoint);
     rgAssert(filename);

@@ -154,7 +154,7 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRe
     return createQuadUV(xPx, yPx, widthPx, heightPx, image->width, image->height);
 }
 
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture* tex)
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, Texture* tex)
 {
     TexturedQuad& q = quadList->push_back();
     q.uv = uv;
@@ -242,39 +242,39 @@ SDL_Window* mainWindow;
 rgUInt frameNumber;
 
 // CURRENT STATE
-GfxRenderPass*          currentRenderPass;
-GfxRenderCmdEncoder*    currentRenderCmdEncoder;
-GfxComputeCmdEncoder*   currentComputeCmdEncoder;
-GfxBlitCmdEncoder*      currentBlitCmdEncoder;
-GfxGraphicsPSO*         currentGraphicsPSO;
-GfxComputePSO*          currentComputePSO; // TODO: See if this is really necessary
+RenderPass*          currentRenderPass;
+RenderCmdEncoder*    currentRenderCmdEncoder;
+ComputeCmdEncoder*   currentComputeCmdEncoder;
+BlitCmdEncoder*      currentBlitCmdEncoder;
+GraphicsPSO*         currentGraphicsPSO;
+ComputePSO*          currentComputePSO; // TODO: See if this is really necessary
 
 // OBJECT REGISTRIES
-GfxObjectRegistry<GfxTexture>*      texture;
-GfxObjectRegistry<GfxBuffer>*       buffer;
-GfxObjectRegistry<GfxGraphicsPSO>*  graphicsPSO;
-GfxObjectRegistry<GfxComputePSO>*   computePSO;
-GfxObjectRegistry<GfxSamplerState>* samplerState;
+ObjectRegistry<Texture>*      texture;
+ObjectRegistry<Buffer>*       buffer;
+ObjectRegistry<GraphicsPSO>*  graphicsPSO;
+ObjectRegistry<ComputePSO>*   computePSO;
+ObjectRegistry<SamplerState>* samplerState;
 
-GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
+BindlessResourceManager<Texture>*   bindlessManagerTexture;
 
 // DEFAULT RESOURCES
-GfxSamplerState*    bilinearSampler;
+SamplerState*    bilinearSampler;
 GfxFrameAllocator*  frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
-eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
+eastl::vector<Texture*> frameBeginJobGenTextureMipmaps;
 
-GfxSamplerState*    samplerBilinearRepeat;
-GfxSamplerState*    samplerBilinearClampEdge;
-GfxSamplerState*    samplerTrilinearRepeatAniso;
-GfxSamplerState*    samplerTrilinearClampEdgeAniso;
-GfxSamplerState*    samplerNearestRepeat;
-GfxSamplerState*    samplerNearestClampEdge;
+SamplerState*    samplerBilinearRepeat;
+SamplerState*    samplerBilinearClampEdge;
+SamplerState*    samplerTrilinearRepeatAniso;
+SamplerState*    samplerTrilinearClampEdgeAniso;
+SamplerState*    samplerNearestRepeat;
+SamplerState*    samplerNearestClampEdge;
 
 // MISC
 Matrix4 orthographicMatrix;
 Matrix4 viewMatrix;
-eastl::vector<GfxTexture*> debugTextureHandles; // test only
+eastl::vector<Texture*> debugTextureHandles; // test only
 
 
 Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearPlane, rgFloat farPlane)
@@ -321,13 +321,13 @@ Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio
 
 rgInt preInit()
 {
-    gfx::buffer = rgNew(GfxObjectRegistry<GfxBuffer>);
-    gfx::texture = rgNew(GfxObjectRegistry<GfxTexture>);
-    gfx::samplerState = rgNew(GfxObjectRegistry<GfxSamplerState>);
-    gfx::graphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
-    gfx::computePSO = rgNew(GfxObjectRegistry<GfxComputePSO>);
+    gfx::buffer = rgNew(ObjectRegistry<Buffer>);
+    gfx::texture = rgNew(ObjectRegistry<Texture>);
+    gfx::samplerState = rgNew(ObjectRegistry<SamplerState>);
+    gfx::graphicsPSO = rgNew(ObjectRegistry<GraphicsPSO>);
+    gfx::computePSO = rgNew(ObjectRegistry<ComputePSO>);
 
-    gfx::bindlessManagerTexture = rgNew(GfxBindlessResourceManager<GfxTexture>);
+    gfx::bindlessManagerTexture = rgNew(BindlessResourceManager<Texture>);
     
     return 0;
 }
@@ -512,11 +512,11 @@ static void endCurrentCmdEncoder()
     }
 }
 
-GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass)
+RenderCmdEncoder* setRenderPass(char const* tag, RenderPass* renderPass)
 {
     endCurrentCmdEncoder();
 
-    currentRenderCmdEncoder = rgNew(GfxRenderCmdEncoder);
+    currentRenderCmdEncoder = rgNew(RenderCmdEncoder);
     currentRenderCmdEncoder->begin(tag, renderPass);
 
     currentRenderPass = renderPass;
@@ -524,21 +524,21 @@ GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass)
     return currentRenderCmdEncoder;
 }
 
-GfxComputeCmdEncoder* setComputePass(char const* tag)
+ComputeCmdEncoder* setComputePass(char const* tag)
 {
     endCurrentCmdEncoder();
     
-    currentComputeCmdEncoder = rgNew(GfxComputeCmdEncoder);
+    currentComputeCmdEncoder = rgNew(ComputeCmdEncoder);
     currentComputeCmdEncoder->begin(tag);
     
     return currentComputeCmdEncoder;
 }
 
-GfxBlitCmdEncoder* setBlitPass(char const* tag)
+BlitCmdEncoder* setBlitPass(char const* tag)
 {
     endCurrentCmdEncoder();
     
-    currentBlitCmdEncoder = rgNew(GfxBlitCmdEncoder);
+    currentBlitCmdEncoder = rgNew(BlitCmdEncoder);
     currentBlitCmdEncoder->begin(tag);
     currentBlitCmdEncoder->pushDebugTag(tag);
     
