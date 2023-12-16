@@ -1063,12 +1063,6 @@ extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 extern GfxGraphicsPSO* currentGraphicsPSO;
 extern GfxComputePSO* currentComputePSO;
 
-/*extern GfxObjectRegistry<GfxBuffer>*        buffer;
-extern GfxObjectRegistry<GfxTexture>*       texture;
-extern GfxObjectRegistry<GfxSamplerState>*  samplerState;
-extern GfxObjectRegistry<GfxGraphicsPSO>*   graphicsPSO;
-extern GfxObjectRegistry<GfxComputePSO>*    computePSO;*/
-
 extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
 
 extern GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];

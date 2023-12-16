@@ -249,13 +249,6 @@ GfxBlitCmdEncoder*      currentBlitCmdEncoder;
 GfxGraphicsPSO*         currentGraphicsPSO;
 GfxComputePSO*          currentComputePSO; // TODO: See if this is really necessary
 
-// OBJECT REGISTRIES
-/*GfxObjectRegistry<GfxTexture>*      texture;
-GfxObjectRegistry<GfxBuffer>*       buffer;
-GfxObjectRegistry<GfxGraphicsPSO>*  graphicsPSO;
-GfxObjectRegistry<GfxComputePSO>*   computePSO;
-GfxObjectRegistry<GfxSamplerState>* samplerState;*/
-
 GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
 
 // DEFAULT RESOURCES
@@ -321,12 +314,6 @@ Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio
 
 rgInt preInit()
 {
-    /*gfx::buffer = rgNew(GfxObjectRegistry<GfxBuffer>);
-    gfx::texture = rgNew(GfxObjectRegistry<GfxTexture>);
-    gfx::samplerState = rgNew(GfxObjectRegistry<GfxSamplerState>);
-    gfx::graphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
-    gfx::computePSO = rgNew(GfxObjectRegistry<GfxComputePSO>);*/
-
     gfx::bindlessManagerTexture = rgNew(GfxBindlessResourceManager<GfxTexture>);
     
     return 0;
@@ -427,11 +414,6 @@ rgInt initCommonStuff()
 
 void atFrameStart()
 {
-    /*gfx::buffer->destroyMarkedObjects();
-    gfx::texture->destroyMarkedObjects();
-    gfx::samplerState->destroyMarkedObjects();
-    gfx::graphicsPSO->destroyMarkedObjects();*/
-    
     GfxBuffer::destroyMarkedObjects();
     GfxTexture::destroyMarkedObjects();
     GfxSamplerState::destroyMarkedObjects();
@@ -468,17 +450,6 @@ rgInt getPrevFrameIndex()
     }
     return prevFrameIndex;
 }
-
-// TODO: remove
-/*rgInt getFinishedFrameIndex()
-{
-    rgInt completedFrameIndex = g_FrameIndex - RG_MAX_FRAMES_IN_FLIGHT + 1;
-    completedFrameIndex = completedFrameIndex < 0 ? (RG_MAX_FRAMES_IN_FLIGHT + completedFrameIndex) : completedFrameIndex;
-
-    checkerWaitTillFrameCompleted(completedFrameIndex);
-
-    return completedFrameIndex;
-}*/
 
 GfxFrameAllocator* getFrameAllocator()
 {
