@@ -1445,7 +1445,7 @@ static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 // Call from main | loop init() destroy() startNextFrame() endFrame()
 //*****************************************************************************
 
-rgInt init()
+rgInt gfxInit()
 {
     rgAssert(gfx::mainWindow);
     appView = (NSView*)SDL_Metal_CreateView(gfx::mainWindow);
@@ -1517,12 +1517,12 @@ rgInt init()
     return 0;
 }
 
-void destroy()
+void gfxDestroy()
 {
     
 }
 
-void startNextFrame()
+void gfxStartNextFrame()
 {
     //dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
     
@@ -1557,7 +1557,7 @@ void startNextFrame()
     mtlCommandBuffer = [mtlCommandQueue commandBuffer];
 }
 
-void endFrame()
+void gfxEndFrame()
 {
     //testComputeAtomicsRun();
     
@@ -1585,7 +1585,7 @@ void endFrame()
 }
 
 // TODO: should this be done at abstracted level?
-void runOnFrameBeginJob()
+void gfxRunOnFrameBeginJob()
 {
     if(gfx::frameBeginJobGenTextureMipmaps.size() > 0)
     {
@@ -1600,16 +1600,16 @@ void runOnFrameBeginJob()
     }
 }
 
-void rendererImGuiInit()
+void gfxRendererImGuiInit()
 {
     ImGui_ImplMetal_Init(getMTLDevice());
     ImGui_ImplSDL2_InitForMetal(gfx::mainWindow);
 }
 
-void rendererImGuiNewFrame()
+void gfxRendererImGuiNewFrame()
 {
     MTLRenderPassDescriptor* renderPassDesc = [MTLRenderPassDescriptor new];
-    renderPassDesc.colorAttachments[0].texture = asMTLTexture(getCurrentRenderTargetColorBuffer()->mtlTexture);
+    renderPassDesc.colorAttachments[0].texture = asMTLTexture(gfxGetCurrentRenderTargetColorBuffer()->mtlTexture);
     renderPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
     renderPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
     
@@ -1617,23 +1617,23 @@ void rendererImGuiNewFrame()
     [renderPassDesc autorelease];
 }
 
-void rendererImGuiRenderDrawData()
+void gfxRendererImGuiRenderDrawData()
 {
     GfxRenderPass imguiRenderPass = {};
-    imguiRenderPass.colorAttachments[0].texture = gfx::getCurrentRenderTargetColorBuffer();
+    imguiRenderPass.colorAttachments[0].texture = gfx::gfxGetCurrentRenderTargetColorBuffer();
     imguiRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
     imguiRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-    GfxRenderCmdEncoder* cmdEncoder = gfx::setRenderPass("ImGui Pass", &imguiRenderPass);
+    GfxRenderCmdEncoder* cmdEncoder = gfx::gfxSetRenderPass("ImGui Pass", &imguiRenderPass);
     
     ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), getMTLCommandBuffer(), asMTLRenderCommandEncoder(cmdEncoder->mtlRenderCommandEncoder));
 }
 
-void onSizeChanged()
+void gfxOnSizeChanged()
 {
     
 }
 
-GfxTexture* getCurrentRenderTargetColorBuffer()
+GfxTexture* gfxGetCurrentRenderTargetColorBuffer()
 {
     return &currentMTLDrawableTexture;
 }

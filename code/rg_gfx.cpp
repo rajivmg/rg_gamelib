@@ -265,8 +265,6 @@ GfxSamplerState*    samplerNearestRepeat;
 GfxSamplerState*    samplerNearestClampEdge;
 
 // MISC
-Matrix4 orthographicMatrix;
-Matrix4 viewMatrix;
 eastl::vector<GfxTexture*> debugTextureHandles; // test only
 
 
@@ -399,7 +397,7 @@ rgInt gfxPostInit()
     imguiIO.Fonts->AddFontFromFileTTF("fonts/Noto_Sans/NotoSans-Regular.ttf", 18);
     styleImGui();
 
-    gfx::rendererImGuiInit();
+    gfx::gfxRendererImGuiInit();
     
     samplerBilinearRepeat = GfxSamplerState::create("samplerBilinearRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
     samplerBilinearClampEdge = GfxSamplerState::create("samplerBilinearClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
@@ -489,7 +487,7 @@ static void endCurrentCmdEncoder()
     }
 }
 
-GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass)
+GfxRenderCmdEncoder* gfxSetRenderPass(char const* tag, GfxRenderPass* renderPass)
 {
     endCurrentCmdEncoder();
 
@@ -501,7 +499,7 @@ GfxRenderCmdEncoder* setRenderPass(char const* tag, GfxRenderPass* renderPass)
     return currentRenderCmdEncoder;
 }
 
-GfxComputeCmdEncoder* setComputePass(char const* tag)
+GfxComputeCmdEncoder* gfxSetComputePass(char const* tag)
 {
     endCurrentCmdEncoder();
     
@@ -511,7 +509,7 @@ GfxComputeCmdEncoder* setComputePass(char const* tag)
     return currentComputeCmdEncoder;
 }
 
-GfxBlitCmdEncoder* setBlitPass(char const* tag)
+GfxBlitCmdEncoder* gfxSetBlitPass(char const* tag)
 {
     endCurrentCmdEncoder();
     

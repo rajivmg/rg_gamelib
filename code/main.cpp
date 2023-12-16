@@ -502,7 +502,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         simple2dRenderPass.clearDepth = 1.0f;
         
-        GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::setRenderPass("Simple2D Pass", &simple2dRenderPass);
+        GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::gfxSetRenderPass("Simple2D Pass", &simple2dRenderPass);
         simple2dRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("simple2d"_rh));
         simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits);
         simple2dRenderEncoder->end();
@@ -519,7 +519,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         sceneForwardPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         sceneForwardPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* sceneFowardRenderEncoder = gfx::setRenderPass("Scene Forward", &sceneForwardPass);
+        GfxRenderCmdEncoder* sceneFowardRenderEncoder = gfx::gfxSetRenderPass("Scene Forward", &sceneForwardPass);
         sceneFowardRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("principledBrdf"_tag));
         
         // instance
@@ -565,7 +565,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         skyboxRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         skyboxRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* skyboxRenderEncoder = gfx::setRenderPass("Skybox Pass", &skyboxRenderPass);
+        GfxRenderCmdEncoder* skyboxRenderEncoder = gfx::gfxSetRenderPass("Skybox Pass", &skyboxRenderPass);
         skyboxRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("skybox"_tag));
         skyboxRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         skyboxRenderEncoder->bindTexture("diffuseCubeMap", GfxTexture::find("sangiuseppeBridgeCube"_tag));
@@ -584,7 +584,7 @@ rgInt core::updateAndDraw(rgDouble dt)
             gridRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
             gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
             
-            GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass("DemoScene Pass", &gridRenderPass);
+            GfxRenderCmdEncoder* gridRenderEncoder = gfx::gfxSetRenderPass("DemoScene Pass", &gridRenderPass);
             gridRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("gridPSO"_tag));
             gridRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
             gridRenderEncoder->drawTriangles(0, 6, 1);
@@ -645,7 +645,7 @@ rgInt core::updateAndDraw(rgDouble dt)
             tonemapParams.luminanceAdaptationKey = g_GameState->tonemapperExposureKey;
             tonemapParams.tau = g_GameState->tonemapperAdaptationRate;
             
-            GfxComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
+            GfxComputeCmdEncoder* postfxCmdEncoder = gfx::gfxSetComputePass("PostFx Pass");
                         
             postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapClearOutputLuminanceHistogram"_tag));
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
@@ -666,7 +666,7 @@ rgInt core::updateAndDraw(rgDouble dt)
             
             postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapReinhard"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
-            postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->bindTexture("outputImage", gfx::gfxGetCurrentRenderTargetColorBuffer());
             //postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
@@ -681,7 +681,7 @@ rgInt core::updateAndDraw(rgDouble dt)
             compositeParams.inputImageDim[1] = g_WindowInfo.height;
             postfxCmdEncoder->setComputePSO(GfxComputePSO::find("composite"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColor2DRT);
-            postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->bindTexture("outputImage", gfx::gfxGetCurrentRenderTargetColorBuffer());
             postfxCmdEncoder->bindBufferFromData("CompositeParams", sizeof(compositeParams), &compositeParams);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
             //
@@ -868,7 +868,7 @@ int main(int argc, char* argv[])
     }
 
     rgInt gfxPreInitResult = gfx::gfxPreInit();
-    rgInt gfxInitResult = gfx::init();
+    rgInt gfxInitResult = gfx::gfxInit();
     rgInt gfxCommonInitResult = gfx::gfxPostInit();
 
     if(gfxInitResult || gfxCommonInitResult)
@@ -929,7 +929,7 @@ int main(int argc, char* argv[])
             {
                 g_WindowInfo.width = event.window.data1;
                 g_WindowInfo.height = event.window.data2;
-                gfx::onSizeChanged();
+                gfx::gfxOnSizeChanged();
             }
             else
             {
@@ -938,23 +938,23 @@ int main(int argc, char* argv[])
             }
         }
         
-        gfx::startNextFrame();
-        gfx::runOnFrameBeginJob();
+        gfx::gfxStartNextFrame();
+        gfx::gfxRunOnFrameBeginJob();
         
-        gfx::rendererImGuiNewFrame();
+        gfx::gfxRendererImGuiNewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
         
         core::updateAndDraw(g_DeltaTime);
          
         ImGui::Render();
-        gfx::rendererImGuiRenderDrawData();
-        gfx::endFrame();
+        gfx::gfxRendererImGuiRenderDrawData();
+        gfx::gfxEndFrame();
         
         *oldGameInput = *newGameInput;
     }
 
-    gfx::destroy();
+    gfx::gfxDestroy();
     SDL_DestroyWindow(gfx::mainWindow);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return 0;

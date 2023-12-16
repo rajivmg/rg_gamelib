@@ -999,27 +999,28 @@ GfxFrameAllocator*  gfxGetFrameAllocator();
 Matrix4             gfxMakeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
 Matrix4             gfxMakePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
 
+GfxRenderCmdEncoder*    gfxSetRenderPass(char const* tag, GfxRenderPass* renderPass);
+GfxComputeCmdEncoder*   gfxSetComputePass(char const* tag);
+GfxBlitCmdEncoder*      gfxSetBlitPass(char const* tag);
+
 //-----------------------------------------------------------------------------
 // Gfx function declarations
 //-----------------------------------------------------------------------------
-rgInt           init();
-void            destroy();
-void            startNextFrame();
-void            endFrame();
+rgInt           gfxInit();
+void            gfxDestroy();
+void            gfxStartNextFrame();
+void            gfxEndFrame();
 
-void            runOnFrameBeginJob();
+void            gfxRunOnFrameBeginJob();
 
-void            rendererImGuiInit();
-void            rendererImGuiNewFrame();
-void            rendererImGuiRenderDrawData();
+void            gfxRendererImGuiInit();
+void            gfxRendererImGuiNewFrame();
+void            gfxRendererImGuiRenderDrawData();
 
-void            onSizeChanged();
+void            gfxOnSizeChanged();
 
-GfxTexture*     getCurrentRenderTargetColorBuffer();
+GfxTexture*     gfxGetCurrentRenderTargetColorBuffer();
 
-GfxRenderCmdEncoder*    setRenderPass(char const* tag, GfxRenderPass* renderPass);
-GfxComputeCmdEncoder*   setComputePass(char const* tag);
-GfxBlitCmdEncoder*      setBlitPass(char const* tag);
 
 // Helper macros
 // ---------------
