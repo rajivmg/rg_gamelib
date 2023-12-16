@@ -608,12 +608,12 @@ rgInt core::updateAndDraw(rgDouble dt)
                     
                     rgU32* histogramData = (rgU32*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_HISTOGRAM);
                     float histogram[LUMINANCE_HISTOGRAM_BINS_COUNT];
-                    for(int i = 0; i < rgARRAY_COUNT(histogram); ++i)
+                    for(int i = 0; i < rgArrayCount(histogram); ++i)
                     {
                         histogram[i] = histogramData[i];
                     }
                     
-                    ImGui::PlotHistogram("##luminanceHistogram", histogram, rgARRAY_COUNT(histogram), 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(LUMINANCE_HISTOGRAM_BINS_COUNT * (LUMINANCE_BLOCK_SIZE < 32 ? 2 : 1), 100));
+                    ImGui::PlotHistogram("##luminanceHistogram", histogram, rgArrayCount(histogram), 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(LUMINANCE_HISTOGRAM_BINS_COUNT * (LUMINANCE_BLOCK_SIZE < 32 ? 2 : 1), 100));
                     rgFloat adaptedLuminance = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_LUMINANCE);
                     rgFloat exposure = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_EXPOSURE);
                     ImGui::Text("Adapted Luminance is %0.2f, and exposure is %0.2f", adaptedLuminance, exposure);
@@ -902,7 +902,7 @@ int main(int argc, char* argv[])
         *newGameInput = {};
         GameControllerInput* oldController1 = &oldGameInput->controllers[0];
         GameControllerInput* newController1 = &newGameInput->controllers[0];
-        for(rgInt buttonIdx = 0; buttonIdx < rgARRAY_COUNT(GameControllerInput::buttons); ++buttonIdx)
+        for(rgInt buttonIdx = 0; buttonIdx < rgArrayCount(GameControllerInput::buttons); ++buttonIdx)
         {
             newController1->buttons[buttonIdx].endedDown = oldController1->buttons[buttonIdx].endedDown;
         }
@@ -910,7 +910,7 @@ int main(int argc, char* argv[])
         // Copy old mouse input state to new mouse input state
         newGameInput->mouse.x = oldGameInput->mouse.x;
         newGameInput->mouse.y = oldGameInput->mouse.y;
-        for(rgInt buttonIdx = 0; buttonIdx < rgARRAY_COUNT(GameControllerInput::buttons); ++buttonIdx)
+        for(rgInt buttonIdx = 0; buttonIdx < rgArrayCount(GameControllerInput::buttons); ++buttonIdx)
         {
             newGameInput->mouse.buttons[buttonIdx].endedDown = oldGameInput->mouse.buttons[buttonIdx].endedDown;
         }

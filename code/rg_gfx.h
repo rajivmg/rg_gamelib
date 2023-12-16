@@ -84,7 +84,7 @@ struct GfxObjectRegistry
         rgAssert(tag != nullptr);
 
         Type* obj = rgNew(Type);
-        strncpy(obj->tag, tag, rgARRAY_COUNT(Type::tag));
+        strncpy(obj->tag, tag, rgArrayCount(Type::tag));
         Type::fillStruct(args..., obj);
         Type::createGfxObject(tag, args..., obj);
         insert(rgCRC32(tag), obj);

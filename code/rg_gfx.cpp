@@ -67,8 +67,8 @@ ImageRef loadImage(char const* filename)
             return output;
         }
         
-        strncpy(output->tag, filename, rgARRAY_COUNT(Image::tag));
-        output->tag[rgARRAY_COUNT(Image::tag) - 1] = '\0';
+        strncpy(output->tag, filename, rgArrayCount(Image::tag));
+        output->tag[rgArrayCount(Image::tag) - 1] = '\0';
         output->width = (rgUInt)metadata.width;
         output->height = (rgUInt)metadata.height;
         output->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)metadata.format);
@@ -103,8 +103,8 @@ ImageRef loadImage(char const* filename)
         }
         
         output = eastl::shared_ptr<Image>(rgNew(Image), unloadImage);
-        strncpy(output->tag, filename, rgARRAY_COUNT(Image::tag));
-        output->tag[rgARRAY_COUNT(Image::tag) - 1] = '\0';
+        strncpy(output->tag, filename, rgArrayCount(Image::tag));
+        output->tag[rgArrayCount(Image::tag) - 1] = '\0';
         output->width = width;
         output->height = height;
         output->format = TinyImageFormat_R8G8B8A8_UNORM;
@@ -387,7 +387,7 @@ rgInt gfxPostInit()
     // Initialize frame buffer allocators
     for(rgS32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMEGABYTE(8), rgMEGABYTE(64), rgMEGABYTE(64));
+        frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMegabyte(8), rgMegabyte(64), rgMegabyte(64));
     }
     
     // Initialize IMGUI

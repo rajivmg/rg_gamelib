@@ -52,7 +52,7 @@ public:
         if(alreadyIncludedFiles.count(eastl::wstring(filepath.string().c_str())) > 0)
         {
             static const char emptyStr[] = " ";
-            g_DxcUtils->CreateBlobFromPinned(emptyStr, rgARRAY_COUNT(emptyStr), DXC_CP_ACP, &blobEncoding);
+            g_DxcUtils->CreateBlobFromPinned(emptyStr, rgArrayCount(emptyStr), DXC_CP_ACP, &blobEncoding);
             return S_OK;
         }
         

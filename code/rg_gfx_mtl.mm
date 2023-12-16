@@ -1475,7 +1475,7 @@ rgInt gfxInit()
         bindlessTextureHeapDesc.storageMode = MTLStorageModeShared;
         bindlessTextureHeapDesc.cpuCacheMode = MTLCPUCacheModeDefaultCache;
         bindlessTextureHeapDesc.hazardTrackingMode = MTLHazardTrackingModeTracked;
-        bindlessTextureHeapDesc.size = rgMEGABYTE(128);
+        bindlessTextureHeapDesc.size = rgMegabyte(128);
         bindlessTextureHeap = [getMTLDevice() newHeapWithDescriptor:bindlessTextureHeapDesc];
         // TODO: is manual release of descriptor needed?
         

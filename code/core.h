@@ -11,30 +11,8 @@
 #define RG_BEGIN_CORE_NAMESPACE namespace core {
 #define RG_END_CORE_NAMESPACE }
 
-/*
-typedef int64_t     S64;
-typedef int32_t     S32;
-typedef int16_t     S16;
-typedef int8_t      S8;
 
-typedef uint64_t    U64;
-typedef uint32_t    U32;
-typedef uint16_t    U16;
-typedef uint8_t     U8;
-
-typedef float       R32;
-typedef double      R64;
-
-typedef intptr_t    IPtr;
-typedef uintptr_t   UPtr;
-
-typedef uint32_t    UInt;
-typedef int32_t     Int;
-typedef float       Float;
-typedef double      Double;
-typedef bool        Bool;
-*/
-//--
+// Primitive data types
 typedef int64_t     rgS64;
 typedef int32_t     rgS32;
 typedef int16_t     rgS16;
@@ -63,16 +41,15 @@ typedef char        rgChar;
 typedef uint8_t     rgByte;
 
 typedef uint32_t    rgHash;
-//
+
 static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(rgU32) != sizeof(uint32_t)");
 
 #define RG_INLINE inline
-
-#define rgKILOBYTE(x) 1024LL * (x)
-#define rgMEGABYTE(x) 1024LL * rgKILOBYTE(x)
-#define rgGIGABYTE(x) 1024LL * rgMEGABYTE(x)
-#define rgARRAY_COUNT(a) (sizeof(a)/sizeof((a)[0]))
-#define rgOFFSET_OF(type, member) ((uintptr_t)&(((type *)0)->member))
+#define rgKilobyte(x) 1024LL * (x)
+#define rgMegabyte(x) 1024LL * rgKilobyte(x)
+#define rgGigabyte(x) 1024LL * rgMegabyte(x)
+#define rgArrayCount(a) (sizeof(a)/sizeof((a)[0]))
+#define rgOffsetOf(type, member) ((uintptr_t)&(((type *)0)->member))
 #define rgSizeOfU32(x) ((rgU32)sizeof(x))
 #define rgAssert(exp) SDL_assert(exp)
 #define rgMalloc(s) malloc((s))
@@ -80,7 +57,6 @@ static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(rgU32) != sizeof(uint3
 #define rgNew(objectType) new objectType
 #define rgPlacementNew(objectType, placementAddress) new(placementAddress) objectType
 #define rgDelete(object) delete object
-#define RG_COMMA ,
 
 void _rgLogImpl(char const* fmt, ...);
 #define rgLog(...) _rgLogImpl(__VA_ARGS__)
