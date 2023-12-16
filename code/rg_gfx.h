@@ -52,7 +52,7 @@ rgInt updateAndDraw(rgDouble dt);
 // Buffer type
 // -------------------
 
-enum BufferUsage
+enum GfxBufferUsage
 {
     GfxBufferUsage_ShaderRW = (0 << 0),
     GfxBufferUsage_VertexBuffer = (1 << 0),
@@ -63,9 +63,9 @@ enum BufferUsage
     GfxBufferUsage_CopyDst = (1 << 5),
 };
 
-RG_DEFINE_ENUM_FLAGS_OPERATOR(BufferUsage);
+RG_DEFINE_ENUM_FLAGS_OPERATOR(GfxBufferUsage);
 
-enum MemoryType
+enum GfxMemoryType
 {
     GfxMemoryType_Default  = 0, // DefaultHeap
     GfxMemoryType_Upload   = 1, // UploadHeap
@@ -73,14 +73,14 @@ enum MemoryType
 };
 
 // Note:
-// Buffer will always be for static data or shader writable data,
+// GfxBuffer will always be for static data or shader writable data,
 // cpu updatable dynamic data can be stored in FrameAllocator
-struct Buffer
+struct GfxBuffer
 {
     rgChar            tag[32];
     rgSize                size;
-    BufferUsage      usage; // TODO: This doesn't seem to be required in Metal & D3D12 backends.. remove?
-    MemoryType  memoryType;
+    GfxBufferUsage      usage; // TODO: This doesn't seem to be required in Metal & D3D12 backends.. remove?
+    GfxMemoryType  memoryType;
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource> d3dResource;
     CD3DX12_RANGE mappedRange;
@@ -91,7 +91,7 @@ struct Buffer
     VmaAllocation vmaAlloc;
 #endif
 
-    static void fillStruct(MemoryType memoryType, void* buf, rgSize size, BufferUsage usage, Buffer* obj)
+    static void fillStruct(GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj)
     {
         obj->size = size;
         obj->usage = usage;
@@ -100,8 +100,8 @@ struct Buffer
     }
     
     // TODO: should change to first size then buffer??
-    static void create(const char* tag, MemoryType memoryType, void* buf, rgSize size, BufferUsage usage, Buffer* obj);
-    static void destroy(Buffer* obj);
+    static void create(const char* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj);
+    static void destroy(GfxBuffer* obj);
     
     void*   mappedMemory;
     void*   map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes); // TODO: MTL D3D12 - handle ranges
@@ -113,7 +113,7 @@ struct Buffer
 
 struct ImageSlice;
 
-enum TextureUsage
+enum GfxTextureUsage
 {
     GfxTextureUsage_ShaderRead = (0 << 0),
     GfxTextureUsage_ShaderReadWrite = (1 << 0),
@@ -124,14 +124,14 @@ enum TextureUsage
     GfxTextureUsage_MemorylessRenderTarget = ( 1 << 5),
 };
 
-enum TextureDim
+enum GfxTextureDim
 {
     GfxTextureDim_2D,
     GfxTextureDim_Cube,
     GfxTextureDim_Buffer,
 };
 
-enum TextureMipFlag
+enum GfxTextureMipFlag
 {
     GfxTextureMipFlag_BEGIN_MIPS = 0u,
     GfxTextureMipFlag_1Mip,
@@ -150,15 +150,15 @@ enum TextureMipFlag
     GfxTextureMipFlag_GenMips,
 };
 
-struct Texture
+struct GfxTexture
 {
     rgChar          tag[32];
-    TextureDim       dim;
+    GfxTextureDim       dim;
     rgUInt            width;
     rgUInt           height;
     TinyImageFormat  format;
     rgUInt      mipmapCount;
-    TextureUsage   usage;
+    GfxTextureUsage   usage;
     rgU32             texID;
 
 #if defined(RG_D3D12_RNDR)
@@ -171,7 +171,7 @@ struct Texture
     VmaAllocation vmaAlloc;
 #endif
     
-    static rgUInt calcMipmapCount(TextureMipFlag mipFlag, rgUInt width, rgUInt height)
+    static rgUInt calcMipmapCount(GfxTextureMipFlag mipFlag, rgUInt width, rgUInt height)
     {
         rgUInt mip = 1;
         if(mipFlag == GfxTextureMipFlag_GenMips)
@@ -186,7 +186,7 @@ struct Texture
         return mip;
     }
 
-    static void fillStruct(TextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, TextureMipFlag mipFlag, TextureUsage usage, ImageSlice* slices, Texture* obj)
+    static void fillStruct(GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
     {
         obj->dim = dim;
         obj->width = width;
@@ -202,15 +202,15 @@ struct Texture
         }
     }
 
-    static void create(char const* tag, TextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, TextureMipFlag mipFlag, TextureUsage usage, ImageSlice* slices, Texture* obj);
-    static void destroy(Texture* obj);
+    static void create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj);
+    static void destroy(GfxTexture* obj);
 };
 
 
 // Sampler
 // ----------
 
-enum SamplerAddressMode
+enum GfxSamplerAddressMode
 {
     GfxSamplerAddressMode_Repeat,
     GfxSamplerAddressMode_ClampToEdge,
@@ -218,26 +218,26 @@ enum SamplerAddressMode
     GfxSamplerAddressMode_ClampToBorderColor,
 };
 
-enum SamplerMinMagFilter
+enum GfxSamplerMinMagFilter
 {
     GfxSamplerMinMagFilter_Nearest,
     GfxSamplerMinMagFilter_Linear,
 };
 
-enum SamplerMipFilter
+enum GfxSamplerMipFilter
 {
     GfxSamplerMipFilter_NotMipped,
     GfxSamplerMipFilter_Nearest,
     GfxSamplerMipFilter_Linear,
 };
 
-struct SamplerState
+struct GfxSamplerState
 {
     rgChar tag[32];
-    SamplerAddressMode rstAddressMode;
-    SamplerMinMagFilter  minFilter;
-    SamplerMinMagFilter  magFilter;
-    SamplerMipFilter     mipFilter;
+    GfxSamplerAddressMode rstAddressMode;
+    GfxSamplerMinMagFilter  minFilter;
+    GfxSamplerMinMagFilter  magFilter;
+    GfxSamplerMipFilter     mipFilter;
     rgBool                 anisotropy;
     
 #if defined(RG_METAL_RNDR)
@@ -247,7 +247,7 @@ struct SamplerState
 #else
 #endif
 
-    static void fillStruct(SamplerAddressMode rstAddressMode, SamplerMinMagFilter minFilter, SamplerMinMagFilter magFilter, SamplerMipFilter mipFilter, rgBool anisotropy, SamplerState* obj)
+    static void fillStruct(GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
     {
         obj->rstAddressMode = rstAddressMode;
         obj->minFilter = minFilter;
@@ -256,41 +256,41 @@ struct SamplerState
         obj->anisotropy = anisotropy;
     }
 
-    static void create(const char* tag, SamplerAddressMode rstAddressMode, SamplerMinMagFilter minFilter, SamplerMinMagFilter magFilter, SamplerMipFilter mipFilter, rgBool anisotropy, SamplerState* obj);
-    static void destroy(SamplerState* obj);
+    static void create(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj);
+    static void destroy(GfxSamplerState* obj);
 };
 
 // RenderPass
 // ------------
 
-enum LoadAction
+enum GfxLoadAction
 {
     GfxLoadAction_DontCare,
     GfxLoadAction_Load,
     GfxLoadAction_Clear,
 };
 
-enum StoreAction
+enum GfxStoreAction
 {
     GfxStoreAction_DontCare,
     GfxStoreAction_Store,
 };
 
-struct ColorAttachmentDesc
+struct GfxColorAttachmentDesc
 {
-    Texture*      texture;
-    LoadAction   loadAction;
-    StoreAction storeAction;
+    GfxTexture*      texture;
+    GfxLoadAction   loadAction;
+    GfxStoreAction storeAction;
     rgFloat4        clearColor;
 };
 
-struct RenderPass
+struct GfxRenderPass
 {
-    ColorAttachmentDesc colorAttachments[kMaxColorAttachments];
+    GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
 
-    Texture* depthStencilAttachmentTexture;
-    LoadAction depthStencilAttachmentLoadAction;
-    StoreAction depthStencilAttachmentStoreAction;
+    GfxTexture* depthStencilAttachmentTexture;
+    GfxLoadAction depthStencilAttachmentLoadAction;
+    GfxStoreAction depthStencilAttachmentStoreAction;
     rgFloat  clearDepth;
     rgU32    clearStencil;
 };
@@ -298,7 +298,7 @@ struct RenderPass
 // PSO and State types
 // -------------------
 
-enum CompareFunc
+enum GfxCompareFunc
 {
     GfxCompareFunc_Always,
     GfxCompareFunc_Never,
@@ -310,39 +310,39 @@ enum CompareFunc
     GfxCompareFunc_GreaterEqual,
 };
 
-enum CullMode
+enum GfxCullMode
 {
     GfxCullMode_None,
     GfxCullMode_Back,
     GfxCullMode_Front,
 };
 
-enum Winding
+enum GfxWinding
 {
     GfxWinding_CCW,
     GfxWinding_CW,
 };
 
-enum TriangleFillMode
+enum GfxTriangleFillMode
 {
     GfxTriangleFillMode_Fill,
     GfxTriangleFillMode_Lines,
 };
 
-enum Stage
+enum GfxStage
 {
     GfxStage_VS = 0x1,
     GfxStage_FS = 0x2,
     GfxStage_CS = 0x4,
 };
 
-enum VertexStepFunc
+enum GfxVertexStepFunc
 {
     GfxVertexStepFunc_PerVertex,
     GfxVertexStepFunc_PerInstance,
 };
 
-struct VertexInputDesc
+struct GfxVertexInputDesc
 {
     struct 
     {
@@ -351,12 +351,12 @@ struct VertexInputDesc
         TinyImageFormat     format;
         rgUInt         bufferIndex;
         rgUInt              offset;
-        VertexStepFunc stepFunc;
+        GfxVertexStepFunc stepFunc;
     } elements[8];
     rgInt elementCount;
 };
 
-struct ColorAttachementStateDesc
+struct GfxColorAttachementStateDesc
 {
     TinyImageFormat pixelFormat;
     rgBool blendingEnabled;
@@ -366,23 +366,23 @@ struct ColorAttachementStateDesc
     //GfxSourceBlendFacter srcBlendFactor;
 };
 
-struct RenderStateDesc
+struct GfxRenderStateDesc
 {
-    ColorAttachementStateDesc colorAttachments[kMaxColorAttachments];
+    GfxColorAttachementStateDesc colorAttachments[kMaxColorAttachments];
     TinyImageFormat depthStencilAttachmentFormat;
 
     rgBool depthWriteEnabled;
-    CompareFunc depthCompareFunc;
+    GfxCompareFunc depthCompareFunc;
 
-    CullMode cullMode;
-    Winding winding;
-    TriangleFillMode triangleFillMode;
+    GfxCullMode cullMode;
+    GfxWinding winding;
+    GfxTriangleFillMode triangleFillMode;
 
     // Primitive Type, Line, LineStrip, Triangle, TriangleStrip
     // Index Type, U16, U32 ??
 };
 
-struct ShaderDesc
+struct GfxShaderDesc
 {
     char const* shaderSrc;
     char const* vsEntrypoint;
@@ -392,11 +392,11 @@ struct ShaderDesc
 };
 
 // Resources/States in a Pipeline
-struct PipelineArgument
+struct GfxPipelineArgument
 {
     char tag[32];
     
-    Stage stages;
+    GfxStage stages;
     
     enum Type
     {
@@ -417,14 +417,14 @@ struct PipelineArgument
 #endif
 };
 
-struct GraphicsPSO
+struct GfxGraphicsPSO
 {
     rgChar tag[32];
-    CullMode cullMode;
-    Winding winding;
-    TriangleFillMode triangleFillMode;
+    GfxCullMode cullMode;
+    GfxWinding winding;
+    GfxTriangleFillMode triangleFillMode;
 
-    eastl::hash_map<eastl::string, PipelineArgument> arguments;
+    eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
 
 #if defined(RG_D3D12_RNDR)
 
@@ -442,18 +442,18 @@ struct GraphicsPSO
 #elif defined(RG_VULKAN_RNDR)
 #endif
 
-    static void fillStruct(VertexInputDesc* vertexInputDesc, ShaderDesc* shaderDesc, RenderStateDesc* renderStateDesc, GraphicsPSO* obj)
+    static void fillStruct(GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
     {
         obj->cullMode = renderStateDesc->cullMode;
         obj->winding = renderStateDesc->winding;
         obj->triangleFillMode = renderStateDesc->triangleFillMode;
     }
 
-    static void create(const char* tag, VertexInputDesc* vertexInputDesc, ShaderDesc* shaderDesc, RenderStateDesc* renderStateDesc, GraphicsPSO* obj);
-    static void destroy(GraphicsPSO* obj);
+    static void create(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj);
+    static void destroy(GfxGraphicsPSO* obj);
 };
 
-struct ComputePSO
+struct GfxComputePSO
 {
     rgChar tag[32];
     
@@ -462,18 +462,18 @@ struct ComputePSO
     rgU32 threadsPerThreadgroupY;
     rgU32 threadsPerThreadgroupZ;
 
-    eastl::hash_map<eastl::string, PipelineArgument> arguments;
+    eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
         
 #if defined(RG_METAL_RNDR)
     void* mtlPSO; // type: id<MTLComputePipelineState>
 #endif
     
-    static void fillStruct(ShaderDesc* shaderDesc, ComputePSO* obj)
+    static void fillStruct(GfxShaderDesc* shaderDesc, GfxComputePSO* obj)
     {
     }
     
-    static void create(const char* tag, ShaderDesc* shaderDesc, ComputePSO* obj);
-    static void destroy(ComputePSO* obj);
+    static void create(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj);
+    static void destroy(GfxComputePSO* obj);
 };
 
 //-----------------------------------------------------------------------------
@@ -483,13 +483,13 @@ struct ComputePSO
 // FORWARD DECLARATIONS
 namespace gfx
 {
-    void    setterBindlessResource(rgU32 slot, Texture* ptr);
+    void    setterBindlessResource(rgU32 slot, GfxTexture* ptr);
     void    checkerWaitTillFrameCompleted(rgInt frameIndex);
     rgInt   getFrameIndex();
 }
 
 template<typename Type>
-class BindlessResourceManager
+class GfxBindlessResourceManager
 {
     typedef eastl::vector<Type*> ResourceList;
     ResourceList resources; // Hold reference to the resources until no longer needed
@@ -582,7 +582,7 @@ public:
 // -------------------
 
 template<typename Type>
-struct ObjectRegistry
+struct GfxObjectRegistry
 {
     // TODO: Is it better to directly use the string as key
     // doing that we will lose the ability to use pre-computed
@@ -726,7 +726,7 @@ public:
     }
     
     GfxFrameResource newBuffer(const char* tag, rgU32 size, void* initialData);
-    GfxFrameResource newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, TextureUsage usage);
+    GfxFrameResource newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
 
     void reset()
     {
@@ -818,7 +818,7 @@ struct Model
     rgU32 vertexBufferOffset;
     rgU32 index32BufferOffset;
     rgU32 index16BufferOffset;
-    Buffer* vertexIndexBuffer;
+    GfxBuffer* vertexIndexBuffer;
 };
 
 typedef eastl::shared_ptr<Model> ModelRef;
@@ -853,16 +853,16 @@ struct TexturedQuad
 typedef eastl::vector<TexturedQuad> TexturedQuads;
 
 // TODO: Handle non 2D types
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, Texture* tex);
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture* tex);
 
 
 //-----------------------------------------------------------------------------
 // Gfx Commands
 //-----------------------------------------------------------------------------
 
-struct RenderCmdEncoder
+struct GfxRenderCmdEncoder
 {
-    void begin(char const* tag, RenderPass* renderPass);
+    void begin(char const* tag, GfxRenderPass* renderPass);
     void end();
 
     void pushDebugTag(const char* tag);
@@ -872,22 +872,22 @@ struct RenderCmdEncoder
     void setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height);
     void setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels);
     
-    void setGraphicsPSO(GraphicsPSO* pso);
+    void setGraphicsPSO(GfxGraphicsPSO* pso);
 
-    void setVertexBuffer(Buffer const* buffer, rgU32 offset, rgU32 slot);
+    void setVertexBuffer(GfxBuffer const* buffer, rgU32 offset, rgU32 slot);
     void setVertexBuffer(GfxFrameResource const* resource, rgU32 slot);
 
-    void bindBuffer(char const* bindingTag, Buffer* buffer, rgU32 offset);
+    void bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset);
     void bindBuffer(char const* bindingTag, GfxFrameResource const* resource);
-    void bindTexture(char const* bindingTag, Texture* texture);
-    void bindSamplerState(char const* bindingTag, SamplerState* sampler);
+    void bindTexture(char const* bindingTag, GfxTexture* texture);
+    void bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
     
     void drawTexturedQuads(TexturedQuads* quads);
     void drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount);
-    void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, Buffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount);
+    void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount);
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount);
 
-    PipelineArgument& getPipelineArgument(char const* bindingTag);
+    GfxPipelineArgument& getPipelineArgument(char const* bindingTag);
     
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)
@@ -897,7 +897,7 @@ struct RenderCmdEncoder
 #endif
 };
 
-struct ComputeCmdEncoder
+struct GfxComputeCmdEncoder
 {
     void begin(char const* tag);
     void end();
@@ -905,17 +905,17 @@ struct ComputeCmdEncoder
     void pushDebugTag(char const* tag);
     void popDebugTag();
     
-    void setComputePSO(ComputePSO* pso);
+    void setComputePSO(GfxComputePSO* pso);
     
-    void bindBuffer(char const* bindingTag, Buffer* buffer, rgU32 offset);
+    void bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset);
     void bindBuffer(char const* bindingTag, GfxFrameResource const* resource);
     void bindBufferFromData(char const* bindingTag, rgU32 sizeInBytes, void* data);
-    void bindTexture(char const* bindingTag, Texture* texture);
-    void bindSamplerState(char const* bindingTag, SamplerState* sampler);
+    void bindTexture(char const* bindingTag, GfxTexture* texture);
+    void bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
     
     void dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ);
     
-    PipelineArgument* getPipelineArgument(char const* bindingTag);
+    GfxPipelineArgument* getPipelineArgument(char const* bindingTag);
     
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)
@@ -923,7 +923,7 @@ struct ComputeCmdEncoder
 #endif
 };
 
-struct BlitCmdEncoder
+struct GfxBlitCmdEncoder
 {
     struct Cmd
     {
@@ -939,12 +939,12 @@ struct BlitCmdEncoder
         {
             struct
             {
-                Texture* tex;
+                GfxTexture* tex;
                 rgU32 uploadBufferOffset;
             } uploadTexture;
             struct
             {
-                Texture* tex;
+                GfxTexture* tex;
             } genMips;
         };
     };
@@ -952,9 +952,9 @@ struct BlitCmdEncoder
     void begin(char const* tag);
     void end();
     void pushDebugTag(const char* tag);
-    void genMips(Texture* srcTexture); // TODO: Handle non 2D types
+    void genMips(GfxTexture* srcTexture); // TODO: Handle non 2D types
     // TODO: Handle non 2D types
-    void copyTexture(Texture* srcTexture, Texture* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount);
+    void copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount);
 
     rgBool hasEnded;
     eastl::vector<Cmd> cmds;
@@ -1008,11 +1008,11 @@ void            rendererImGuiRenderDrawData();
 
 void            onSizeChanged();
 
-Texture*     getCurrentRenderTargetColorBuffer();
+GfxTexture*     getCurrentRenderTargetColorBuffer();
 
-RenderCmdEncoder*    setRenderPass(char const* tag, RenderPass* renderPass);
-ComputeCmdEncoder*   setComputePass(char const* tag);
-BlitCmdEncoder*      setBlitPass(char const* tag);
+GfxRenderCmdEncoder*    setRenderPass(char const* tag, GfxRenderPass* renderPass);
+GfxComputeCmdEncoder*   setComputePass(char const* tag);
+GfxBlitCmdEncoder*      setBlitPass(char const* tag);
 
 // Helper macros
 // ---------------
@@ -1049,31 +1049,31 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 extern SDL_Window* mainWindow;
 extern rgUInt frameNumber;
 
-extern RenderCmdEncoder* currentRenderCmdEncoder;
-extern BlitCmdEncoder* currentBlitCmdEncoder;
-extern GraphicsPSO* currentGraphicsPSO;
-extern ComputePSO* currentComputePSO;
+extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
+extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
+extern GfxGraphicsPSO* currentGraphicsPSO;
+extern GfxComputePSO* currentComputePSO;
 
-extern ObjectRegistry<Buffer>*        buffer;
-extern ObjectRegistry<Texture>*       texture;
-extern ObjectRegistry<SamplerState>*  samplerState;
-extern ObjectRegistry<GraphicsPSO>*   graphicsPSO;
-extern ObjectRegistry<ComputePSO>*    computePSO;
+extern GfxObjectRegistry<GfxBuffer>*        buffer;
+extern GfxObjectRegistry<GfxTexture>*       texture;
+extern GfxObjectRegistry<GfxSamplerState>*  samplerState;
+extern GfxObjectRegistry<GfxGraphicsPSO>*   graphicsPSO;
+extern GfxObjectRegistry<GfxComputePSO>*    computePSO;
 
-extern BindlessResourceManager<Texture>* bindlessManagerTexture;
+extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
 
 extern GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
-extern eastl::vector<Texture*> frameBeginJobGenTextureMipmaps;
+extern eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
 
-extern eastl::vector<Texture*> debugTextureHandles; // test only
+extern eastl::vector<GfxTexture*> debugTextureHandles; // test only
 
-extern SamplerState* samplerBilinearRepeat;
-extern SamplerState* samplerBilinearClampEdge;
-extern SamplerState* samplerTrilinearRepeatAniso;
-extern SamplerState* samplerTrilinearClampEdgeAniso;
-extern SamplerState* samplerNearestRepeat;
-extern SamplerState* samplerNearestClampEdge;
+extern GfxSamplerState* samplerBilinearRepeat;
+extern GfxSamplerState* samplerBilinearClampEdge;
+extern GfxSamplerState* samplerTrilinearRepeatAniso;
+extern GfxSamplerState* samplerTrilinearClampEdgeAniso;
+extern GfxSamplerState* samplerNearestRepeat;
+extern GfxSamplerState* samplerNearestClampEdge;
 
 
 //-----------------------------------------------------------------------------

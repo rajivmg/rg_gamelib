@@ -8,7 +8,7 @@ RG_BEGIN_GFX_NAMESPACE
 
 struct BaseMaterialTemplate
 {
-    GraphicsPSO* pso;
+    GfxGraphicsPSO* pso;
 };
 
 /*--------

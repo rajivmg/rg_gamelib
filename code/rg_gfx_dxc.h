@@ -19,7 +19,7 @@ struct ShaderBlob
 
 typedef eastl::shared_ptr<ShaderBlob> ShaderBlobRef;
 
-ShaderBlobRef createShaderBlob(char const* filename, Stage stage, char const* entrypoint, char const* defines, bool genSPIRV);
+ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const* entrypoint, char const* defines, bool genSPIRV);
 
 void destroyShaderBlob(ShaderBlob* shaderBlob);
 

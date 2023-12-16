@@ -140,7 +140,7 @@ rgInt core::setup()
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
         ImageRef t = loadImage(path);
-        Texture* t2d = gfx::texture->create(path, GfxTextureDim_2D, t->width, t->height, t->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, t->slices);
+        GfxTexture* t2d = gfx::texture->create(path, GfxTextureDim_2D, t->width, t->height, t->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, t->slices);
         gfx::debugTextureHandles.push_back(t2d);
     }
 
@@ -150,7 +150,7 @@ rgInt core::setup()
     //gfxDestroyBuffer("ocean_tile");
     g_GameState->shaderballModel = core::loadModel("shaderball.xml");
     
-    VertexInputDesc vertexDesc = {};
+    GfxVertexInputDesc vertexDesc = {};
     vertexDesc.elementCount = 3;
     vertexDesc.elements[0].semanticName = "POSITION";
     vertexDesc.elements[0].semanticIndex = 0;
@@ -173,13 +173,13 @@ rgInt core::setup()
     vertexDesc.elements[2].bufferIndex = 0;
     vertexDesc.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
-    ShaderDesc simple2dShaderDesc = {};
+    GfxShaderDesc simple2dShaderDesc = {};
     simple2dShaderDesc.shaderSrc = "simple2d.hlsl";
     simple2dShaderDesc.vsEntrypoint = "vsSimple2d";
     simple2dShaderDesc.fsEntrypoint = "fsSimple2d";
     simple2dShaderDesc.defines = "RIGHT";
     
-    RenderStateDesc simple2dRenderStateDesc = {};
+    GfxRenderStateDesc simple2dRenderStateDesc = {};
     simple2dRenderStateDesc.colorAttachments[0].pixelFormat = TinyImageFormat_R8G8B8A8_UNORM;
     simple2dRenderStateDesc.colorAttachments[0].blendingEnabled = true;
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
@@ -188,7 +188,7 @@ rgInt core::setup()
     gfx::graphicsPSO->create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
     
     //
-    VertexInputDesc vertexPosTexCoordNormal = {};
+    GfxVertexInputDesc vertexPosTexCoordNormal = {};
     vertexPosTexCoordNormal.elementCount = 3;
     vertexPosTexCoordNormal.elements[0].semanticName = "POSITION";
     vertexPosTexCoordNormal.elements[0].semanticIndex = 0;
@@ -211,13 +211,13 @@ rgInt core::setup()
     vertexPosTexCoordNormal.elements[2].bufferIndex = 0;
     vertexPosTexCoordNormal.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
-    ShaderDesc principledBrdfShaderDesc = {};
+    GfxShaderDesc principledBrdfShaderDesc = {};
     principledBrdfShaderDesc.shaderSrc = "pbr.hlsl";
     principledBrdfShaderDesc.vsEntrypoint = "vsPbr";
     principledBrdfShaderDesc.fsEntrypoint = "fsPbr";
     principledBrdfShaderDesc.defines = "HAS_VERTEX_NORMAL";
     
-    RenderStateDesc world3dRenderState = {};
+    GfxRenderStateDesc world3dRenderState = {};
     world3dRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
     world3dRenderState.colorAttachments[0].blendingEnabled = true;
     world3dRenderState.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
@@ -228,12 +228,12 @@ rgInt core::setup()
 
     gfx::graphicsPSO->create("principledBrdf", &vertexPosTexCoordNormal, &principledBrdfShaderDesc, &world3dRenderState);
     //
-    ShaderDesc gridShaderDesc = {};
+    GfxShaderDesc gridShaderDesc = {};
     gridShaderDesc.shaderSrc = "grid.hlsl";
     gridShaderDesc.vsEntrypoint = "vsGrid";
     gridShaderDesc.fsEntrypoint = "fsGrid";
     
-    RenderStateDesc gridRenderState = {};
+    GfxRenderStateDesc gridRenderState = {};
     gridRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
     gridRenderState.colorAttachments[0].blendingEnabled = true;
     gridRenderState.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
@@ -244,7 +244,7 @@ rgInt core::setup()
     
     gfx::graphicsPSO->create("gridPSO", nullptr, &gridShaderDesc, &gridRenderState);
     //
-    VertexInputDesc vertexPos = {};
+    GfxVertexInputDesc vertexPos = {};
     vertexPos.elementCount = 1;
     vertexPos.elements[0].semanticName = "POSITION";
     vertexPos.elements[0].semanticIndex = 0;
@@ -253,13 +253,13 @@ rgInt core::setup()
     vertexPos.elements[0].bufferIndex = 0;
     vertexPos.elements[0].stepFunc = GfxVertexStepFunc_PerVertex;
 
-    ShaderDesc skyboxShaderDesc = {};
+    GfxShaderDesc skyboxShaderDesc = {};
     skyboxShaderDesc.shaderSrc = "skybox.hlsl";
     skyboxShaderDesc.vsEntrypoint = "vsSkybox";
     skyboxShaderDesc.fsEntrypoint = "fsSkybox";
     skyboxShaderDesc.defines = "LEFT";
     
-    RenderStateDesc skyboxRenderState = {};
+    GfxRenderStateDesc skyboxRenderState = {};
     skyboxRenderState.colorAttachments[0].pixelFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
     skyboxRenderState.colorAttachments[0].blendingEnabled = true;
     skyboxRenderState.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
@@ -271,7 +271,7 @@ rgInt core::setup()
     gfx::graphicsPSO->create("skybox", &vertexPos, &skyboxShaderDesc, &skyboxRenderState);
     
     //
-    ShaderDesc tonemapShaderDesc = {};
+    GfxShaderDesc tonemapShaderDesc = {};
     tonemapShaderDesc.shaderSrc = "tonemap.hlsl";
     tonemapShaderDesc.csEntrypoint = "csGenerateHistogram";
     gfx::computePSO->create("tonemapGenerateHistogram", &tonemapShaderDesc);
@@ -285,7 +285,7 @@ rgInt core::setup()
     tonemapShaderDesc.csEntrypoint = "csReinhard";
     gfx::computePSO->create("tonemapReinhard", &tonemapShaderDesc);
     //
-    ShaderDesc compositeShaderDesc = {};
+    GfxShaderDesc compositeShaderDesc = {};
     compositeShaderDesc.shaderSrc = "composite.hlsl";
     compositeShaderDesc.csEntrypoint = "csComposite";
     gfx::computePSO->create("composite", &compositeShaderDesc);
@@ -492,7 +492,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         }
         pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameState->flowerTexture);
         
-        RenderPass simple2dRenderPass = {};
+        GfxRenderPass simple2dRenderPass = {};
         simple2dRenderPass.colorAttachments[0].texture = g_GameState->baseColor2DRT;
         simple2dRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         simple2dRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
@@ -502,7 +502,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         simple2dRenderPass.clearDepth = 1.0f;
         
-        RenderCmdEncoder* simple2dRenderEncoder = gfx::setRenderPass("Simple2D Pass", &simple2dRenderPass);
+        GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::setRenderPass("Simple2D Pass", &simple2dRenderPass);
         simple2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("simple2d"_rh));
         simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits);
         simple2dRenderEncoder->end();
@@ -510,7 +510,7 @@ rgInt core::updateAndDraw(rgDouble dt)
      
     // 1. demo scene render - draw ground plane and shaderball instances
     {
-        RenderPass sceneForwardPass = {};
+        GfxRenderPass sceneForwardPass = {};
         sceneForwardPass.colorAttachments[0].texture = g_GameState->baseColorRT;
         sceneForwardPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         sceneForwardPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
@@ -519,7 +519,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         sceneForwardPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         sceneForwardPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        RenderCmdEncoder* sceneFowardRenderEncoder = gfx::setRenderPass("Scene Forward", &sceneForwardPass);
+        GfxRenderCmdEncoder* sceneFowardRenderEncoder = gfx::setRenderPass("Scene Forward", &sceneForwardPass);
         sceneFowardRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("principledBrdf"_tag));
         
         // instance
@@ -556,7 +556,7 @@ rgInt core::updateAndDraw(rgDouble dt)
     // RENDER GRID AND EDITOR STUFF
     {
         gfx::buffer->findOrCreate("skyboxVertexBuffer", GfxMemoryType_Default, g_SkyboxVertices, sizeof(g_SkyboxVertices), GfxBufferUsage_VertexBuffer);
-        RenderPass skyboxRenderPass = {};
+        GfxRenderPass skyboxRenderPass = {};
         skyboxRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
         skyboxRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
         skyboxRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
@@ -565,7 +565,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         skyboxRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         skyboxRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        RenderCmdEncoder* skyboxRenderEncoder = gfx::setRenderPass("Skybox Pass", &skyboxRenderPass);
+        GfxRenderCmdEncoder* skyboxRenderEncoder = gfx::setRenderPass("Skybox Pass", &skyboxRenderPass);
         skyboxRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("skybox"_tag));
         skyboxRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         skyboxRenderEncoder->bindTexture("diffuseCubeMap", gfx::texture->find("sangiuseppeBridgeCube"_tag));
@@ -576,7 +576,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         
         if(g_GameState->debugShowGrid)
         {
-            RenderPass gridRenderPass = {};
+            GfxRenderPass gridRenderPass = {};
             gridRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
             gridRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
             gridRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
@@ -584,7 +584,7 @@ rgInt core::updateAndDraw(rgDouble dt)
             gridRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
             gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
             
-            RenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass("DemoScene Pass", &gridRenderPass);
+            GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass("DemoScene Pass", &gridRenderPass);
             gridRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("gridPSO"_tag));
             gridRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
             gridRenderEncoder->drawTriangles(0, 6, 1);
@@ -592,7 +592,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         }
         
         {
-            Buffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", GfxMemoryType_Default, nullptr, (sizeof(uint32_t) * LUMINANCE_HISTOGRAM_BINS_COUNT) + (sizeof(float) * (1 + 1)), GfxBufferUsage_ShaderRW);
+            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", GfxMemoryType_Default, nullptr, (sizeof(uint32_t) * LUMINANCE_HISTOGRAM_BINS_COUNT) + (sizeof(float) * (1 + 1)), GfxBufferUsage_ShaderRW);
             
             if(showPostFXEditor)
             {
@@ -645,7 +645,7 @@ rgInt core::updateAndDraw(rgDouble dt)
             tonemapParams.luminanceAdaptationKey = g_GameState->tonemapperExposureKey;
             tonemapParams.tau = g_GameState->tonemapperAdaptationRate;
             
-            ComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
+            GfxComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
                         
             postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapClearOutputLuminanceHistogram"_tag));
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);

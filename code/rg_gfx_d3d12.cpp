@@ -46,8 +46,8 @@ rgU32  descriptorRangeOffsetBindlessTexture2D;
 ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
 ComPtr<ID3D12GraphicsCommandList> currentCommandList;
 
-Texture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
-Texture* depthStencilTexture;
+GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
+GfxTexture* depthStencilTexture;
 
 struct ResourceCopyTask
 {
@@ -91,7 +91,7 @@ static inline DXGI_FORMAT toDXGIFormat(TinyImageFormat fmt)
     return (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(fmt);
 }
 
-static inline D3D12_COMPARISON_FUNC toD3DCompareFunc(CompareFunc func)
+static inline D3D12_COMPARISON_FUNC toD3DCompareFunc(GfxCompareFunc func)
 {
     D3D12_COMPARISON_FUNC result = D3D12_COMPARISON_FUNC_NONE;
     switch(func)
@@ -124,7 +124,7 @@ static inline D3D12_COMPARISON_FUNC toD3DCompareFunc(CompareFunc func)
     return result;
 }
 
-static D3D12_TEXTURE_ADDRESS_MODE toD3DTextureAddressMode(SamplerAddressMode rstAddressMode)
+static D3D12_TEXTURE_ADDRESS_MODE toD3DTextureAddressMode(GfxSamplerAddressMode rstAddressMode)
 {
     D3D12_TEXTURE_ADDRESS_MODE result = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     switch(rstAddressMode)
@@ -147,30 +147,30 @@ static D3D12_TEXTURE_ADDRESS_MODE toD3DTextureAddressMode(SamplerAddressMode rst
     } break;
     default:
     {
-        rgAssert(!"Invalid SamplerAddressMode value");
+        rgAssert(!"Invalid GfxSamplerAddressMode value");
     }
     }
     return result;
 }
 
-static PipelineArgument::Type toGfxPipelineArgumentType(D3D12_SHADER_INPUT_BIND_DESC const& d3dShaderInputBindDesc)
+static GfxPipelineArgument::Type toGfxPipelineArgumentType(D3D12_SHADER_INPUT_BIND_DESC const& d3dShaderInputBindDesc)
 {
-    PipelineArgument::Type outType = PipelineArgument::Type_Unknown;
+    GfxPipelineArgument::Type outType = GfxPipelineArgument::Type_Unknown;
     switch(d3dShaderInputBindDesc.Type)
     {
     case D3D_SIT_CBUFFER:
     {
-        outType = PipelineArgument::Type_ConstantBuffer;
+        outType = GfxPipelineArgument::Type_ConstantBuffer;
     } break;
     case D3D_SIT_TEXTURE:
     {
         if(d3dShaderInputBindDesc.Dimension == D3D_SRV_DIMENSION_TEXTURE2D)
         {
-            outType = PipelineArgument::Type_Texture2D;
+            outType = GfxPipelineArgument::Type_Texture2D;
         }
         else if(d3dShaderInputBindDesc.Dimension == D3D_SRV_DIMENSION_TEXTURECUBE)
         {
-            outType = PipelineArgument::Type_TextureCube;
+            outType = GfxPipelineArgument::Type_TextureCube;
         }
         else
         {
@@ -413,10 +413,10 @@ DescriptorAllocator* stagedCbvSrvUavDescriptorAllocator;
 DescriptorAllocator* stagedSamplerDescriptorAllocator;
 
 //*****************************************************************************
-// Buffer Implementation
+// GfxBuffer Implementation
 //*****************************************************************************
 
-void Buffer::create(char const* tag, MemoryType memoryType, void* buf, rgSize size, BufferUsage usage, Buffer* obj)
+void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj)
 {
     rgAssert(size > 0);
 
@@ -473,7 +473,7 @@ void Buffer::create(char const* tag, MemoryType memoryType, void* buf, rgSize si
     obj->d3dResource = bufferResource;
 }
 
-void Buffer::destroy(Buffer* obj)
+void GfxBuffer::destroy(GfxBuffer* obj)
 {
 #if defined(ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS)
     // Check is this resource has pending copy task
@@ -481,13 +481,13 @@ void Buffer::destroy(Buffer* obj)
     {
         if(itr.dst == obj->d3dResource)
         {
-            rgAssert(!"Buffer resource has a pending copy task");
+            rgAssert(!"GfxBuffer resource has a pending copy task");
         }
     }
 #endif
 }
 
-void* Buffer::map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes)
+void* GfxBuffer::map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes)
 {
     void* mappedPtr = nullptr;
     mappedRange = CD3DX12_RANGE(rangeBeginOffset, rangeBeginOffset + rangeSizeInBytes);
@@ -495,17 +495,17 @@ void* Buffer::map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes)
     return mappedPtr;
 }
 
-void Buffer::unmap()
+void GfxBuffer::unmap()
 {
     d3dResource->Unmap(0, &mappedRange);
 }
 
 
 //*****************************************************************************
-// SamplerState Implementation
+// GfxSamplerState Implementation
 //*****************************************************************************
 
-void SamplerState::create(char const* tag, SamplerAddressMode rstAddressMode, SamplerMinMagFilter minFilter, SamplerMinMagFilter magFilter, SamplerMipFilter mipFilter, rgBool anisotropy, SamplerState* obj)
+void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
 {
     auto toD3DFilter = [minFilter, magFilter, mipFilter, anisotropy]() -> D3D12_FILTER
     {
@@ -600,20 +600,20 @@ void SamplerState::create(char const* tag, SamplerAddressMode rstAddressMode, Sa
     obj->d3dStagedDescriptorIndex = descriptorIndex;
 }
 
-void SamplerState::destroy(SamplerState* obj)
+void GfxSamplerState::destroy(GfxSamplerState* obj)
 {
     stagedSamplerDescriptorAllocator->releasePersistentDescriptor(obj->d3dStagedDescriptorIndex);
 }
 
 
 //*****************************************************************************
-// Texture Implementation
+// GfxTexture Implementation
 //*****************************************************************************
 
-ComPtr<ID3D12Resource> createTextureResource(char const* tag, TextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, TextureMipFlag mipFlag, TextureUsage usage, ImageSlice* slices)
+ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices)
 {
     DXGI_FORMAT textureFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
-    rgUInt mipmapLevelCount = Texture::calcMipmapCount(mipFlag, width, height);
+    rgUInt mipmapLevelCount = GfxTexture::calcMipmapCount(mipFlag, width, height);
 
     D3D12_CLEAR_VALUE* clearValue = nullptr;
     D3D12_CLEAR_VALUE initialClearValue = {};
@@ -722,21 +722,21 @@ ComPtr<ID3D12Resource> createTextureResource(char const* tag, TextureDim dim, rg
     return texRes;
 }
 
-void Texture::create(char const* tag, TextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, TextureMipFlag mipFlag, TextureUsage usage, ImageSlice* slices, Texture* obj)
+void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
     obj->d3dTexture = createTextureResource(tag, dim, width, height, format, mipFlag, usage, slices);
 }
 
-void Texture::destroy(Texture* obj)
+void GfxTexture::destroy(GfxTexture* obj)
 {
 }
 
 
 //*****************************************************************************
-// GraphicsPSO Implementation
+// GfxGraphicsPSO Implementation
 //*****************************************************************************
 
-void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, PipelineArgument>* outArguments, rgBool* outHasBindlessTexture2D)
+void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& cbvSrvUavDescTableRanges, eastl::vector<CD3DX12_DESCRIPTOR_RANGE1>& samplerDescTableRanges, eastl::hash_map<eastl::string, GfxPipelineArgument>* outArguments, rgBool* outHasBindlessTexture2D)
 {
     D3D12_SHADER_DESC shaderDesc = { 0 };
     shaderReflection->GetDesc(&shaderDesc);
@@ -828,8 +828,8 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
             rgAssert("Only Texture2D bindless resources are supported");
         }
 
-        PipelineArgument arg = {};
-        strncpy(arg.tag, shaderInputBindDesc.Name, rgARRAY_COUNT(PipelineArgument::tag));
+        GfxPipelineArgument arg = {};
+        strncpy(arg.tag, shaderInputBindDesc.Name, rgARRAY_COUNT(GfxPipelineArgument::tag));
         arg.stages = GfxStage_VS; // TODO: fill correct stage info
         arg.type = toGfxPipelineArgumentType(shaderInputBindDesc);
         arg.registerIndex = shaderInputBindDesc.BindPoint;
@@ -869,7 +869,7 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
     }
 }
 
-void GraphicsPSO::create(char const* tag, VertexInputDesc* vertexInputDesc, ShaderDesc* shaderDesc, RenderStateDesc* renderStateDesc, GraphicsPSO* obj)
+void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     // compile shader
     gfx::ShaderBlobRef vertexShader, fragmentShader;
@@ -1048,7 +1048,7 @@ void GraphicsPSO::create(char const* tag, VertexInputDesc* vertexInputDesc, Shad
 
     // pso rendertarget
     psoDesc.NumRenderTargets = 0;
-    for(rgInt i = 0; i < rgARRAY_COUNT(RenderStateDesc::colorAttachments); ++i)
+    for(rgInt i = 0; i < rgARRAY_COUNT(GfxRenderStateDesc::colorAttachments); ++i)
     {
         if(renderStateDesc->colorAttachments[i].pixelFormat != TinyImageFormat_UNDEFINED)
         {
@@ -1067,27 +1067,27 @@ void GraphicsPSO::create(char const* tag, VertexInputDesc* vertexInputDesc, Shad
     obj->d3dPSO = pso;
 }
 
-void GraphicsPSO::destroy(GraphicsPSO* obj)
+void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
 {
 }
 
 //*****************************************************************************
-// ComputePSO Implementation
+// GfxComputePSO Implementation
 //*****************************************************************************
 
-void ComputePSO::create(const char* tag, ShaderDesc* shaderDesc, ComputePSO* obj)
+void GfxComputePSO::create(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj)
 {
 }
 
-void ComputePSO::destroy(ComputePSO* obj)
+void GfxComputePSO::destroy(GfxComputePSO* obj)
 {
 }
 
 //*****************************************************************************
-// RenderCmdEncoder Implementation
+// GfxRenderCmdEncoder Implementation
 //*****************************************************************************
 
-void RenderCmdEncoder::begin(char const* tag, RenderPass* renderPass)
+void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 {
     // enabled this vvv later
     //d3dGraphicsCommandlist = createGraphicsCommandList(getCommandAllocator(), nullptr);
@@ -1096,26 +1096,26 @@ void RenderCmdEncoder::begin(char const* tag, RenderPass* renderPass)
     //d3dGraphicsCommandlist->OMSetRenderTargets()
 }
 
-void RenderCmdEncoder::end()
+void GfxRenderCmdEncoder::end()
 {
 }
 
 //-----------------------------------------------------------------------------
-void RenderCmdEncoder::pushDebugTag(const char* tag)
+void GfxRenderCmdEncoder::pushDebugTag(const char* tag)
 {
 }
 
-void RenderCmdEncoder::popDebugTag()
+void GfxRenderCmdEncoder::popDebugTag()
 {
 }
 
 //-----------------------------------------------------------------------------
-void RenderCmdEncoder::setViewport(rgFloat4 viewport)
+void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
 {
     setViewport(viewport.x, viewport.y, viewport.z, viewport.w);
 }
 
-void RenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height)
+void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height)
 {
     D3D12_VIEWPORT viewport = {};
     viewport.TopLeftX = originX;
@@ -1127,12 +1127,12 @@ void RenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat wid
     currentCommandList->RSSetViewports(1, &viewport);
 }
 
-void RenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels)
+void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels)
 {
 }
 
 //-----------------------------------------------------------------------------
-void RenderCmdEncoder::setGraphicsPSO(GraphicsPSO* pso)
+void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
     gfx::currentGraphicsPSO = pso;
 
@@ -1160,13 +1160,13 @@ void RenderCmdEncoder::setGraphicsPSO(GraphicsPSO* pso)
 }
 
 //-----------------------------------------------------------------------------
-void RenderCmdEncoder::setVertexBuffer(const Buffer* buffer, rgU32 offset, rgU32 slot)
+void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset, rgU32 slot)
 {
     // We might be able to directly add offset to gpu address
     // https://www.milty.nl/grad_guide/basic_implementation/d3d12/buffers.html
 }
 
-void RenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU32 slot)
+void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU32 slot)
 {
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
     vertexBufferView.BufferLocation = resource->d3dResource->GetGPUVirtualAddress();
@@ -1176,7 +1176,7 @@ void RenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU32 s
 }
 
 //-----------------------------------------------------------------------------
-PipelineArgument& RenderCmdEncoder::getPipelineArgument(char const* bindingTag)
+GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
     rgAssert(gfx::currentGraphicsPSO != nullptr);
     rgAssert(bindingTag);
@@ -1188,7 +1188,7 @@ PipelineArgument& RenderCmdEncoder::getPipelineArgument(char const* bindingTag)
         rgAssert(false);
     }
 
-    PipelineArgument& info = infoIter->second;
+    GfxPipelineArgument& info = infoIter->second;
 
     if(((info.stages & GfxStage_VS) != GfxStage_VS) && (info.stages & GfxStage_FS) != GfxStage_FS)
     {
@@ -1199,16 +1199,16 @@ PipelineArgument& RenderCmdEncoder::getPipelineArgument(char const* bindingTag)
     return info;
 }
 
-void RenderCmdEncoder::bindBuffer(char const* bindingTag, Buffer* buffer, rgU32 offset)
+void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset)
 {
 }
 
-void RenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource const* resource)
+void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource const* resource)
 {
     rgAssert(resource != nullptr);
-    PipelineArgument& argument = getPipelineArgument(bindingTag);
+    GfxPipelineArgument& argument = getPipelineArgument(bindingTag);
 
-    if(argument.type = PipelineArgument::Type_ConstantBuffer)
+    if(argument.type = GfxPipelineArgument::Type_ConstantBuffer)
     {
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
         cbvDesc.BufferLocation = resource->d3dResource->GetGPUVirtualAddress();
@@ -1219,10 +1219,10 @@ void RenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource const
 }
 
 //-----------------------------------------------------------------------------
-void RenderCmdEncoder::bindSamplerState(char const* bindingTag, SamplerState* sampler)
+void GfxRenderCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerState* sampler)
 {
     rgAssert(sampler != nullptr);
-    PipelineArgument& argument = getPipelineArgument(bindingTag);
+    GfxPipelineArgument& argument = getPipelineArgument(bindingTag);
 
     D3D12_CPU_DESCRIPTOR_HANDLE destDescriptorHandle = samplerDescriptorAllocator->getCpuHandle(pipelineSamplerDescriptorRangeOffset + argument.d3dOffsetInDescriptorTable);
     D3D12_CPU_DESCRIPTOR_HANDLE srcDescriptorhandle = stagedSamplerDescriptorAllocator->getCpuHandle(sampler->d3dStagedDescriptorIndex);
@@ -1230,12 +1230,12 @@ void RenderCmdEncoder::bindSamplerState(char const* bindingTag, SamplerState* sa
 }
 
 //-----------------------------------------------------------------------------
-void RenderCmdEncoder::bindTexture(char const* bindingTag, Texture* texture)
+void GfxRenderCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* texture)
 {
 }
 
 //-----------------------------------------------------------------------------
-void RenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
+void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 {
     if(quads->size() < 1)
     {
@@ -1276,48 +1276,48 @@ void RenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 }
 
 //-----------------------------------------------------------------------------
-void RenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount)
+void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount)
 {
     currentCommandList->DrawInstanced(vertexCount, instanceCount, vertexStart, 0);
 }
 
-void RenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, Buffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount)
+void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount)
 {
 }
 
-void RenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount)
+void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount)
 {
 }
 
 //*****************************************************************************
-// ComputeCmdEncoder Implementation
+// GfxComputeCmdEncoder Implementation
 //*****************************************************************************
 
-void ComputeCmdEncoder::begin(char const* tag)
+void GfxComputeCmdEncoder::begin(char const* tag)
 {
 }
 
-void ComputeCmdEncoder::end()
-{
-}
-
-//-----------------------------------------------------------------------------
-void ComputeCmdEncoder::pushDebugTag(char const* tag)
+void GfxComputeCmdEncoder::end()
 {
 }
 
 //-----------------------------------------------------------------------------
-void ComputeCmdEncoder::popDebugTag()
+void GfxComputeCmdEncoder::pushDebugTag(char const* tag)
 {
 }
 
 //-----------------------------------------------------------------------------
-void ComputeCmdEncoder::setComputePSO(ComputePSO* pso)
+void GfxComputeCmdEncoder::popDebugTag()
 {
 }
 
 //-----------------------------------------------------------------------------
-PipelineArgument* ComputeCmdEncoder::getPipelineArgument(char const* bindingTag)
+void GfxComputeCmdEncoder::setComputePSO(GfxComputePSO* pso)
+{
+}
+
+//-----------------------------------------------------------------------------
+GfxPipelineArgument* GfxComputeCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
     rgAssert(gfx::currentComputePSO != nullptr);
     rgAssert(bindingTag);
@@ -1335,51 +1335,51 @@ PipelineArgument* ComputeCmdEncoder::getPipelineArgument(char const* bindingTag)
 }
 
 //-----------------------------------------------------------------------------
-void ComputeCmdEncoder::bindBuffer(char const* bindingTag, Buffer* buffer, rgU32 offset)
+void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset)
 {
 }
 
-void ComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource const* resource)
+void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource const* resource)
 {
 }
 
-void ComputeCmdEncoder::bindBufferFromData(char const* bindingTag, rgU32 sizeInBytes, void* data)
+void GfxComputeCmdEncoder::bindBufferFromData(char const* bindingTag, rgU32 sizeInBytes, void* data)
 {
 }
 
-void ComputeCmdEncoder::bindTexture(char const* bindingTag, Texture* texture)
+void GfxComputeCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* texture)
 {
 }
 
-void ComputeCmdEncoder::bindSamplerState(char const* bindingTag, SamplerState* sampler)
+void GfxComputeCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerState* sampler)
 {
 }
 
-void ComputeCmdEncoder::dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ)
+void GfxComputeCmdEncoder::dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ)
 {
 }
 
 //*****************************************************************************
-// BlitCmdEncoder Implementation
+// GfxBlitCmdEncoder Implementation
 //*****************************************************************************
 
-void BlitCmdEncoder::begin(char const* tag)
+void GfxBlitCmdEncoder::begin(char const* tag)
 {
 }
 
-void BlitCmdEncoder::end()
+void GfxBlitCmdEncoder::end()
 {
 }
 
-void BlitCmdEncoder::pushDebugTag(const char* tag)
+void GfxBlitCmdEncoder::pushDebugTag(const char* tag)
 {
 }
 
-void BlitCmdEncoder::genMips(Texture* srcTexture)
+void GfxBlitCmdEncoder::genMips(GfxTexture* srcTexture)
 {
 }
 
-void BlitCmdEncoder::copyTexture(Texture* srcTexture, Texture* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount)
+void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount)
 {
 }
 
@@ -1468,7 +1468,7 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
     return output;
 }
 
-GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, TextureUsage usage)
+GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
 {
     ComPtr<ID3D12Resource> texRes = createTextureResource(tag, GfxTextureDim_2D, width, height, format, GfxTextureMipFlag_1Mip, usage, nullptr);
     d3dResources.push_back(texRes);
@@ -1630,7 +1630,7 @@ rgInt init()
         rtvDescriptorHandle.Offset(1, rtvDescriptorSize);
 
         D3D12_RESOURCE_DESC desc = texResource->GetDesc();
-        Texture* texRT = rgNew(Texture);
+        GfxTexture* texRT = rgNew(GfxTexture);
         strncpy(texRT->tag, "RenderTarget", 32);
         texRT->dim = GfxTextureDim_2D;
         texRT->width = (rgUInt)desc.Width;
@@ -1700,7 +1700,7 @@ rgInt draw()
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
     currentCommandList->RSSetScissorRects(1, &scissorRect);
 
-    Texture* currentRenderTarget = swapchainTextures[g_FrameIndex];
+    GfxTexture* currentRenderTarget = swapchainTextures[g_FrameIndex];
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, rtvDescriptorSize);
@@ -1762,7 +1762,7 @@ void startNextFrame()
 
 void endFrame()
 {
-    Texture* currentRenderTarget = swapchainTextures[g_FrameIndex];
+    GfxTexture* currentRenderTarget = swapchainTextures[g_FrameIndex];
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     BreakIfFail(currentCommandList->Close());
@@ -1789,7 +1789,7 @@ void runOnFrameBeginJob()
 {
 }
 
-void setterBindlessResource(rgU32 slot, Texture* resource)
+void setterBindlessResource(rgU32 slot, GfxTexture* resource)
 {
     // Only 2D bindless textures are supported
     rgAssert(resource->dim == GfxTextureDim_2D);
@@ -1823,7 +1823,7 @@ void rendererImGuiRenderDrawData()
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), currentCommandList.Get());
 }
 
-Texture* getCurrentRenderTargetColorBuffer()
+GfxTexture* getCurrentRenderTargetColorBuffer()
 {
     return swapchainTextures[g_FrameIndex];
 }
