@@ -270,7 +270,7 @@ Matrix4 viewMatrix;
 eastl::vector<GfxTexture*> debugTextureHandles; // test only
 
 
-Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearPlane, rgFloat farPlane)
+Matrix4 gfxMakeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearPlane, rgFloat farPlane)
 {
     rgFloat length = 1.0f / (right - left);
     rgFloat height = 1.0f / (top - bottom);
@@ -283,7 +283,7 @@ Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bo
                    Vector4(-((right + left) * length), -((top +bottom) * height), -nearPlane * depth, 1.0f));
 }
 
-Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane)
+Matrix4 gfxMakePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane)
 {
     // focal length = 1 / tan(fov/2)
 
@@ -312,7 +312,7 @@ Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio
                    Vector4(0, 0, e, 0));
 }
 
-rgInt preInit()
+rgInt gfxPreInit()
 {
     gfx::bindlessManagerTexture = rgNew(GfxBindlessResourceManager<GfxTexture>);
     
@@ -384,7 +384,7 @@ void styleImGui()
     style.TabRounding = 0.0f;
 }
 
-rgInt initCommonStuff()
+rgInt gfxPostInit()
 {
     // Initialize frame buffer allocators
     for(rgS32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
@@ -412,7 +412,7 @@ rgInt initCommonStuff()
     return 0;
 }
 
-void atFrameStart()
+void gfxAtFrameStart()
 {
     GfxBuffer::destroyMarkedObjects();
     GfxTexture::destroyMarkedObjects();
@@ -432,12 +432,12 @@ void atFrameStart()
     gfx::frameAllocators[g_FrameIndex]->reset();
 }
 
-rgInt getFrameIndex()
+rgInt gfxGetFrameIndex()
 {
     return (g_FrameIndex != -1) ? g_FrameIndex : 0;
 }
 
-rgInt getPrevFrameIndex()
+rgInt gfxGetPrevFrameIndex()
 {
     rgInt prevFrameIndex = 0;
     if(g_FrameIndex != -1)
@@ -451,7 +451,7 @@ rgInt getPrevFrameIndex()
     return prevFrameIndex;
 }
 
-GfxFrameAllocator* getFrameAllocator()
+GfxFrameAllocator* gfxGetFrameAllocator()
 {
     return gfx::frameAllocators[g_FrameIndex];
 }

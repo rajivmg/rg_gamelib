@@ -108,7 +108,7 @@ void updateCamera()
     g_GameState->cameraFar  = 100.0f;
     
     g_GameState->cameraView = orthoInverse(Matrix4(g_GameState->cameraBasis, Vector3(g_GameState->cameraPosition)));
-    g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(1.4f, (rgFloat)g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
+    g_GameState->cameraProjection = gfx::gfxMakePerspectiveProjectionMatrix(1.4f, (rgFloat)g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
     g_GameState->cameraViewProjection = g_GameState->cameraProjection * g_GameState->cameraView;
     g_GameState->cameraInvView = inverse(g_GameState->cameraView);
     g_GameState->cameraInvProjection = inverse(g_GameState->cameraProjection);
@@ -475,7 +475,7 @@ rgInt core::updateAndDraw(rgDouble dt)
     commonParams.timeDelta = (rgFloat)g_DeltaTime;
     commonParams.timeGame  = (rgFloat)g_Time;
 
-    GfxFrameResource commonParamsBuffer = gfx::getFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
+    GfxFrameResource commonParamsBuffer = gfx::gfxGetFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
     
     // RENDER SIMPLE 2D STUFF
     {
@@ -534,7 +534,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
         
         
-        GfxFrameResource demoSceneMeshInstanceParams = gfx::getFrameAllocator()->newBuffer("demoSceneMeshInstanceParams", sizeof(instanceParams), &instanceParams);
+        GfxFrameResource demoSceneMeshInstanceParams = gfx::gfxGetFrameAllocator()->newBuffer("demoSceneMeshInstanceParams", sizeof(instanceParams), &instanceParams);
         
         sceneFowardRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         sceneFowardRenderEncoder->bindBuffer("instanceParams", &demoSceneMeshInstanceParams);
@@ -867,9 +867,9 @@ int main(int argc, char* argv[])
         return -1; // error;
     }
 
-    rgInt gfxPreInitResult = gfx::preInit();
+    rgInt gfxPreInitResult = gfx::gfxPreInit();
     rgInt gfxInitResult = gfx::init();
-    rgInt gfxCommonInitResult = gfx::initCommonStuff();
+    rgInt gfxCommonInitResult = gfx::gfxPostInit();
 
     if(gfxInitResult || gfxCommonInitResult)
     {

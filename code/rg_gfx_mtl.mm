@@ -835,7 +835,7 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
     [re useHeap:gfx::bindlessTextureHeap stages:MTLRenderStageFragment];
     [re setFragmentBuffer:gfx::bindlessTextureArgBuffer offset:0 atIndex:kBindlessTextureSetBinding];
     
-    [re useHeap:asMTLHeap(gfx::getFrameAllocator()->getHeap()) stages:MTLRenderStageVertex|MTLRenderStageFragment];
+    [re useHeap:asMTLHeap(gfx::gfxGetFrameAllocator()->getHeap()) stages:MTLRenderStageVertex|MTLRenderStageFragment];
     
     mtlRenderCommandEncoder = (__bridge void*)re;
     hasEnded = false;
@@ -1043,8 +1043,8 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
     
     genTexturedQuadVertices(quads, &vertices, &instanceParams);
     
-    GfxFrameResource vertexBufAllocation = gfx::getFrameAllocator()->newBuffer("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(gfx::SimpleVertexFormat), vertices.data());
-    GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBuffer", sizeof(gfx::SimpleInstanceParams), &instanceParams);
+    GfxFrameResource vertexBufAllocation = gfx::gfxGetFrameAllocator()->newBuffer("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(gfx::SimpleVertexFormat), vertices.data());
+    GfxFrameResource instanceParamsBuffer = gfx::gfxGetFrameAllocator()->newBuffer("instanceParamsCBuffer", sizeof(gfx::SimpleInstanceParams), &instanceParams);
 
     //-
     // camera
@@ -1054,10 +1054,10 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         rgFloat view2d[16];
     } cameraParams;
     
-    copyMatrix4ToFloatArray(cameraParams.projection2d, gfx::makeOrthographicProjectionMatrix(0.0f, g_WindowInfo.width, g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
+    copyMatrix4ToFloatArray(cameraParams.projection2d, gfx::gfxMakeOrthographicProjectionMatrix(0.0f, g_WindowInfo.width, g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
     copyMatrix4ToFloatArray(cameraParams.view2d, Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0)));
 
-    GfxFrameResource cameraBuffer = gfx::getFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
+    GfxFrameResource cameraBuffer = gfx::gfxGetFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
     
     // --
 
@@ -1102,7 +1102,7 @@ void GfxComputeCmdEncoder::begin(char const* tag)
     rgAssert(cce != nil);
     [cce pushDebugGroup:[NSString stringWithUTF8String:tag]];
     [cce useHeap:gfx::bindlessTextureHeap];
-    [cce useHeap:asMTLHeap(gfx::getFrameAllocator()->getHeap())];
+    [cce useHeap:asMTLHeap(gfx::gfxGetFrameAllocator()->getHeap())];
     mtlComputeCommandEncoder = (__bridge void*)cce;
     hasEnded = false;
 }
@@ -1187,7 +1187,7 @@ void GfxComputeCmdEncoder::bindBufferFromData(char const* bindingTag, rgU32 size
     rgAssert(data != nullptr);
     rgAssert(sizeInBytes > 0 && sizeInBytes <= SDL_MAX_UINT32);
     
-    GfxFrameResource dataBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBufferBunny", sizeInBytes, data);
+    GfxFrameResource dataBuffer = gfx::gfxGetFrameAllocator()->newBuffer("instanceParamsCBufferBunny", sizeInBytes, data);
     bindBuffer(bindingTag, &dataBuffer);
 }
 
@@ -1543,7 +1543,7 @@ void startNextFrame()
     // This frame fence value is one more than prev frame fence value
     frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
     
-    gfx::atFrameStart();
+    gfx::gfxAtFrameStart();
     
     // Autorelease pool BEGIN
     autoReleasePool = [[NSAutoreleasePool alloc]init];
