@@ -191,7 +191,7 @@ ModelRef loadModel(char const* filename)
     FileData binFileData = readFile(binFilename);
     rgAssert(binFileData.isValid);
     
-    outModel->vertexIndexBuffer = gfx::buffer->create(binFilename, GfxMemoryType_Default, binFileData.data, binFileData.dataSize, GfxBufferUsage_VertexBuffer | GfxBufferUsage_IndexBuffer);
+    outModel->vertexIndexBuffer = GfxBuffer::create(binFilename, GfxMemoryType_Default, binFileData.data, binFileData.dataSize, GfxBufferUsage_VertexBuffer | GfxBufferUsage_IndexBuffer);
     
     outModel->vertexBufferOffset = modelNode.attribute("vertexBufferOffset").as_uint();
     outModel->index32BufferOffset = modelNode.attribute("index32BufferOffset").as_uint();
@@ -250,11 +250,11 @@ GfxGraphicsPSO*         currentGraphicsPSO;
 GfxComputePSO*          currentComputePSO; // TODO: See if this is really necessary
 
 // OBJECT REGISTRIES
-GfxObjectRegistry<GfxTexture>*      texture;
+/*GfxObjectRegistry<GfxTexture>*      texture;
 GfxObjectRegistry<GfxBuffer>*       buffer;
 GfxObjectRegistry<GfxGraphicsPSO>*  graphicsPSO;
 GfxObjectRegistry<GfxComputePSO>*   computePSO;
-GfxObjectRegistry<GfxSamplerState>* samplerState;
+GfxObjectRegistry<GfxSamplerState>* samplerState;*/
 
 GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
 
@@ -321,11 +321,11 @@ Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio
 
 rgInt preInit()
 {
-    gfx::buffer = rgNew(GfxObjectRegistry<GfxBuffer>);
+    /*gfx::buffer = rgNew(GfxObjectRegistry<GfxBuffer>);
     gfx::texture = rgNew(GfxObjectRegistry<GfxTexture>);
     gfx::samplerState = rgNew(GfxObjectRegistry<GfxSamplerState>);
     gfx::graphicsPSO = rgNew(GfxObjectRegistry<GfxGraphicsPSO>);
-    gfx::computePSO = rgNew(GfxObjectRegistry<GfxComputePSO>);
+    gfx::computePSO = rgNew(GfxObjectRegistry<GfxComputePSO>);*/
 
     gfx::bindlessManagerTexture = rgNew(GfxBindlessResourceManager<GfxTexture>);
     
@@ -414,12 +414,12 @@ rgInt initCommonStuff()
 
     gfx::rendererImGuiInit();
     
-    samplerBilinearRepeat = gfx::samplerState->create("samplerBilinearRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
-    samplerBilinearClampEdge = gfx::samplerState->create("samplerBilinearClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
-    samplerTrilinearRepeatAniso = gfx::samplerState->create("samplerTrilinearRepeatAniso", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
-    samplerTrilinearClampEdgeAniso = gfx::samplerState->create("samplerTrilinearClampEdgeAniso", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
-    samplerNearestRepeat = gfx::samplerState->create("samplerNearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
-    samplerNearestClampEdge = gfx::samplerState->create("samplerNearestClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
+    samplerBilinearRepeat = GfxSamplerState::create("samplerBilinearRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
+    samplerBilinearClampEdge = GfxSamplerState::create("samplerBilinearClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
+    samplerTrilinearRepeatAniso = GfxSamplerState::create("samplerTrilinearRepeatAniso", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
+    samplerTrilinearClampEdgeAniso = GfxSamplerState::create("samplerTrilinearClampEdgeAniso", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
+    samplerNearestRepeat = GfxSamplerState::create("samplerNearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
+    samplerNearestClampEdge = GfxSamplerState::create("samplerNearestClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
 
     
     return 0;
@@ -427,10 +427,16 @@ rgInt initCommonStuff()
 
 void atFrameStart()
 {
-    gfx::buffer->destroyMarkedObjects();
+    /*gfx::buffer->destroyMarkedObjects();
     gfx::texture->destroyMarkedObjects();
     gfx::samplerState->destroyMarkedObjects();
-    gfx::graphicsPSO->destroyMarkedObjects();
+    gfx::graphicsPSO->destroyMarkedObjects();*/
+    
+    GfxBuffer::destroyMarkedObjects();
+    GfxTexture::destroyMarkedObjects();
+    GfxSamplerState::destroyMarkedObjects();
+    GfxGraphicsPSO::destroyMarkedObjects();
+    GfxComputePSO::destroyMarkedObjects();
     
     // Reset render pass
     currentRenderPass = nullptr;

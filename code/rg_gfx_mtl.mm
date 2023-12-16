@@ -375,7 +375,7 @@ GfxTexture createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
 // GfxBuffer Implementation
 //-----------------------------------------------------------------------------
 
-void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj)
+void GfxBuffer::createGfxObject(char const* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj)
 {
     if(usage != GfxBufferUsage_ShaderRW)
     {
@@ -401,7 +401,7 @@ void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgS
     obj->mappedMemory = [br contents];
 }
 
-void GfxBuffer::destroy(GfxBuffer* obj)
+void GfxBuffer::destroyGfxObject(GfxBuffer* obj)
 {
     [asMTLBuffer(obj->mtlBuffer) release];
 }
@@ -419,7 +419,7 @@ void GfxBuffer::unmap()
 // GfxSampler Implementation
 //*****************************************************************************
 
-void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
+void GfxSamplerState::createGfxObject(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
 {
     MTLSamplerDescriptor* desc = [MTLSamplerDescriptor new];
     desc.rAddressMode = toMTLSamplerAddressMode(rstAddressMode);
@@ -439,7 +439,7 @@ void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMo
     obj->mtlSampler = (__bridge void*)samplerState;
 }
 
-void GfxSamplerState::destroy(GfxSamplerState* obj)
+void GfxSamplerState::destroyGfxObject(GfxSamplerState* obj)
 {
     [asMTLSamplerState(obj->mtlSampler) release];
 }
@@ -448,7 +448,7 @@ void GfxSamplerState::destroy(GfxSamplerState* obj)
 // GfxTexture2D Implementation
 //*****************************************************************************
 
-void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
+void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
     rgUInt mipmapLevelCount = calcMipmapCount(mipFlag, width, height);
     MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];
@@ -496,7 +496,7 @@ void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt
     obj->mtlTexture = te;
 }
 
-void GfxTexture::destroy(GfxTexture* obj)
+void GfxTexture::destroyGfxObject(GfxTexture* obj)
 {
     [asMTLTexture(obj->mtlTexture) release];
 }
@@ -648,7 +648,7 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
 }
 
 //-----------------------------------------------------------------------------
-void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
+void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     @autoreleasepool
     {
@@ -752,7 +752,7 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
     }
 }
 
-void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
+void GfxGraphicsPSO::destroyGfxObject(GfxGraphicsPSO* obj)
 {
     [getMTLRenderPipelineState(obj) release];
 }
@@ -761,7 +761,7 @@ void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
 // GfxComputePSO Implementation
 //*****************************************************************************
 
-void GfxComputePSO::create(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj)
+void GfxComputePSO::createGfxObject(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj)
 {
     @autoreleasepool
     {
@@ -787,7 +787,7 @@ void GfxComputePSO::create(const char* tag, GfxShaderDesc* shaderDesc, GfxComput
     }
 }
 
-void GfxComputePSO::destroy(GfxComputePSO* obj)
+void GfxComputePSO::destroyGfxObject(GfxComputePSO* obj)
 {
     [getMTLComputePipelineState(obj) release];
 }
@@ -1403,17 +1403,17 @@ void testComputeAtomicsSetup()
     [histogramLibrary release];
     
     ImageRef histoTex = core::loadImage("histogram_test.png");
-    gfx::texture->create("histogramTest", GfxTextureDim_2D, histoTex->width, histoTex->height, histoTex->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, histoTex->slices);
-    gfx::buffer->create("histogramBuffer", GfxMemoryType_Default, nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
+    GfxTexture::create("histogramTest", GfxTextureDim_2D, histoTex->width, histoTex->height, histoTex->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, histoTex->slices);
+    GfxBuffer::create("histogramBuffer", GfxMemoryType_Default, nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
 }
 
 void testComputeAtomicsRun()
 {
     id<MTLComputeCommandEncoder> computeEncoder = [getMTLCommandBuffer() computeCommandEncoder];
     [computeEncoder setComputePipelineState:histogramComputePipeline];
-    [computeEncoder setTexture:getMTLTexture(gfx::texture->find(rgCRC32("histogramTest"))) atIndex:0];
-    [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:0];
-    [computeEncoder setBuffer:getMTLBuffer(gfx::buffer->find(rgCRC32("histogramBuffer"))) offset:0 atIndex:1];
+    [computeEncoder setTexture:getMTLTexture(GfxTexture::find(rgCRC32("histogramTest"))) atIndex:0];
+    [computeEncoder setBuffer:getMTLBuffer(GfxBuffer::find(rgCRC32("histogramBuffer"))) offset:0 atIndex:0];
+    [computeEncoder setBuffer:getMTLBuffer(GfxBuffer::find(rgCRC32("histogramBuffer"))) offset:0 atIndex:1];
     [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
     [computeEncoder endEncoding];
 }

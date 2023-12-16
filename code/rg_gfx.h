@@ -49,6 +49,104 @@ rgInt updateAndDraw(rgDouble dt);
 // Gfx Objects Types
 //-----------------------------------------------------------------------------
 
+// FORWARD DECLARATIONS
+struct GfxTexture;
+namespace gfx
+{
+    void    setterBindlessResource(rgU32 slot, GfxTexture* ptr);
+    void    checkerWaitTillFrameCompleted(rgInt frameIndex);
+    rgInt   getFrameIndex();
+}
+
+// Gfx Object Registry
+// -------------------
+
+template<typename Type>
+struct GfxObjectRegistry
+{
+    // TODO: Is it better to directly use the string as key, but
+    // doing that we will lose the ability to use pre-computed hash.
+    
+    typedef eastl::hash_map<rgHash, Type*> ObjectMapType;
+    
+    static ObjectMapType objects;
+    static eastl::vector<Type*> objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT];
+    
+    static Type* find(rgHash hash)
+    {
+        typename ObjectMapType::iterator itr = objects.find(hash);
+        return (itr != objects.end()) ? itr->second : nullptr;
+    }
+
+    template<typename... Args>
+    static Type* create(const char* tag, Args... args)
+    {
+        rgAssert(tag != nullptr);
+
+        Type* obj = rgNew(Type);
+        strncpy(obj->tag, tag, rgARRAY_COUNT(Type::tag));
+        Type::fillStruct(args..., obj);
+        Type::createGfxObject(tag, args..., obj);
+        insert(rgCRC32(tag), obj);
+        return obj;
+    }
+
+    template <typename... Args>
+    static Type* findOrCreate(const char* tag, Args... args)
+    {
+        rgAssert(tag != nullptr);
+        Type* obj = find(rgCRC32(tag));
+        obj = (obj == nullptr) ? create(tag, args...) : obj;
+        return obj;
+    }
+    
+    static void destroy(rgHash hash)
+    {
+        typename ObjectMapType::iterator itr = objects.find(hash);
+        rgAssert(itr != objects.end());
+        objectsToDestroy[gfx::getFrameIndex()].push_back(itr->second);
+    }
+    
+    static typename ObjectMapType::iterator begin() EA_NOEXCEPT
+    {
+        return objects.begin();
+    }
+
+    static typename ObjectMapType::iterator end() EA_NOEXCEPT
+    {
+        return objects.end();
+    }
+    
+//protected:
+    static void insert(rgHash hash, Type* ptr)
+    {
+#if defined(ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT)
+        ObjectMap::iterator itr = objects.find(hash);
+        rgAssert(itr == objects.end());
+#endif
+        objects.insert_or_assign(hash, ptr);
+    }
+
+    static void destroyMarkedObjects()
+    {
+        for(auto itr : objectsToDestroy[g_FrameIndex])
+        {
+            // TODO: Which one is better here
+            Type::destroyGfxObject(itr);
+            //Type::destroy(&(*itr));
+            rgDelete(&(*itr));
+        }
+        objectsToDestroy[g_FrameIndex].clear();
+    }
+};
+
+template<typename Type>
+typename GfxObjectRegistry<Type>::ObjectMapType GfxObjectRegistry<Type>::objects;
+
+template<typename Type>
+eastl::vector<Type*> GfxObjectRegistry<Type>::objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT];
+
+
 // Buffer type
 // -------------------
 
@@ -75,7 +173,7 @@ enum GfxMemoryType
 // Note:
 // GfxBuffer will always be for static data or shader writable data,
 // cpu updatable dynamic data can be stored in FrameAllocator
-struct GfxBuffer
+struct GfxBuffer : GfxObjectRegistry<GfxBuffer>
 {
     rgChar            tag[32];
     rgSize                size;
@@ -100,8 +198,8 @@ struct GfxBuffer
     }
     
     // TODO: should change to first size then buffer??
-    static void create(const char* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj);
-    static void destroy(GfxBuffer* obj);
+    static void createGfxObject(const char* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj);
+    static void destroyGfxObject(GfxBuffer* obj);
     
     void*   mappedMemory;
     void*   map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes); // TODO: MTL D3D12 - handle ranges
@@ -150,7 +248,7 @@ enum GfxTextureMipFlag
     GfxTextureMipFlag_GenMips,
 };
 
-struct GfxTexture
+struct GfxTexture : GfxObjectRegistry<GfxTexture>
 {
     rgChar          tag[32];
     GfxTextureDim       dim;
@@ -202,10 +300,9 @@ struct GfxTexture
         }
     }
 
-    static void create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj);
-    static void destroy(GfxTexture* obj);
+    static void createGfxObject(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj);
+    static void destroyGfxObject(GfxTexture* obj);
 };
-
 
 // Sampler
 // ----------
@@ -231,7 +328,7 @@ enum GfxSamplerMipFilter
     GfxSamplerMipFilter_Linear,
 };
 
-struct GfxSamplerState
+struct GfxSamplerState : GfxObjectRegistry<GfxSamplerState>
 {
     rgChar tag[32];
     GfxSamplerAddressMode rstAddressMode;
@@ -256,8 +353,8 @@ struct GfxSamplerState
         obj->anisotropy = anisotropy;
     }
 
-    static void create(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj);
-    static void destroy(GfxSamplerState* obj);
+    static void createGfxObject(const char* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj);
+    static void destroyGfxObject(GfxSamplerState* obj);
 };
 
 // RenderPass
@@ -417,7 +514,7 @@ struct GfxPipelineArgument
 #endif
 };
 
-struct GfxGraphicsPSO
+struct GfxGraphicsPSO : GfxObjectRegistry<GfxGraphicsPSO>
 {
     rgChar tag[32];
     GfxCullMode cullMode;
@@ -449,11 +546,11 @@ struct GfxGraphicsPSO
         obj->triangleFillMode = renderStateDesc->triangleFillMode;
     }
 
-    static void create(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj);
-    static void destroy(GfxGraphicsPSO* obj);
+    static void createGfxObject(const char* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj);
+    static void destroyGfxObject(GfxGraphicsPSO* obj);
 };
 
-struct GfxComputePSO
+struct GfxComputePSO : GfxObjectRegistry<GfxComputePSO>
 {
     rgChar tag[32];
     
@@ -472,21 +569,13 @@ struct GfxComputePSO
     {
     }
     
-    static void create(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj);
-    static void destroy(GfxComputePSO* obj);
+    static void createGfxObject(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj);
+    static void destroyGfxObject(GfxComputePSO* obj);
 };
 
 //-----------------------------------------------------------------------------
 // Gfx Helper Classes
 //-----------------------------------------------------------------------------
-
-// FORWARD DECLARATIONS
-namespace gfx
-{
-    void    setterBindlessResource(rgU32 slot, GfxTexture* ptr);
-    void    checkerWaitTillFrameCompleted(rgInt frameIndex);
-    rgInt   getFrameIndex();
-}
 
 template<typename Type>
 class GfxBindlessResourceManager
@@ -576,86 +665,6 @@ public:
     }
 
     // TODO: rgU32 getContiguousFreeSlots(int count);
-};
-
-// Gfx Object Registry
-// -------------------
-
-template<typename Type>
-struct GfxObjectRegistry
-{
-    // TODO: Is it better to directly use the string as key
-    // doing that we will lose the ability to use pre-computed
-    // hash.
-    typedef eastl::hash_map<rgHash, Type*> ObjectMap;
-    ObjectMap objects;
-    eastl::vector<Type*> objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT];
-    
-    Type* find(rgHash hash)
-    {
-        typename ObjectMap::iterator itr = objects.find(hash);
-        return (itr != objects.end()) ? itr->second : nullptr;
-    }
-
-    void insert(rgHash hash, Type* ptr)
-    {
-#if defined(ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT)
-        ObjectMap::iterator itr = objects.find(hash);
-        rgAssert(itr == objects.end());
-#endif
-        objects.insert_or_assign(hash, ptr);
-    }
-
-    void destroy(rgHash hash)
-    {
-        typename ObjectMap::iterator itr = objects.find(hash);
-        rgAssert(itr != objects.end());
-        objectsToDestroy[gfx::getFrameIndex()].push_back(itr->second);
-    }
-
-    void destroyMarkedObjects()
-    {
-        for(auto itr : objectsToDestroy[g_FrameIndex])
-        {
-            // TODO: Which one is better here
-            Type::destroy(itr);
-            //Type::destroy(&(*itr));
-            rgDelete(&(*itr));
-        }
-        objectsToDestroy[g_FrameIndex].clear();
-    }
-
-    template<typename... Args>
-    Type* create(const char* tag, Args... args)
-    {
-        rgAssert(tag != nullptr);
-
-        Type* obj = rgNew(Type);
-        strncpy(obj->tag, tag, rgARRAY_COUNT(Type::tag));
-        Type::fillStruct(args..., obj);
-        Type::create(tag, args..., obj);
-        insert(rgCRC32(tag), obj);
-        return obj;
-    }
-
-    template <typename... Args>
-    Type* findOrCreate(const char* tag, Args... args)
-    {
-        rgAssert(tag != nullptr);
-        Type* obj = find(rgCRC32(tag));
-        obj = (obj == nullptr) ? create(tag, args...) : obj;
-        return obj;
-    }
-    
-    typename ObjectMap::iterator begin() EA_NOEXCEPT
-    {
-        return objects.begin();
-    }
-
-    typename ObjectMap::iterator end() EA_NOEXCEPT
-    {
-        return objects.end();
-    }
 };
 
 //-----------------------------------------------------------------------------
@@ -1054,11 +1063,11 @@ extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
 extern GfxGraphicsPSO* currentGraphicsPSO;
 extern GfxComputePSO* currentComputePSO;
 
-extern GfxObjectRegistry<GfxBuffer>*        buffer;
+/*extern GfxObjectRegistry<GfxBuffer>*        buffer;
 extern GfxObjectRegistry<GfxTexture>*       texture;
 extern GfxObjectRegistry<GfxSamplerState>*  samplerState;
 extern GfxObjectRegistry<GfxGraphicsPSO>*   graphicsPSO;
-extern GfxObjectRegistry<GfxComputePSO>*    computePSO;
+extern GfxObjectRegistry<GfxComputePSO>*    computePSO;*/
 
 extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
 
