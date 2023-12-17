@@ -1,7 +1,5 @@
 #include "core.h"
 
-RG_BEGIN_CORE_NAMESPACE
-
 char* getPrefPath()
 {
     return SDL_GetPrefPath("rg", "gamelib");
@@ -90,5 +88,3 @@ rgBool writeFile(char const* filepath, void* bufferPtr, rgSize bufferSizeInBytes
 	}
 	return true;
 }
-
-RG_END_CORE_NAMESPACE

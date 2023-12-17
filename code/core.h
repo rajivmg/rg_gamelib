@@ -45,13 +45,17 @@ typedef uint32_t    rgHash;
 static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(rgU32) != sizeof(uint32_t)");
 
 #define RG_INLINE inline
+
 #define rgKilobyte(x) 1024LL * (x)
 #define rgMegabyte(x) 1024LL * rgKilobyte(x)
 #define rgGigabyte(x) 1024LL * rgMegabyte(x)
+
 #define rgArrayCount(a) (sizeof(a)/sizeof((a)[0]))
 #define rgOffsetOf(type, member) ((uintptr_t)&(((type *)0)->member))
 #define rgSizeOfU32(x) ((rgU32)sizeof(x))
+
 #define rgAssert(exp) SDL_assert(exp)
+
 #define rgMalloc(s) malloc((s))
 #define rgFree(p) free((p))
 #define rgNew(objectType) new objectType
@@ -155,14 +159,6 @@ RG_INLINE void rgPrintImplementation(const char* varName, rgFloat3& a)
 
 extern rgBool g_ShouldQuit;
 
-RG_BEGIN_CORE_NAMESPACE
-
-// TODO: move to utils.h
-inline uint32_t roundUp(uint32_t value, uint32_t multiple)
-{
-    return (value + multiple - 1) & ~(multiple - 1);
-}
-
 struct PhysicSystem;
 
 struct FileData
@@ -184,15 +180,13 @@ struct WindowInfo
 
 char* getPrefPath();
 
-RG_END_CORE_NAMESPACE
-
 extern rgDouble g_DeltaTime;
 extern rgDouble g_Time;
 
 extern rgInt g_FrameIndex;
 
-extern core::WindowInfo g_WindowInfo;
-extern core::PhysicSystem* g_PhysicSystem;
+extern WindowInfo g_WindowInfo;
+extern PhysicSystem* g_PhysicSystem;
 
 /// ----- Implementation
 #ifdef RG_H_IMPLEMENTATION

@@ -182,7 +182,7 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     strcpy(filepath, "../code/shaders/");
     strncat(filepath, filename, 490);
 
-    core::FileData shaderFileData = core::readFile(filepath); // TODO: destructor deleter for FileData
+    FileData shaderFileData = readFile(filepath); // TODO: destructor deleter for FileData
     rgAssert(shaderFileData.isValid);
     
     // prepare for passing shader to dxc
@@ -196,7 +196,7 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     checkResult(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), customIncludeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
 
     // free shader file data
-    core::freeFileData(&shaderFileData);
+    freeFileData(&shaderFileData);
 
     // print warnings and errors from compilation result
     ComPtr<IDxcBlobUtf8> errorMsg;

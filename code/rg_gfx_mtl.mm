@@ -560,7 +560,7 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
     strncat(generatedFilepath, "_", 2);
     strncat(generatedFilepath, entrypoint, 64);
     strncat(generatedFilepath, ".msl", 9);
-    core::writeFile(generatedFilepath, (void*)mslShaderSource.c_str(), mslShaderSource.size() * sizeof(char));
+    writeFile(generatedFilepath, (void*)mslShaderSource.c_str(), mslShaderSource.size() * sizeof(char));
     
     // if compute shader, fetch the workgroup size
     if(outThreadsPerThreadgroupX != nullptr && outThreadsPerThreadgroupY != nullptr && outThreadsPerThreadgroupZ != nullptr)

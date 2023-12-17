@@ -41,8 +41,8 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
 
 GameState* g_GameState;
 GameInput* g_GameInput;
-core::PhysicSystem* g_PhysicSystem;
-core::WindowInfo g_WindowInfo;
+PhysicSystem* g_PhysicSystem;
+WindowInfo g_WindowInfo;
 
 rgDouble g_DeltaTime;
 rgDouble g_Time;
