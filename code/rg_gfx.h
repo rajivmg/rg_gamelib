@@ -32,8 +32,6 @@
 #define RG_BEGIN_GFX_NAMESPACE namespace gfx {
 #define RG_END_GFX_NAMESPACE }
 
-RG_BEGIN_CORE_NAMESPACE
-
 static const rgU32 kInvalidValue = ~(0x0);
 static const rgU32 kUninitializedValue = 0;
 static const rgU32 kMaxColorAttachments = 4;
@@ -51,12 +49,9 @@ rgInt updateAndDraw(rgDouble dt);
 
 // FORWARD DECLARATIONS
 struct GfxTexture;
-namespace gfx
-{
-    void    setterBindlessResource(rgU32 slot, GfxTexture* ptr);
-    void    checkerWaitTillFrameCompleted(rgInt frameIndex);
-    rgInt   getFrameIndex();
-}
+
+rgInt               gfxGetFrameIndex();
+void    gfxSetterBindlessResource(rgU32 slot, GfxTexture* ptr);
 
 // Gfx Object Registry
 // -------------------
@@ -104,7 +99,7 @@ struct GfxObjectRegistry
     {
         typename ObjectMapType::iterator itr = objects.find(hash);
         rgAssert(itr != objects.end());
-        objectsToDestroy[gfx::getFrameIndex()].push_back(itr->second);
+        objectsToDestroy[gfxGetFrameIndex()].push_back(itr->second);
     }
     
     static typename ObjectMapType::iterator begin() EA_NOEXCEPT
@@ -617,7 +612,7 @@ class GfxBindlessResourceManager
     void setResourcePtrInSlot(rgU32 slot, Type* ptr)
     {
         resources[slot] = ptr;
-        gfx::setterBindlessResource(slot, ptr);
+        gfxSetterBindlessResource(slot, ptr);
         // TODO: make sure we're not updating a resource in flight
         // this should be implictly handled from _releaseSlot
     }
@@ -981,8 +976,6 @@ struct GfxBlitCmdEncoder
 // ACCESS TO GFXCTX CONTENTS, DO NOT PUT IT BELOW THIS LINE.
 //-----------------------------------------------------------------------------
 
-RG_BEGIN_GFX_NAMESPACE
-
 #ifdef RG_VULKAN_RNDR
 #define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
 #endif
@@ -1054,6 +1047,8 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 //-----------------------------------------------------------------------------
 // Graphic Context Data
 //-----------------------------------------------------------------------------
+
+RG_BEGIN_GFX_NAMESPACE
 extern SDL_Window* mainWindow;
 extern rgUInt frameNumber;
 
@@ -1154,6 +1149,5 @@ struct GL
 #endif
 
 RG_END_GFX_NAMESPACE
-RG_END_CORE_NAMESPACE
 
 #endif

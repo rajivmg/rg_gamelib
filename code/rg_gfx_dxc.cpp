@@ -12,7 +12,6 @@
 
 static ComPtr<IDxcUtils> g_DxcUtils;
 
-RG_BEGIN_CORE_NAMESPACE
 RG_BEGIN_GFX_NAMESPACE
 
 void checkResult(HRESULT hr)
@@ -257,4 +256,3 @@ void destroyShaderBlob(ShaderBlob* shaderBlob)
 }
 
 RG_END_GFX_NAMESPACE
-RG_END_CORE_NAMESPACE

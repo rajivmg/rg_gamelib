@@ -10,8 +10,6 @@
 #include "pugixml.hpp"
 #include "DirectXTex.h"
 
-RG_BEGIN_CORE_NAMESPACE
-
 // DEFAULT RESOURCES
 QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
 
@@ -266,7 +264,7 @@ GfxSamplerState*    samplerNearestClampEdge;
 
 // MISC
 eastl::vector<GfxTexture*> debugTextureHandles; // test only
-
+RG_END_GFX_NAMESPACE
 
 Matrix4 gfxMakeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearPlane, rgFloat farPlane)
 {
@@ -387,7 +385,7 @@ rgInt gfxPostInit()
     // Initialize frame buffer allocators
     for(rgS32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMegabyte(8), rgMegabyte(64), rgMegabyte(64));
+        gfx::frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMegabyte(8), rgMegabyte(64), rgMegabyte(64));
     }
     
     // Initialize IMGUI
@@ -397,14 +395,14 @@ rgInt gfxPostInit()
     imguiIO.Fonts->AddFontFromFileTTF("fonts/Noto_Sans/NotoSans-Regular.ttf", 18);
     styleImGui();
 
-    gfx::gfxRendererImGuiInit();
+    gfxRendererImGuiInit();
     
-    samplerBilinearRepeat = GfxSamplerState::create("samplerBilinearRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
-    samplerBilinearClampEdge = GfxSamplerState::create("samplerBilinearClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
-    samplerTrilinearRepeatAniso = GfxSamplerState::create("samplerTrilinearRepeatAniso", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
-    samplerTrilinearClampEdgeAniso = GfxSamplerState::create("samplerTrilinearClampEdgeAniso", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
-    samplerNearestRepeat = GfxSamplerState::create("samplerNearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
-    samplerNearestClampEdge = GfxSamplerState::create("samplerNearestClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
+    gfx::samplerBilinearRepeat = GfxSamplerState::create("samplerBilinearRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
+    gfx::samplerBilinearClampEdge = GfxSamplerState::create("samplerBilinearClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
+    gfx::samplerTrilinearRepeatAniso = GfxSamplerState::create("samplerTrilinearRepeatAniso", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
+    gfx::samplerTrilinearClampEdgeAniso = GfxSamplerState::create("samplerTrilinearClampEdgeAniso", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
+    gfx::samplerNearestRepeat = GfxSamplerState::create("samplerNearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
+    gfx::samplerNearestClampEdge = GfxSamplerState::create("samplerNearestClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
 
     
     return 0;
@@ -419,11 +417,11 @@ void gfxAtFrameStart()
     GfxComputePSO::destroyMarkedObjects();
     
     // Reset render pass
-    currentRenderPass = nullptr;
-    if(currentRenderCmdEncoder != nullptr)
+    gfx::currentRenderPass = nullptr;
+    if(gfx::currentRenderCmdEncoder != nullptr)
     {
-        rgDelete(currentRenderCmdEncoder);
-        currentRenderCmdEncoder = nullptr;
+        rgDelete(gfx::currentRenderCmdEncoder);
+        gfx::currentRenderCmdEncoder = nullptr;
     }
     
     // reset this frame's allocations
@@ -456,34 +454,34 @@ GfxFrameAllocator* gfxGetFrameAllocator()
 
 static void endCurrentCmdEncoder()
 {
-    if(currentRenderCmdEncoder != nullptr)
+    if(gfx::currentRenderCmdEncoder != nullptr)
     {
-        if(!currentRenderCmdEncoder->hasEnded)
+        if(!gfx::currentRenderCmdEncoder->hasEnded)
         {
-            currentRenderCmdEncoder->end();
+            gfx::currentRenderCmdEncoder->end();
         }
-        rgDelete(currentRenderCmdEncoder);
-        currentRenderCmdEncoder = nullptr;
+        rgDelete(gfx::currentRenderCmdEncoder);
+        gfx::currentRenderCmdEncoder = nullptr;
     }
     
-    if(currentComputeCmdEncoder != nullptr)
+    if(gfx::currentComputeCmdEncoder != nullptr)
     {
-        if(!currentComputeCmdEncoder->hasEnded)
+        if(!gfx::currentComputeCmdEncoder->hasEnded)
         {
-            currentComputeCmdEncoder->end();
+            gfx::currentComputeCmdEncoder->end();
         }
-        rgDelete(currentComputeCmdEncoder);
-        currentComputeCmdEncoder = nullptr;
+        rgDelete(gfx::currentComputeCmdEncoder);
+        gfx::currentComputeCmdEncoder = nullptr;
     }
     
-    if(currentBlitCmdEncoder != nullptr)
+    if(gfx::currentBlitCmdEncoder != nullptr)
     {
-        if(!currentBlitCmdEncoder->hasEnded)
+        if(!gfx::currentBlitCmdEncoder->hasEnded)
         {
-            currentBlitCmdEncoder->end();
+            gfx::currentBlitCmdEncoder->end();
         }
-        rgDelete(currentBlitCmdEncoder);
-        currentBlitCmdEncoder = nullptr;
+        rgDelete(gfx::currentBlitCmdEncoder);
+        gfx::currentBlitCmdEncoder = nullptr;
     }
 }
 
@@ -491,33 +489,33 @@ GfxRenderCmdEncoder* gfxSetRenderPass(char const* tag, GfxRenderPass* renderPass
 {
     endCurrentCmdEncoder();
 
-    currentRenderCmdEncoder = rgNew(GfxRenderCmdEncoder);
-    currentRenderCmdEncoder->begin(tag, renderPass);
+    gfx::currentRenderCmdEncoder = rgNew(GfxRenderCmdEncoder);
+    gfx::currentRenderCmdEncoder->begin(tag, renderPass);
 
-    currentRenderPass = renderPass;
+    gfx::currentRenderPass = renderPass;
     
-    return currentRenderCmdEncoder;
+    return gfx::currentRenderCmdEncoder;
 }
 
 GfxComputeCmdEncoder* gfxSetComputePass(char const* tag)
 {
     endCurrentCmdEncoder();
     
-    currentComputeCmdEncoder = rgNew(GfxComputeCmdEncoder);
-    currentComputeCmdEncoder->begin(tag);
+    gfx::currentComputeCmdEncoder = rgNew(GfxComputeCmdEncoder);
+    gfx::currentComputeCmdEncoder->begin(tag);
     
-    return currentComputeCmdEncoder;
+    return gfx::currentComputeCmdEncoder;
 }
 
 GfxBlitCmdEncoder* gfxSetBlitPass(char const* tag)
 {
     endCurrentCmdEncoder();
     
-    currentBlitCmdEncoder = rgNew(GfxBlitCmdEncoder);
-    currentBlitCmdEncoder->begin(tag);
-    currentBlitCmdEncoder->pushDebugTag(tag);
+    gfx::currentBlitCmdEncoder = rgNew(GfxBlitCmdEncoder);
+    gfx::currentBlitCmdEncoder->begin(tag);
+    gfx::currentBlitCmdEncoder->pushDebugTag(tag);
     
-    return currentBlitCmdEncoder;
+    return gfx::currentBlitCmdEncoder;
 }
 
 // --------------------
@@ -582,7 +580,4 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         
         instanceParams->texParam[i][0] = t.texID;
     }
-} 
-
-RG_END_GFX_NAMESPACE
-RG_END_CORE_NAMESPACE
+}

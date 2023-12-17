@@ -20,7 +20,7 @@
 // 4. Integrate EASTL
 //
 
-using namespace core;
+//using namespace core;
 
 // Important: make this a pointer, otherwise if a type with constructor is added to struct, the compiler will complain because it will try to call the constructor of anonymous structs
 //rg::GfxCtx* rg::g_GfxCtx;
@@ -108,7 +108,7 @@ void updateCamera()
     g_GameState->cameraFar  = 100.0f;
     
     g_GameState->cameraView = orthoInverse(Matrix4(g_GameState->cameraBasis, Vector3(g_GameState->cameraPosition)));
-    g_GameState->cameraProjection = gfx::gfxMakePerspectiveProjectionMatrix(1.4f, (rgFloat)g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
+    g_GameState->cameraProjection = gfxMakePerspectiveProjectionMatrix(1.4f, (rgFloat)g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
     g_GameState->cameraViewProjection = g_GameState->cameraProjection * g_GameState->cameraView;
     g_GameState->cameraInvView = inverse(g_GameState->cameraView);
     g_GameState->cameraInvProjection = inverse(g_GameState->cameraProjection);
@@ -116,7 +116,7 @@ void updateCamera()
     g_GameState->cameraViewRotOnly = Matrix4(g_GameState->cameraView.getUpper3x3(), Vector3(0, 0, 0));
 }
 
-rgInt core::setup()
+rgInt setup()
 {
     g_GameState = rgNew(GameState);
 
@@ -144,11 +144,11 @@ rgInt core::setup()
         gfx::debugTextureHandles.push_back(t2d);
     }
 
-    ImageRef flowerTex = core::loadImage("flower.png");
+    ImageRef flowerTex = loadImage("flower.png");
     g_GameState->flowerTexture = GfxTexture::create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
     
     //gfxDestroyBuffer("ocean_tile");
-    g_GameState->shaderballModel = core::loadModel("shaderball.xml");
+    g_GameState->shaderballModel = loadModel("shaderball.xml");
     
     GfxVertexInputDesc vertexDesc = {};
     vertexDesc.elementCount = 3;
@@ -435,7 +435,7 @@ static void showDebugInterface(bool* open)
     ImGui::End();
 }
 
-rgInt core::updateAndDraw(rgDouble dt)
+rgInt updateAndDraw(rgDouble dt)
 {
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
     if(showImGuiDemo) { ImGui::ShowDemoWindow(&showImGuiDemo); }
@@ -475,7 +475,7 @@ rgInt core::updateAndDraw(rgDouble dt)
     commonParams.timeDelta = (rgFloat)g_DeltaTime;
     commonParams.timeGame  = (rgFloat)g_Time;
 
-    GfxFrameResource commonParamsBuffer = gfx::gfxGetFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
+    GfxFrameResource commonParamsBuffer = gfxGetFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
     
     // RENDER SIMPLE 2D STUFF
     {
@@ -502,7 +502,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         simple2dRenderPass.clearDepth = 1.0f;
         
-        GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::gfxSetRenderPass("Simple2D Pass", &simple2dRenderPass);
+        GfxRenderCmdEncoder* simple2dRenderEncoder = gfxSetRenderPass("Simple2D Pass", &simple2dRenderPass);
         simple2dRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("simple2d"_rh));
         simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits);
         simple2dRenderEncoder->end();
@@ -519,7 +519,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         sceneForwardPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         sceneForwardPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* sceneFowardRenderEncoder = gfx::gfxSetRenderPass("Scene Forward", &sceneForwardPass);
+        GfxRenderCmdEncoder* sceneFowardRenderEncoder = gfxSetRenderPass("Scene Forward", &sceneForwardPass);
         sceneFowardRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("principledBrdf"_tag));
         
         // instance
@@ -534,7 +534,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
         
         
-        GfxFrameResource demoSceneMeshInstanceParams = gfx::gfxGetFrameAllocator()->newBuffer("demoSceneMeshInstanceParams", sizeof(instanceParams), &instanceParams);
+        GfxFrameResource demoSceneMeshInstanceParams = gfxGetFrameAllocator()->newBuffer("demoSceneMeshInstanceParams", sizeof(instanceParams), &instanceParams);
         
         sceneFowardRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         sceneFowardRenderEncoder->bindBuffer("instanceParams", &demoSceneMeshInstanceParams);
@@ -544,7 +544,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         
         for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
         {
-            core::Mesh* m = &g_GameState->shaderballModel->meshes[i];
+            Mesh* m = &g_GameState->shaderballModel->meshes[i];
             
             sceneFowardRenderEncoder->setVertexBuffer(g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->vertexBufferOffset +  m->vertexDataOffset, 0);
             sceneFowardRenderEncoder->drawIndexedTriangles(m->indexCount, true, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
@@ -565,7 +565,7 @@ rgInt core::updateAndDraw(rgDouble dt)
         skyboxRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         skyboxRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* skyboxRenderEncoder = gfx::gfxSetRenderPass("Skybox Pass", &skyboxRenderPass);
+        GfxRenderCmdEncoder* skyboxRenderEncoder = gfxSetRenderPass("Skybox Pass", &skyboxRenderPass);
         skyboxRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("skybox"_tag));
         skyboxRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         skyboxRenderEncoder->bindTexture("diffuseCubeMap", GfxTexture::find("sangiuseppeBridgeCube"_tag));
@@ -584,7 +584,7 @@ rgInt core::updateAndDraw(rgDouble dt)
             gridRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
             gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
             
-            GfxRenderCmdEncoder* gridRenderEncoder = gfx::gfxSetRenderPass("DemoScene Pass", &gridRenderPass);
+            GfxRenderCmdEncoder* gridRenderEncoder = gfxSetRenderPass("DemoScene Pass", &gridRenderPass);
             gridRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("gridPSO"_tag));
             gridRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
             gridRenderEncoder->drawTriangles(0, 6, 1);
@@ -645,7 +645,7 @@ rgInt core::updateAndDraw(rgDouble dt)
             tonemapParams.luminanceAdaptationKey = g_GameState->tonemapperExposureKey;
             tonemapParams.tau = g_GameState->tonemapperAdaptationRate;
             
-            GfxComputeCmdEncoder* postfxCmdEncoder = gfx::gfxSetComputePass("PostFx Pass");
+            GfxComputeCmdEncoder* postfxCmdEncoder = gfxSetComputePass("PostFx Pass");
                         
             postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapClearOutputLuminanceHistogram"_tag));
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
@@ -666,7 +666,7 @@ rgInt core::updateAndDraw(rgDouble dt)
             
             postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapReinhard"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
-            postfxCmdEncoder->bindTexture("outputImage", gfx::gfxGetCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->bindTexture("outputImage", gfxGetCurrentRenderTargetColorBuffer());
             //postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
@@ -681,7 +681,7 @@ rgInt core::updateAndDraw(rgDouble dt)
             compositeParams.inputImageDim[1] = g_WindowInfo.height;
             postfxCmdEncoder->setComputePSO(GfxComputePSO::find("composite"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColor2DRT);
-            postfxCmdEncoder->bindTexture("outputImage", gfx::gfxGetCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->bindTexture("outputImage", gfxGetCurrentRenderTargetColorBuffer());
             postfxCmdEncoder->bindBufferFromData("CompositeParams", sizeof(compositeParams), &compositeParams);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
             //
@@ -867,16 +867,16 @@ int main(int argc, char* argv[])
         return -1; // error;
     }
 
-    rgInt gfxPreInitResult = gfx::gfxPreInit();
-    rgInt gfxInitResult = gfx::gfxInit();
-    rgInt gfxCommonInitResult = gfx::gfxPostInit();
+    rgInt gfxPreInitResult = gfxPreInit();
+    rgInt gfxInitResult = gfxInit();
+    rgInt gfxCommonInitResult = gfxPostInit();
 
     if(gfxInitResult || gfxCommonInitResult)
     {
         return gfxInitResult | gfxCommonInitResult;
     }
 
-    core::setup();
+    setup();
 
     g_ShouldQuit = false;
     SDL_Event event;
@@ -929,7 +929,7 @@ int main(int argc, char* argv[])
             {
                 g_WindowInfo.width = event.window.data1;
                 g_WindowInfo.height = event.window.data2;
-                gfx::gfxOnSizeChanged();
+                gfxOnSizeChanged();
             }
             else
             {
@@ -938,23 +938,23 @@ int main(int argc, char* argv[])
             }
         }
         
-        gfx::gfxStartNextFrame();
-        gfx::gfxRunOnFrameBeginJob();
+        gfxStartNextFrame();
+        gfxRunOnFrameBeginJob();
         
-        gfx::gfxRendererImGuiNewFrame();
+        gfxRendererImGuiNewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
         
-        core::updateAndDraw(g_DeltaTime);
+        updateAndDraw(g_DeltaTime);
          
         ImGui::Render();
-        gfx::gfxRendererImGuiRenderDrawData();
-        gfx::gfxEndFrame();
+        gfxRendererImGuiRenderDrawData();
+        gfxEndFrame();
         
         *oldGameInput = *newGameInput;
     }
 
-    gfx::gfxDestroy();
+    gfxDestroy();
     SDL_DestroyWindow(gfx::mainWindow);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return 0;

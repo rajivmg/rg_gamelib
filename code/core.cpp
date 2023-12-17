@@ -1,5 +1,13 @@
 #include "core.h"
 
+void _rgLogImpl(char const* fmt, ...)
+{
+    va_list argList;
+    va_start(argList, fmt);
+    SDL_LogMessageV(SDL_LOG_CATEGORY_TEST, SDL_LOG_PRIORITY_DEBUG, fmt, argList);
+    va_end(argList);
+}
+
 char* getPrefPath()
 {
     return SDL_GetPrefPath("rg", "gamelib");

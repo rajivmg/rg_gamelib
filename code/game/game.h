@@ -2,7 +2,7 @@
 
 #include <box2d/box2d.h>
 
-using namespace core;
+//using namespace core;
 //using namespace gfx;
 
 struct GameButtonState

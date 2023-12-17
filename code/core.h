@@ -188,15 +188,4 @@ extern rgInt g_FrameIndex;
 extern WindowInfo g_WindowInfo;
 extern PhysicSystem* g_PhysicSystem;
 
-/// ----- Implementation
-#ifdef RG_H_IMPLEMENTATION
-// TODO: Add filename and line number, try to remove the need of fmt
-void _rgLogImpl(char const* fmt, ...)
-{
-    va_list argList;
-    va_start(argList, fmt);
-    SDL_LogMessageV(SDL_LOG_CATEGORY_TEST, SDL_LOG_PRIORITY_DEBUG, fmt, argList);
-    va_end(argList);
-}
-#endif // RG_H_IMPLEMENTATION
-#endif // __RG_H__
+#endif // __CORE_H__
