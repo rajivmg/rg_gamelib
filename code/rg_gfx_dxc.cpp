@@ -223,7 +223,7 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     ComPtr<IDxcBlobUtf16> shaderPdbPath;
     checkResult(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&shaderPdbBlob), shaderPdbPath.GetAddressOf()));
     wcstombs(pdbFilepath, shaderPdbPath->GetStringPointer(), 512);
-    core::writeFile(pdbFilepath, shaderPdbBlob->GetBufferPointer(), shaderPdbBlob->GetBufferSize());
+    writeFile(pdbFilepath, shaderPdbBlob->GetBufferPointer(), shaderPdbBlob->GetBufferSize());
 
     // create shader reflection
     ComPtr<IDxcBlob> shaderReflectionBlob;

@@ -2,6 +2,7 @@
 #include "rg_gfx.h"
 
 #include "rg_gfx_dxc.h"
+#include "utils.h"
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_dx12.h"
@@ -14,8 +15,6 @@ using namespace DirectX;
 #include <EASTL/hash_set.h>
 
 #include "shaders/shaderinterop_common.h"
-
-RG_BEGIN_CORE_NAMESPACE
 
 static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
 static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
@@ -416,7 +415,7 @@ DescriptorAllocator* stagedSamplerDescriptorAllocator;
 // GfxBuffer Implementation
 //*****************************************************************************
 
-void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj)
+void GfxBuffer::createGfxObject(char const* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj)
 {
     rgAssert(size > 0);
 
@@ -473,7 +472,7 @@ void GfxBuffer::create(char const* tag, GfxMemoryType memoryType, void* buf, rgS
     obj->d3dResource = bufferResource;
 }
 
-void GfxBuffer::destroy(GfxBuffer* obj)
+void GfxBuffer::destroyGfxObject(GfxBuffer* obj)
 {
 #if defined(ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS)
     // Check is this resource has pending copy task
@@ -505,7 +504,7 @@ void GfxBuffer::unmap()
 // GfxSamplerState Implementation
 //*****************************************************************************
 
-void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
+void GfxSamplerState::createGfxObject(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
 {
     auto toD3DFilter = [minFilter, magFilter, mipFilter, anisotropy]() -> D3D12_FILTER
     {
@@ -600,7 +599,7 @@ void GfxSamplerState::create(char const* tag, GfxSamplerAddressMode rstAddressMo
     obj->d3dStagedDescriptorIndex = descriptorIndex;
 }
 
-void GfxSamplerState::destroy(GfxSamplerState* obj)
+void GfxSamplerState::destroyGfxObject(GfxSamplerState* obj)
 {
     stagedSamplerDescriptorAllocator->releasePersistentDescriptor(obj->d3dStagedDescriptorIndex);
 }
@@ -722,12 +721,12 @@ ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim,
     return texRes;
 }
 
-void GfxTexture::create(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
+void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
     obj->d3dTexture = createTextureResource(tag, dim, width, height, format, mipFlag, usage, slices);
 }
 
-void GfxTexture::destroy(GfxTexture* obj)
+void GfxTexture::destroyGfxObject(GfxTexture* obj)
 {
 }
 
@@ -829,7 +828,7 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
         }
 
         GfxPipelineArgument arg = {};
-        strncpy(arg.tag, shaderInputBindDesc.Name, rgARRAY_COUNT(GfxPipelineArgument::tag));
+        strncpy(arg.tag, shaderInputBindDesc.Name, rgArrayCount(GfxPipelineArgument::tag));
         arg.stages = GfxStage_VS; // TODO: fill correct stage info
         arg.type = toGfxPipelineArgumentType(shaderInputBindDesc);
         arg.registerIndex = shaderInputBindDesc.BindPoint;
@@ -869,7 +868,7 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
     }
 }
 
-void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
+void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     // compile shader
     gfx::ShaderBlobRef vertexShader, fragmentShader;
@@ -1048,7 +1047,7 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
 
     // pso rendertarget
     psoDesc.NumRenderTargets = 0;
-    for(rgInt i = 0; i < rgARRAY_COUNT(GfxRenderStateDesc::colorAttachments); ++i)
+    for(rgInt i = 0; i < rgArrayCount(GfxRenderStateDesc::colorAttachments); ++i)
     {
         if(renderStateDesc->colorAttachments[i].pixelFormat != TinyImageFormat_UNDEFINED)
         {
@@ -1067,7 +1066,7 @@ void GfxGraphicsPSO::create(char const* tag, GfxVertexInputDesc* vertexInputDesc
     obj->d3dPSO = pso;
 }
 
-void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
+void GfxGraphicsPSO::destroyGfxObject(GfxGraphicsPSO* obj)
 {
 }
 
@@ -1075,11 +1074,11 @@ void GfxGraphicsPSO::destroy(GfxGraphicsPSO* obj)
 // GfxComputePSO Implementation
 //*****************************************************************************
 
-void GfxComputePSO::create(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj)
+void GfxComputePSO::createGfxObject(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj)
 {
 }
 
-void GfxComputePSO::destroy(GfxComputePSO* obj)
+void GfxComputePSO::destroyGfxObject(GfxComputePSO* obj)
 {
 }
 
@@ -1243,13 +1242,13 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         rgAssert("No textured quads to draw");
     }
 
-    eastl::vector<gfx::SimpleVertexFormat> vertices;
-    gfx::SimpleInstanceParams instanceParams;
+    eastl::vector<SimpleVertexFormat> vertices;
+    SimpleInstanceParams instanceParams;
 
     genTexturedQuadVertices(quads, &vertices, &instanceParams);
 
-    GfxFrameResource vertexBufAllocation = gfx::getFrameAllocator()->newBuffer("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(gfx::SimpleVertexFormat), vertices.data());
-    GfxFrameResource instanceParamsBuffer = gfx::getFrameAllocator()->newBuffer("instanceParamsCBuffer", sizeof(gfx::SimpleInstanceParams), &instanceParams);
+    GfxFrameResource vertexBufAllocation = gfxGetFrameAllocator()->newBuffer("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(SimpleVertexFormat), vertices.data());
+    GfxFrameResource instanceParamsBuffer = gfxGetFrameAllocator()->newBuffer("instanceParamsCBuffer", sizeof(SimpleInstanceParams), &instanceParams);
 
     //-
     // camera
@@ -1259,10 +1258,10 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         rgFloat view2d[16];
     } cameraParams;
 
-    copyMatrix4ToFloatArray(cameraParams.projection2d, gfx::makeOrthographicProjectionMatrix(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
+    copyMatrix4ToFloatArray(cameraParams.projection2d, gfxMakeOrthographicProjectionMatrix(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
     copyMatrix4ToFloatArray(cameraParams.view2d, Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0)));
 
-    GfxFrameResource cameraBuffer = gfx::getFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
+    GfxFrameResource cameraBuffer = gfxGetFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
 
     // --
 
@@ -1434,7 +1433,7 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
 {
     rgAssert(size > 0);
 
-    rgU32 alignedSize = core::roundUp(size, 256); // CBVs size needs to be 256 bytes multiple
+    rgU32 alignedSize = roundUp(size, 256); // CBVs size needs to be 256 bytes multiple
     rgU32 alignedStartOffset = bumpStorageAligned(alignedSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
 
     CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(alignedSize, D3D12_RESOURCE_FLAG_NONE);
@@ -1480,7 +1479,6 @@ GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialD
     return output;
 }
 
-RG_BEGIN_GFX_NAMESPACE
 //*****************************************************************************
 // Call from main | loop init() destroy() startNextFrame() endFrame()
 //*****************************************************************************
@@ -1547,7 +1545,7 @@ void getHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool
     *ppAdapter = adapter.Detach();
 }
 
-rgInt init()
+rgInt gfxInit()
 {
     // TODO: correctly initialize d3d12 device https://walbourn.github.io/anatomy-of-direct3d-12-create-device/
 
@@ -1642,7 +1640,7 @@ rgInt init()
     }
 
     dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    depthStencilTexture = gfx::texture->create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
+    depthStencilTexture = GfxTexture::create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
@@ -1687,7 +1685,7 @@ rgInt init()
     return 0;
 }
 
-void destroy()
+void gfxDestroy()
 {
     waitForGpu();
     ::CloseHandle(frameFenceEvent);
@@ -1725,7 +1723,7 @@ void checkerWaitTillFrameCompleted(rgInt frameIndex)
     }
 }
 
-void startNextFrame()
+void gfxStartNextFrame()
 {
     UINT64 prevFrameFenceValue = (g_FrameIndex != -1) ? frameFenceValues[g_FrameIndex] : 0;
 
@@ -1742,7 +1740,7 @@ void startNextFrame()
     // This frame fence value is one more than prev frame fence value
     frameFenceValues[g_FrameIndex] = prevFrameFenceValue + 1;
 
-    gfx::atFrameStart();
+    gfxAtFrameStart();
 
     // Reset command allocator and command list
     BreakIfFail(commandAllocator[g_FrameIndex]->Reset());
@@ -1755,12 +1753,12 @@ void startNextFrame()
     stagedSamplerDescriptorAllocator->beginFrame();
 
     ID3D12DescriptorHeap* descHeaps[] = { cbvSrvUavDescriptorAllocator->getHeap(), samplerDescriptorAllocator->getHeap() };
-    currentCommandList->SetDescriptorHeaps(rgARRAY_COUNT(descHeaps), descHeaps);
+    currentCommandList->SetDescriptorHeaps(rgArrayCount(descHeaps), descHeaps);
 
     draw();
 }
 
-void endFrame()
+void gfxEndFrame()
 {
     GfxTexture* currentRenderTarget = swapchainTextures[g_FrameIndex];
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -1780,16 +1778,16 @@ void endFrame()
     resourceUploader->Begin();
 }
 
-void onSizeChanged()
+void gfxOnSizeChanged()
 {
     waitForGpu();
 }
 
-void runOnFrameBeginJob()
+void gfxRunOnFrameBeginJob()
 {
 }
 
-void setterBindlessResource(rgU32 slot, GfxTexture* resource)
+void gfxSetterBindlessResource(rgU32 slot, GfxTexture* resource)
 {
     // Only 2D bindless textures are supported
     rgAssert(resource->dim == GfxTextureDim_2D);
@@ -1806,30 +1804,27 @@ void setterBindlessResource(rgU32 slot, GfxTexture* resource)
     getDevice()->CreateShaderResourceView(resource->d3dTexture.Get(), nullptr, cbvSrvUavDescriptorAllocator->getCpuHandle(descriptorRangeOffsetBindlessTexture2D + slot));
 }
 
-void rendererImGuiInit()
+void gfxRendererImGuiInit()
 {
     rgU32 fontSrvDescriptorindex = cbvSrvUavDescriptorAllocator->allocatePersistentDescriptor();
     ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, cbvSrvUavDescriptorAllocator->getHeap(), cbvSrvUavDescriptorAllocator->getCpuHandle(fontSrvDescriptorindex), cbvSrvUavDescriptorAllocator->getGpuHandle(fontSrvDescriptorindex));
     ImGui_ImplSDL2_InitForD3D(gfx::mainWindow);
 }
 
-void rendererImGuiNewFrame()
+void gfxRendererImGuiNewFrame()
 {
     ImGui_ImplDX12_NewFrame();
 }
 
-void rendererImGuiRenderDrawData()
+void gfxRendererImGuiRenderDrawData()
 {
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), currentCommandList.Get());
 }
 
-GfxTexture* getCurrentRenderTargetColorBuffer()
+GfxTexture* gfxGetCurrentRenderTargetColorBuffer()
 {
     return swapchainTextures[g_FrameIndex];
 }
 
-RG_END_GFX_NAMESPACE
-
 #undef BreakIfFail
-RG_END_CORE_NAMESPACE
 #endif
