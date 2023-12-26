@@ -36,6 +36,47 @@ void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix)
     }
 }
 
+Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearPlane, rgFloat farPlane)
+{
+    rgFloat length = 1.0f / (right - left);
+    rgFloat height = 1.0f / (top - bottom);
+    rgFloat depth  = 1.0f / (farPlane - nearPlane);
+    
+    // LH 0 to 1
+    return Matrix4(Vector4(2.0f * length, 0, 0, 0),
+                   Vector4(0, 2.0f * height, 0, 0),
+                   Vector4(0, 0, depth, 0),
+                   Vector4(-((right + left) * length), -((top +bottom) * height), -nearPlane * depth, 1.0f));
+}
+
+Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane)
+{
+    // focal length = 1 / tan(fov/2)
+
+    // https://perry.cz/articles/ProjectionMatrix.xhtml
+    // DirectX LH 0 to 1
+    // A = ar * (1 / tan(fov/2));
+    // B = (1 / tan(fov/2));
+    // C = far / (far - near)
+    // D = 1;
+    // E = -near * (far / (far - near)
+    
+    // A 0 0 0
+    // 0 B 0 0
+    // 0 0 C D
+    // 0 0 E 0
+    
+    rgFloat a = focalLength;
+    rgFloat b = aspectRatio * focalLength;
+    rgFloat c = farPlane / (farPlane - nearPlane);
+    rgFloat d = 1;
+    rgFloat e = -nearPlane * c;
+    
+    return Matrix4(Vector4(a, 0, 0, 0),
+                   Vector4(0, b, 0, 0),
+                   Vector4(0, 0, c, d),
+                   Vector4(0, 0, e, 0));
+}
 
 //-----------------------------------------------------------------------------
 // Bitmaps and Images
@@ -265,48 +306,6 @@ GfxSamplerState*    samplerNearestClampEdge;
 // MISC
 eastl::vector<GfxTexture*> debugTextureHandles; // test only
 RG_END_GFX_NAMESPACE
-
-Matrix4 gfxMakeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearPlane, rgFloat farPlane)
-{
-    rgFloat length = 1.0f / (right - left);
-    rgFloat height = 1.0f / (top - bottom);
-    rgFloat depth  = 1.0f / (farPlane - nearPlane);
-    
-    // LH 0 to 1
-    return Matrix4(Vector4(2.0f * length, 0, 0, 0),
-                   Vector4(0, 2.0f * height, 0, 0),
-                   Vector4(0, 0, depth, 0),
-                   Vector4(-((right + left) * length), -((top +bottom) * height), -nearPlane * depth, 1.0f));
-}
-
-Matrix4 gfxMakePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane)
-{
-    // focal length = 1 / tan(fov/2)
-
-    // https://perry.cz/articles/ProjectionMatrix.xhtml
-    // DirectX LH 0 to 1
-    // A = ar * (1 / tan(fov/2));
-    // B = (1 / tan(fov/2));
-    // C = far / (far - near)
-    // D = 1;
-    // E = -near * (far / (far - near)
-    
-    // A 0 0 0
-    // 0 B 0 0
-    // 0 0 C D
-    // 0 0 E 0
-    
-    rgFloat a = focalLength;
-    rgFloat b = aspectRatio * focalLength;
-    rgFloat c = farPlane / (farPlane - nearPlane);
-    rgFloat d = 1;
-    rgFloat e = -nearPlane * c;
-    
-    return Matrix4(Vector4(a, 0, 0, 0),
-                   Vector4(0, b, 0, 0),
-                   Vector4(0, 0, c, d),
-                   Vector4(0, 0, e, 0));
-}
 
 rgInt gfxPreInit()
 {

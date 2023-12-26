@@ -48,7 +48,7 @@ rgInt updateAndDraw(rgDouble dt);
 // FORWARD DECLARATIONS
 struct GfxTexture;
 
-rgInt               gfxGetFrameIndex();
+rgInt   gfxGetFrameIndex();
 void    gfxSetterBindlessResource(rgU32 slot, GfxTexture* ptr);
 
 // Gfx Object Registry
@@ -753,7 +753,8 @@ public:
 //-----------------------------------------------------------------------------
 void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix);
 void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix);
-
+Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
+Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
 
 //-----------------------------------------------------------------------------
 // Bitmap & Utils
@@ -983,8 +984,6 @@ void                gfxAtFrameStart();
 rgInt               gfxGetFrameIndex(); // Returns 0 if g_FrameIndex is -1
 rgInt               gfxGetPrevFrameIndex();
 GfxFrameAllocator*  gfxGetFrameAllocator();
-Matrix4             gfxMakeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
-Matrix4             gfxMakePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
 
 GfxRenderCmdEncoder*    gfxSetRenderPass(char const* tag, GfxRenderPass* renderPass);
 GfxComputeCmdEncoder*   gfxSetComputePass(char const* tag);

@@ -31,11 +31,6 @@ rgInt g_FrameIndex;
 
 rgBool g_ShouldQuit;
 
-rgU32 rgRenderKey(rgBool top)
-{
-    return top ? 1 : 0;
-}
-
 void updateCamera()
 {
     GameControllerInput* controller = &g_GameInput->controllers[0];
@@ -86,7 +81,7 @@ void updateCamera()
     g_GameState->cameraFar  = 100.0f;
     
     g_GameState->cameraView = orthoInverse(Matrix4(g_GameState->cameraBasis, Vector3(g_GameState->cameraPosition)));
-    g_GameState->cameraProjection = gfxMakePerspectiveProjectionMatrix(1.4f, (rgFloat)g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
+    g_GameState->cameraProjection = makePerspectiveProjectionMatrix(1.4f, (rgFloat)g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
     g_GameState->cameraViewProjection = g_GameState->cameraProjection * g_GameState->cameraView;
     g_GameState->cameraInvView = inverse(g_GameState->cameraView);
     g_GameState->cameraInvProjection = inverse(g_GameState->cameraProjection);
