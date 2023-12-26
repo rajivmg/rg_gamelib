@@ -14,8 +14,6 @@
     #include "volk/volk.h"
     #include "vk-bootstrap/VkBootstrap.h"
     #include "vk_mem_alloc.h"
-#elif defined(RG_OPENGL_RNDR)
-    #include <GL/glew.h>
 #endif
 
 #include "core.h"
@@ -976,10 +974,6 @@ struct GfxBlitCmdEncoder
 // ACCESS TO GFXCTX CONTENTS, DO NOT PUT IT BELOW THIS LINE.
 //-----------------------------------------------------------------------------
 
-#ifdef RG_VULKAN_RNDR
-#define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
-#endif
-
 //-----------------------------------------------------------------------------
 // General Common Stuff
 //-----------------------------------------------------------------------------
@@ -1071,41 +1065,16 @@ extern GfxSamplerState* samplerTrilinearRepeatAniso;
 extern GfxSamplerState* samplerTrilinearClampEdgeAniso;
 extern GfxSamplerState* samplerNearestRepeat;
 extern GfxSamplerState* samplerNearestClampEdge;
-
+RG_END_GFX_NAMESPACE
 
 //-----------------------------------------------------------------------------
 // API Specific Graphic Context Data
 //-----------------------------------------------------------------------------
 
-// DX12
-// -----------
-#if defined(RG_D3D12_RNDR)
-struct D3d
-{
-    ComPtr<ID3D12Device2> device;
-    ComPtr<ID3D12CommandQueue> commandQueue;
-    ComPtr<IDXGISwapChain4> dxgiSwapchain;
-    ComPtr<IDXGIFactory4> dxgiFactory;
+#if defined(RG_VULKAN_RNDR)
 
-    ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
-    rgUInt rtvDescriptorSize;
+#define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
 
-    ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
-
-    ComPtr<ID3D12DescriptorHeap> cbvSrvUavDescriptorHeap;
-    rgUInt cbvSrvUavDescriptorSize;
-
-    ComPtr<ID3D12Fence> frameFence;
-    UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
-    HANDLE frameFenceEvent;
-
-    /// test
-    ComPtr<ID3D12RootSignature> dummyRootSignature;
-    ComPtr<ID3D12PipelineState> dummyPSO;
-    ComPtr<ID3D12Resource> triVB;
-    D3D12_VERTEX_BUFFER_VIEW triVBView;
-};
-#elif defined(RG_VULKAN_RNDR)
 struct VkGfxCtx
 {
     vkb::Instance vkbInstance;
@@ -1141,13 +1110,6 @@ struct VkGfxCtx
     PFN_vkDestroyDebugReportCallbackEXT fnDestroyDbgReportCallback;
     VkDebugReportCallbackEXT dbgReportCallback;
 } vk;
-#elif defined(RG_OPENGL_RNDR)
-struct GL
-{
-    SDL_GLContext context;
-} gl;
 #endif
-
-RG_END_GFX_NAMESPACE
 
 #endif

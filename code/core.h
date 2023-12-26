@@ -159,8 +159,6 @@ RG_INLINE void rgPrintImplementation(const char* varName, rgFloat3& a)
 
 extern rgBool g_ShouldQuit;
 
-struct PhysicSystem;
-
 // FILE IO
 // -------
 
@@ -180,18 +178,63 @@ void        fileFree(FileData* fd);
 
 char*       getSaveDataPath();
 
+
+//
+// ---
+
 struct WindowInfo
 {
     rgUInt width;
     rgUInt height;
 };
 
+extern WindowInfo g_WindowInfo;
+
 extern rgDouble g_DeltaTime;
 extern rgDouble g_Time;
 
 extern rgInt g_FrameIndex;
 
-extern WindowInfo g_WindowInfo;
+struct PhysicSystem;
 extern PhysicSystem* g_PhysicSystem;
+
+#if 0
+// APP
+// ---
+
+class SdlApp
+{
+public:
+    void InitApp();
+    void BeforeUpdate();
+    void AfterDraw();
+    virtual ~SdlApp() {}
+    virtual void PreSetup() {}
+    virtual void Setup() {}
+    virtual void ProcessEvents(SDL_Event *e) {}
+    virtual void Update() {}
+    virtual void Draw() {}
+    bool shouldquit = false;
+protected:
+    void SetTitle(const char * _title);
+    size_t width = 1280;
+    size_t height = 720;
+    bool fullscreen = false;
+    char title[64] = "SdlApp";
+    bool vsync = true;
+    SDL_Window *window;
+    SDL_Event event;
+    /* delta time in seconds */
+    double dtime;
+    uint64_t prevcounter, currcounter, counterfreq;
+};
+
+#define SDL_APP_MAIN(x) int main(int argc, char *argv[]) {  \
+    SdlApp *app = new x();                                          \
+    app->PreSetup(); app->InitApp(); app->Setup();                  \
+    while(!app->shouldquit)                                         \
+    { app->BeforeUpdate(); app->Update(); app->Draw(); app->AfterDraw(); }  \
+    delete app; return 0; }
+#endif
 
 #endif // __CORE_H__
