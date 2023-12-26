@@ -8,10 +8,6 @@
 #include <vectormath/vectormath.hpp>
 #include <compile_time_crc.h>
 
-#define RG_BEGIN_CORE_NAMESPACE namespace core {
-#define RG_END_CORE_NAMESPACE }
-
-
 // Primitive data types
 typedef int64_t     rgS64;
 typedef int32_t     rgS32;

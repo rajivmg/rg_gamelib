@@ -3,7 +3,6 @@
 
 #include "rg_gfx.h"
 
-RG_BEGIN_CORE_NAMESPACE
 RG_BEGIN_GFX_NAMESPACE
 
 struct BaseMaterialTemplate
@@ -17,6 +16,5 @@ struct BaseMaterialTemplate
  --------*/
 
 RG_END_GFX_NAMESPACE
-RG_END_CORE_NAMESPACE
 
 #endif
