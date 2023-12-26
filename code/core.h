@@ -40,6 +40,11 @@ typedef uint32_t    rgHash;
 
 static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(rgU32) != sizeof(uint32_t)");
 
+void  engineLogfImpl(char const* fmt, ...);
+
+// MACROS
+// ------
+
 #define RG_INLINE inline
 
 #define rgKilobyte(x) 1024LL * (x)
@@ -58,8 +63,7 @@ static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(rgU32) != sizeof(uint3
 #define rgPlacementNew(objectType, placementAddress) new(placementAddress) objectType
 #define rgDelete(object) delete object
 
-void _rgLogImpl(char const* fmt, ...);
-#define rgLog(...) _rgLogImpl(__VA_ARGS__)
+#define rgLog(...) engineLogfImpl(__VA_ARGS__)
 
 #define rgLogWarn(...) SDL_LogWarn(SDL_LOG_CATEGORY_TEST, __VA_ARGS__)
 #define rgLogError(...) SDL_LogError(SDL_LOG_CATEGORY_TEST, __VA_ARGS__)
@@ -157,6 +161,9 @@ extern rgBool g_ShouldQuit;
 
 struct PhysicSystem;
 
+// FILE IO
+// -------
+
 struct FileData
 {
     rgBool  isValid;
@@ -164,17 +171,20 @@ struct FileData
     rgSize  dataSize;
 };
 
-FileData readFile(const char* filepath);
-void     freeFileData(FileData* fd);
-rgBool   writeFile(char const* filepath, void* bufferPtr, rgSize bufferSizeInBytes);
+FileData    fileRead(const char* filepath);
+rgBool      fileWrite(char const* filepath, void* bufferPtr, rgSize bufferSizeInBytes);
+void        fileFree(FileData* fd);
+
+// UTILS
+// -----
+
+char*       getSaveDataPath();
 
 struct WindowInfo
 {
     rgUInt width;
     rgUInt height;
 };
-
-char* getPrefPath();
 
 extern rgDouble g_DeltaTime;
 extern rgDouble g_Time;

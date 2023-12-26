@@ -51,13 +51,13 @@ ImageRef loadImage(char const* filename)
     
     if(strcmp(extStr, "dds") == 0 || strcmp(extStr, "DDS") == 0)
     {
-        FileData file = readFile(filename);
+        FileData file = fileRead(filename);
         rgAssert(file.isValid);
         
         DirectX::TexMetadata metadata;
         DirectX::ScratchImage scratchImage;
         HRESULT result = DirectX::LoadFromDDSMemory(file.data, file.dataSize, DirectX::DDS_FLAGS_NONE, &metadata, scratchImage);
-        freeFileData(&file);
+        fileFree(&file);
         
         if(FAILED(result))
         {
@@ -168,7 +168,7 @@ void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFl
 
 ModelRef loadModel(char const* filename)
 {
-    FileData xmlFileData = readFile(filename);
+    FileData xmlFileData = fileRead(filename);
     if(!xmlFileData.isValid)
     {
         return nullptr;
@@ -186,7 +186,7 @@ ModelRef loadModel(char const* filename)
     strncpy(outModel->tag, modelNode.attribute("name").as_string(), sizeof(Model::tag));
     
     const char* binFilename = modelNode.attribute("bufferName").as_string();
-    FileData binFileData = readFile(binFilename);
+    FileData binFileData = fileRead(binFilename);
     rgAssert(binFileData.isValid);
     
     outModel->vertexIndexBuffer = GfxBuffer::create(binFilename, GfxMemoryType_Default, binFileData.data, binFileData.dataSize, GfxBufferUsage_VertexBuffer | GfxBufferUsage_IndexBuffer);

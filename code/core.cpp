@@ -1,19 +1,9 @@
 #include "core.h"
 
-void _rgLogImpl(char const* fmt, ...)
-{
-    va_list argList;
-    va_start(argList, fmt);
-    SDL_LogMessageV(SDL_LOG_CATEGORY_TEST, SDL_LOG_PRIORITY_DEBUG, fmt, argList);
-    va_end(argList);
-}
+// FILE IO
+// -------
 
-char* getPrefPath()
-{
-    return SDL_GetPrefPath("rg", "gamelib");
-}
-
-FileData readFile(const char* filepath)
+FileData fileRead(const char* filepath)
 {
 	FileData result = {};
 
@@ -66,12 +56,7 @@ FileData readFile(const char* filepath)
 	return result;
 }
 
-void freeFileData(FileData* fd)
-{
-	rgFree(fd->data);
-}
-
-rgBool writeFile(char const* filepath, void* bufferPtr, rgSize bufferSizeInBytes)
+rgBool fileWrite(char const* filepath, void* bufferPtr, rgSize bufferSizeInBytes)
 {
 	// Open file for writing
 	SDL_RWops* fp = SDL_RWFromFile(filepath, "wb");
@@ -95,4 +80,25 @@ rgBool writeFile(char const* filepath, void* bufferPtr, rgSize bufferSizeInBytes
 		return false;
 	}
 	return true;
+}
+
+void fileFree(FileData* fd)
+{
+    rgFree(fd->data);
+}
+
+// UTILS
+// -----
+
+void engineLogfImpl(char const* fmt, ...)
+{
+    va_list argList;
+    va_start(argList, fmt);
+    SDL_LogMessageV(SDL_LOG_CATEGORY_TEST, SDL_LOG_PRIORITY_DEBUG, fmt, argList);
+    va_end(argList);
+}
+
+char* getSaveDataPath()
+{
+    return SDL_GetPrefPath("rg", "gamelib");
 }
