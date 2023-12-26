@@ -1,4 +1,3 @@
-#define RG_H_IMPLEMENTATION
 #include "core.h"
 
 #include "rg_gfx.h"
@@ -20,25 +19,6 @@
 // 4. Integrate EASTL
 //
 
-//using namespace core;
-
-// Important: make this a pointer, otherwise if a type with constructor is added to struct, the compiler will complain because it will try to call the constructor of anonymous structs
-//rg::GfxCtx* rg::g_GfxCtx;
-
-void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line)
-{
-    //rgLog("new[] size=%ld alignment=%ld alignmentOffset=%ld name=%s flags=%d debugFlags=%d file=%s line=%d\n",
-    //    size, alignment, alignmentOffset, pName, flags, debugFlags, file, line);
-    return new uint8_t[size];
-}
-
-void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned debugFlags, const char* file, int line)
-{
-    //rgLog("new[] size=%ld name=%s flags=%d debugFlags=%d file=%s line=%d\n",
-    //    size, name, flags, debugFlags, file, line);
-    return new uint8_t[size];
-}
-
 GameState* g_GameState;
 GameInput* g_GameInput;
 PhysicSystem* g_PhysicSystem;
@@ -50,8 +30,6 @@ rgDouble g_Time;
 rgInt g_FrameIndex;
 
 rgBool g_ShouldQuit;
-
-void loadDDS(const char* filename);
 
 rgU32 rgRenderKey(rgBool top)
 {
@@ -705,7 +683,7 @@ rgInt updateAndDraw(rgDouble dt)
     return 0;
 }
 
-static rgBool ProcessGameButtonState(GameButtonState* newButtonState, rgBool isDown)
+static rgBool processGameButtonState(GameButtonState* newButtonState, rgBool isDown)
 {
     if(newButtonState->endedDown != isDown)
     {
@@ -716,7 +694,7 @@ static rgBool ProcessGameButtonState(GameButtonState* newButtonState, rgBool isD
     return false;
 }
 
-rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
+rgBool processGameInputs(SDL_Event* event, GameInput* gameInput)
 {
     GameControllerInput* controller1 = &gameInput->controllers[0];
     
@@ -733,37 +711,37 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
                     case SDLK_w:
                     case SDLK_UP:
                     {
-                        ProcessGameButtonState(&controller1->forward, isDown);
+                        processGameButtonState(&controller1->forward, isDown);
                     } break;
                         
                     case SDLK_s:
                     case SDLK_DOWN:
                     {
-                        ProcessGameButtonState(&controller1->backward, isDown);
+                        processGameButtonState(&controller1->backward, isDown);
                     } break;
                         
                     case SDLK_a:
                     case SDLK_LEFT:
                     {
-                        ProcessGameButtonState(&controller1->left, isDown);
+                        processGameButtonState(&controller1->left, isDown);
                     } break;
                         
                     case SDLK_d:
                     case SDLK_RIGHT:
                     {
-                        ProcessGameButtonState(&controller1->right, isDown);
+                        processGameButtonState(&controller1->right, isDown);
                     } break;
                     
                     case SDLK_q:
                     case SDLK_c:
                     {
-                        ProcessGameButtonState(&controller1->up, isDown);
+                        processGameButtonState(&controller1->up, isDown);
                     } break;
                         
                     case SDLK_e:
                     case SDLK_f:
                     {
-                        ProcessGameButtonState(&controller1->down, isDown);
+                        processGameButtonState(&controller1->down, isDown);
                     } break;
                     
                     case SDLK_ESCAPE:
@@ -792,17 +770,17 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
             {
                 case SDL_BUTTON_LEFT:
                 {
-                    ProcessGameButtonState(&gameInput->mouse.left, isDown);
+                    processGameButtonState(&gameInput->mouse.left, isDown);
                 } break;
                     
                 case SDL_BUTTON_MIDDLE:
                 {
-                    ProcessGameButtonState(&gameInput->mouse.middle, isDown);
+                    processGameButtonState(&gameInput->mouse.middle, isDown);
                 } break;
                     
                 case SDL_BUTTON_RIGHT:
                 {
-                    ProcessGameButtonState(&gameInput->mouse.right, isDown);
+                    processGameButtonState(&gameInput->mouse.right, isDown);
                 } break;
             }
         } break;
@@ -934,7 +912,7 @@ int main(int argc, char* argv[])
             else
             {
                 // process event
-                ProcessGameInputs(&event, newGameInput);
+                processGameInputs(&event, newGameInput);
             }
         }
         
