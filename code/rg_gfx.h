@@ -27,6 +27,7 @@
 #define RG_MAX_FRAMES_IN_FLIGHT 3
 #define RG_MAX_BINDLESS_TEXTURE_RESOURCES 100000
 #define RG_MAX_COLOR_ATTACHMENTS 4
+#define RG_GFX_OBJECT_TAG_LENGTH 32
 
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
 #define ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS
@@ -34,18 +35,15 @@
 static const rgU32 kInvalidValue = ~(0x0);
 static const rgU32 kUninitializedValue = 0;
 
-//-----------------------------------------------------------------------------
-// Gfx Objects Types
-//-----------------------------------------------------------------------------
-
 // FORWARD DECLARATIONS
-struct GfxTexture;
+struct  GfxTexture;
 
 rgInt   gfxGetFrameIndex();
 void    gfxSetterBindlessResource(rgU32 slot, GfxTexture* ptr);
 
 // Gfx Object Registry
 // -------------------
+// NOTE: A base class for every Gfx resource type
 
 template<typename Type>
 struct GfxObjectRegistry
@@ -133,6 +131,11 @@ template<typename Type>
 eastl::vector<Type*> GfxObjectRegistry<Type>::objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT];
 
 
+
+//-----------------------------------------------------------------------------
+// Gfx Object Types
+//-----------------------------------------------------------------------------
+
 // Buffer type
 // -------------------
 
@@ -161,18 +164,18 @@ enum GfxMemoryType
 // cpu updatable dynamic data can be stored in FrameAllocator
 struct GfxBuffer : GfxObjectRegistry<GfxBuffer>
 {
-    rgChar            tag[32];
-    rgSize                size;
-    GfxBufferUsage      usage; // TODO: This doesn't seem to be required in Metal & D3D12 backends.. remove?
-    GfxMemoryType  memoryType;
+    rgChar          tag[RG_GFX_OBJECT_TAG_LENGTH];
+    rgSize          size;
+    GfxBufferUsage  usage; // TODO: This doesn't seem to be required in Metal & D3D12 backends.. remove?
+    GfxMemoryType   memoryType;
 #if defined(RG_D3D12_RNDR)
-    ComPtr<ID3D12Resource> d3dResource;
-    CD3DX12_RANGE mappedRange;
+    ComPtr<ID3D12Resource>  d3dResource;
+    CD3DX12_RANGE           mappedRange;
 #elif defined(RG_METAL_RNDR)
-    void* mtlBuffer; // type: id<MTLBuffer>
+    void*           mtlBuffer; // type: id<MTLBuffer>
 #elif defined(RG_VULKAN_RNDR)
-    VkBuffer vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
-    VmaAllocation vmaAlloc;
+    VkBuffer        vkBuffers[RG_MAX_FRAMES_IN_FLIGHT];
+    VmaAllocation   vmaAlloc;
 #endif
 
     static void fillStruct(GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj)
@@ -236,20 +239,20 @@ enum GfxTextureMipFlag
 
 struct GfxTexture : GfxObjectRegistry<GfxTexture>
 {
-    rgChar          tag[32];
-    GfxTextureDim       dim;
-    rgUInt            width;
-    rgUInt           height;
-    TinyImageFormat  format;
-    rgUInt      mipmapCount;
-    GfxTextureUsage   usage;
-    rgU32             texID;
+    rgChar          tag[RG_GFX_OBJECT_TAG_LENGTH];
+    GfxTextureDim   dim;
+    rgUInt          width;
+    rgUInt          height;
+    TinyImageFormat format;
+    rgUInt          mipmapCount;
+    GfxTextureUsage usage;
+    rgU32           texID;
 
 #if defined(RG_D3D12_RNDR)
-    ComPtr<ID3D12Resource> d3dTexture;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE d3dTextureView;
+    ComPtr<ID3D12Resource>          d3dTexture;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE   d3dTextureView;
 #elif defined(RG_METAL_RNDR)
-    void* mtlTexture; // type: id<MTLTexture>
+    void*           mtlTexture; // type: id<MTLTexture>
 #elif defined(RG_VULKAN_RNDR)
     VkImage vkTexture;
     VmaAllocation vmaAlloc;
@@ -316,18 +319,17 @@ enum GfxSamplerMipFilter
 
 struct GfxSamplerState : GfxObjectRegistry<GfxSamplerState>
 {
-    rgChar tag[32];
-    GfxSamplerAddressMode rstAddressMode;
+    rgChar                  tag[RG_GFX_OBJECT_TAG_LENGTH];
+    GfxSamplerAddressMode   rstAddressMode;
     GfxSamplerMinMagFilter  minFilter;
     GfxSamplerMinMagFilter  magFilter;
     GfxSamplerMipFilter     mipFilter;
-    rgBool                 anisotropy;
+    rgBool                  anisotropy;
     
 #if defined(RG_METAL_RNDR)
-    void* mtlSampler;
+    void*                   mtlSampler;
 #elif defined(RG_D3D12_RNDR)
-    rgU32 d3dStagedDescriptorIndex;
-#else
+    rgU32                   d3dStagedDescriptorIndex;
 #endif
 
     static void fillStruct(GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
@@ -361,21 +363,21 @@ enum GfxStoreAction
 
 struct GfxColorAttachmentDesc
 {
-    GfxTexture*      texture;
+    GfxTexture*     texture;
     GfxLoadAction   loadAction;
-    GfxStoreAction storeAction;
+    GfxStoreAction  storeAction;
     rgFloat4        clearColor;
 };
 
 struct GfxRenderPass
 {
-    GfxColorAttachmentDesc colorAttachments[RG_MAX_COLOR_ATTACHMENTS];
+    GfxColorAttachmentDesc  colorAttachments[RG_MAX_COLOR_ATTACHMENTS];
 
-    GfxTexture* depthStencilAttachmentTexture;
-    GfxLoadAction depthStencilAttachmentLoadAction;
-    GfxStoreAction depthStencilAttachmentStoreAction;
-    rgFloat  clearDepth;
-    rgU32    clearStencil;
+    GfxTexture*             depthStencilAttachmentTexture;
+    GfxLoadAction           depthStencilAttachmentLoadAction;
+    GfxStoreAction          depthStencilAttachmentStoreAction;
+    rgFloat                 clearDepth;
+    rgU32                   clearStencil;
 };
 
 // PSO and State types
@@ -429,12 +431,12 @@ struct GfxVertexInputDesc
 {
     struct 
     {
-        const char*   semanticName;
-        rgUInt       semanticIndex;
+        const char*         semanticName;
+        rgUInt              semanticIndex;
         TinyImageFormat     format;
-        rgUInt         bufferIndex;
+        rgUInt              bufferIndex;
         rgUInt              offset;
-        GfxVertexStepFunc stepFunc;
+        GfxVertexStepFunc   stepFunc;
     } elements[8];
     rgInt elementCount;
 };
@@ -442,7 +444,7 @@ struct GfxVertexInputDesc
 struct GfxColorAttachementStateDesc
 {
     TinyImageFormat pixelFormat;
-    rgBool blendingEnabled;
+    rgBool          blendingEnabled;
 
     // Create predefined common blending operations instead of giving fine control like vv
     //GfxBlendOp blendOp;
@@ -451,14 +453,14 @@ struct GfxColorAttachementStateDesc
 
 struct GfxRenderStateDesc
 {
-    GfxColorAttachementStateDesc colorAttachments[RG_MAX_COLOR_ATTACHMENTS];
-    TinyImageFormat depthStencilAttachmentFormat;
+    GfxColorAttachementStateDesc    colorAttachments[RG_MAX_COLOR_ATTACHMENTS];
+    TinyImageFormat                 depthStencilAttachmentFormat;
 
-    rgBool depthWriteEnabled;
-    GfxCompareFunc depthCompareFunc;
+    rgBool              depthWriteEnabled;
+    GfxCompareFunc      depthCompareFunc;
 
-    GfxCullMode cullMode;
-    GfxWinding winding;
+    GfxCullMode         cullMode;
+    GfxWinding          winding;
     GfxTriangleFillMode triangleFillMode;
 
     // Primitive Type, Line, LineStrip, Triangle, TriangleStrip
@@ -502,9 +504,11 @@ struct GfxPipelineArgument
 
 struct GfxGraphicsPSO : GfxObjectRegistry<GfxGraphicsPSO>
 {
-    rgChar tag[32];
-    GfxCullMode cullMode;
-    GfxWinding winding;
+    rgChar              tag[RG_GFX_OBJECT_TAG_LENGTH];
+    
+    // State info
+    GfxCullMode         cullMode;
+    GfxWinding          winding;
     GfxTriangleFillMode triangleFillMode;
 
     eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
