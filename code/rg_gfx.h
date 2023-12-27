@@ -28,6 +28,9 @@
 #define RG_MAX_BINDLESS_TEXTURE_RESOURCES 100000
 #define RG_MAX_COLOR_ATTACHMENTS 4
 
+#define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
+#define ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS
+
 static const rgU32 kInvalidValue = ~(0x0);
 static const rgU32 kUninitializedValue = 0;
 
@@ -104,7 +107,7 @@ struct GfxObjectRegistry
     static void insert(rgHash hash, Type* ptr)
     {
 #if defined(ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT)
-        ObjectMap::iterator itr = objects.find(hash);
+        typename ObjectMapType::iterator itr = objects.find(hash);
         rgAssert(itr == objects.end());
 #endif
         objects.insert_or_assign(hash, ptr);
@@ -995,12 +998,6 @@ void            gfxRendererImGuiRenderDrawData();
 void            gfxOnSizeChanged();
 
 GfxTexture*     gfxGetCurrentRenderTargetColorBuffer();
-
-
-// Helper macros
-// ---------------
-#define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
-#define ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS
 
 
 //-----------------------------------------------------------------------------
