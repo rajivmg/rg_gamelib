@@ -24,9 +24,6 @@ GameInput* g_GameInput;
 PhysicSystem* g_PhysicSystem;
 WindowInfo g_WindowInfo;
 
-rgDouble g_DeltaTime;
-rgDouble g_Time;
-
 rgInt g_FrameIndex;
 
 rgBool g_ShouldQuit;

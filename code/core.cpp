@@ -1,5 +1,7 @@
 #include "core.h"
 
+rgDouble g_DeltaTime;
+rgDouble g_Time;
 
 // EASTL MEMORY OVERLOADS
 // ----------------------
@@ -114,6 +116,21 @@ void engineLogfImpl(char const* fmt, ...)
     va_start(argList, fmt);
     SDL_LogMessageV(SDL_LOG_CATEGORY_TEST, SDL_LOG_PRIORITY_DEBUG, fmt, argList);
     va_end(argList);
+}
+
+double getTime()
+{
+    return g_Time;
+}
+
+double getDeltaTime()
+{
+    return g_DeltaTime;
+}
+
+uint32_t getFrameIndex()
+{
+    return g_FrameIndex;
 }
 
 char* getSaveDataPath()

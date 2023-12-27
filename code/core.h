@@ -176,6 +176,9 @@ void        fileFree(FileData* fd);
 // UTILS
 // -----
 
+double      getTime();
+double      getDeltaTime();
+uint32_t    getFrameIndex();
 char*       getSaveDataPath();
 
 
