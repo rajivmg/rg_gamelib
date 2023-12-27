@@ -275,7 +275,7 @@ void unloadModel(Model* ptr)
 }
 
 
-RG_BEGIN_GFX_NAMESPACE
+namespace gfx {
 
 SDL_Window* mainWindow;
 rgUInt frameNumber;
@@ -305,7 +305,7 @@ GfxSamplerState*    samplerNearestClampEdge;
 
 // MISC
 eastl::vector<GfxTexture*> debugTextureHandles; // test only
-RG_END_GFX_NAMESPACE
+}
 
 rgInt gfxPreInit()
 {

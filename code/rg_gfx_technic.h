@@ -3,8 +3,6 @@
 
 #include "rg_gfx.h"
 
-RG_BEGIN_GFX_NAMESPACE
-
 struct BaseMaterialTemplate
 {
     GfxGraphicsPSO* pso;
@@ -14,7 +12,5 @@ struct BaseMaterialTemplate
     gfx::LitMaterialTemplate litMaterialTemplate("lit.hlsl", );
 
  --------*/
-
-RG_END_GFX_NAMESPACE
 
 #endif

@@ -3,8 +3,6 @@
 
 #include "rg_gfx.h"
 
-RG_BEGIN_GFX_NAMESPACE
-
 struct ShaderBlob
 {
     void*   shaderObjectBufferPtr;
@@ -22,5 +20,4 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
 
 void destroyShaderBlob(ShaderBlob* shaderBlob);
 
-RG_END_GFX_NAMESPACE
 #endif

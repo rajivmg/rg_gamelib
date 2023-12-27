@@ -508,7 +508,7 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
                                       rgU32* outThreadsPerThreadgroupX = nullptr, rgU32* outThreadsPerThreadgroupY = nullptr, rgU32* outThreadsPerThreadgroupZ = nullptr)
 {
     // first we generate spirv from hlsl
-    gfx::ShaderBlobRef shaderBlob = gfx::createShaderBlob(filename, stage, entrypoint, defines, true);
+    ShaderBlobRef shaderBlob = createShaderBlob(filename, stage, entrypoint, defines, true);
     
     // now we convert spirv to msl
     // 1. convert spirv to ms	l
@@ -668,7 +668,7 @@ void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertex
         [psoDesc setFragmentFunction:fs];
         
         rgAssert(renderStateDesc != nullptr);
-        for(rgInt i = 0; i < kMaxColorAttachments; ++i)
+        for(rgInt i = 0; i < RG_MAX_COLOR_ATTACHMENTS; ++i)
         {
             TinyImageFormat colorAttFormat = renderStateDesc->colorAttachments[i].pixelFormat;
             if(colorAttFormat != TinyImageFormat_UNDEFINED)
@@ -799,7 +799,7 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
     // create RenderCommandEncoder
     MTLRenderPassDescriptor* renderPassDesc = [[MTLRenderPassDescriptor alloc] init];
 
-    for(rgInt c = 0; c < kMaxColorAttachments; ++c)
+    for(rgInt c = 0; c < RG_MAX_COLOR_ATTACHMENTS; ++c)
     {
         if(renderPass->colorAttachments[c].texture == NULL)
         {

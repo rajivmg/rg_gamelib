@@ -26,20 +26,10 @@
 
 #define RG_MAX_FRAMES_IN_FLIGHT 3
 #define RG_MAX_BINDLESS_TEXTURE_RESOURCES 100000
-
-#define RG_BEGIN_GFX_NAMESPACE namespace gfx {
-#define RG_END_GFX_NAMESPACE }
+#define RG_MAX_COLOR_ATTACHMENTS 4
 
 static const rgU32 kInvalidValue = ~(0x0);
 static const rgU32 kUninitializedValue = 0;
-static const rgU32 kMaxColorAttachments = 4;
-
-//-----------------------------------------------------------------------------
-// Game functions
-//-----------------------------------------------------------------------------
-rgInt setup();
-rgInt processEvent(SDL_Event *event);
-rgInt updateAndDraw(rgDouble dt);
 
 //-----------------------------------------------------------------------------
 // Gfx Objects Types
@@ -376,7 +366,7 @@ struct GfxColorAttachmentDesc
 
 struct GfxRenderPass
 {
-    GfxColorAttachmentDesc colorAttachments[kMaxColorAttachments];
+    GfxColorAttachmentDesc colorAttachments[RG_MAX_COLOR_ATTACHMENTS];
 
     GfxTexture* depthStencilAttachmentTexture;
     GfxLoadAction depthStencilAttachmentLoadAction;
@@ -458,7 +448,7 @@ struct GfxColorAttachementStateDesc
 
 struct GfxRenderStateDesc
 {
-    GfxColorAttachementStateDesc colorAttachments[kMaxColorAttachments];
+    GfxColorAttachementStateDesc colorAttachments[RG_MAX_COLOR_ATTACHMENTS];
     TinyImageFormat depthStencilAttachmentFormat;
 
     rgBool depthWriteEnabled;
@@ -517,7 +507,6 @@ struct GfxGraphicsPSO : GfxObjectRegistry<GfxGraphicsPSO>
     eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
 
 #if defined(RG_D3D12_RNDR)
-
     rgBool                      d3dHasCBVSRVUAVs;
     rgBool                      d3dHasSamplers;
     rgBool                      d3dHasBindlessResources;
@@ -1041,7 +1030,7 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 // Graphic Context Data
 //-----------------------------------------------------------------------------
 
-RG_BEGIN_GFX_NAMESPACE
+namespace gfx {
 extern SDL_Window* mainWindow;
 extern rgUInt frameNumber;
 
@@ -1064,7 +1053,7 @@ extern GfxSamplerState* samplerTrilinearRepeatAniso;
 extern GfxSamplerState* samplerTrilinearClampEdgeAniso;
 extern GfxSamplerState* samplerNearestRepeat;
 extern GfxSamplerState* samplerNearestClampEdge;
-RG_END_GFX_NAMESPACE
+}
 
 //-----------------------------------------------------------------------------
 // API Specific Graphic Context Data

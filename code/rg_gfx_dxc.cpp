@@ -12,9 +12,7 @@
 
 static ComPtr<IDxcUtils> g_DxcUtils;
 
-RG_BEGIN_GFX_NAMESPACE
-
-void checkResult(HRESULT hr)
+static void checkResult(HRESULT hr)
 {
     if(FAILED(hr))
     {
@@ -254,5 +252,3 @@ void destroyShaderBlob(ShaderBlob* shaderBlob)
     d3d12ShaderReflection->Release();
 #endif
 }
-
-RG_END_GFX_NAMESPACE
