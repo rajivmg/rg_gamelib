@@ -276,8 +276,6 @@ void unloadModel(Model* ptr)
 
 
 namespace gfx {
-
-SDL_Window* mainWindow;
 rgUInt frameNumber;
 
 // CURRENT STATE

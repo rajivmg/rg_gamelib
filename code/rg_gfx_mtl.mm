@@ -1443,8 +1443,8 @@ static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 
 rgInt gfxInit()
 {
-    rgAssert(gfx::mainWindow);
-    appView = (NSView*)SDL_Metal_CreateView(gfx::mainWindow);
+    rgAssert(g_AppMainWindow);
+    appView = (NSView*)SDL_Metal_CreateView(g_AppMainWindow);
     metalLayer = (CAMetalLayer*)SDL_Metal_GetLayer(appView);
     mtlDevice = MTLCreateSystemDefaultDevice();
     mtlCommandQueue = [mtlDevice newCommandQueue];
@@ -1599,7 +1599,7 @@ void gfxRunOnFrameBeginJob()
 void gfxRendererImGuiInit()
 {
     ImGui_ImplMetal_Init(getMTLDevice());
-    ImGui_ImplSDL2_InitForMetal(gfx::mainWindow);
+    ImGui_ImplSDL2_InitForMetal(g_AppMainWindow);
 }
 
 void gfxRendererImGuiNewFrame()

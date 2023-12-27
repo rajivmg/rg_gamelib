@@ -2,62 +2,6 @@
 
 #include <box2d/box2d.h>
 
-//using namespace core;
-//using namespace gfx;
-
-struct GameButtonState
-{
-    rgBool endedDown;
-    rgUInt halfTransitionCount;
-};
-
-struct GameMouseState
-{
-    rgS32 x, y, relX, relY;
-    
-    union
-    {
-        GameButtonState buttons[3];
-        struct
-        {
-            GameButtonState left;
-            GameButtonState middle;
-            GameButtonState right;
-        };
-    };
-};
-
-struct GameControllerInput
-{
-    union
-    {
-        // IMPORTANT: update the array count if a button is added or removed
-        GameButtonState buttons[7];
-        struct
-        {
-            GameButtonState forward;
-            GameButtonState backward;
-            GameButtonState left;
-            GameButtonState right;
-            GameButtonState up;
-            GameButtonState down;
-            GameButtonState jump;
-            // IMPORTANT: update the array count if a button is added or removed
-        };
-    };
-};
-
-#define RG_MAX_GAME_CONTROLLERS 4
-
-struct GameInput
-{
-    GameMouseState mouse;
-    GameControllerInput controllers[RG_MAX_GAME_CONTROLLERS];
-};
-
-extern GameInput* g_GameInput;
-
-
 struct GameState
 {
     TexturedQuads characterPortraits;

@@ -1032,7 +1032,6 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 //-----------------------------------------------------------------------------
 
 namespace gfx {
-extern SDL_Window* mainWindow;
 extern rgUInt frameNumber;
 
 extern GfxRenderCmdEncoder* currentRenderCmdEncoder;

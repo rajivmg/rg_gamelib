@@ -159,6 +159,62 @@ RG_INLINE void rgPrintImplementation(const char* varName, rgFloat3& a)
 
 extern rgBool g_ShouldQuit;
 
+// INPUT
+// -----
+
+struct GameButtonState
+{
+    rgBool endedDown;
+    rgUInt halfTransitionCount;
+};
+
+struct GameMouseState
+{
+    rgS32 x, y, relX, relY;
+    
+    union
+    {
+        GameButtonState buttons[3];
+        struct
+        {
+            GameButtonState left;
+            GameButtonState middle;
+            GameButtonState right;
+        };
+    };
+};
+
+struct GameControllerInput
+{
+    union
+    {
+        // IMPORTANT: update the array count if a button is added or removed
+        GameButtonState buttons[7];
+        struct
+        {
+            GameButtonState forward;
+            GameButtonState backward;
+            GameButtonState left;
+            GameButtonState right;
+            GameButtonState up;
+            GameButtonState down;
+            GameButtonState jump;
+            // IMPORTANT: update the array count if a button is added or removed
+        };
+    };
+};
+
+#define RG_MAX_GAME_CONTROLLERS 4
+
+struct GameInput
+{
+    GameMouseState mouse;
+    GameControllerInput controllers[RG_MAX_GAME_CONTROLLERS];
+};
+
+extern GameInput* g_GameInput;
+
+
 // FILE IO
 // -------
 
@@ -201,42 +257,53 @@ extern rgInt g_FrameIndex;
 struct PhysicSystem;
 extern PhysicSystem* g_PhysicSystem;
 
-#if 0
+extern SDL_Window* g_AppMainWindow;
+
+#if 1
 // APP
 // ---
 
-class SdlApp
+class TheApp
 {
 public:
-    void InitApp();
-    void BeforeUpdate();
-    void AfterDraw();
-    virtual ~SdlApp() {}
-    virtual void PreSetup() {}
-    virtual void Setup() {}
-    virtual void ProcessEvents(SDL_Event *e) {}
-    virtual void Update() {}
-    virtual void Draw() {}
-    bool shouldquit = false;
+    
+    int  beginApp();
+    void beforeUpdateAndDraw();
+    void afterUpdateAndDraw();
+    void endApp();
+    
+    virtual ~TheApp() {}
+    virtual void preInit() {}
+    virtual void setup() {}
+    virtual void updateAndDraw() {}
+    
+    bool shouldQuit = false;
+    
 protected:
-    void SetTitle(const char * _title);
+    
+    void setTitle(const char * _title);
     size_t width = 1280;
     size_t height = 720;
     bool fullscreen = false;
     char title[64] = "SdlApp";
     bool vsync = true;
-    SDL_Window *window;
-    SDL_Event event;
+    
+    GameInput inputs[2];
+    
+    SDL_Window *window; // TODO: Make global
+    //SDL_Event event; // TODO: Make global
     /* delta time in seconds */
     double dtime;
-    uint64_t prevcounter, currcounter, counterfreq;
+    Uint64 currentPerfCounter;
+    Uint64 previousPerfCounter;
 };
 
-#define SDL_APP_MAIN(x) int main(int argc, char *argv[]) {  \
-    SdlApp *app = new x();                                          \
-    app->PreSetup(); app->InitApp(); app->Setup();                  \
-    while(!app->shouldquit)                                         \
-    { app->BeforeUpdate(); app->Update(); app->Draw(); app->AfterDraw(); }  \
+#define THE_APP_MAIN(x) int main(int argc, char *argv[]) {          \
+    TheApp *app = new x();                                          \
+    app->preInit(); app->beginApp(); app->setup();                   \
+    while(!app->shouldQuit)                                         \
+    { app->beforeUpdateAndDraw(); app->updateAndDraw(); app->afterUpdateAndDraw(); }  \
+    app->endApp();              \
     delete app; return 0; }
 #endif
 

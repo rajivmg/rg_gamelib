@@ -671,7 +671,7 @@ static rgBool processGameButtonState(GameButtonState* newButtonState, rgBool isD
     return false;
 }
 
-rgBool processGameInputs(SDL_Event* event, GameInput* gameInput)
+static rgBool processGameInputs(SDL_Event* event, GameInput* gameInput)
 {
     GameControllerInput* controller1 = &gameInput->controllers[0];
     
@@ -765,7 +765,7 @@ rgBool processGameInputs(SDL_Event* event, GameInput* gameInput)
     return true;
 }
 
-rgInt createSDLWindow()
+static rgInt createSDLWindow()
 {
 #if 0
     g_WindowInfo.width = 1056;
@@ -790,10 +790,10 @@ rgInt createSDLWindow()
     
     if (SDL_Init(SDL_INIT_VIDEO) == 0)
     {
-        gfx::mainWindow = SDL_CreateWindow("gamelib",
+        g_AppMainWindow = SDL_CreateWindow("gamelib",
                                            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                            g_WindowInfo.width, g_WindowInfo.height, windowFlags);
-        rgAssert(gfx::mainWindow != NULL);
+        rgAssert(g_AppMainWindow != NULL);
         return 0;
     }
     
@@ -897,7 +897,7 @@ int main(int argc, char* argv[])
     }
 
     gfxDestroy();
-    SDL_DestroyWindow(gfx::mainWindow);
+    SDL_DestroyWindow(g_AppMainWindow);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return 0;
 }
