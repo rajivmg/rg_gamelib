@@ -26,8 +26,6 @@ WindowInfo g_WindowInfo;
 
 rgInt g_FrameIndex;
 
-rgBool g_ShouldQuit;
-
 void updateCamera()
 {
     GameControllerInput* controller = &g_GameInput->controllers[0];
@@ -800,6 +798,7 @@ static rgInt createSDLWindow()
     return -1;
 }
 
+#if 0
 int main(int argc, char* argv[])
 {
     g_FrameIndex = -1;
@@ -820,7 +819,7 @@ int main(int argc, char* argv[])
 
     setup();
 
-    g_ShouldQuit = false;
+    g_ShouldAppQuit = false;
     SDL_Event event;
     
     Uint64 currentPerfCounter = SDL_GetPerformanceCounter();
@@ -830,7 +829,7 @@ int main(int argc, char* argv[])
     GameInput* oldGameInput = &inputs[0];
     GameInput* newGameInput = &inputs[1];
     
-    while(!g_ShouldQuit)
+    while(!g_ShouldAppQuit)
     {
         ++gfx::frameNumber;
 
@@ -865,7 +864,7 @@ int main(int argc, char* argv[])
             
             if(event.type == SDL_QUIT)
             {
-                g_ShouldQuit = true;
+                g_ShouldAppQuit = true;
             }
             else if(event.type == SDL_WINDOWEVENT_SIZE_CHANGED)
             {
@@ -901,3 +900,19 @@ int main(int argc, char* argv[])
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return 0;
 }
+#else
+class Demo3DApp : public TheApp
+{
+    void setup() override
+    {
+        ::setup();
+    }
+    
+    void updateAndDraw() override
+    {
+        ::updateAndDraw(g_DeltaTime);
+    }
+};
+
+THE_APP_MAIN(Demo3DApp)
+#endif

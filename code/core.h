@@ -157,8 +157,6 @@ RG_INLINE void rgPrintImplementation(const char* varName, rgFloat3& a)
     rgLog("%s = {%f, %f, %f}\n", varName, a.x, a.y, a.z);
 }
 
-extern rgBool g_ShouldQuit;
-
 // INPUT
 // -----
 
@@ -257,6 +255,7 @@ extern rgInt g_FrameIndex;
 struct PhysicSystem;
 extern PhysicSystem* g_PhysicSystem;
 
+extern rgBool g_ShouldAppQuit;
 extern SDL_Window* g_AppMainWindow;
 
 #if 1
@@ -273,7 +272,7 @@ public:
     void endApp();
     
     virtual ~TheApp() {}
-    virtual void preInit() {}
+    virtual void onCreateApp() {}
     virtual void setup() {}
     virtual void updateAndDraw() {}
     
@@ -300,8 +299,8 @@ protected:
 
 #define THE_APP_MAIN(x) int main(int argc, char *argv[]) {          \
     TheApp *app = new x();                                          \
-    app->preInit(); app->beginApp(); app->setup();                   \
-    while(!app->shouldQuit)                                         \
+    app->onCreateApp(); app->beginApp(); app->setup();              \
+    while(!g_ShouldAppQuit)                                         \
     { app->beforeUpdateAndDraw(); app->updateAndDraw(); app->afterUpdateAndDraw(); }  \
     app->endApp();              \
     delete app; return 0; }

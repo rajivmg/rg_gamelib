@@ -6,6 +6,7 @@
 rgDouble    g_DeltaTime;
 rgDouble    g_Time;
 SDL_Window* g_AppMainWindow;
+rgBool      g_ShouldAppQuit;
 
 // EASTL MEMORY OVERLOADS
 // ----------------------
@@ -190,7 +191,7 @@ int TheApp::beginApp()
 
     //setup();
 
-    g_ShouldQuit = false;
+    g_ShouldAppQuit = false;
     
     currentPerfCounter = SDL_GetPerformanceCounter();
     previousPerfCounter = currentPerfCounter;
@@ -235,7 +236,7 @@ void TheApp::beforeUpdateAndDraw()
         
         if(event.type == SDL_QUIT)
         {
-            g_ShouldQuit = true;
+            g_ShouldAppQuit = true;
         }
         else if(event.type == SDL_WINDOWEVENT_SIZE_CHANGED)
         {
@@ -265,6 +266,11 @@ void TheApp::afterUpdateAndDraw()
     gfxEndFrame();
     
     *oldGameInput = *newGameInput;
+}
+
+void TheApp::endApp()
+{
+    
 }
 
 void TheApp::setTitle(const char *_title)
