@@ -387,11 +387,6 @@ double getDeltaTime()
     return g_DeltaTime;
 }
 
-uint32_t getFrameIndex()
-{
-    return g_FrameIndex;
-}
-
 char* getSaveDataPath()
 {
     return SDL_GetPrefPath("rg", "gamelib");

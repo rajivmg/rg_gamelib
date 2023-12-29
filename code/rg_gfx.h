@@ -113,7 +113,7 @@ struct GfxObjectRegistry
 
     static void destroyMarkedObjects()
     {
-        rgInt frameIndex = getFrameIndex();
+        rgInt frameIndex = gfxGetFrameIndex();
         for(auto itr : objectsToDestroy[frameIndex])
         {
             // TODO: Which one is better here
@@ -1029,16 +1029,8 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
-// Graphic Context Data
+// Gfx State
 //-----------------------------------------------------------------------------
-
-namespace gfx {
-extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
-
-extern eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
-
-extern eastl::vector<GfxTexture*> debugTextureHandles; // test only
-}
 
 struct GfxState
 {
@@ -1053,9 +1045,10 @@ struct GfxState
     static GfxSamplerState* samplerNearestClampEdge;
 };
 
+extern GfxBindlessResourceManager<GfxTexture>* g_BindlessTextureManager;
+
 // TODO: move to GfxState?
-// TODO: gfxFrameIndex() gfxGetFrameIndex instead of getFrameIndex()
-// TODO: remove getFrameIndex() from core.h/cpp?
+// TODO: gfxFrameIndex() instead of gfxGetFrameIndex() ?
 extern rgInt g_FrameIndex; // Frame index in swapchain, i.e. 0, 1, 2, 0, 1, 2
 
 //-----------------------------------------------------------------------------

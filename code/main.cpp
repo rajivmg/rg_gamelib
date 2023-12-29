@@ -24,6 +24,8 @@ GameInput* g_GameInput;
 PhysicSystem* g_PhysicSystem;
 WindowInfo g_WindowInfo;
 
+eastl::vector<GfxTexture*> debugTextureHandles;
+
 void updateCamera()
 {
     GameControllerInput* controller = &g_GameInput->controllers[0];
@@ -97,7 +99,7 @@ rgInt setup()
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
         ImageRef t = loadImage(path);
         GfxTexture* t2d = GfxTexture::create(path, GfxTextureDim_2D, t->width, t->height, t->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, t->slices);
-        gfx::debugTextureHandles.push_back(t2d);
+        debugTextureHandles.push_back(t2d);
     }
 
     ImageRef flowerTex = loadImage("flower.png");
@@ -438,7 +440,7 @@ rgInt updateAndDraw(rgDouble dt)
                 rgFloat px = (rgFloat)(j * (100) + 10 * (j + 1) + sin(g_Time) * 30);
                 rgFloat py = (rgFloat)(i * (100) + 10 * (i + 1) + cos(g_Time) * 30);
                 
-                pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
+                pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, debugTextureHandles[j + i * 4]);
             }
         }
         pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameState->flowerTexture);

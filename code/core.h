@@ -232,7 +232,6 @@ void        fileFree(FileData* fd);
 
 double      getTime();
 double      getDeltaTime();
-uint32_t    getFrameIndex();
 char*       getSaveDataPath();
 
 

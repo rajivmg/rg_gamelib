@@ -202,7 +202,7 @@ void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFl
     q.pos = { posSize.x, posSize.y, 1.0f };
     q.size = posSize.zw;
     q.offsetOrientation = offsetOrientation;
-    q.texID = gfx::bindlessManagerTexture->getBindlessIndex(tex);
+    q.texID = g_BindlessTextureManager->getBindlessIndex(tex);
 }
 
 //-----------------------------------------------------------------------------
@@ -276,25 +276,7 @@ void unloadModel(Model* ptr)
     
 }
 
-
-namespace gfx {
-
-// CURRENT STATE
-GfxRenderPass*          currentRenderPass;
-GfxRenderCmdEncoder*    currentRenderCmdEncoder;
-GfxComputeCmdEncoder*   currentComputeCmdEncoder;
-GfxBlitCmdEncoder*      currentBlitCmdEncoder;
-
-GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
-
-// DEFAULT RESOURCES
-eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
-
-// MISC
-eastl::vector<GfxTexture*> debugTextureHandles; // test only
-}
-
-// GfxState statics
+// GfxState
 // ----------------
 
 GfxGraphicsPSO*     GfxState::graphicsPSO;
@@ -308,9 +290,18 @@ GfxSamplerState*    GfxState::samplerNearestClampEdge;
 
 static GfxFrameAllocator*   frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
+GfxBindlessResourceManager<GfxTexture>* g_BindlessTextureManager;
+
+// ----------
+
+static GfxRenderPass*           currentRenderPass;
+static GfxRenderCmdEncoder*     currentRenderCmdEncoder;
+static GfxComputeCmdEncoder*    currentComputeCmdEncoder;
+static GfxBlitCmdEncoder*       currentBlitCmdEncoder;
+
 rgInt gfxPreInit()
 {
-    gfx::bindlessManagerTexture = rgNew(GfxBindlessResourceManager<GfxTexture>);
+    g_BindlessTextureManager = rgNew(GfxBindlessResourceManager<GfxTexture>);
     
     return 0;
 }
@@ -408,6 +399,7 @@ rgInt gfxPostInit()
     return 0;
 }
 
+// TODO: refactor
 void gfxAtFrameStart()
 {
     GfxBuffer::destroyMarkedObjects();
@@ -417,11 +409,12 @@ void gfxAtFrameStart()
     GfxComputePSO::destroyMarkedObjects();
     
     // Reset render pass
-    gfx::currentRenderPass = nullptr;
-    if(gfx::currentRenderCmdEncoder != nullptr)
+    // TODO: replace with endEncoder()
+    currentRenderPass = nullptr;
+    if(currentRenderCmdEncoder != nullptr)
     {
-        rgDelete(gfx::currentRenderCmdEncoder);
-        gfx::currentRenderCmdEncoder = nullptr;
+        rgDelete(currentRenderCmdEncoder);
+        currentRenderCmdEncoder = nullptr;
     }
     
     // reset this frame's allocations
@@ -454,34 +447,34 @@ GfxFrameAllocator* gfxGetFrameAllocator()
 
 static void endCurrentCmdEncoder()
 {
-    if(gfx::currentRenderCmdEncoder != nullptr)
+    if(currentRenderCmdEncoder != nullptr)
     {
-        if(!gfx::currentRenderCmdEncoder->hasEnded)
+        if(!currentRenderCmdEncoder->hasEnded)
         {
-            gfx::currentRenderCmdEncoder->end();
+            currentRenderCmdEncoder->end();
         }
-        rgDelete(gfx::currentRenderCmdEncoder);
-        gfx::currentRenderCmdEncoder = nullptr;
+        rgDelete(currentRenderCmdEncoder);
+        currentRenderCmdEncoder = nullptr;
     }
     
-    if(gfx::currentComputeCmdEncoder != nullptr)
+    if(currentComputeCmdEncoder != nullptr)
     {
-        if(!gfx::currentComputeCmdEncoder->hasEnded)
+        if(!currentComputeCmdEncoder->hasEnded)
         {
-            gfx::currentComputeCmdEncoder->end();
+            currentComputeCmdEncoder->end();
         }
-        rgDelete(gfx::currentComputeCmdEncoder);
-        gfx::currentComputeCmdEncoder = nullptr;
+        rgDelete(currentComputeCmdEncoder);
+        currentComputeCmdEncoder = nullptr;
     }
     
-    if(gfx::currentBlitCmdEncoder != nullptr)
+    if(currentBlitCmdEncoder != nullptr)
     {
-        if(!gfx::currentBlitCmdEncoder->hasEnded)
+        if(!currentBlitCmdEncoder->hasEnded)
         {
-            gfx::currentBlitCmdEncoder->end();
+            currentBlitCmdEncoder->end();
         }
-        rgDelete(gfx::currentBlitCmdEncoder);
-        gfx::currentBlitCmdEncoder = nullptr;
+        rgDelete(currentBlitCmdEncoder);
+        currentBlitCmdEncoder = nullptr;
     }
 }
 
@@ -489,33 +482,33 @@ GfxRenderCmdEncoder* gfxSetRenderPass(char const* tag, GfxRenderPass* renderPass
 {
     endCurrentCmdEncoder();
 
-    gfx::currentRenderCmdEncoder = rgNew(GfxRenderCmdEncoder);
-    gfx::currentRenderCmdEncoder->begin(tag, renderPass);
+    currentRenderCmdEncoder = rgNew(GfxRenderCmdEncoder);
+    currentRenderCmdEncoder->begin(tag, renderPass);
 
-    gfx::currentRenderPass = renderPass;
+    currentRenderPass = renderPass;
     
-    return gfx::currentRenderCmdEncoder;
+    return currentRenderCmdEncoder;
 }
 
 GfxComputeCmdEncoder* gfxSetComputePass(char const* tag)
 {
     endCurrentCmdEncoder();
     
-    gfx::currentComputeCmdEncoder = rgNew(GfxComputeCmdEncoder);
-    gfx::currentComputeCmdEncoder->begin(tag);
+    currentComputeCmdEncoder = rgNew(GfxComputeCmdEncoder);
+    currentComputeCmdEncoder->begin(tag);
     
-    return gfx::currentComputeCmdEncoder;
+    return currentComputeCmdEncoder;
 }
 
 GfxBlitCmdEncoder* gfxSetBlitPass(char const* tag)
 {
     endCurrentCmdEncoder();
     
-    gfx::currentBlitCmdEncoder = rgNew(GfxBlitCmdEncoder);
-    gfx::currentBlitCmdEncoder->begin(tag);
-    gfx::currentBlitCmdEncoder->pushDebugTag(tag);
+    currentBlitCmdEncoder = rgNew(GfxBlitCmdEncoder);
+    currentBlitCmdEncoder->begin(tag);
+    currentBlitCmdEncoder->pushDebugTag(tag);
     
-    return gfx::currentBlitCmdEncoder;
+    return currentBlitCmdEncoder;
 }
 
 // --------------------

@@ -50,6 +50,7 @@ static rgU32 const kMaxMTLArgumentTableBufferSlot = 30;
     static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
     static id<MTLBuffer> bindlessTextureArgBuffer;
 //RG_END_GFX_NAMESPACE
+static eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
 
 //*****************************************************************************
 // Helper Functions
@@ -488,7 +489,7 @@ void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, rgUInt widt
         
         if(mipFlag == GfxTextureMipFlag_GenMips)
         {
-            gfx::frameBeginJobGenTextureMipmaps.push_back(obj);
+            frameBeginJobGenTextureMipmaps.push_back(obj);
         }
     }
 
@@ -1578,16 +1579,16 @@ void gfxEndFrame()
 // TODO: should this be done at abstracted level?
 void gfxRunOnFrameBeginJob()
 {
-    if(gfx::frameBeginJobGenTextureMipmaps.size() > 0)
+    if(frameBeginJobGenTextureMipmaps.size() > 0)
     {
         id<MTLBlitCommandEncoder> mipmapGenCmdList = [getMTLCommandBuffer() blitCommandEncoder];
         mipmapGenCmdList.label = @"OnFrameBegin GenMipMap";
-        for(GfxTexture* tex : gfx::frameBeginJobGenTextureMipmaps)
+        for(GfxTexture* tex : frameBeginJobGenTextureMipmaps)
         {
             [mipmapGenCmdList generateMipmapsForTexture:asMTLTexture(tex->mtlTexture)];
         }
         [mipmapGenCmdList endEncoding];
-        gfx::frameBeginJobGenTextureMipmaps.clear();
+        frameBeginJobGenTextureMipmaps.clear();
     }
 }
 
