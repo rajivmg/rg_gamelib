@@ -37,6 +37,11 @@ static const rgU32 kUninitializedValue = 0;
 
 // FORWARD DECLARATIONS
 struct  GfxTexture;
+struct  GfxFrameResource;
+class   GfxFrameAllocator;
+struct  TexturedQuad;
+
+typedef eastl::vector<TexturedQuad> TexturedQuads;
 
 rgInt   gfxGetFrameIndex();
 void    gfxSetterBindlessResource(rgU32 slot, GfxTexture* ptr);
@@ -132,9 +137,8 @@ template<typename Type>
 eastl::vector<Type*> GfxObjectRegistry<Type>::objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT];
 
 
-
 //-----------------------------------------------------------------------------
-// Gfx Object Types
+// GFX OBJECT TYPES
 //-----------------------------------------------------------------------------
 
 // Buffer type
@@ -563,302 +567,13 @@ struct GfxComputePSO : GfxObjectRegistry<GfxComputePSO>
     static void destroyGfxObject(GfxComputePSO* obj);
 };
 
-//-----------------------------------------------------------------------------
-// Gfx Helper Classes
-//-----------------------------------------------------------------------------
-
-template<typename Type>
-class GfxBindlessResourceManager
-{
-    typedef eastl::vector<Type*> ResourceList;
-    ResourceList resources; // Hold reference to the resources until no longer needed
-
-    typedef eastl::vector<rgU32> SlotList;
-    SlotList freeSlots; // Indexes in referenceList which are unused
-
-    rgU32 getFreeSlot()
-    {
-        rgU32 result = kInvalidValue;
-
-        if(!freeSlots.empty())
-        {
-            result = freeSlots.back();
-            freeSlots.pop_back();
-        }
-        else
-        {
-            rgAssert(resources.size() < UINT32_MAX);
-            result = (rgU32)resources.size();
-            resources.resize(result + 1); // push_back(nullptr) ?
-        }
-
-        rgAssert(result != kInvalidValue);
-        return result;
-    }
-
-    void releaseSlot(rgU32 slot)
-    {
-        rgAssert(slot < resources.size());
-
-        resources[slot] = nullptr;
-        freeSlots.push_back(slot);
-    }
-
-    void setResourcePtrInSlot(rgU32 slot, Type* ptr)
-    {
-        resources[slot] = ptr;
-        gfxSetterBindlessResource(slot, ptr);
-        // TODO: make sure we're not updating a resource in flight
-        // this should be implictly handled from _releaseSlot
-    }
-
-    rgU32 getSlotOfResourcePtr(Type* ptr)
-    {
-        for(rgUInt i = 0, size = (rgUInt)resources.size(); i < size; ++i)
-        {
-            if(resources[i] == ptr)
-            {
-                return i;
-            }
-        }
-        return kInvalidValue;
-    }
-
-public:
-    typename ResourceList::iterator begin() EA_NOEXCEPT
-    {
-        return resources.begin();
-    }
-
-    typename ResourceList::iterator end() EA_NOEXCEPT
-    {
-        return resources.end();
-    }
-
-    rgU32 getBindlessIndex(Type* ptr)
-    {
-        rgU32 slot = getSlotOfResourcePtr(ptr);
-        if(slot == kInvalidValue)
-        {
-            slot = getFreeSlot();
-            setResourcePtrInSlot(slot, ptr);
-        }
-        return slot;
-    }
-
-    Type* getPtr(rgU32 slot)
-    {
-        rgAssert(slot < resources.size());
-
-        Type* ptr = resources[slot];
-        return ptr;
-    }
-
-    // TODO: rgU32 getContiguousFreeSlots(int count);
-};
 
 //-----------------------------------------------------------------------------
-// Frame Resource Allocator
-//-----------------------------------------------------------------------------
-struct GfxFrameResource
-{
-    enum Type
-    {
-        Type_Undefined,
-        Type_Buffer,
-        Type_Texture,
-    };
-    
-    Type    type;
-    rgU32   sizeInBytes;
-
-#if defined(RG_METAL_RNDR)
-    void* mtlBuffer; //type: id<MTLBuffer>
-    void* mtlTexture; //type: id<MTLTexture>
-#elif defined(RG_D3D12_RNDR)
-    ID3D12Resource* d3dResource;
-#endif
-};
-
-class GfxFrameAllocator
-{
-protected:
-    rgU32 offset;
-    rgU32 capacity;
-#if defined(RG_METAL_RNDR)
-    void* heap; //type: id<MTLHeap>
-    eastl::vector<void*> mtlResources;
-#elif defined(RG_D3D12_RNDR)
-    ComPtr<ID3D12Heap> d3dBufferHeap;
-    ComPtr<ID3D12Heap> d3dNonRTDSTextureHeap;
-    ComPtr<ID3D12Heap> d3dRTDSTextureHeap;
-    eastl::vector<ComPtr<ID3D12Resource>> d3dResources;
-#else
-    void* heap;
-#endif
-    
-    void create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize);
-    void destroy();
-    void releaseResources();
-public:
-    GfxFrameAllocator(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
-    : offset(0)
-    , capacity(0) // TODO: Use this to prevent overflow.. // TODO: Use this to prevent overflow
-    {
-        create(bufferHeapSize, nonRTDSTextureHeapSize, rtDSTextureHeapSize);
-    }
-    
-    ~GfxFrameAllocator()
-    {
-        destroy();
-    }
-    
-    rgU32 bumpStorageAligned(rgU32 s, rgU32 a)
-    {
-        rgU32 unalignedStartOffset = offset;
-        rgU32 alignedStartOffset = (unalignedStartOffset + a - 1) & ~(a - 1);
-        
-        // bump 'offset'
-        offset = alignedStartOffset + s;
-        
-        return alignedStartOffset;
-    }
-    
-    GfxFrameResource newBuffer(const char* tag, rgU32 size, void* initialData);
-    GfxFrameResource newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
-
-    void reset()
-    {
-        offset = 0;
-        releaseResources();
-    }
-    
-    // TODO: Remove this function. We can directly access the respective heap resource var
-    void* getHeap()
-    {
-        // TODO: rework this function
-#if !defined(RG_D3D12_RNDR)
-        return (void*)heap;
-#else
-        return nullptr;
-#endif
-    }
-};
-
-//-----------------------------------------------------------------------------
-// Helper functions
-//-----------------------------------------------------------------------------
-void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix);
-void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix);
-Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
-Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
-
-//-----------------------------------------------------------------------------
-// Bitmap & Utils
+// GFX COMMAND ENCODERS
 //-----------------------------------------------------------------------------
 
-// Bitmap type
-// -------------
-struct ImageSlice
-{
-    rgU16  width;
-    rgU16  height;
-    rgU32  rowPitch;
-    rgU32  slicePitch;
-    rgU8*  pixels;
-};
-
-struct Image
-{
-    rgChar          tag[32];
-    rgU16           width;
-    rgU16           height;
-    TinyImageFormat format;
-    rgBool          isDDS;
-    rgU8            mipCount;
-    rgU8            sliceCount;
-    ImageSlice      slices[12];
-    rgU8*           memory;
-
-    void*           dxTexScratchImage;
-};
-typedef eastl::shared_ptr<Image> ImageRef;
-
-ImageRef    loadImage(char const* filename);
-void        unloadImage(Image* ptr);
-
-
-// Model and Mesh
-//-----------------
-enum MeshProperties
-{
-    MeshProperties_None = (0 << 0),
-    MeshProperties_Has32BitIndices = (1 << 0),
-    MeshProperties_HasTexCoord = (1 << 1),
-    MeshProperties_HasNormal = (1 << 2),
-    MeshProperties_HasBinormal = (1 << 3),
-};
-
-RG_DEFINE_ENUM_FLAGS_OPERATOR(MeshProperties);
-
-struct Mesh
-{
-    char tag[32];
-    MeshProperties properties;
-    rgU32 vertexCount;
-    rgU32 vertexDataOffset;
-    rgU32 indexCount;
-    rgU32 indexDataOffset;
-};
-
-struct Model
-{
-    char tag[32];
-    eastl::vector<Mesh> meshes;
-    rgU32 vertexBufferOffset;
-    rgU32 index32BufferOffset;
-    rgU32 index16BufferOffset;
-    GfxBuffer* vertexIndexBuffer;
-};
-
-typedef eastl::shared_ptr<Model> ModelRef;
-
-ModelRef loadModel(char const* filename);
-void     unloadModel(Model* ptr);
-
-// Texture UV helper
-// -----------------
-struct QuadUV
-{
-    // TODO: use Vector4 here?
-    rgFloat uvTopLeft[2];
-    rgFloat uvBottomRight[2];
-};
- 
-extern QuadUV defaultQuadUV;
-
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRef image);
-
-// Textured quad
-// ---------------
-struct TexturedQuad
-{
-    QuadUV uv;
-    rgU32 texID;
-    rgFloat3 pos;
-    rgFloat4 offsetOrientation;
-    rgFloat2 size;
-};
-typedef eastl::vector<TexturedQuad> TexturedQuads;
-
-// TODO: Handle non 2D types
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture* tex);
-
-
-//-----------------------------------------------------------------------------
-// Gfx Commands
-//-----------------------------------------------------------------------------
+// Render Encoder
+// --------------
 
 struct GfxRenderCmdEncoder
 {
@@ -968,27 +683,27 @@ struct GfxBlitCmdEncoder
 
 
 //-----------------------------------------------------------------------------
-// STUFF BELOW OPERATE ON THE CONTENT OF GFX'CTX' DATA, IF IT DOESN'T REQUIRE
-// ACCESS TO GFXCTX CONTENTS, DO NOT PUT IT BELOW THIS LINE.
+// GFX FUNCTIONS
 //-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
-// General Common Stuff
-//-----------------------------------------------------------------------------
-rgInt               gfxPreInit();
-rgInt               gfxPostInit();
-void                gfxAtFrameStart();
-rgInt               gfxGetFrameIndex(); // Returns 0 if g_FrameIndex is -1
-rgInt               gfxGetPrevFrameIndex();
-GfxFrameAllocator*  gfxGetFrameAllocator();
+// Common functions
+// ----------------
+
+rgInt                   gfxPreInit();
+rgInt                   gfxPostInit();
+void                    gfxAtFrameStart();
+rgInt                   gfxGetFrameIndex(); // Returns 0 if g_FrameIndex is -1
+rgInt                   gfxGetPrevFrameIndex();
+GfxFrameAllocator*      gfxGetFrameAllocator();
 
 GfxRenderCmdEncoder*    gfxSetRenderPass(char const* tag, GfxRenderPass* renderPass);
 GfxComputeCmdEncoder*   gfxSetComputePass(char const* tag);
 GfxBlitCmdEncoder*      gfxSetBlitPass(char const* tag);
 
-//-----------------------------------------------------------------------------
-// Gfx function declarations
-//-----------------------------------------------------------------------------
+
+// API specific implementation functions
+// -------------------------------------
+
 rgInt           gfxInit();
 void            gfxDestroy();
 void            gfxStartNextFrame();
@@ -1006,30 +721,193 @@ GfxTexture*     gfxGetCurrentRenderTargetColorBuffer();
 
 
 //-----------------------------------------------------------------------------
-// Gfx Vertex Format
+// GFX HELPER CLASSES
 //-----------------------------------------------------------------------------
 
-struct SimpleVertexFormat
+// Bindless-Resource Manager
+// -------------------------
+
+template<typename Type>
+class GfxBindlessResourceManager
 {
-    rgFloat pos[3];
-    rgFloat texcoord[2];
-    rgFloat color[4];
+    typedef eastl::vector<Type*> ResourceList;
+    ResourceList resources; // Hold reference to the resources until no longer needed
+
+    typedef eastl::vector<rgU32> SlotList;
+    SlotList freeSlots; // Indexes in referenceList which are unused
+
+    rgU32 getFreeSlot()
+    {
+        rgU32 result = kInvalidValue;
+
+        if(!freeSlots.empty())
+        {
+            result = freeSlots.back();
+            freeSlots.pop_back();
+        }
+        else
+        {
+            rgAssert(resources.size() < UINT32_MAX);
+            result = (rgU32)resources.size();
+            resources.resize(result + 1); // push_back(nullptr) ?
+        }
+
+        rgAssert(result != kInvalidValue);
+        return result;
+    }
+
+    void releaseSlot(rgU32 slot)
+    {
+        rgAssert(slot < resources.size());
+
+        resources[slot] = nullptr;
+        freeSlots.push_back(slot);
+    }
+
+    void setResourcePtrInSlot(rgU32 slot, Type* ptr)
+    {
+        resources[slot] = ptr;
+        gfxSetterBindlessResource(slot, ptr);
+        // TODO: make sure we're not updating a resource in flight
+        // this should be implictly handled from _releaseSlot
+    }
+
+    rgU32 getSlotOfResourcePtr(Type* ptr)
+    {
+        for(rgUInt i = 0, size = (rgUInt)resources.size(); i < size; ++i)
+        {
+            if(resources[i] == ptr)
+            {
+                return i;
+            }
+        }
+        return kInvalidValue;
+    }
+
+public:
+    typename ResourceList::iterator begin() EA_NOEXCEPT
+    {
+        return resources.begin();
+    }
+
+    typename ResourceList::iterator end() EA_NOEXCEPT
+    {
+        return resources.end();
+    }
+
+    rgU32 getBindlessIndex(Type* ptr)
+    {
+        rgU32 slot = getSlotOfResourcePtr(ptr);
+        if(slot == kInvalidValue)
+        {
+            slot = getFreeSlot();
+            setResourcePtrInSlot(slot, ptr);
+        }
+        return slot;
+    }
+
+    Type* getPtr(rgU32 slot)
+    {
+        rgAssert(slot < resources.size());
+
+        Type* ptr = resources[slot];
+        return ptr;
+    }
+
+    // TODO: rgU32 getContiguousFreeSlots(int count);
 };
 
-struct SimpleInstanceParams
+
+// Frame Resource Allocator
+//-----------------------------
+
+struct GfxFrameResource
 {
-    rgU32 texParam[1024][4];
+    enum Type
+    {
+        Type_Undefined,
+        Type_Buffer,
+        Type_Texture,
+    };
+    
+    Type    type;
+    rgU32   sizeInBytes;
+
+#if defined(RG_METAL_RNDR)
+    void* mtlBuffer; //type: id<MTLBuffer>
+    void* mtlTexture; //type: id<MTLTexture>
+#elif defined(RG_D3D12_RNDR)
+    ID3D12Resource* d3dResource;
+#endif
 };
 
-void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams);
+class GfxFrameAllocator
+{
+protected:
+    rgU32 offset;
+    rgU32 capacity;
+#if defined(RG_METAL_RNDR)
+    void* heap; //type: id<MTLHeap>
+    eastl::vector<void*> mtlResources;
+#elif defined(RG_D3D12_RNDR)
+    ComPtr<ID3D12Heap> d3dBufferHeap;
+    ComPtr<ID3D12Heap> d3dNonRTDSTextureHeap;
+    ComPtr<ID3D12Heap> d3dRTDSTextureHeap;
+    eastl::vector<ComPtr<ID3D12Resource>> d3dResources;
+#else
+    void* heap;
+#endif
+    
+    void create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize);
+    void destroy();
+    void releaseResources();
+public:
+    GfxFrameAllocator(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
+    : offset(0)
+    , capacity(0) // TODO: Use this to prevent overflow.. // TODO: Use this to prevent overflow
+    {
+        create(bufferHeapSize, nonRTDSTextureHeapSize, rtDSTextureHeapSize);
+    }
+    
+    ~GfxFrameAllocator()
+    {
+        destroy();
+    }
+    
+    rgU32 bumpStorageAligned(rgU32 s, rgU32 a)
+    {
+        rgU32 unalignedStartOffset = offset;
+        rgU32 alignedStartOffset = (unalignedStartOffset + a - 1) & ~(a - 1);
+        
+        // bump 'offset'
+        offset = alignedStartOffset + s;
+        
+        return alignedStartOffset;
+    }
+    
+    GfxFrameResource newBuffer(const char* tag, rgU32 size, void* initialData);
+    GfxFrameResource newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
 
+    void reset()
+    {
+        offset = 0;
+        releaseResources();
+    }
+    
+    // TODO: Remove this function. We can directly access the respective heap resource var
+    void* getHeap()
+    {
+        // TODO: rework this function
+#if !defined(RG_D3D12_RNDR)
+        return (void*)heap;
+#else
+        return nullptr;
+#endif
+    }
+};
 
 //-----------------------------------------------------------------------------
-// Resource Binding
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// Gfx State
+// GFX STATE
 //-----------------------------------------------------------------------------
 
 struct GfxState
@@ -1051,49 +929,138 @@ extern GfxBindlessResourceManager<GfxTexture>* g_BindlessTextureManager;
 // TODO: gfxFrameIndex() instead of gfxGetFrameIndex() ?
 extern rgInt g_FrameIndex; // Frame index in swapchain, i.e. 0, 1, 2, 0, 1, 2
 
+
 //-----------------------------------------------------------------------------
-// API Specific Graphic Context Data
+// IMAGE/BITMAP AND MODEL/MESH
 //-----------------------------------------------------------------------------
 
-#if defined(RG_VULKAN_RNDR)
-
-#define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
-
-struct VkGfxCtx
+// Image type
+// -------------
+struct ImageSlice
 {
-    vkb::Instance vkbInstance;
-    vkb::Device vkbDevice;
-    vkb::Swapchain vkbSwapchain;
+    rgU16  width;
+    rgU16  height;
+    rgU32  rowPitch;
+    rgU32  slicePitch;
+    rgU8*  pixels;
+};
 
-    VkInstance inst;
-    VkPhysicalDevice physicalDevice;
-    rgUInt graphicsQueueIndex;
+struct Image
+{
+    rgChar          tag[32];
+    rgU16           width;
+    rgU16           height;
+    TinyImageFormat format;
+    rgBool          isDDS;
+    rgU8            mipCount;
+    rgU8            sliceCount;
+    ImageSlice      slices[12];
+    rgU8*           memory;
 
-    VkDevice device;
-    rgUInt deviceExtCount;
-    char const** deviceExtNames;
-    VkQueue graphicsQueue;
+    void*           dxTexScratchImage;
+};
+typedef eastl::shared_ptr<Image> ImageRef;
 
-    VmaAllocator vmaAllocator;
+ImageRef    loadImage(char const* filename);
+void        unloadImage(Image* ptr);
 
-    VkCommandPool graphicsCmdPool;
-    VkCommandBuffer graphicsCmdBuffer;
 
-    VkSurfaceKHR surface;
+// Model and Mesh
+//---------------
 
-    VkSwapchainKHR swapchain;
-    std::vector<VkImage> swapchainImages;
-    std::vector<VkImageView> swapchainImageViews;
-    eastl::vector<VkFramebuffer> framebuffers;
+enum MeshProperties
+{
+    MeshProperties_None = (0 << 0),
+    MeshProperties_Has32BitIndices = (1 << 0),
+    MeshProperties_HasTexCoord = (1 << 1),
+    MeshProperties_HasNormal = (1 << 2),
+    MeshProperties_HasBinormal = (1 << 3),
+};
 
-    VkRenderPass globalRenderPass;
+RG_DEFINE_ENUM_FLAGS_OPERATOR(MeshProperties);
 
-    //VkFormat swapchainDesc; // is this the right way to store this info?
+struct Mesh
+{
+    char tag[32];
+    MeshProperties properties;
+    rgU32 vertexCount;
+    rgU32 vertexDataOffset;
+    rgU32 indexCount;
+    rgU32 indexDataOffset;
+};
 
-    PFN_vkCreateDebugReportCallbackEXT fnCreateDbgReportCallback;
-    PFN_vkDestroyDebugReportCallbackEXT fnDestroyDbgReportCallback;
-    VkDebugReportCallbackEXT dbgReportCallback;
-} vk;
-#endif
+struct Model
+{
+    char tag[32];
+    eastl::vector<Mesh> meshes;
+    rgU32 vertexBufferOffset;
+    rgU32 index32BufferOffset;
+    rgU32 index16BufferOffset;
+    GfxBuffer* vertexIndexBuffer;
+};
+
+typedef eastl::shared_ptr<Model> ModelRef;
+
+ModelRef loadModel(char const* filename);
+void     unloadModel(Model* ptr);
+
+
+//-----------------------------------------------------------------------------
+// 2D RENDERING HELPERS
+//-----------------------------------------------------------------------------
+
+// Texture Quad UV helper
+// ----------------------
+struct QuadUV
+{
+    // TODO: use Vector4 here?
+    rgFloat uvTopLeft[2];
+    rgFloat uvBottomRight[2];
+};
+ 
+extern QuadUV defaultQuadUV;
+
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRef image);
+
+
+// Textured Quad
+// -------------
+
+struct TexturedQuad
+{
+    QuadUV uv;
+    rgU32 texID;
+    rgFloat3 pos;
+    rgFloat4 offsetOrientation;
+    rgFloat2 size;
+};
+
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture* tex);
+
+struct SimpleVertexFormat
+{
+    rgFloat pos[3];
+    rgFloat texcoord[2];
+    rgFloat color[4];
+};
+
+struct SimpleInstanceParams
+{
+    rgU32 texParam[1024][4];
+};
+
+void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams);
+
+
+//-----------------------------------------------------------------------------
+// HELPER FUNCTIONS
+//-----------------------------------------------------------------------------
+
+void    copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix);
+void    copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix);
+
+Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
+Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
 
 #endif

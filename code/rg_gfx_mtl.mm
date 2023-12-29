@@ -1481,7 +1481,7 @@ rgInt gfxInit()
         MTLArgumentDescriptor* argDesc = [MTLArgumentDescriptor argumentDescriptor];
         argDesc.index = 0;
         argDesc.dataType = MTLDataTypeTexture;
-        argDesc.arrayLength = 99999;
+        argDesc.arrayLength = RG_MAX_BINDLESS_TEXTURE_RESOURCES;
         argDesc.textureType = MTLTextureType2D;
         argDesc.access = MTLArgumentAccessReadOnly;
         
