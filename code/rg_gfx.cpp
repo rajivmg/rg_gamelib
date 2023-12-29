@@ -10,274 +10,14 @@
 #include "pugixml.hpp"
 #include "DirectXTex.h"
 
-// DEFAULT RESOURCES
-QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
+rgInt   g_FrameIndex;
+GfxBindlessResourceManager<GfxTexture>* g_BindlessTextureManager;
+QuadUV  defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
 
-rgInt g_FrameIndex;
-
-
-//-----------------------------------------------------------------------------
-// Helper functions
-//-----------------------------------------------------------------------------
-
-void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
-{
-    rgFloat const* ptr = toFloatPtr(srcMatrix);
-    for(rgInt i = 0; i < 16; ++i)
-    {
-        dstArray[i] = ptr[i];
-    }
-}
-
-void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix)
-{
-    rgFloat const* ptr = toFloatPtr(srcMatrix);
-    for(rgInt i = 0; i < 9; ++i)
-    {
-        dstArray[i] = ptr[i];
-    }
-}
-
-Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearPlane, rgFloat farPlane)
-{
-    rgFloat length = 1.0f / (right - left);
-    rgFloat height = 1.0f / (top - bottom);
-    rgFloat depth  = 1.0f / (farPlane - nearPlane);
-    
-    // LH 0 to 1
-    return Matrix4(Vector4(2.0f * length, 0, 0, 0),
-                   Vector4(0, 2.0f * height, 0, 0),
-                   Vector4(0, 0, depth, 0),
-                   Vector4(-((right + left) * length), -((top +bottom) * height), -nearPlane * depth, 1.0f));
-}
-
-Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane)
-{
-    // focal length = 1 / tan(fov/2)
-
-    // https://perry.cz/articles/ProjectionMatrix.xhtml
-    // DirectX LH 0 to 1
-    // A = ar * (1 / tan(fov/2));
-    // B = (1 / tan(fov/2));
-    // C = far / (far - near)
-    // D = 1;
-    // E = -near * (far / (far - near)
-    
-    // A 0 0 0
-    // 0 B 0 0
-    // 0 0 C D
-    // 0 0 E 0
-    
-    rgFloat a = focalLength;
-    rgFloat b = aspectRatio * focalLength;
-    rgFloat c = farPlane / (farPlane - nearPlane);
-    rgFloat d = 1;
-    rgFloat e = -nearPlane * c;
-    
-    return Matrix4(Vector4(a, 0, 0, 0),
-                   Vector4(0, b, 0, 0),
-                   Vector4(0, 0, c, d),
-                   Vector4(0, 0, e, 0));
-}
 
 //-----------------------------------------------------------------------------
-// Bitmaps and Images
+// GFX STATE
 //-----------------------------------------------------------------------------
-
-ImageRef loadImage(char const* filename)
-{
-    rgSize nullTerminatedPathLength = strlen(filename) + 1;
-    char const* extStr = filename + nullTerminatedPathLength - 4;
-    
-    rgInt width, height, texChnl;
-    ImageRef output = eastl::shared_ptr<Image>(rgNew(Image), unloadImage);
-    
-    if(strcmp(extStr, "dds") == 0 || strcmp(extStr, "DDS") == 0)
-    {
-        FileData file = fileRead(filename);
-        rgAssert(file.isValid);
-        
-        DirectX::TexMetadata metadata;
-        DirectX::ScratchImage scratchImage;
-        HRESULT result = DirectX::LoadFromDDSMemory(file.data, file.dataSize, DirectX::DDS_FLAGS_NONE, &metadata, scratchImage);
-        fileFree(&file);
-        
-        if(FAILED(result))
-        {
-            rgLog("Error");
-            return output;
-        }
-        
-        strncpy(output->tag, filename, rgArrayCount(Image::tag));
-        output->tag[rgArrayCount(Image::tag) - 1] = '\0';
-        output->width = (rgUInt)metadata.width;
-        output->height = (rgUInt)metadata.height;
-        output->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)metadata.format);
-        output->mipCount = (rgUInt)metadata.mipLevels;
-        output->sliceCount = (rgUInt)metadata.arraySize;
-        output->isDDS = true;
-        output->memory = (rgU8*)rgMalloc(scratchImage.GetPixelsSize());
-        
-        rgU8* basememory = output->memory;
-        rgU32 offset = 0;
-        for(rgInt i = 0; i < scratchImage.GetImageCount(); ++i)
-        {
-            const DirectX::Image* img = scratchImage.GetImages() + i;
-            memcpy(basememory + offset, img->pixels, img->slicePitch);
-
-            output->slices[i].width = img->width;
-            output->slices[i].height = img->height;
-            output->slices[i].rowPitch = img->rowPitch;
-            output->slices[i].slicePitch = img->slicePitch;
-            output->slices[i].pixels = basememory + offset;
-        
-            offset += (rgU32)img->slicePitch;
-        }
-        rgAssert(offset == scratchImage.GetPixelsSize());
-    }
-    else
-    {
-        unsigned char* texData = stbi_load(filename, &width, &height, &texChnl, 4);
-        if(texData == NULL)
-        {
-            return output;
-        }
-        
-        output = eastl::shared_ptr<Image>(rgNew(Image), unloadImage);
-        strncpy(output->tag, filename, rgArrayCount(Image::tag));
-        output->tag[rgArrayCount(Image::tag) - 1] = '\0';
-        output->width = width;
-        output->height = height;
-        output->format = TinyImageFormat_R8G8B8A8_UNORM;
-        output->mipCount = 1;
-        output->sliceCount = 1;
-        output->isDDS = false;
-        output->memory = texData;
-
-        rgU16 bytesPerPixel = TinyImageFormat_BitSizeOfBlock(output->format) / 8;
-
-        output->slices[0].width = width;
-        output->slices[0].height = height;
-        output->slices[0].rowPitch = width * bytesPerPixel;
-        output->slices[0].slicePitch = width * height * bytesPerPixel;
-        output->slices[0].pixels = texData;
-    }
-    return output;
-}
-
-void unloadImage(Image* ptr)
-{
-    if(ptr->isDDS)
-    {
-    }
-    else
-    {
-        stbi_image_free(ptr->memory);
-    }
-    rgDelete(ptr);
-}
-
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
-{
-    QuadUV r;
-
-    r.uvTopLeft[0] = (rgFloat)xPx / refWidthPx;
-    r.uvTopLeft[1] = (rgFloat)yPx / refHeightPx;
-
-    r.uvBottomRight[0] = (xPx + widthPx) / (rgFloat)refWidthPx;
-    r.uvBottomRight[1] = (yPx + heightPx) / (rgFloat)refHeightPx;
-
-    return r;
-}
-
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRef image)
-{
-    return createQuadUV(xPx, yPx, widthPx, heightPx, image->width, image->height);
-}
-
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture* tex)
-{
-    TexturedQuad& q = quadList->push_back();
-    q.uv = uv;
-    q.pos = { posSize.x, posSize.y, 1.0f };
-    q.size = posSize.zw;
-    q.offsetOrientation = offsetOrientation;
-    q.texID = g_BindlessTextureManager->getBindlessIndex(tex);
-}
-
-//-----------------------------------------------------------------------------
-// Model
-//-----------------------------------------------------------------------------
-
-ModelRef loadModel(char const* filename)
-{
-    FileData xmlFileData = fileRead(filename);
-    if(!xmlFileData.isValid)
-    {
-        return nullptr;
-    }
-    
-    pugi::xml_document modelDoc;
-    pugi::xml_parse_result parseResult = modelDoc.load_buffer(xmlFileData.data, xmlFileData.dataSize);
-    
-    rgAssert(parseResult.status == pugi::xml_parse_status::status_ok);
-    
-    ModelRef outModel = eastl::shared_ptr<Model>(rgNew(Model), unloadModel);
-    
-    pugi::xml_node modelNode = modelDoc.first_child();
-    
-    strncpy(outModel->tag, modelNode.attribute("name").as_string(), sizeof(Model::tag));
-    
-    const char* binFilename = modelNode.attribute("bufferName").as_string();
-    FileData binFileData = fileRead(binFilename);
-    rgAssert(binFileData.isValid);
-    
-    outModel->vertexIndexBuffer = GfxBuffer::create(binFilename, GfxMemoryType_Default, binFileData.data, binFileData.dataSize, GfxBufferUsage_VertexBuffer | GfxBufferUsage_IndexBuffer);
-    
-    outModel->vertexBufferOffset = modelNode.attribute("vertexBufferOffset").as_uint();
-    outModel->index32BufferOffset = modelNode.attribute("index32BufferOffset").as_uint();
-    outModel->index16BufferOffset = modelNode.attribute("index16BufferOffset").as_uint();
-    
-    rgU32 meshCount = modelNode.attribute("meshCount").as_uint();
-    
-    for(auto meshNode : modelNode.children("mesh"))
-    {
-        Mesh m = {};
-        strncpy(m.tag, meshNode.attribute("name").as_string(), sizeof(Mesh::tag));
-        m.vertexCount = meshNode.attribute("vertexCount").as_uint();
-        m.vertexDataOffset = meshNode.attribute("vertexDataOffset").as_uint();
-        m.indexCount = meshNode.attribute("indexCount").as_uint();
-        m.indexDataOffset = meshNode.attribute("indexDataOffset").as_uint();
-        
-        if(meshNode.attribute("has32BitIndices").as_bool() == true)
-        {
-            m.properties |= MeshProperties_Has32BitIndices;
-        }
-        if(meshNode.attribute("hasTexCoord").as_bool() == true)
-        {
-            m.properties |= MeshProperties_HasTexCoord;
-        }
-        if(meshNode.attribute("hasNormal").as_bool() == true)
-        {
-            m.properties |= MeshProperties_HasNormal;
-        }
-        if(meshNode.attribute("hasBinormal").as_bool() == true)
-        {
-            m.properties |= MeshProperties_HasBinormal;
-        }
-        outModel->meshes.push_back(m);
-    }
-    
-    return outModel;
-}
-
-void unloadModel(Model* ptr)
-{
-    
-}
-
-// GfxState
-// ----------------
 
 GfxGraphicsPSO*     GfxState::graphicsPSO;
 GfxComputePSO*      GfxState::computePSO;
@@ -288,25 +28,18 @@ GfxSamplerState*    GfxState::samplerTrilinearClampEdgeAniso;
 GfxSamplerState*    GfxState::samplerNearestRepeat;
 GfxSamplerState*    GfxState::samplerNearestClampEdge;
 
-static GfxFrameAllocator*   frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
-GfxBindlessResourceManager<GfxTexture>* g_BindlessTextureManager;
+//-----------------------------------------------------------------------------
+// COMMON GFX FUNCTIONS
+//-----------------------------------------------------------------------------
 
-// ----------
-
+static GfxFrameAllocator*       frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 static GfxRenderPass*           currentRenderPass;
 static GfxRenderCmdEncoder*     currentRenderCmdEncoder;
 static GfxComputeCmdEncoder*    currentComputeCmdEncoder;
 static GfxBlitCmdEncoder*       currentBlitCmdEncoder;
 
-rgInt gfxPreInit()
-{
-    g_BindlessTextureManager = rgNew(GfxBindlessResourceManager<GfxTexture>);
-    
-    return 0;
-}
-
-void styleImGui()
+static void styleImGui()
 {
     ImVec4* colors = ImGui::GetStyle().Colors;
     colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
@@ -371,6 +104,12 @@ void styleImGui()
     style.TabRounding = 0.0f;
 }
 
+rgInt gfxPreInit()
+{
+    g_BindlessTextureManager = rgNew(GfxBindlessResourceManager<GfxTexture>);
+    return 0;
+}
+
 rgInt gfxPostInit()
 {
     // Initialize frame buffer allocators
@@ -395,7 +134,6 @@ rgInt gfxPostInit()
     GfxState::samplerNearestRepeat = GfxSamplerState::create("samplerNearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
     GfxState::samplerNearestClampEdge = GfxSamplerState::create("samplerNearestClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
 
-    
     return 0;
 }
 
@@ -511,7 +249,204 @@ GfxBlitCmdEncoder* gfxSetBlitPass(char const* tag)
     return currentBlitCmdEncoder;
 }
 
-// --------------------
+
+//-----------------------------------------------------------------------------
+// IMAGE/BITMAP AND MODEL/MESH
+//-----------------------------------------------------------------------------
+
+ImageRef loadImage(char const* filename)
+{
+    rgSize nullTerminatedPathLength = strlen(filename) + 1;
+    char const* extStr = filename + nullTerminatedPathLength - 4;
+    
+    rgInt width, height, texChnl;
+    ImageRef output = eastl::shared_ptr<Image>(rgNew(Image), unloadImage);
+    
+    if(strcmp(extStr, "dds") == 0 || strcmp(extStr, "DDS") == 0)
+    {
+        FileData file = fileRead(filename);
+        rgAssert(file.isValid);
+        
+        DirectX::TexMetadata metadata;
+        DirectX::ScratchImage scratchImage;
+        HRESULT result = DirectX::LoadFromDDSMemory(file.data, file.dataSize, DirectX::DDS_FLAGS_NONE, &metadata, scratchImage);
+        fileFree(&file);
+        
+        if(FAILED(result))
+        {
+            rgLog("Error");
+            return output;
+        }
+        
+        strncpy(output->tag, filename, rgArrayCount(Image::tag));
+        output->tag[rgArrayCount(Image::tag) - 1] = '\0';
+        output->width = (rgUInt)metadata.width;
+        output->height = (rgUInt)metadata.height;
+        output->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)metadata.format);
+        output->mipCount = (rgUInt)metadata.mipLevels;
+        output->sliceCount = (rgUInt)metadata.arraySize;
+        output->isDDS = true;
+        output->memory = (rgU8*)rgMalloc(scratchImage.GetPixelsSize());
+        
+        rgU8* basememory = output->memory;
+        rgU32 offset = 0;
+        for(rgInt i = 0; i < scratchImage.GetImageCount(); ++i)
+        {
+            const DirectX::Image* img = scratchImage.GetImages() + i;
+            memcpy(basememory + offset, img->pixels, img->slicePitch);
+
+            output->slices[i].width = img->width;
+            output->slices[i].height = img->height;
+            output->slices[i].rowPitch = img->rowPitch;
+            output->slices[i].slicePitch = img->slicePitch;
+            output->slices[i].pixels = basememory + offset;
+        
+            offset += (rgU32)img->slicePitch;
+        }
+        rgAssert(offset == scratchImage.GetPixelsSize());
+    }
+    else
+    {
+        unsigned char* texData = stbi_load(filename, &width, &height, &texChnl, 4);
+        if(texData == NULL)
+        {
+            return output;
+        }
+        
+        output = eastl::shared_ptr<Image>(rgNew(Image), unloadImage);
+        strncpy(output->tag, filename, rgArrayCount(Image::tag));
+        output->tag[rgArrayCount(Image::tag) - 1] = '\0';
+        output->width = width;
+        output->height = height;
+        output->format = TinyImageFormat_R8G8B8A8_UNORM;
+        output->mipCount = 1;
+        output->sliceCount = 1;
+        output->isDDS = false;
+        output->memory = texData;
+
+        rgU16 bytesPerPixel = TinyImageFormat_BitSizeOfBlock(output->format) / 8;
+
+        output->slices[0].width = width;
+        output->slices[0].height = height;
+        output->slices[0].rowPitch = width * bytesPerPixel;
+        output->slices[0].slicePitch = width * height * bytesPerPixel;
+        output->slices[0].pixels = texData;
+    }
+    return output;
+}
+
+void unloadImage(Image* ptr)
+{
+    if(ptr->isDDS)
+    {
+    }
+    else
+    {
+        stbi_image_free(ptr->memory);
+    }
+    rgDelete(ptr);
+}
+
+
+ModelRef loadModel(char const* filename)
+{
+    FileData xmlFileData = fileRead(filename);
+    if(!xmlFileData.isValid)
+    {
+        return nullptr;
+    }
+    
+    pugi::xml_document modelDoc;
+    pugi::xml_parse_result parseResult = modelDoc.load_buffer(xmlFileData.data, xmlFileData.dataSize);
+    
+    rgAssert(parseResult.status == pugi::xml_parse_status::status_ok);
+    
+    ModelRef outModel = eastl::shared_ptr<Model>(rgNew(Model), unloadModel);
+    
+    pugi::xml_node modelNode = modelDoc.first_child();
+    
+    strncpy(outModel->tag, modelNode.attribute("name").as_string(), sizeof(Model::tag));
+    
+    const char* binFilename = modelNode.attribute("bufferName").as_string();
+    FileData binFileData = fileRead(binFilename);
+    rgAssert(binFileData.isValid);
+    
+    outModel->vertexIndexBuffer = GfxBuffer::create(binFilename, GfxMemoryType_Default, binFileData.data, binFileData.dataSize, GfxBufferUsage_VertexBuffer | GfxBufferUsage_IndexBuffer);
+    
+    outModel->vertexBufferOffset = modelNode.attribute("vertexBufferOffset").as_uint();
+    outModel->index32BufferOffset = modelNode.attribute("index32BufferOffset").as_uint();
+    outModel->index16BufferOffset = modelNode.attribute("index16BufferOffset").as_uint();
+    
+    rgU32 meshCount = modelNode.attribute("meshCount").as_uint();
+    
+    for(auto meshNode : modelNode.children("mesh"))
+    {
+        Mesh m = {};
+        strncpy(m.tag, meshNode.attribute("name").as_string(), sizeof(Mesh::tag));
+        m.vertexCount = meshNode.attribute("vertexCount").as_uint();
+        m.vertexDataOffset = meshNode.attribute("vertexDataOffset").as_uint();
+        m.indexCount = meshNode.attribute("indexCount").as_uint();
+        m.indexDataOffset = meshNode.attribute("indexDataOffset").as_uint();
+        
+        if(meshNode.attribute("has32BitIndices").as_bool() == true)
+        {
+            m.properties |= MeshProperties_Has32BitIndices;
+        }
+        if(meshNode.attribute("hasTexCoord").as_bool() == true)
+        {
+            m.properties |= MeshProperties_HasTexCoord;
+        }
+        if(meshNode.attribute("hasNormal").as_bool() == true)
+        {
+            m.properties |= MeshProperties_HasNormal;
+        }
+        if(meshNode.attribute("hasBinormal").as_bool() == true)
+        {
+            m.properties |= MeshProperties_HasBinormal;
+        }
+        outModel->meshes.push_back(m);
+    }
+    
+    return outModel;
+}
+
+void unloadModel(Model* ptr)
+{
+    // TODO: implement
+}
+
+
+//-----------------------------------------------------------------------------
+// 2D RENDERING HELPERS
+//-----------------------------------------------------------------------------
+
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
+{
+    QuadUV r;
+
+    r.uvTopLeft[0] = (rgFloat)xPx / refWidthPx;
+    r.uvTopLeft[1] = (rgFloat)yPx / refHeightPx;
+
+    r.uvBottomRight[0] = (xPx + widthPx) / (rgFloat)refWidthPx;
+    r.uvBottomRight[1] = (yPx + heightPx) / (rgFloat)refHeightPx;
+
+    return r;
+}
+
+QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRef image)
+{
+    return createQuadUV(xPx, yPx, widthPx, heightPx, image->width, image->height);
+}
+
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture* tex)
+{
+    TexturedQuad& q = quadList->push_back();
+    q.uv = uv;
+    q.pos = { posSize.x, posSize.y, 1.0f };
+    q.size = posSize.zw;
+    q.offsetOrientation = offsetOrientation;
+    q.texID = g_BindlessTextureManager->getBindlessIndex(tex);
+}
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams)
 {
@@ -573,4 +508,69 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         
         instanceParams->texParam[i][0] = t.texID;
     }
+}
+
+
+//-----------------------------------------------------------------------------
+// HELPER FUNCTIONS
+//-----------------------------------------------------------------------------
+
+void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
+{
+    rgFloat const* ptr = toFloatPtr(srcMatrix);
+    for(rgInt i = 0; i < 16; ++i)
+    {
+        dstArray[i] = ptr[i];
+    }
+}
+
+void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix)
+{
+    rgFloat const* ptr = toFloatPtr(srcMatrix);
+    for(rgInt i = 0; i < 9; ++i)
+    {
+        dstArray[i] = ptr[i];
+    }
+}
+
+Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearPlane, rgFloat farPlane)
+{
+    rgFloat length = 1.0f / (right - left);
+    rgFloat height = 1.0f / (top - bottom);
+    rgFloat depth  = 1.0f / (farPlane - nearPlane);
+    
+    // LH 0 to 1
+    return Matrix4(Vector4(2.0f * length, 0, 0, 0),
+                   Vector4(0, 2.0f * height, 0, 0),
+                   Vector4(0, 0, depth, 0),
+                   Vector4(-((right + left) * length), -((top +bottom) * height), -nearPlane * depth, 1.0f));
+}
+
+Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane)
+{
+    // focal length = 1 / tan(fov/2)
+
+    // https://perry.cz/articles/ProjectionMatrix.xhtml
+    // DirectX LH 0 to 1
+    // A = ar * (1 / tan(fov/2));
+    // B = (1 / tan(fov/2));
+    // C = far / (far - near)
+    // D = 1;
+    // E = -near * (far / (far - near)
+    
+    // A 0 0 0
+    // 0 B 0 0
+    // 0 0 C D
+    // 0 0 E 0
+    
+    rgFloat a = focalLength;
+    rgFloat b = aspectRatio * focalLength;
+    rgFloat c = farPlane / (farPlane - nearPlane);
+    rgFloat d = 1;
+    rgFloat e = -nearPlane * c;
+    
+    return Matrix4(Vector4(a, 0, 0, 0),
+                   Vector4(0, b, 0, 0),
+                   Vector4(0, 0, c, d),
+                   Vector4(0, 0, e, 0));
 }
