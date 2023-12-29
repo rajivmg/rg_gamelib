@@ -113,14 +113,15 @@ struct GfxObjectRegistry
 
     static void destroyMarkedObjects()
     {
-        for(auto itr : objectsToDestroy[g_FrameIndex])
+        rgInt frameIndex = getFrameIndex();
+        for(auto itr : objectsToDestroy[frameIndex])
         {
             // TODO: Which one is better here
             Type::destroyGfxObject(itr);
             //Type::destroy(&(*itr));
             rgDelete(&(*itr));
         }
-        objectsToDestroy[g_FrameIndex].clear();
+        objectsToDestroy[frameIndex].clear();
     }
 };
 
@@ -1032,23 +1033,11 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 //-----------------------------------------------------------------------------
 
 namespace gfx {
-extern rgUInt frameNumber;
-
-//extern GfxGraphicsPSO* currentGraphicsPSO;
-//extern GfxComputePSO* currentComputePSO;
-
 extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
 
 extern eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
 
 extern eastl::vector<GfxTexture*> debugTextureHandles; // test only
-
-extern GfxSamplerState* samplerBilinearRepeat;
-extern GfxSamplerState* samplerBilinearClampEdge;
-extern GfxSamplerState* samplerTrilinearRepeatAniso;
-extern GfxSamplerState* samplerTrilinearClampEdgeAniso;
-extern GfxSamplerState* samplerNearestRepeat;
-extern GfxSamplerState* samplerNearestClampEdge;
 }
 
 struct GfxState
@@ -1056,13 +1045,18 @@ struct GfxState
     static GfxGraphicsPSO* graphicsPSO;
     static GfxComputePSO*  computePSO;
     
-    /*static GfxSamplerState* samplerBilinearRepeat;
+    static GfxSamplerState* samplerBilinearRepeat;
     static GfxSamplerState* samplerBilinearClampEdge;
     static GfxSamplerState* samplerTrilinearRepeatAniso;
     static GfxSamplerState* samplerTrilinearClampEdgeAniso;
     static GfxSamplerState* samplerNearestRepeat;
-    static GfxSamplerState* samplerNearestClampEdge;*/
+    static GfxSamplerState* samplerNearestClampEdge;
 };
+
+// TODO: move to GfxState?
+// TODO: gfxFrameIndex() gfxGetFrameIndex instead of getFrameIndex()
+// TODO: remove getFrameIndex() from core.h/cpp?
+extern rgInt g_FrameIndex; // Frame index in swapchain, i.e. 0, 1, 2, 0, 1, 2
 
 //-----------------------------------------------------------------------------
 // API Specific Graphic Context Data

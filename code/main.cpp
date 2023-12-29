@@ -24,8 +24,6 @@ GameInput* g_GameInput;
 PhysicSystem* g_PhysicSystem;
 WindowInfo g_WindowInfo;
 
-rgInt g_FrameIndex;
-
 void updateCamera()
 {
     GameControllerInput* controller = &g_GameInput->controllers[0];
@@ -493,7 +491,7 @@ rgInt updateAndDraw(rgDouble dt)
         sceneFowardRenderEncoder->bindBuffer("instanceParams", &demoSceneMeshInstanceParams);
         sceneFowardRenderEncoder->bindTexture("diffuseTexMap", GfxTexture::find("japanese_stone_wall_diff_1k"_tag));
         sceneFowardRenderEncoder->bindTexture("irradianceMap", GfxTexture::find("sangiuseppeBridgeCubeIrradiance"_tag));
-        sceneFowardRenderEncoder->bindSamplerState("irradianceSampler", gfx::samplerBilinearClampEdge);
+        sceneFowardRenderEncoder->bindSamplerState("irradianceSampler", GfxState::samplerBilinearClampEdge);
         
         for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
         {
@@ -522,7 +520,7 @@ rgInt updateAndDraw(rgDouble dt)
         skyboxRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("skybox"_tag));
         skyboxRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         skyboxRenderEncoder->bindTexture("diffuseCubeMap", GfxTexture::find("sangiuseppeBridgeCube"_tag));
-        skyboxRenderEncoder->bindSamplerState("skyboxSampler", gfx::samplerBilinearClampEdge);
+        skyboxRenderEncoder->bindSamplerState("skyboxSampler", GfxState::samplerBilinearClampEdge);
         skyboxRenderEncoder->setVertexBuffer(GfxBuffer::find("skyboxVertexBuffer"_tag), 0, 0);
         skyboxRenderEncoder->drawTriangles(0, 36, 1);
         skyboxRenderEncoder->end();
@@ -831,7 +829,7 @@ int main(int argc, char* argv[])
     
     while(!g_ShouldAppQuit)
     {
-        ++gfx::frameNumber;
+        ++g_FrameNumber;
 
         Uint64 counterFrequency = SDL_GetPerformanceFrequency();
         previousPerfCounter = currentPerfCounter;

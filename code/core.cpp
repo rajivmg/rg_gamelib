@@ -7,6 +7,7 @@ rgDouble    g_DeltaTime;
 rgDouble    g_Time;
 SDL_Window* g_AppMainWindow;
 rgBool      g_ShouldAppQuit;
+rgUInt      g_FrameNumber;
 
 // EASTL MEMORY OVERLOADS
 // ----------------------
@@ -202,7 +203,7 @@ int TheApp::beginApp()
 
 void TheApp::beforeUpdateAndDraw()
 {
-    ++gfx::frameNumber;
+    ++g_FrameNumber;
 
     Uint64 counterFrequency = SDL_GetPerformanceFrequency();
     previousPerfCounter = currentPerfCounter;

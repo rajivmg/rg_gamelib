@@ -13,6 +13,8 @@
 // DEFAULT RESOURCES
 QuadUV defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
 
+rgInt g_FrameIndex;
+
 
 //-----------------------------------------------------------------------------
 // Helper functions
@@ -276,7 +278,6 @@ void unloadModel(Model* ptr)
 
 
 namespace gfx {
-rgUInt frameNumber;
 
 // CURRENT STATE
 GfxRenderPass*          currentRenderPass;
@@ -284,29 +285,26 @@ GfxRenderCmdEncoder*    currentRenderCmdEncoder;
 GfxComputeCmdEncoder*   currentComputeCmdEncoder;
 GfxBlitCmdEncoder*      currentBlitCmdEncoder;
 
-//GfxGraphicsPSO*         currentGraphicsPSO;
-//GfxComputePSO*          currentComputePSO; // TODO: See if this is really necessary
-
 GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
 
 // DEFAULT RESOURCES
-GfxSamplerState*    bilinearSampler;
-
 eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
-
-GfxSamplerState*    samplerBilinearRepeat;
-GfxSamplerState*    samplerBilinearClampEdge;
-GfxSamplerState*    samplerTrilinearRepeatAniso;
-GfxSamplerState*    samplerTrilinearClampEdgeAniso;
-GfxSamplerState*    samplerNearestRepeat;
-GfxSamplerState*    samplerNearestClampEdge;
 
 // MISC
 eastl::vector<GfxTexture*> debugTextureHandles; // test only
 }
 
-GfxGraphicsPSO* GfxState::graphicsPSO;
-GfxComputePSO* GfxState::computePSO;
+// GfxState statics
+// ----------------
+
+GfxGraphicsPSO*     GfxState::graphicsPSO;
+GfxComputePSO*      GfxState::computePSO;
+GfxSamplerState*    GfxState::samplerBilinearRepeat;
+GfxSamplerState*    GfxState::samplerBilinearClampEdge;
+GfxSamplerState*    GfxState::samplerTrilinearRepeatAniso;
+GfxSamplerState*    GfxState::samplerTrilinearClampEdgeAniso;
+GfxSamplerState*    GfxState::samplerNearestRepeat;
+GfxSamplerState*    GfxState::samplerNearestClampEdge;
 
 static GfxFrameAllocator*   frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
@@ -399,12 +397,12 @@ rgInt gfxPostInit()
 
     gfxRendererImGuiInit();
     
-    gfx::samplerBilinearRepeat = GfxSamplerState::create("samplerBilinearRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
-    gfx::samplerBilinearClampEdge = GfxSamplerState::create("samplerBilinearClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
-    gfx::samplerTrilinearRepeatAniso = GfxSamplerState::create("samplerTrilinearRepeatAniso", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
-    gfx::samplerTrilinearClampEdgeAniso = GfxSamplerState::create("samplerTrilinearClampEdgeAniso", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
-    gfx::samplerNearestRepeat = GfxSamplerState::create("samplerNearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
-    gfx::samplerNearestClampEdge = GfxSamplerState::create("samplerNearestClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
+    GfxState::samplerBilinearRepeat = GfxSamplerState::create("samplerBilinearRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
+    GfxState::samplerBilinearClampEdge = GfxSamplerState::create("samplerBilinearClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Nearest, false);
+    GfxState::samplerTrilinearRepeatAniso = GfxSamplerState::create("samplerTrilinearRepeatAniso", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
+    GfxState::samplerTrilinearClampEdgeAniso = GfxSamplerState::create("samplerTrilinearClampEdgeAniso", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Linear, GfxSamplerMinMagFilter_Linear, GfxSamplerMipFilter_Linear, true);
+    GfxState::samplerNearestRepeat = GfxSamplerState::create("samplerNearestRepeat", GfxSamplerAddressMode_Repeat, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
+    GfxState::samplerNearestClampEdge = GfxSamplerState::create("samplerNearestClampEdge", GfxSamplerAddressMode_ClampToEdge, GfxSamplerMinMagFilter_Nearest, GfxSamplerMinMagFilter_Nearest, GfxSamplerMipFilter_Nearest, false);
 
     
     return 0;

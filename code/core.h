@@ -250,7 +250,7 @@ extern WindowInfo g_WindowInfo;
 extern rgDouble g_DeltaTime;
 extern rgDouble g_Time;
 
-extern rgInt g_FrameIndex;
+extern rgUInt g_FrameNumber; // Frame number since app started
 
 struct PhysicSystem;
 extern PhysicSystem* g_PhysicSystem;
