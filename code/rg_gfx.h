@@ -1041,8 +1041,6 @@ extern GfxComputePSO* currentComputePSO;
 
 extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
 
-extern GfxFrameAllocator* frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
-
 extern eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
 
 extern eastl::vector<GfxTexture*> debugTextureHandles; // test only

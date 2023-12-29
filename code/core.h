@@ -265,7 +265,6 @@ extern SDL_Window* g_AppMainWindow;
 class TheApp
 {
 public:
-    
     int  beginApp();
     void beforeUpdateAndDraw();
     void afterUpdateAndDraw();
@@ -276,10 +275,7 @@ public:
     virtual void setup() {}
     virtual void updateAndDraw() {}
     
-    bool shouldQuit = false;
-    
 protected:
-    
     void setTitle(const char * _title);
     size_t width = 1280;
     size_t height = 720;
@@ -288,11 +284,7 @@ protected:
     bool vsync = true;
     
     GameInput inputs[2];
-    
-    SDL_Window *window; // TODO: Make global
-    //SDL_Event event; // TODO: Make global
-    /* delta time in seconds */
-    double dtime;
+
     Uint64 currentPerfCounter;
     Uint64 previousPerfCounter;
 };

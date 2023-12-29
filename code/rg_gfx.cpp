@@ -290,7 +290,6 @@ GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
 
 // DEFAULT RESOURCES
 GfxSamplerState*    bilinearSampler;
-GfxFrameAllocator*  frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
 eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
 
@@ -304,6 +303,8 @@ GfxSamplerState*    samplerNearestClampEdge;
 // MISC
 eastl::vector<GfxTexture*> debugTextureHandles; // test only
 }
+
+static GfxFrameAllocator*   frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 
 rgInt gfxPreInit()
 {
@@ -382,7 +383,7 @@ rgInt gfxPostInit()
     // Initialize frame buffer allocators
     for(rgS32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        gfx::frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMegabyte(8), rgMegabyte(64), rgMegabyte(64));
+        frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMegabyte(8), rgMegabyte(64), rgMegabyte(64));
     }
     
     // Initialize IMGUI
@@ -422,7 +423,7 @@ void gfxAtFrameStart()
     }
     
     // reset this frame's allocations
-    gfx::frameAllocators[g_FrameIndex]->reset();
+    frameAllocators[g_FrameIndex]->reset();
 }
 
 rgInt gfxGetFrameIndex()
@@ -446,7 +447,7 @@ rgInt gfxGetPrevFrameIndex()
 
 GfxFrameAllocator* gfxGetFrameAllocator()
 {
-    return gfx::frameAllocators[g_FrameIndex];
+    return frameAllocators[g_FrameIndex];
 }
 
 static void endCurrentCmdEncoder()
