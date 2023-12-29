@@ -1034,10 +1034,8 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 namespace gfx {
 extern rgUInt frameNumber;
 
-extern GfxRenderCmdEncoder* currentRenderCmdEncoder;
-extern GfxBlitCmdEncoder* currentBlitCmdEncoder;
-extern GfxGraphicsPSO* currentGraphicsPSO;
-extern GfxComputePSO* currentComputePSO;
+//extern GfxGraphicsPSO* currentGraphicsPSO;
+//extern GfxComputePSO* currentComputePSO;
 
 extern GfxBindlessResourceManager<GfxTexture>* bindlessManagerTexture;
 
@@ -1052,6 +1050,19 @@ extern GfxSamplerState* samplerTrilinearClampEdgeAniso;
 extern GfxSamplerState* samplerNearestRepeat;
 extern GfxSamplerState* samplerNearestClampEdge;
 }
+
+struct GfxState
+{
+    static GfxGraphicsPSO* graphicsPSO;
+    static GfxComputePSO*  computePSO;
+    
+    /*static GfxSamplerState* samplerBilinearRepeat;
+    static GfxSamplerState* samplerBilinearClampEdge;
+    static GfxSamplerState* samplerTrilinearRepeatAniso;
+    static GfxSamplerState* samplerTrilinearClampEdgeAniso;
+    static GfxSamplerState* samplerNearestRepeat;
+    static GfxSamplerState* samplerNearestClampEdge;*/
+};
 
 //-----------------------------------------------------------------------------
 // API Specific Graphic Context Data

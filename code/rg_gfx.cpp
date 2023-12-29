@@ -283,8 +283,9 @@ GfxRenderPass*          currentRenderPass;
 GfxRenderCmdEncoder*    currentRenderCmdEncoder;
 GfxComputeCmdEncoder*   currentComputeCmdEncoder;
 GfxBlitCmdEncoder*      currentBlitCmdEncoder;
-GfxGraphicsPSO*         currentGraphicsPSO;
-GfxComputePSO*          currentComputePSO; // TODO: See if this is really necessary
+
+//GfxGraphicsPSO*         currentGraphicsPSO;
+//GfxComputePSO*          currentComputePSO; // TODO: See if this is really necessary
 
 GfxBindlessResourceManager<GfxTexture>*   bindlessManagerTexture;
 
@@ -303,6 +304,9 @@ GfxSamplerState*    samplerNearestClampEdge;
 // MISC
 eastl::vector<GfxTexture*> debugTextureHandles; // test only
 }
+
+GfxGraphicsPSO* GfxState::graphicsPSO;
+GfxComputePSO* GfxState::computePSO;
 
 static GfxFrameAllocator*   frameAllocators[RG_MAX_FRAMES_IN_FLIGHT];
 

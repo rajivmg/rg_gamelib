@@ -65,10 +65,11 @@ id<MTLCommandBuffer> getMTLCommandBuffer()
     return mtlCommandBuffer;
 }
 
-id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
+// TODO: remove
+/*id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
 {
     return (__bridge id<MTLRenderCommandEncoder>)gfx::currentRenderCmdEncoder->mtlRenderCommandEncoder;
-}
+}*/
 
 id<MTLTexture> getMTLTexture(const GfxTexture* obj)
 {
@@ -897,7 +898,7 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
     [cmdEncoder setCullMode:getMTLCullMode(pso)];
     [cmdEncoder setTriangleFillMode:getMTLTriangleFillMode(pso)];
     
-    gfx::currentGraphicsPSO = pso;
+    GfxState::graphicsPSO = pso;
 }
 
 //-----------------------------------------------------------------------------
@@ -923,11 +924,11 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU3
 //-----------------------------------------------------------------------------
 GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
-    rgAssert(gfx::currentGraphicsPSO != nullptr);
+    rgAssert(GfxState::graphicsPSO != nullptr);
     rgAssert(bindingTag);
     
-    auto infoIter = gfx::currentGraphicsPSO->arguments.find(bindingTag);
-    if(infoIter == gfx::currentGraphicsPSO->arguments.end())
+    auto infoIter = GfxState::graphicsPSO->arguments.find(bindingTag);
+    if(infoIter == GfxState::graphicsPSO->arguments.end())
     {
         rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
         rgAssert(false);
@@ -937,7 +938,7 @@ GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindin
     
     if(((info.stages & GfxStage_VS) != GfxStage_VS) && (info.stages & GfxStage_FS) != GfxStage_FS)
     {
-        rgLogError("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, gfx::currentGraphicsPSO->tag);
+        rgLogError("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, GfxState::graphicsPSO->tag);
         rgAssert(!"TODO: LogError should stop the execution");
     }
     
@@ -1128,19 +1129,19 @@ void GfxComputeCmdEncoder::setComputePSO(GfxComputePSO* pso)
 {
     rgAssert(pso);
     [asMTLComputeCommandEncoder(mtlComputeCommandEncoder) setComputePipelineState:getMTLComputePipelineState(pso)];
-    gfx::currentComputePSO = pso;
+    GfxState::computePSO = pso;
 }
 
 //-----------------------------------------------------------------------------
 GfxPipelineArgument* GfxComputeCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
-    rgAssert(gfx::currentComputePSO != nullptr);
+    rgAssert(GfxState::computePSO != nullptr);
     rgAssert(bindingTag);
     
-    auto infoIter = gfx::currentComputePSO->arguments.find(bindingTag);
-    if(infoIter == gfx::currentComputePSO->arguments.end())
+    auto infoIter = GfxState::computePSO->arguments.find(bindingTag);
+    if(infoIter == GfxState::computePSO->arguments.end())
     {
-        rgLogWarn("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
+        rgLogWarn("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, GfxState::computePSO->tag);
         return nullptr;
     }
     
@@ -1157,7 +1158,7 @@ void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer,
     GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     if(info == nullptr)
     {
-        rgLogWarn("Skipping binding buffer(%s) for pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
+        rgLogWarn("Skipping binding buffer(%s) for pipeline(%s)", bindingTag, GfxState::computePSO->tag);
         return;
     }
     
@@ -1172,7 +1173,7 @@ void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource c
     GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     if(info == nullptr)
     {
-        rgLogWarn("Skipping binding buffer(%s) for pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
+        rgLogWarn("Skipping binding buffer(%s) for pipeline(%s)", bindingTag, GfxState::computePSO->tag);
         return;
     }
     
@@ -1196,7 +1197,7 @@ void GfxComputeCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* textu
     GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     if(info == nullptr)
     {
-        rgLogWarn("Skipping binding texture(%s) for pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
+        rgLogWarn("Skipping binding texture(%s) for pipeline(%s)", bindingTag, GfxState::computePSO->tag);
         return;
     }
     
@@ -1211,7 +1212,7 @@ void GfxComputeCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSt
     GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     if(info == nullptr)
     {
-        rgLogWarn("Skipping binding sampler(%s) for pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
+        rgLogWarn("Skipping binding sampler(%s) for pipeline(%s)", bindingTag, GfxState::computePSO->tag);
         return;
     }
     
@@ -1223,9 +1224,9 @@ void GfxComputeCmdEncoder::dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsG
 {
     id<MTLComputeCommandEncoder> encoder = asMTLComputeCommandEncoder(mtlComputeCommandEncoder);
     [encoder dispatchThreads:MTLSizeMake(threadgroupsGridX, threadgroupsGridY, threadgroupsGridZ)
-       threadsPerThreadgroup:MTLSizeMake(gfx::currentComputePSO->threadsPerThreadgroupX,
-                                         gfx::currentComputePSO->threadsPerThreadgroupY,
-                                         gfx::currentComputePSO->threadsPerThreadgroupZ)];
+       threadsPerThreadgroup:MTLSizeMake(GfxState::computePSO->threadsPerThreadgroupX,
+                                         GfxState::computePSO->threadsPerThreadgroupY,
+                                         GfxState::computePSO->threadsPerThreadgroupZ)];
 }
 
 //*****************************************************************************
@@ -1557,12 +1558,6 @@ void gfxEndFrame()
 {
     //testComputeAtomicsRun();
     
-    // TODO: Add assert if the currentRenderCmdEncoder is not ended
-    if(!gfx::currentRenderCmdEncoder->hasEnded)
-    {
-        gfx::currentRenderCmdEncoder->end();
-    }
-    
     [getMTLCommandBuffer() presentDrawable:(caMetalDrawable)];
     
     //__block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
@@ -1619,9 +1614,10 @@ void gfxRendererImGuiRenderDrawData()
     imguiRenderPass.colorAttachments[0].texture = gfxGetCurrentRenderTargetColorBuffer();
     imguiRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
     imguiRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-    GfxRenderCmdEncoder* cmdEncoder = gfxSetRenderPass("ImGui Pass", &imguiRenderPass);
     
+    GfxRenderCmdEncoder* cmdEncoder = gfxSetRenderPass("ImGui Pass", &imguiRenderPass);
     ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), getMTLCommandBuffer(), asMTLRenderCommandEncoder(cmdEncoder->mtlRenderCommandEncoder));
+    cmdEncoder->end();
 }
 
 void gfxOnSizeChanged()
