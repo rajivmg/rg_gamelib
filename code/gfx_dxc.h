@@ -1,10 +1,7 @@
-#ifndef __RG_GFX_DXC_H__
-#define __RG_GFX_DXC_H__
+#ifndef __GFX_DXC_H__
+#define __GFX_DXC_H__
 
-#include "rg_gfx.h"
-
-RG_BEGIN_RG_NAMESPACE
-RG_BEGIN_GFX_NAMESPACE
+#include "gfx.h"
 
 struct ShaderBlob
 {
@@ -23,6 +20,4 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
 
 void destroyShaderBlob(ShaderBlob* shaderBlob);
 
-RG_END_GFX_NAMESPACE
-RG_END_RG_NAMESPACE
 #endif

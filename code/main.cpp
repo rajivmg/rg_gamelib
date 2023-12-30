@@ -1,7 +1,6 @@
-#define RG_H_IMPLEMENTATION
-#include "rg_core.h"
+#include "core.h"
 
-#include "rg_gfx.h"
+#include "gfx.h"
 #include "rg_physic.h"
 
 #include "backends/imgui_impl_sdl2.h"
@@ -20,43 +19,12 @@
 // 4. Integrate EASTL
 //
 
-using namespace rg;
-
-// Important: make this a pointer, otherwise if a type with constructor is added to struct, the compiler will complain because it will try to call the constructor of anonymous structs
-//rg::GfxCtx* rg::g_GfxCtx;
-
-void* operator new[](size_t size, size_t alignment, size_t alignmentOffset, const char* pName, int flags, unsigned debugFlags, const char* file, int line)
-{
-    //rgLog("new[] size=%ld alignment=%ld alignmentOffset=%ld name=%s flags=%d debugFlags=%d file=%s line=%d\n",
-    //    size, alignment, alignmentOffset, pName, flags, debugFlags, file, line);
-    return new uint8_t[size];
-}
-
-void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned debugFlags, const char* file, int line)
-{
-    //rgLog("new[] size=%ld name=%s flags=%d debugFlags=%d file=%s line=%d\n",
-    //    size, name, flags, debugFlags, file, line);
-    return new uint8_t[size];
-}
-
 GameState* g_GameState;
 GameInput* g_GameInput;
-rg::PhysicSystem* g_PhysicSystem;
-rg::WindowInfo g_WindowInfo;
+PhysicSystem* g_PhysicSystem;
+WindowInfo g_WindowInfo;
 
-rgDouble g_DeltaTime;
-rgDouble g_Time;
-
-rgInt g_FrameIndex;
-
-rgBool g_ShouldQuit;
-
-void loadDDS(const char* filename);
-
-rgU32 rgRenderKey(rgBool top)
-{
-    return top ? 1 : 0;
-}
+eastl::vector<GfxTexture*> debugTextureHandles;
 
 void updateCamera()
 {
@@ -108,7 +76,7 @@ void updateCamera()
     g_GameState->cameraFar  = 100.0f;
     
     g_GameState->cameraView = orthoInverse(Matrix4(g_GameState->cameraBasis, Vector3(g_GameState->cameraPosition)));
-    g_GameState->cameraProjection = gfx::makePerspectiveProjectionMatrix(1.4f, (rgFloat)g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
+    g_GameState->cameraProjection = makePerspectiveProjectionMatrix(1.4f, (rgFloat)g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
     g_GameState->cameraViewProjection = g_GameState->cameraProjection * g_GameState->cameraView;
     g_GameState->cameraInvView = inverse(g_GameState->cameraView);
     g_GameState->cameraInvProjection = inverse(g_GameState->cameraProjection);
@@ -116,23 +84,13 @@ void updateCamera()
     g_GameState->cameraViewRotOnly = Matrix4(g_GameState->cameraView.getUpper3x3(), Vector3(0, 0, 0));
 }
 
-rgInt rg::setup()
+rgInt setup()
 {
     g_GameState = rgNew(GameState);
 
     ImageRef tinyTexture = loadImage("tiny.tga");
-    gfx::texture->create("tiny", GfxTextureDim_2D, tinyTexture->width, tinyTexture->height, tinyTexture->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, tinyTexture->slices);
+    GfxTexture::create("tiny", GfxTextureDim_2D, tinyTexture->width, tinyTexture->height, tinyTexture->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, tinyTexture->slices);
     //gfx::texture->destroy(rgCRC32("tiny"));
-    // TODO: don't call destoy on first frame 
-    // TODO: don't call destoy on first frame 
-    // TODO: don't call destoy on first frame  gfx::onFrameBegin
-    // TODO: don't call destoy on first frame  gfx::onFrameBegin
-    // TODO: don't call destoy on first frame  gfx::onFrameBegin
-    // TODO: don't call destoy on first frame  gfx::onFrameBegin
-    // TODO: don't call destoy on first frame  gfx::onFrameBegin
-    // TODO: don't call destoy on first frame  gfx::onFrameBegin
-    // TODO: don't call destoy on first frame  gfx::onFrameBegin
-    // TODO: don't call destoy on first frame  gfx::onFrameBegin
     // TODO: don't call destoy on first frame  gfx::onFrameBegin
     
     for(rgInt i = 1; i <= 16; ++i)
@@ -140,15 +98,15 @@ rgInt rg::setup()
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
         ImageRef t = loadImage(path);
-        GfxTexture* t2d = gfx::texture->create(path, GfxTextureDim_2D, t->width, t->height, t->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, t->slices);
-        gfx::debugTextureHandles.push_back(t2d);
+        GfxTexture* t2d = GfxTexture::create(path, GfxTextureDim_2D, t->width, t->height, t->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, t->slices);
+        debugTextureHandles.push_back(t2d);
     }
 
-    ImageRef flowerTex = rg::loadImage("flower.png");
-    g_GameState->flowerTexture = gfx::texture->create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
+    ImageRef flowerTex = loadImage("flower.png");
+    g_GameState->flowerTexture = GfxTexture::create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
     
     //gfxDestroyBuffer("ocean_tile");
-    g_GameState->shaderballModel = rg::loadModel("shaderball.xml");
+    g_GameState->shaderballModel = loadModel("shaderball.xml");
     
     GfxVertexInputDesc vertexDesc = {};
     vertexDesc.elementCount = 3;
@@ -185,7 +143,7 @@ rgInt rg::setup()
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     //simple2dRenderStateDesc.triangleFillMode = GfxTriangleFillMode_Lines;
     
-    gfx::graphicsPSO->create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    GfxGraphicsPSO::create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
     
     //
     GfxVertexInputDesc vertexPosTexCoordNormal = {};
@@ -226,7 +184,7 @@ rgInt rg::setup()
     world3dRenderState.winding = GfxWinding_CCW;
     world3dRenderState.cullMode = GfxCullMode_None;
 
-    gfx::graphicsPSO->create("principledBrdf", &vertexPosTexCoordNormal, &principledBrdfShaderDesc, &world3dRenderState);
+    GfxGraphicsPSO::create("principledBrdf", &vertexPosTexCoordNormal, &principledBrdfShaderDesc, &world3dRenderState);
     //
     GfxShaderDesc gridShaderDesc = {};
     gridShaderDesc.shaderSrc = "grid.hlsl";
@@ -242,7 +200,7 @@ rgInt rg::setup()
     gridRenderState.winding = GfxWinding_CCW;
     gridRenderState.cullMode = GfxCullMode_None;
     
-    gfx::graphicsPSO->create("gridPSO", nullptr, &gridShaderDesc, &gridRenderState);
+    GfxGraphicsPSO::create("gridPSO", nullptr, &gridShaderDesc, &gridRenderState);
     //
     GfxVertexInputDesc vertexPos = {};
     vertexPos.elementCount = 1;
@@ -268,27 +226,27 @@ rgInt rg::setup()
     skyboxRenderState.winding = GfxWinding_CCW;
     skyboxRenderState.cullMode = GfxCullMode_None;
 
-    gfx::graphicsPSO->create("skybox", &vertexPos, &skyboxShaderDesc, &skyboxRenderState);
+    GfxGraphicsPSO::create("skybox", &vertexPos, &skyboxShaderDesc, &skyboxRenderState);
     
     //
     GfxShaderDesc tonemapShaderDesc = {};
     tonemapShaderDesc.shaderSrc = "tonemap.hlsl";
     tonemapShaderDesc.csEntrypoint = "csGenerateHistogram";
-    gfx::computePSO->create("tonemapGenerateHistogram", &tonemapShaderDesc);
+    GfxComputePSO::create("tonemapGenerateHistogram", &tonemapShaderDesc);
     
     tonemapShaderDesc.csEntrypoint = "csClearOutputLuminanceHistogram";
-    gfx::computePSO->create("tonemapClearOutputLuminanceHistogram", &tonemapShaderDesc);
+    GfxComputePSO::create("tonemapClearOutputLuminanceHistogram", &tonemapShaderDesc);
     
     tonemapShaderDesc.csEntrypoint = "csComputeAvgLuminance";
-    gfx::computePSO->create("tonemapComputeAvgLuminance", &tonemapShaderDesc);
+    GfxComputePSO::create("tonemapComputeAvgLuminance", &tonemapShaderDesc);
     
     tonemapShaderDesc.csEntrypoint = "csReinhard";
-    gfx::computePSO->create("tonemapReinhard", &tonemapShaderDesc);
+    GfxComputePSO::create("tonemapReinhard", &tonemapShaderDesc);
     //
     GfxShaderDesc compositeShaderDesc = {};
     compositeShaderDesc.shaderSrc = "composite.hlsl";
     compositeShaderDesc.csEntrypoint = "csComposite";
-    gfx::computePSO->create("composite", &compositeShaderDesc);
+    GfxComputePSO::create("composite", &compositeShaderDesc);
     
     //
     
@@ -310,21 +268,21 @@ rgInt rg::setup()
     
     g_PhysicSystem = rgNew(PhysicSystem);
     
-    g_GameState->baseColor2DRT = gfx::texture->create("baseColor2DRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R8G8B8A8_UNORM, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
+    g_GameState->baseColor2DRT = GfxTexture::create("baseColor2DRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R8G8B8A8_UNORM, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
     
-    g_GameState->baseColorRT = gfx::texture->create("baseColorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R16G16B16A16_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
-    g_GameState->depthStencilRT = gfx::texture->create("depthStencilRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
+    g_GameState->baseColorRT = GfxTexture::create("baseColorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_R16G16B16A16_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
+    g_GameState->depthStencilRT = GfxTexture::create("depthStencilRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
     
     ImageRef sanGiuseppeBridgeCube = loadImage("small_empty_room_1_alb.dds"); // je_gray_02.dds
-    gfx::texture->create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
+    GfxTexture::create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
     
     ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("small_empty_room_1_irr.dds"); // je_gray_02_irradiance.dds
-    gfx::texture->create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
+    GfxTexture::create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
     
     
     ///
     ImageRef japaneseStoneWall1k = loadImage("japanese_stone_wall_1k/japanese_stone_wall_diff_1k.png");
-    gfx::texture->create("japanese_stone_wall_diff_1k", GfxTextureDim_2D, japaneseStoneWall1k->width, japaneseStoneWall1k->height, japaneseStoneWall1k->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, japaneseStoneWall1k->slices);
+    GfxTexture::create("japanese_stone_wall_diff_1k", GfxTextureDim_2D, japaneseStoneWall1k->width, japaneseStoneWall1k->height, japaneseStoneWall1k->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, japaneseStoneWall1k->slices);
     ///
 
 #if 0
@@ -355,11 +313,6 @@ rgInt rg::setup()
 #endif
 
     return 0;
-}
-
-rgFloat sgn(rgFloat x)
-{
-    return (x > 0.0f) - (x < 0.0f);
 }
 
 static bool showPostFXEditor = true;
@@ -435,7 +388,7 @@ static void showDebugInterface(bool* open)
     ImGui::End();
 }
 
-rgInt rg::updateAndDraw(rgDouble dt)
+rgInt updateAndDraw(rgDouble dt)
 {
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
     if(showImGuiDemo) { ImGui::ShowDemoWindow(&showImGuiDemo); }
@@ -475,7 +428,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     commonParams.timeDelta = (rgFloat)g_DeltaTime;
     commonParams.timeGame  = (rgFloat)g_Time;
 
-    GfxFrameResource commonParamsBuffer = gfx::getFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
+    GfxFrameResource commonParamsBuffer = gfxGetFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
     
     // RENDER SIMPLE 2D STUFF
     {
@@ -487,7 +440,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
                 rgFloat px = (rgFloat)(j * (100) + 10 * (j + 1) + sin(g_Time) * 30);
                 rgFloat py = (rgFloat)(i * (100) + 10 * (i + 1) + cos(g_Time) * 30);
                 
-                pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, gfx::debugTextureHandles[j + i * 4]);
+                pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, debugTextureHandles[j + i * 4]);
             }
         }
         pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameState->flowerTexture);
@@ -502,8 +455,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         simple2dRenderPass.clearDepth = 1.0f;
         
-        GfxRenderCmdEncoder* simple2dRenderEncoder = gfx::setRenderPass("Simple2D Pass", &simple2dRenderPass);
-        simple2dRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("simple2d"_rh));
+        GfxRenderCmdEncoder* simple2dRenderEncoder = gfxSetRenderPass("Simple2D Pass", &simple2dRenderPass);
+        simple2dRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("simple2d"_rh));
         simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits);
         simple2dRenderEncoder->end();
     }
@@ -519,8 +472,8 @@ rgInt rg::updateAndDraw(rgDouble dt)
         sceneForwardPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         sceneForwardPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* sceneFowardRenderEncoder = gfx::setRenderPass("Scene Forward", &sceneForwardPass);
-        sceneFowardRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("principledBrdf"_tag));
+        GfxRenderCmdEncoder* sceneFowardRenderEncoder = gfxSetRenderPass("Scene Forward", &sceneForwardPass);
+        sceneFowardRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("principledBrdf"_tag));
         
         // instance
         struct
@@ -534,17 +487,17 @@ rgInt rg::updateAndDraw(rgDouble dt)
         copyMatrix4ToFloatArray(&instanceParams.invTposeWorldXform[0][0], transpose(inverse(xform)));
         
         
-        GfxFrameResource demoSceneMeshInstanceParams = gfx::getFrameAllocator()->newBuffer("demoSceneMeshInstanceParams", sizeof(instanceParams), &instanceParams);
+        GfxFrameResource demoSceneMeshInstanceParams = gfxGetFrameAllocator()->newBuffer("demoSceneMeshInstanceParams", sizeof(instanceParams), &instanceParams);
         
         sceneFowardRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         sceneFowardRenderEncoder->bindBuffer("instanceParams", &demoSceneMeshInstanceParams);
-        sceneFowardRenderEncoder->bindTexture("diffuseTexMap", gfx::texture->find("japanese_stone_wall_diff_1k"_tag));
-        sceneFowardRenderEncoder->bindTexture("irradianceMap", gfx::texture->find("sangiuseppeBridgeCubeIrradiance"_tag));
-        sceneFowardRenderEncoder->bindSamplerState("irradianceSampler", gfx::samplerBilinearClampEdge);
+        sceneFowardRenderEncoder->bindTexture("diffuseTexMap", GfxTexture::find("japanese_stone_wall_diff_1k"_tag));
+        sceneFowardRenderEncoder->bindTexture("irradianceMap", GfxTexture::find("sangiuseppeBridgeCubeIrradiance"_tag));
+        sceneFowardRenderEncoder->bindSamplerState("irradianceSampler", GfxState::samplerBilinearClampEdge);
         
         for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
         {
-            rg::Mesh* m = &g_GameState->shaderballModel->meshes[i];
+            Mesh* m = &g_GameState->shaderballModel->meshes[i];
             
             sceneFowardRenderEncoder->setVertexBuffer(g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->vertexBufferOffset +  m->vertexDataOffset, 0);
             sceneFowardRenderEncoder->drawIndexedTriangles(m->indexCount, true, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
@@ -555,7 +508,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     
     // RENDER GRID AND EDITOR STUFF
     {
-        gfx::buffer->findOrCreate("skyboxVertexBuffer", GfxMemoryType_Default, g_SkyboxVertices, sizeof(g_SkyboxVertices), GfxBufferUsage_VertexBuffer);
+        GfxBuffer::findOrCreate("skyboxVertexBuffer", GfxMemoryType_Default, g_SkyboxVertices, sizeof(g_SkyboxVertices), GfxBufferUsage_VertexBuffer);
         GfxRenderPass skyboxRenderPass = {};
         skyboxRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
         skyboxRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
@@ -565,12 +518,12 @@ rgInt rg::updateAndDraw(rgDouble dt)
         skyboxRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         skyboxRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
-        GfxRenderCmdEncoder* skyboxRenderEncoder = gfx::setRenderPass("Skybox Pass", &skyboxRenderPass);
-        skyboxRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("skybox"_tag));
+        GfxRenderCmdEncoder* skyboxRenderEncoder = gfxSetRenderPass("Skybox Pass", &skyboxRenderPass);
+        skyboxRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("skybox"_tag));
         skyboxRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
-        skyboxRenderEncoder->bindTexture("diffuseCubeMap", gfx::texture->find("sangiuseppeBridgeCube"_tag));
-        skyboxRenderEncoder->bindSamplerState("skyboxSampler", gfx::samplerBilinearClampEdge);
-        skyboxRenderEncoder->setVertexBuffer(gfx::buffer->find("skyboxVertexBuffer"_tag), 0, 0);
+        skyboxRenderEncoder->bindTexture("diffuseCubeMap", GfxTexture::find("sangiuseppeBridgeCube"_tag));
+        skyboxRenderEncoder->bindSamplerState("skyboxSampler", GfxState::samplerBilinearClampEdge);
+        skyboxRenderEncoder->setVertexBuffer(GfxBuffer::find("skyboxVertexBuffer"_tag), 0, 0);
         skyboxRenderEncoder->drawTriangles(0, 36, 1);
         skyboxRenderEncoder->end();
         
@@ -584,15 +537,15 @@ rgInt rg::updateAndDraw(rgDouble dt)
             gridRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
             gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
             
-            GfxRenderCmdEncoder* gridRenderEncoder = gfx::setRenderPass("DemoScene Pass", &gridRenderPass);
-            gridRenderEncoder->setGraphicsPSO(gfx::graphicsPSO->find("gridPSO"_tag));
+            GfxRenderCmdEncoder* gridRenderEncoder = gfxSetRenderPass("DemoScene Pass", &gridRenderPass);
+            gridRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("gridPSO"_tag));
             gridRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
             gridRenderEncoder->drawTriangles(0, 6, 1);
             gridRenderEncoder->end();
         }
         
         {
-            GfxBuffer* outputLuminanceHistogramBuffer = gfx::buffer->findOrCreate("luminanceHistogramAndAvg", GfxMemoryType_Default, nullptr, (sizeof(uint32_t) * LUMINANCE_HISTOGRAM_BINS_COUNT) + (sizeof(float) * (1 + 1)), GfxBufferUsage_ShaderRW);
+            GfxBuffer* outputLuminanceHistogramBuffer = GfxBuffer::findOrCreate("luminanceHistogramAndAvg", GfxMemoryType_Default, nullptr, (sizeof(uint32_t) * LUMINANCE_HISTOGRAM_BINS_COUNT) + (sizeof(float) * (1 + 1)), GfxBufferUsage_ShaderRW);
             
             if(showPostFXEditor)
             {
@@ -608,12 +561,12 @@ rgInt rg::updateAndDraw(rgDouble dt)
                     
                     rgU32* histogramData = (rgU32*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_HISTOGRAM);
                     float histogram[LUMINANCE_HISTOGRAM_BINS_COUNT];
-                    for(int i = 0; i < rgARRAY_COUNT(histogram); ++i)
+                    for(int i = 0; i < rgArrayCount(histogram); ++i)
                     {
                         histogram[i] = histogramData[i];
                     }
                     
-                    ImGui::PlotHistogram("##luminanceHistogram", histogram, rgARRAY_COUNT(histogram), 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(LUMINANCE_HISTOGRAM_BINS_COUNT * (LUMINANCE_BLOCK_SIZE < 32 ? 2 : 1), 100));
+                    ImGui::PlotHistogram("##luminanceHistogram", histogram, rgArrayCount(histogram), 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(LUMINANCE_HISTOGRAM_BINS_COUNT * (LUMINANCE_BLOCK_SIZE < 32 ? 2 : 1), 100));
                     rgFloat adaptedLuminance = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_LUMINANCE);
                     rgFloat exposure = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_EXPOSURE);
                     ImGui::Text("Adapted Luminance is %0.2f, and exposure is %0.2f", adaptedLuminance, exposure);
@@ -645,28 +598,28 @@ rgInt rg::updateAndDraw(rgDouble dt)
             tonemapParams.luminanceAdaptationKey = g_GameState->tonemapperExposureKey;
             tonemapParams.tau = g_GameState->tonemapperAdaptationRate;
             
-            GfxComputeCmdEncoder* postfxCmdEncoder = gfx::setComputePass("PostFx Pass");
+            GfxComputeCmdEncoder* postfxCmdEncoder = gfxSetComputePass("PostFx Pass");
                         
-            postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapClearOutputLuminanceHistogram"_tag));
+            postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapClearOutputLuminanceHistogram"_tag));
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(LUMINANCE_BLOCK_SIZE, LUMINANCE_BLOCK_SIZE, 1);
             
-            postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapGenerateHistogram"_tag));
+            postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapGenerateHistogram"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
             //postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
             postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
 
-            postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapComputeAvgLuminance"_tag));
+            postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapComputeAvgLuminance"_tag));
             postfxCmdEncoder->bindBuffer("commonParams", &commonParamsBuffer);
             postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(LUMINANCE_BLOCK_SIZE, LUMINANCE_BLOCK_SIZE, 1);
             
-            postfxCmdEncoder->setComputePSO(gfx::computePSO->find("tonemapReinhard"_tag));
+            postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapReinhard"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
-            postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->bindTexture("outputImage", gfxGetCurrentRenderTargetColorBuffer());
             //postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
@@ -679,9 +632,9 @@ rgInt rg::updateAndDraw(rgDouble dt)
             
             compositeParams.inputImageDim[0] = g_WindowInfo.width;
             compositeParams.inputImageDim[1] = g_WindowInfo.height;
-            postfxCmdEncoder->setComputePSO(gfx::computePSO->find("composite"_tag));
+            postfxCmdEncoder->setComputePSO(GfxComputePSO::find("composite"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColor2DRT);
-            postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->bindTexture("outputImage", gfxGetCurrentRenderTargetColorBuffer());
             postfxCmdEncoder->bindBufferFromData("CompositeParams", sizeof(compositeParams), &compositeParams);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
             //
@@ -705,7 +658,7 @@ rgInt rg::updateAndDraw(rgDouble dt)
     return 0;
 }
 
-static rgBool ProcessGameButtonState(GameButtonState* newButtonState, rgBool isDown)
+static rgBool processGameButtonState(GameButtonState* newButtonState, rgBool isDown)
 {
     if(newButtonState->endedDown != isDown)
     {
@@ -716,7 +669,7 @@ static rgBool ProcessGameButtonState(GameButtonState* newButtonState, rgBool isD
     return false;
 }
 
-rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
+static rgBool processGameInputs(SDL_Event* event, GameInput* gameInput)
 {
     GameControllerInput* controller1 = &gameInput->controllers[0];
     
@@ -733,37 +686,37 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
                     case SDLK_w:
                     case SDLK_UP:
                     {
-                        ProcessGameButtonState(&controller1->forward, isDown);
+                        processGameButtonState(&controller1->forward, isDown);
                     } break;
                         
                     case SDLK_s:
                     case SDLK_DOWN:
                     {
-                        ProcessGameButtonState(&controller1->backward, isDown);
+                        processGameButtonState(&controller1->backward, isDown);
                     } break;
                         
                     case SDLK_a:
                     case SDLK_LEFT:
                     {
-                        ProcessGameButtonState(&controller1->left, isDown);
+                        processGameButtonState(&controller1->left, isDown);
                     } break;
                         
                     case SDLK_d:
                     case SDLK_RIGHT:
                     {
-                        ProcessGameButtonState(&controller1->right, isDown);
+                        processGameButtonState(&controller1->right, isDown);
                     } break;
                     
                     case SDLK_q:
                     case SDLK_c:
                     {
-                        ProcessGameButtonState(&controller1->up, isDown);
+                        processGameButtonState(&controller1->up, isDown);
                     } break;
                         
                     case SDLK_e:
                     case SDLK_f:
                     {
-                        ProcessGameButtonState(&controller1->down, isDown);
+                        processGameButtonState(&controller1->down, isDown);
                     } break;
                     
                     case SDLK_ESCAPE:
@@ -792,17 +745,17 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
             {
                 case SDL_BUTTON_LEFT:
                 {
-                    ProcessGameButtonState(&gameInput->mouse.left, isDown);
+                    processGameButtonState(&gameInput->mouse.left, isDown);
                 } break;
                     
                 case SDL_BUTTON_MIDDLE:
                 {
-                    ProcessGameButtonState(&gameInput->mouse.middle, isDown);
+                    processGameButtonState(&gameInput->mouse.middle, isDown);
                 } break;
                     
                 case SDL_BUTTON_RIGHT:
                 {
-                    ProcessGameButtonState(&gameInput->mouse.right, isDown);
+                    processGameButtonState(&gameInput->mouse.right, isDown);
                 } break;
             }
         } break;
@@ -810,7 +763,7 @@ rgBool ProcessGameInputs(SDL_Event* event, GameInput* gameInput)
     return true;
 }
 
-rgInt createSDLWindow()
+static rgInt createSDLWindow()
 {
 #if 0
     g_WindowInfo.width = 1056;
@@ -828,8 +781,6 @@ rgInt createSDLWindow()
     windowFlags |= SDL_WINDOW_ALWAYS_ON_TOP;
     windowFlags |= SDL_WINDOW_METAL;
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");
-#elif defined(RG_OPENGL_RNDR)
-    windowFlags |= SDL_WINDOW_OPENGL;
 #elif defined(RG_D3D12_RNDR)
     windowFlags |= SDL_WINDOW_RESIZABLE;
     //windowFlags |= SDL_WINDOW_FULLSCREEN;
@@ -837,27 +788,17 @@ rgInt createSDLWindow()
     
     if (SDL_Init(SDL_INIT_VIDEO) == 0)
     {
-#if defined(RG_OPENGL_RNDR)
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-        SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-        SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-        SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 2);
-#endif
-        gfx::mainWindow = SDL_CreateWindow("gamelib",
+        g_AppMainWindow = SDL_CreateWindow("gamelib",
                                            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                            g_WindowInfo.width, g_WindowInfo.height, windowFlags);
-        rgAssert(gfx::mainWindow != NULL);
+        rgAssert(g_AppMainWindow != NULL);
         return 0;
     }
     
     return -1;
 }
 
+#if 0
 int main(int argc, char* argv[])
 {
     g_FrameIndex = -1;
@@ -867,18 +808,18 @@ int main(int argc, char* argv[])
         return -1; // error;
     }
 
-    rgInt gfxPreInitResult = gfx::preInit();
-    rgInt gfxInitResult = gfx::init();
-    rgInt gfxCommonInitResult = gfx::initCommonStuff();
+    rgInt gfxPreInitResult = gfxPreInit();
+    rgInt gfxInitResult = gfxInit();
+    rgInt gfxCommonInitResult = gfxPostInit();
 
     if(gfxInitResult || gfxCommonInitResult)
     {
         return gfxInitResult | gfxCommonInitResult;
     }
 
-    rg::setup();
+    setup();
 
-    g_ShouldQuit = false;
+    g_ShouldAppQuit = false;
     SDL_Event event;
     
     Uint64 currentPerfCounter = SDL_GetPerformanceCounter();
@@ -888,9 +829,9 @@ int main(int argc, char* argv[])
     GameInput* oldGameInput = &inputs[0];
     GameInput* newGameInput = &inputs[1];
     
-    while(!g_ShouldQuit)
+    while(!g_ShouldAppQuit)
     {
-        ++gfx::frameNumber;
+        ++g_FrameNumber;
 
         Uint64 counterFrequency = SDL_GetPerformanceFrequency();
         previousPerfCounter = currentPerfCounter;
@@ -902,7 +843,7 @@ int main(int argc, char* argv[])
         *newGameInput = {};
         GameControllerInput* oldController1 = &oldGameInput->controllers[0];
         GameControllerInput* newController1 = &newGameInput->controllers[0];
-        for(rgInt buttonIdx = 0; buttonIdx < rgARRAY_COUNT(GameControllerInput::buttons); ++buttonIdx)
+        for(rgInt buttonIdx = 0; buttonIdx < rgArrayCount(GameControllerInput::buttons); ++buttonIdx)
         {
             newController1->buttons[buttonIdx].endedDown = oldController1->buttons[buttonIdx].endedDown;
         }
@@ -910,7 +851,7 @@ int main(int argc, char* argv[])
         // Copy old mouse input state to new mouse input state
         newGameInput->mouse.x = oldGameInput->mouse.x;
         newGameInput->mouse.y = oldGameInput->mouse.y;
-        for(rgInt buttonIdx = 0; buttonIdx < rgARRAY_COUNT(GameControllerInput::buttons); ++buttonIdx)
+        for(rgInt buttonIdx = 0; buttonIdx < rgArrayCount(GameControllerInput::buttons); ++buttonIdx)
         {
             newGameInput->mouse.buttons[buttonIdx].endedDown = oldGameInput->mouse.buttons[buttonIdx].endedDown;
         }
@@ -923,39 +864,55 @@ int main(int argc, char* argv[])
             
             if(event.type == SDL_QUIT)
             {
-                g_ShouldQuit = true;
+                g_ShouldAppQuit = true;
             }
             else if(event.type == SDL_WINDOWEVENT_SIZE_CHANGED)
             {
                 g_WindowInfo.width = event.window.data1;
                 g_WindowInfo.height = event.window.data2;
-                gfx::onSizeChanged();
+                gfxOnSizeChanged();
             }
             else
             {
                 // process event
-                ProcessGameInputs(&event, newGameInput);
+                processGameInputs(&event, newGameInput);
             }
         }
         
-        gfx::startNextFrame();
-        gfx::runOnFrameBeginJob();
+        gfxStartNextFrame();
+        gfxRunOnFrameBeginJob();
         
-        gfx::rendererImGuiNewFrame();
+        gfxRendererImGuiNewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
         
-        rg::updateAndDraw(g_DeltaTime);
+        updateAndDraw(g_DeltaTime);
          
         ImGui::Render();
-        gfx::rendererImGuiRenderDrawData();
-        gfx::endFrame();
+        gfxRendererImGuiRenderDrawData();
+        gfxEndFrame();
         
         *oldGameInput = *newGameInput;
     }
 
-    gfx::destroy();
-    SDL_DestroyWindow(gfx::mainWindow);
+    gfxDestroy();
+    SDL_DestroyWindow(g_AppMainWindow);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     return 0;
 }
+#else
+class Demo3DApp : public TheApp
+{
+    void setup() override
+    {
+        ::setup();
+    }
+    
+    void updateAndDraw() override
+    {
+        ::updateAndDraw(g_DeltaTime);
+    }
+};
+
+THE_APP_MAIN(Demo3DApp)
+#endif

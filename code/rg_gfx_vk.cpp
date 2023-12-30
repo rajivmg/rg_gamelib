@@ -13,6 +13,46 @@
 #include <SDL2/SDL_vulkan.h>
 #include <EASTL/fixed_vector.h>
 
+// ----------
+#define rgVK_CHECK(x) do { VkResult errCode = x; if(errCode) { rgLog("%s errCode:%d(0x%x)", #x, errCode, errCode); SDL_assert(!"Vulkan API call failed"); } } while(0)
+
+struct VkGfxCtx
+{
+    vkb::Instance vkbInstance;
+    vkb::Device vkbDevice;
+    vkb::Swapchain vkbSwapchain;
+
+    VkInstance inst;
+    VkPhysicalDevice physicalDevice;
+    rgUInt graphicsQueueIndex;
+
+    VkDevice device;
+    rgUInt deviceExtCount;
+    char const** deviceExtNames;
+    VkQueue graphicsQueue;
+
+    VmaAllocator vmaAllocator;
+
+    VkCommandPool graphicsCmdPool;
+    VkCommandBuffer graphicsCmdBuffer;
+
+    VkSurfaceKHR surface;
+
+    VkSwapchainKHR swapchain;
+    std::vector<VkImage> swapchainImages;
+    std::vector<VkImageView> swapchainImageViews;
+    eastl::vector<VkFramebuffer> framebuffers;
+
+    VkRenderPass globalRenderPass;
+
+    //VkFormat swapchainDesc; // is this the right way to store this info?
+
+    PFN_vkCreateDebugReportCallbackEXT fnCreateDbgReportCallback;
+    PFN_vkDestroyDebugReportCallbackEXT fnDestroyDbgReportCallback;
+    VkDebugReportCallbackEXT dbgReportCallback;
+} vk;
+// ----------
+
 RG_BEGIN_NAMESPACE
 
 GfxCtx::VkGfxCtx* vkCtx()

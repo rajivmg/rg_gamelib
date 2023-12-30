@@ -1,4 +1,4 @@
-#include "rg_gfx_dxc.h"
+#include "gfx_dxc.h"
 
 #ifndef _WIN32
 #include "ComPtr.hpp"
@@ -12,10 +12,7 @@
 
 static ComPtr<IDxcUtils> g_DxcUtils;
 
-RG_BEGIN_RG_NAMESPACE
-RG_BEGIN_GFX_NAMESPACE
-
-void checkResult(HRESULT hr)
+static void checkResult(HRESULT hr)
 {
     if(FAILED(hr))
     {
@@ -52,7 +49,7 @@ public:
         if(alreadyIncludedFiles.count(eastl::wstring(filepath.string().c_str())) > 0)
         {
             static const char emptyStr[] = " ";
-            g_DxcUtils->CreateBlobFromPinned(emptyStr, rgARRAY_COUNT(emptyStr), DXC_CP_ACP, &blobEncoding);
+            g_DxcUtils->CreateBlobFromPinned(emptyStr, rgArrayCount(emptyStr), DXC_CP_ACP, &blobEncoding);
             return S_OK;
         }
         
@@ -182,7 +179,7 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     strcpy(filepath, "../code/shaders/");
     strncat(filepath, filename, 490);
 
-    rg::FileData shaderFileData = rg::readFile(filepath); // TODO: destructor deleter for FileData
+    FileData shaderFileData = fileRead(filepath); // TODO: destructor deleter for FileData
     rgAssert(shaderFileData.isValid);
     
     // prepare for passing shader to dxc
@@ -196,7 +193,7 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     checkResult(compiler3->Compile(&shaderSource, dxcArgs.data(), (UINT32)dxcArgs.size(), customIncludeHandler.Get(), __uuidof(IDxcResult), (void**)&result));
 
     // free shader file data
-    rg::freeFileData(&shaderFileData);
+    fileFree(&shaderFileData);
 
     // print warnings and errors from compilation result
     ComPtr<IDxcBlobUtf8> errorMsg;
@@ -224,7 +221,7 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     ComPtr<IDxcBlobUtf16> shaderPdbPath;
     checkResult(result->GetOutput(DXC_OUT_PDB, IID_PPV_ARGS(&shaderPdbBlob), shaderPdbPath.GetAddressOf()));
     wcstombs(pdbFilepath, shaderPdbPath->GetStringPointer(), 512);
-    rg::writeFile(pdbFilepath, shaderPdbBlob->GetBufferPointer(), shaderPdbBlob->GetBufferSize());
+    writeFile(pdbFilepath, shaderPdbBlob->GetBufferPointer(), shaderPdbBlob->GetBufferSize());
 
     // create shader reflection
     ComPtr<IDxcBlob> shaderReflectionBlob;
@@ -255,6 +252,3 @@ void destroyShaderBlob(ShaderBlob* shaderBlob)
     d3d12ShaderReflection->Release();
 #endif
 }
-
-RG_END_GFX_NAMESPACE
-RG_END_RG_NAMESPACE

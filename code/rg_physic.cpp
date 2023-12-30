@@ -1,7 +1,5 @@
 #include "rg_physic.h"
 
-RG_BEGIN_RG_NAMESPACE
-
 static void Verlet(PhysicSystem* sys)
 {
     for(rgUInt i = 0; i < kMaxParticles; ++i)
@@ -36,5 +34,3 @@ void TickPhysicSystem(PhysicSystem* system)
     Verlet(system);
     SatisfyConstraints(system);
 }
-
-RG_END_RG_NAMESPACE
