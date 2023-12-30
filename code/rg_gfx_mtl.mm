@@ -27,31 +27,45 @@
 
 #include "shaders/metal/histogram_shader.inl"
 
-// Internal variables
-// ------------------
+// ----------------------------------------
+// INTERNAL VARIABLES
+// ----------------------------------------
+
+// Constants
+// ---------
 
 static const rgU32 kBindlessTextureSetBinding = 7; // TODO: change this to some thing higher like 26
 static const rgU32 kFrameParamsSetBinding = 6;
-static rgU32 const kMaxMTLArgumentTableBufferSlot = 30;
+static const rgU32 kMaxMTLArgumentTableBufferSlot = 30;
 
-static NSView* appView;
-static CAMetalLayer* metalLayer;
-static id<CAMetalDrawable> caMetalDrawable;
+// State
+// -----
 
-static GfxTexture currentMTLDrawableTexture;
+static NSView*              appView;
+static CAMetalLayer*        metalLayer;
+static id<CAMetalDrawable>  caMetalDrawable;
 
-static NSAutoreleasePool* autoReleasePool;
+static GfxTexture           currentMTLDrawableTexture;
+
+static NSAutoreleasePool*   frameBeginToEndAutoReleasePool;
 static dispatch_semaphore_t framesInFlightSemaphore;
 
-static id<MTLDevice> mtlDevice;
-static id<MTLCommandQueue> mtlCommandQueue;
+static id<MTLDevice>        mtlDevice;
+static id<MTLCommandQueue>  mtlCommandQueue;
 static id<MTLCommandBuffer> mtlCommandBuffer;
-    
-static id<MTLHeap> bindlessTextureHeap;
-static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
-static id<MTLBuffer> bindlessTextureArgBuffer;
 
-static eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
+// Fencing and sync variables
+static id<MTLSharedEvent>       frameFenceEvent;
+static MTLSharedEventListener*  frameFenceEventListener;
+static dispatch_queue_t         frameFenceDispatchQueue; // TODO: Needed at all/here?
+static rgU64                    frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+// Current state
+    
+static id<MTLHeap>              bindlessTextureHeap;
+static id<MTLArgumentEncoder>   bindlessTextureArgEncoder;
+static id<MTLBuffer>            bindlessTextureArgBuffer;
+
+static eastl::vector<GfxTexture*>   frameBeginJobGenTextureMipmaps;
 
 // ----------------------------------------
 // HELPER FUNCTIONS
@@ -1429,13 +1443,6 @@ struct Camera
 // MTL backend states & instances
 //*****************************************************************************
 
-// Fencing and sync variables
-static id<MTLSharedEvent> frameFenceEvent;
-static MTLSharedEventListener* frameFenceEventListener;
-static dispatch_queue_t frameFenceDispatchQueue; // TODO: Needed at all/here?
-static rgU64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
-// Current state
-
 //*****************************************************************************
 // Call from main | loop init() destroy() startNextFrame() endFrame()
 //*****************************************************************************
@@ -1524,7 +1531,7 @@ void gfxStartNextFrame()
     gfxAtFrameStart();
     
     // Autorelease pool BEGIN
-    autoReleasePool = [[NSAutoreleasePool alloc]init];
+    frameBeginToEndAutoReleasePool = [[NSAutoreleasePool alloc]init];
     
     id<CAMetalDrawable> metalDrawable = [metalLayer nextDrawable];
     rgAssert(metalDrawable != nil);
@@ -1553,7 +1560,7 @@ void gfxEndFrame()
     [getMTLCommandBuffer() commit];
     
     // Autorelease pool END
-    [autoReleasePool release];
+    [frameBeginToEndAutoReleasePool release];
 }
 
 // TODO: should this be done at abstracted level?
