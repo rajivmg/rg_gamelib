@@ -48,18 +48,15 @@ static id<CAMetalDrawable>  caMetalDrawable;
 static GfxTexture           currentMTLDrawableTexture;
 
 static NSAutoreleasePool*   frameBeginToEndAutoReleasePool;
-static dispatch_semaphore_t framesInFlightSemaphore;
 
 static id<MTLDevice>        mtlDevice;
 static id<MTLCommandQueue>  mtlCommandQueue;
 static id<MTLCommandBuffer> mtlCommandBuffer;
 
-// Fencing and sync variables
 static id<MTLSharedEvent>       frameFenceEvent;
-static MTLSharedEventListener*  frameFenceEventListener;
-static dispatch_queue_t         frameFenceDispatchQueue; // TODO: Needed at all/here?
 static rgU64                    frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
-// Current state
+static MTLSharedEventListener*  frameFenceEventListener; // Currently unused
+static dispatch_queue_t         frameFenceDispatchQueue; // Currently unused TODO: Needed at all/here?
     
 static id<MTLHeap>              bindlessTextureHeap;
 static id<MTLArgumentEncoder>   bindlessTextureArgEncoder;
@@ -1439,13 +1436,10 @@ struct Camera
 };
 ///
 
-//*****************************************************************************
-// MTL backend states & instances
-//*****************************************************************************
 
-//*****************************************************************************
-// Call from main | loop init() destroy() startNextFrame() endFrame()
-//*****************************************************************************
+// ----------------------------------------
+// GFX FUNCTIONS
+// ----------------------------------------
 
 rgInt gfxInit()
 {
@@ -1462,8 +1456,6 @@ rgInt gfxInit()
     //metalLayer.displaySyncEnabled = false;
     //
 
-    framesInFlightSemaphore = dispatch_semaphore_create(RG_MAX_FRAMES_IN_FLIGHT);
-    
     @autoreleasepool
     {
         // Crate frame sync events
@@ -1509,8 +1501,6 @@ void gfxDestroy()
 
 void gfxStartNextFrame()
 {
-    //dispatch_semaphore_wait(mtl->framesInFlightSemaphore, DISPATCH_TIME_FOREVER);
-    
     rgU64 prevFrameFenceValue = (g_FrameIndex != -1) ? frameFenceValues[g_FrameIndex] : 0;
     
     g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
@@ -1547,12 +1537,6 @@ void gfxEndFrame()
     //testComputeAtomicsRun();
     
     [getMTLCommandBuffer() presentDrawable:(caMetalDrawable)];
-    
-    //__block dispatch_semaphore_t blockSemaphore = mtl->framesInFlightSemaphore;
-    //[getMTLCommandBuffer() addCompletedHandler:^(id<MTLCommandBuffer> commandBuffer)
-    //{
-    //    dispatch_semaphore_signal(blockSemaphore);
-    //}];
     
     rgU64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
     [getMTLCommandBuffer() encodeSignalEvent:frameFenceEvent value:fenceValueToSignal];
@@ -1618,11 +1602,12 @@ GfxTexture* gfxGetCurrentRenderTargetColorBuffer()
     return &currentMTLDrawableTexture;
 }
 
-void gfxSetterBindlessResource(rgU32 slot, GfxTexture* ptr)
+void gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr)
 {
     [bindlessTextureArgEncoder setTexture:getMTLTexture(ptr) atIndex:slot];
 }
 
+/*
 void checkerWaitTillFrameCompleted(rgInt frameIndex)
 {
     rgAssert(frameIndex >= 0);
@@ -1633,7 +1618,6 @@ void checkerWaitTillFrameCompleted(rgInt frameIndex)
         int ans = 42;
     }
 }
-
-//***********************************************************************
+*/
 
 #endif

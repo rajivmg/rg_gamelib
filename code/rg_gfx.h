@@ -44,7 +44,7 @@ struct  TexturedQuad;
 typedef eastl::vector<TexturedQuad> TexturedQuads;
 
 rgInt   gfxGetFrameIndex();
-void    gfxSetterBindlessResource(rgU32 slot, GfxTexture* ptr);
+void    gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr);
 
 // Gfx Object Registry
 // -------------------
@@ -767,7 +767,7 @@ class GfxBindlessResourceManager
     void setResourcePtrInSlot(rgU32 slot, Type* ptr)
     {
         resources[slot] = ptr;
-        gfxSetterBindlessResource(slot, ptr);
+        gfxSetBindlessResource(slot, ptr);
         // TODO: make sure we're not updating a resource in flight
         // this should be implictly handled from _releaseSlot
     }
