@@ -160,6 +160,8 @@ RG_INLINE void rgPrintImplementation(const char* varName, rgFloat3& a)
 // INPUT
 // -----
 
+// TODO: struct AppControllerInput + AppMouseState = AppInput
+
 struct GameButtonState
 {
     rgBool endedDown;

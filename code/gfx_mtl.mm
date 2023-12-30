@@ -1,5 +1,5 @@
 #if defined(RG_METAL_RNDR)
-#include "rg_gfx.h"
+#include "gfx.h"
 
 #include <simd/simd.h>
 
@@ -16,7 +16,7 @@
 #include <sstream>
 #include <string>
 
-#include "rg_gfx_dxc.h"
+#include "gfx_dxc.h"
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_metal.h"

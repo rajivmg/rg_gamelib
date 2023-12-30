@@ -1,5 +1,5 @@
-#ifndef __RG_GFX_H__
-#define __RG_GFX_H__
+#ifndef __GFX_H__
+#define __GFX_H__
 
 #if defined(RG_D3D12_RNDR)
     #define WIN32_LEAN_AND_MEAN

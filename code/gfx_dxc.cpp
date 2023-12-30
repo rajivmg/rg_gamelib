@@ -1,4 +1,4 @@
-#include "rg_gfx_dxc.h"
+#include "gfx_dxc.h"
 
 #ifndef _WIN32
 #include "ComPtr.hpp"

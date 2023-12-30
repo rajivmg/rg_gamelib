@@ -1,7 +1,7 @@
-#ifndef __RG_GFX_DXC_H__
-#define __RG_GFX_DXC_H__
+#ifndef __GFX_DXC_H__
+#define __GFX_DXC_H__
 
-#include "rg_gfx.h"
+#include "gfx.h"
 
 struct ShaderBlob
 {

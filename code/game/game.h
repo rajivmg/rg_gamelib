@@ -1,4 +1,4 @@
-#include "../rg_gfx.h"
+#include "../gfx.h"
 
 #include <box2d/box2d.h>
 

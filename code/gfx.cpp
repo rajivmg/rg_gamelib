@@ -1,5 +1,5 @@
 //#include <mmgr/mmgr.cpp>
-#include "rg_gfx.h"
+#include "gfx.h"
 
 #include <string.h>
 #include <EASTL/string.h>
