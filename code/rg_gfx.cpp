@@ -339,6 +339,7 @@ void unloadImage(Image* ptr)
 {
     if(ptr->isDDS)
     {
+        rgFree(ptr->memory);
     }
     else
     {
@@ -361,6 +362,8 @@ ModelRef loadModel(char const* filename)
     
     rgAssert(parseResult.status == pugi::xml_parse_status::status_ok);
     
+    fileFree(&xmlFileData);
+    
     ModelRef outModel = eastl::shared_ptr<Model>(rgNew(Model), unloadModel);
     
     pugi::xml_node modelNode = modelDoc.first_child();
@@ -372,6 +375,8 @@ ModelRef loadModel(char const* filename)
     rgAssert(binFileData.isValid);
     
     outModel->vertexIndexBuffer = GfxBuffer::create(binFilename, GfxMemoryType_Default, binFileData.data, binFileData.dataSize, GfxBufferUsage_VertexBuffer | GfxBufferUsage_IndexBuffer);
+    
+    fileFree(&binFileData);
     
     outModel->vertexBufferOffset = modelNode.attribute("vertexBufferOffset").as_uint();
     outModel->index32BufferOffset = modelNode.attribute("index32BufferOffset").as_uint();
