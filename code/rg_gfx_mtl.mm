@@ -1486,23 +1486,6 @@ rgInt gfxInit()
         bindlessTextureArgBuffer  = [getMTLDevice() newBufferWithLength:[bindlessTextureArgEncoder encodedLength]
                                                                 options:MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined | MTLResourceHazardTrackingModeTracked];
         [bindlessTextureArgEncoder setArgumentBuffer:bindlessTextureArgBuffer offset:0];
-        
-        // Test argument encoder layout issues
-#if 1
-        MTLArgumentDescriptor* frameConstDescriptor1 = [MTLArgumentDescriptor argumentDescriptor];
-        frameConstDescriptor1.index = 0;
-        frameConstDescriptor1.dataType = MTLDataTypePointer;
-        frameConstDescriptor1.access = MTLArgumentAccessReadOnly;
-        
-        MTLArgumentDescriptor* frameConstDescriptor2 = [MTLArgumentDescriptor argumentDescriptor];
-        frameConstDescriptor2.index = 1;
-        frameConstDescriptor2.dataType = MTLDataTypeTexture;
-        frameConstDescriptor2.textureType = MTLTextureType2D;
-        frameConstDescriptor2.access = MTLArgumentAccessReadOnly;
-
-        frameConstBufferArgEncoder = [getMTLDevice() newArgumentEncoderWithArguments:@[frameConstDescriptor1]];
-        frameConstBufferArgBuffer = [getMTLDevice() newBufferWithLength:[frameConstBufferArgEncoder encodedLength] options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
-#endif
 
         // TODO: allocate in frame allocator per frame
         cameraBuffer = [getMTLDevice() newBufferWithLength:sizeof(Camera) options:toMTLResourceOptions(GfxBufferUsage_ConstantBuffer, true)];
