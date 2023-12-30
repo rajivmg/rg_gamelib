@@ -27,34 +27,35 @@
 
 #include "shaders/metal/histogram_shader.inl"
 
+// Internal variables
+// ------------------
 
 static const rgU32 kBindlessTextureSetBinding = 7; // TODO: change this to some thing higher like 26
 static const rgU32 kFrameParamsSetBinding = 6;
 static rgU32 const kMaxMTLArgumentTableBufferSlot = 30;
 
-//RG_BEGIN_GFX_NAMESPACE
-    static NSView* appView;
-    static CAMetalLayer* metalLayer;
-    static id<CAMetalDrawable> caMetalDrawable;
+static NSView* appView;
+static CAMetalLayer* metalLayer;
+static id<CAMetalDrawable> caMetalDrawable;
 
-    static GfxTexture currentMTLDrawableTexture;
+static GfxTexture currentMTLDrawableTexture;
 
-    static NSAutoreleasePool* autoReleasePool;
-    static dispatch_semaphore_t framesInFlightSemaphore;
+static NSAutoreleasePool* autoReleasePool;
+static dispatch_semaphore_t framesInFlightSemaphore;
 
-    static id<MTLDevice> mtlDevice;
-    static id<MTLCommandQueue> mtlCommandQueue;
-    static id<MTLCommandBuffer> mtlCommandBuffer;
+static id<MTLDevice> mtlDevice;
+static id<MTLCommandQueue> mtlCommandQueue;
+static id<MTLCommandBuffer> mtlCommandBuffer;
     
-    static id<MTLHeap> bindlessTextureHeap;
-    static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
-    static id<MTLBuffer> bindlessTextureArgBuffer;
-//RG_END_GFX_NAMESPACE
+static id<MTLHeap> bindlessTextureHeap;
+static id<MTLArgumentEncoder> bindlessTextureArgEncoder;
+static id<MTLBuffer> bindlessTextureArgBuffer;
+
 static eastl::vector<GfxTexture*> frameBeginJobGenTextureMipmaps;
 
-//*****************************************************************************
-// Helper Functions
-//*****************************************************************************
+// ----------------------------------------
+// HELPER FUNCTIONS
+// ----------------------------------------
 
 static id<MTLDevice> getMTLDevice()
 {
@@ -65,12 +66,6 @@ id<MTLCommandBuffer> getMTLCommandBuffer()
 {
     return mtlCommandBuffer;
 }
-
-// TODO: remove
-/*id<MTLRenderCommandEncoder> getMTLRenderCommandEncoder()
-{
-    return (__bridge id<MTLRenderCommandEncoder>)gfx::currentRenderCmdEncoder->mtlRenderCommandEncoder;
-}*/
 
 id<MTLTexture> getMTLTexture(const GfxTexture* obj)
 {
@@ -371,9 +366,13 @@ GfxTexture createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
     return texture;
 }
 
-//-----------------------------------------------------------------------------
-// GfxBuffer Implementation
-//-----------------------------------------------------------------------------
+
+// ----------------------------------------
+// GFX OBJECT IMPLEMENTATIONS
+// ----------------------------------------
+
+// Buffer type
+// -----------
 
 void GfxBuffer::createGfxObject(char const* tag, GfxMemoryType memoryType, void* buf, rgSize size, GfxBufferUsage usage, GfxBuffer* obj)
 {
@@ -415,9 +414,8 @@ void GfxBuffer::unmap()
 {
 }
 
-//*****************************************************************************
-// GfxSampler Implementation
-//*****************************************************************************
+// Sampler type
+// ------------
 
 void GfxSamplerState::createGfxObject(char const* tag, GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
 {
@@ -444,9 +442,8 @@ void GfxSamplerState::destroyGfxObject(GfxSamplerState* obj)
     [asMTLSamplerState(obj->mtlSampler) release];
 }
 
-//*****************************************************************************
-// GfxTexture2D Implementation
-//*****************************************************************************
+// Texture type
+// ------------
 
 void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
@@ -501,9 +498,8 @@ void GfxTexture::destroyGfxObject(GfxTexture* obj)
     [asMTLTexture(obj->mtlTexture) release];
 }
 
-//*****************************************************************************
-// GfxGraphicsPSO Implementation
-//*****************************************************************************
+// Graphics PSO type
+// -----------------
 
 id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char const* entrypoint, char const* defines,
                                       eastl::hash_map<eastl::string, GfxPipelineArgument>* outArguments,
@@ -647,7 +643,7 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
     return shaderFunction;
 }
 
-//-----------------------------------------------------------------------------
+// ----------------------------------------
 void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     @autoreleasepool
@@ -757,9 +753,8 @@ void GfxGraphicsPSO::destroyGfxObject(GfxGraphicsPSO* obj)
     [getMTLRenderPipelineState(obj) release];
 }
 
-//*****************************************************************************
-// GfxComputePSO Implementation
-//*****************************************************************************
+// Compute PSO type
+// ----------------
 
 void GfxComputePSO::createGfxObject(const char* tag, GfxShaderDesc* shaderDesc, GfxComputePSO* obj)
 {
@@ -792,9 +787,13 @@ void GfxComputePSO::destroyGfxObject(GfxComputePSO* obj)
     [getMTLComputePipelineState(obj) release];
 }
 
-//*****************************************************************************
-// GfxRenderCmdEncoder Implementation
-//*****************************************************************************
+
+// ----------------------------------------
+// GFX COMMAND ENCODERS
+// ----------------------------------------
+
+// Render Encoder
+// --------------
 
 void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 {
@@ -1091,9 +1090,8 @@ void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitI
     [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:asMTLBuffer(indexBufferResource->mtlBuffer) indexBufferOffset:0 instanceCount:instanceCount];
 }
 
-//*****************************************************************************
-// GfxComputeCmdEncoder Implementation
-//*****************************************************************************
+// Compute Encoder
+// ---------------
 
 void GfxComputeCmdEncoder::begin(char const* tag)
 {
@@ -1230,9 +1228,8 @@ void GfxComputeCmdEncoder::dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsG
                                          GfxState::computePSO->threadsPerThreadgroupZ)];
 }
 
-//*****************************************************************************
-// GfxBlitCmdEncoder Implementation
-//*****************************************************************************
+// Blit Encoder
+// ------------
 
 void GfxBlitCmdEncoder::begin(char const* tag)
 {
@@ -1268,9 +1265,9 @@ void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTextu
     [asMTLBlitCommandEncoder(mtlBlitCommandEncoder) copyFromTexture:src sourceSlice:0 sourceLevel:srcMipLevel toTexture:dst destinationSlice:0 destinationLevel:dstMipLevel sliceCount:1 levelCount:mipLevelCount];
 }
 
-//*****************************************************************************
-// Frame Resource Allocator
-//*****************************************************************************
+// ----------------------------------------
+// GFX FRAME RESOURCE ALLOCATOR
+// ----------------------------------------
 
 void GfxFrameAllocator::create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
 {
