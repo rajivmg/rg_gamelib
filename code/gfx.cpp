@@ -313,7 +313,6 @@ ImageRef loadImage(char const* filename)
             return output;
         }
         
-        output = eastl::shared_ptr<Image>(rgNew(Image), unloadImage);
         strncpy(output->tag, filename, rgArrayCount(Image::tag));
         output->tag[rgArrayCount(Image::tag) - 1] = '\0';
         output->width = width;

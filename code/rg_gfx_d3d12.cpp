@@ -1,7 +1,7 @@
 #if defined(RG_D3D12_RNDR)
-#include "rg_gfx.h"
+#include "gfx.h"
 
-#include "rg_gfx_dxc.h"
+#include "gfx_dxc.h"
 #include "utils.h"
 
 #include "backends/imgui_impl_sdl2.h"
@@ -871,11 +871,11 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
 void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertexInputDesc, GfxShaderDesc* shaderDesc, GfxRenderStateDesc* renderStateDesc, GfxGraphicsPSO* obj)
 {
     // compile shader
-    gfx::ShaderBlobRef vertexShader, fragmentShader;
+    ShaderBlobRef vertexShader, fragmentShader;
     if(shaderDesc->vsEntrypoint && shaderDesc->fsEntrypoint)
     {
-        vertexShader = gfx::createShaderBlob(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines, false);
-        fragmentShader = gfx::createShaderBlob(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines, false);
+        vertexShader = createShaderBlob(shaderDesc->shaderSrc, GfxStage_VS, shaderDesc->vsEntrypoint, shaderDesc->defines, false);
+        fragmentShader = createShaderBlob(shaderDesc->shaderSrc, GfxStage_FS, shaderDesc->fsEntrypoint, shaderDesc->defines, false);
     }
 
     // do shader reflection
@@ -1028,7 +1028,7 @@ void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertex
     renderTargetBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
     renderTargetBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
     D3D12_BLEND_DESC blendDesc = {};
-    for(rgInt i = 0; i < kMaxColorAttachments; ++i)
+    for(rgInt i = 0; i < RG_MAX_COLOR_ATTACHMENTS; ++i)
     {
         blendDesc.RenderTarget[i] = renderTargetBlendDesc;
     }
@@ -1133,7 +1133,7 @@ void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 wid
 //-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 {
-    gfx::currentGraphicsPSO = pso;
+    GfxState::graphicsPSO = pso;
 
     currentCommandList->SetPipelineState(pso->d3dPSO.Get());
     currentCommandList->SetGraphicsRootSignature(pso->d3dRootSignature.Get());
@@ -1142,17 +1142,17 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
     pipelineSamplerDescriptorRangeOffset = samplerDescriptorAllocator->allocateDescriptorRange(pso->d3dSamplerDescriptorCount);
 
     // cbv srv uav descriptor table
-    if(gfx::currentGraphicsPSO->d3dHasCBVSRVUAVs)
+    if(GfxState::graphicsPSO->d3dHasCBVSRVUAVs)
     {
         currentCommandList->SetGraphicsRootDescriptorTable(CBVSRVUAV_ROOT_PARAMETER_INDEX, cbvSrvUavDescriptorAllocator->getGpuHandle(pipelineCbvSrvUavDescriptorRangeOffset));
     }
     // sampler descriptor table
-    if(gfx::currentGraphicsPSO->d3dHasSamplers)
+    if(GfxState::graphicsPSO->d3dHasSamplers)
     {
         currentCommandList->SetGraphicsRootDescriptorTable(SAMPLER_ROOT_PARAMETER_INDEX, samplerDescriptorAllocator->getGpuHandle(pipelineSamplerDescriptorRangeOffset));
     }
     // bindless resources are stored in persistent part
-    if(gfx::currentGraphicsPSO->d3dHasBindlessResources)
+    if(GfxState::graphicsPSO->d3dHasBindlessResources)
     {
         currentCommandList->SetGraphicsRootDescriptorTable(BINDLESS_CBVSRVUAV_ROOT_PARAMETER_INDEX, cbvSrvUavDescriptorAllocator->getGpuHandle(descriptorRangeOffsetBindlessTexture2D));
     }
@@ -1170,18 +1170,18 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU3
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
     vertexBufferView.BufferLocation = resource->d3dResource->GetGPUVirtualAddress();
     vertexBufferView.SizeInBytes = resource->sizeInBytes;
-    vertexBufferView.StrideInBytes = gfx::currentGraphicsPSO->d3dVertexStrideInBytes;
+    vertexBufferView.StrideInBytes = GfxState::graphicsPSO->d3dVertexStrideInBytes;
     currentCommandList->IASetVertexBuffers(slot, 1, &vertexBufferView);
 }
 
 //-----------------------------------------------------------------------------
 GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
-    rgAssert(gfx::currentGraphicsPSO != nullptr);
+    rgAssert(GfxState::graphicsPSO != nullptr);
     rgAssert(bindingTag);
 
-    auto infoIter = gfx::currentGraphicsPSO->arguments.find(bindingTag);
-    if(infoIter == gfx::currentGraphicsPSO->arguments.end())
+    auto infoIter = GfxState::graphicsPSO->arguments.find(bindingTag);
+    if(infoIter == GfxState::graphicsPSO->arguments.end())
     {
         rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
         rgAssert(false);
@@ -1191,7 +1191,7 @@ GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindin
 
     if(((info.stages & GfxStage_VS) != GfxStage_VS) && (info.stages & GfxStage_FS) != GfxStage_FS)
     {
-        rgLogError("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, gfx::currentGraphicsPSO->tag);
+        rgLogError("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, GfxState::graphicsPSO->tag);
         rgAssert(!"TODO: LogError should stop the execution");
     }
 
@@ -1258,7 +1258,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         rgFloat view2d[16];
     } cameraParams;
 
-    copyMatrix4ToFloatArray(cameraParams.projection2d, gfxMakeOrthographicProjectionMatrix(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
+    copyMatrix4ToFloatArray(cameraParams.projection2d, makeOrthographicProjectionMatrix(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
     copyMatrix4ToFloatArray(cameraParams.view2d, Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0)));
 
     GfxFrameResource cameraBuffer = gfxGetFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
@@ -1267,7 +1267,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 
     bindBuffer("camera", &cameraBuffer);
     bindBuffer("instanceParams", &instanceParamsBuffer);
-    bindSamplerState("simpleSampler", gfx::samplerBilinearRepeat);
+    bindSamplerState("simpleSampler", GfxState::samplerBilinearRepeat);
 
     setVertexBuffer(&vertexBufAllocation, 0);
 
@@ -1318,13 +1318,13 @@ void GfxComputeCmdEncoder::setComputePSO(GfxComputePSO* pso)
 //-----------------------------------------------------------------------------
 GfxPipelineArgument* GfxComputeCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
-    rgAssert(gfx::currentComputePSO != nullptr);
+    rgAssert(GfxState::computePSO != nullptr);
     rgAssert(bindingTag);
 
-    auto infoIter = gfx::currentComputePSO->arguments.find(bindingTag);
-    if(infoIter == gfx::currentComputePSO->arguments.end())
+    auto infoIter = GfxState::computePSO->arguments.find(bindingTag);
+    if(infoIter == GfxState::computePSO->arguments.end())
     {
-        rgLogWarn("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, gfx::currentComputePSO->tag);
+        rgLogWarn("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, GfxState::computePSO->tag);
         return nullptr;
     }
 
@@ -1787,7 +1787,7 @@ void gfxRunOnFrameBeginJob()
 {
 }
 
-void gfxSetterBindlessResource(rgU32 slot, GfxTexture* resource)
+void gfxSetBindlessResource(rgU32 slot, GfxTexture* resource)
 {
     // Only 2D bindless textures are supported
     rgAssert(resource->dim == GfxTextureDim_2D);
@@ -1808,7 +1808,7 @@ void gfxRendererImGuiInit()
 {
     rgU32 fontSrvDescriptorindex = cbvSrvUavDescriptorAllocator->allocatePersistentDescriptor();
     ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, cbvSrvUavDescriptorAllocator->getHeap(), cbvSrvUavDescriptorAllocator->getCpuHandle(fontSrvDescriptorindex), cbvSrvUavDescriptorAllocator->getGpuHandle(fontSrvDescriptorindex));
-    ImGui_ImplSDL2_InitForD3D(gfx::mainWindow);
+    ImGui_ImplSDL2_InitForD3D(g_AppMainWindow);
 }
 
 void gfxRendererImGuiNewFrame()
