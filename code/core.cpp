@@ -152,7 +152,8 @@ static rgInt createSDLWindow()
 #if defined(RG_VULKAN_RNDR)
     windowFlags |= SDL_WINDOW_VULKAN;
 #elif defined(RG_METAL_RNDR)
-    windowFlags |= SDL_WINDOW_ALWAYS_ON_TOP;
+    // NOTE: If memory leaks occure when the window is occluded enable this line
+    //windowFlags |= SDL_WINDOW_ALWAYS_ON_TOP;
     windowFlags |= SDL_WINDOW_METAL;
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");
 #elif defined(RG_D3D12_RNDR)
