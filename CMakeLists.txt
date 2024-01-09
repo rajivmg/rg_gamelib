@@ -79,6 +79,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 file(GLOB SHADER_FILES "${CMAKE_SOURCE_DIR}/code/shaders/*.hlsl" "${CMAKE_SOURCE_DIR}/code/shaders/*.h")
 source_group("Shaders" FILES ${SHADER_FILES})
 
+include_directories(${CMAKE_SOURCE_DIR}/code)
+
 if(WIN32)
 
     set(3RD_PARTY_DIR "${CMAKE_SOURCE_DIR}/3rdparty/win64/")
