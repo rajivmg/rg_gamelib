@@ -1450,7 +1450,7 @@ rgInt gfxInit()
     mtlCommandQueue = [mtlDevice newCommandQueue];
 
     metalLayer.device = mtlDevice;
-    metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    metalLayer.pixelFormat = MTLPixelFormatRGBA8Unorm_sRGB; //MTLPixelFormatBGRA8Unorm_sRGB;
     metalLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_FLIGHT;
     metalLayer.framebufferOnly = false;
     //metalLayer.displaySyncEnabled = false;
@@ -1571,6 +1571,11 @@ void gfxRendererImGuiInit()
 
 void gfxRendererImGuiNewFrame()
 {
+    // TODO: imgui assumes linear color RT, but our MTLDrawable is sRGB
+    // To fix the issue with incorrect color, create a linear texture-view
+    // of the MTLDrawable texture
+    // TODO: GfxTexture.makeView(pixelFormat). Assess memory release requirements
+    
     MTLRenderPassDescriptor* renderPassDesc = [MTLRenderPassDescriptor new];
     renderPassDesc.colorAttachments[0].texture = asMTLTexture(gfxGetCurrentRenderTargetColorBuffer()->mtlTexture);
     renderPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
@@ -1582,6 +1587,11 @@ void gfxRendererImGuiNewFrame()
 
 void gfxRendererImGuiRenderDrawData()
 {
+    // TODO: imgui assumes linear color RT, but our MTLDrawable is sRGB
+    // To fix the issue with incorrect color, create a linear texture-view
+    // of the MTLDrawable texture
+    // TODO: GfxTexture.makeView(pixelFormat). Assess memory release requirements
+    
     GfxRenderPass imguiRenderPass = {};
     imguiRenderPass.colorAttachments[0].texture = gfxGetCurrentRenderTargetColorBuffer();
     imguiRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;

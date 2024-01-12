@@ -1,6 +1,12 @@
 #ifndef __GFX_H__
 #define __GFX_H__
 
+// NOTES:
+
+// Swapchain texture format is sRGB, and pixels written/copied to it
+// will be converter to sRGB. Therefore it expects pixel value to be
+// in linear space.
+
 #if defined(RG_D3D12_RNDR)
     #define WIN32_LEAN_AND_MEAN
     #include <Windows.h>
