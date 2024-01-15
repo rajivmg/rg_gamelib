@@ -578,3 +578,41 @@ Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio
                    Vector4(0, 0, c, d),
                    Vector4(0, 0, e, 0));
 }
+
+TinyImageFormat convertSRGBToLinearFormat(TinyImageFormat srgbFormat)
+{
+    rgAssert(TinyImageFormat_IsSRGB(srgbFormat) == true);
+    
+    TinyImageFormat newFormat = TinyImageFormat_UNDEFINED;
+    
+    switch(srgbFormat)
+    {
+        case TinyImageFormat_R8G8B8A8_SRGB:
+            newFormat = TinyImageFormat_R8G8B8A8_UNORM;
+            break;
+    }
+    
+    rgAssert(newFormat != TinyImageFormat_UNDEFINED);
+    rgAssert(TinyImageFormat_IsSRGB(newFormat) == false);
+    
+    return newFormat;
+}
+
+TinyImageFormat convertLinearToSRGBFormat(TinyImageFormat linearFormat)
+{
+    rgAssert(TinyImageFormat_IsSRGB(linearFormat) == false);
+    
+    TinyImageFormat newFormat = TinyImageFormat_UNDEFINED;
+    
+    switch(linearFormat)
+    {
+        case TinyImageFormat_R8G8B8A8_UNORM:
+            newFormat = TinyImageFormat_R8G8B8A8_SRGB;
+            break;
+    }
+    
+    rgAssert(newFormat != TinyImageFormat_UNDEFINED);
+    rgAssert(TinyImageFormat_IsSRGB(newFormat) == true);
+    
+    return newFormat;
+}

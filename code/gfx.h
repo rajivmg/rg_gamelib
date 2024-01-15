@@ -724,6 +724,7 @@ void            gfxRendererImGuiRenderDrawData();
 void            gfxOnSizeChanged();
 
 GfxTexture*     gfxGetCurrentRenderTargetColorBuffer();
+GfxTexture*     gfxGetBackbufferTextureLinear();
 
 
 //-----------------------------------------------------------------------------
@@ -1068,5 +1069,8 @@ void    copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix);
 
 Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
 Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
+
+TinyImageFormat convertSRGBToLinearFormat(TinyImageFormat srgbFormat);
+TinyImageFormat convertLinearToSRGBFormat(TinyImageFormat linearFormat);
 
 #endif

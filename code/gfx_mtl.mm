@@ -45,7 +45,10 @@ static NSView*              appView;
 static CAMetalLayer*        metalLayer;
 static id<CAMetalDrawable>  caMetalDrawable;
 
-static GfxTexture           currentMTLDrawableTexture;
+static GfxTexture           currentBackbufferTexture;
+static GfxTexture           currentBackbufferTextureLinear;
+static id<MTLTexture>       frameMTLDrawableTexture;
+static id<MTLTexture>       frameMTLDrawableLinearTextureView;
 
 static NSAutoreleasePool*   frameBeginToEndAutoReleasePool;
 
@@ -363,17 +366,16 @@ MTLSamplerMipFilter toMTLSamplerMipFilter(GfxSamplerMipFilter filter)
     return result;
 }
 
-GfxTexture createGfxTexture2DFromMTLDrawable(id<CAMetalDrawable> drawable)
+GfxTexture createGfxTextureFromMTLTexture(id<MTLTexture> mtlTexture)
 {
-    // TODO: Add more info to texture2d
     GfxTexture texture;
     texture.dim = GfxTextureDim_2D;
-    texture.width = (rgUInt)[drawable.texture width];
-    texture.height = (rgUInt)[drawable.texture height];
-    texture.format = TinyImageFormat_FromMTLPixelFormat((TinyImageFormat_MTLPixelFormat)[drawable.texture pixelFormat]);
-    texture.mipmapCount = 1;
-    texture.usage = GfxTextureUsage_RenderTarget;
-    texture.mtlTexture = drawable.texture;
+    texture.width = (rgUInt)[mtlTexture width];
+    texture.height = (rgUInt)[mtlTexture height];
+    texture.mipmapCount = (unsigned)[mtlTexture mipmapLevelCount];
+    texture.usage = GfxTextureUsage_RenderTarget; // TODO: set this
+    texture.format = TinyImageFormat_FromMTLPixelFormat((TinyImageFormat_MTLPixelFormat)[mtlTexture pixelFormat]);
+    texture.mtlTexture = mtlTexture;
     return texture;
 }
 
@@ -1527,7 +1529,19 @@ void gfxStartNextFrame()
     rgAssert(metalDrawable != nil);
     caMetalDrawable = metalDrawable;
     
-    currentMTLDrawableTexture = createGfxTexture2DFromMTLDrawable(caMetalDrawable);
+    TinyImageFormat drawableFormat = TinyImageFormat_FromMTLPixelFormat((TinyImageFormat_MTLPixelFormat)[caMetalDrawable.texture pixelFormat]);
+    TinyImageFormat drawableLinearFormat = convertSRGBToLinearFormat(drawableFormat);
+    
+    frameMTLDrawableTexture = caMetalDrawable.texture;
+    
+    if(frameMTLDrawableLinearTextureView != nil)
+    {
+        [frameMTLDrawableLinearTextureView release];
+    }
+    frameMTLDrawableLinearTextureView = [caMetalDrawable.texture newTextureViewWithPixelFormat:(MTLPixelFormat)TinyImageFormat_ToMTLPixelFormat(drawableLinearFormat)];
+    
+    currentBackbufferTexture = createGfxTextureFromMTLTexture(frameMTLDrawableTexture);
+    currentBackbufferTextureLinear = createGfxTextureFromMTLTexture(frameMTLDrawableLinearTextureView);
     
     mtlCommandBuffer = [mtlCommandQueue commandBuffer];
 }
@@ -1577,7 +1591,7 @@ void gfxRendererImGuiNewFrame()
     // TODO: GfxTexture.makeView(pixelFormat). Assess memory release requirements
     
     MTLRenderPassDescriptor* renderPassDesc = [MTLRenderPassDescriptor new];
-    renderPassDesc.colorAttachments[0].texture = asMTLTexture(gfxGetCurrentRenderTargetColorBuffer()->mtlTexture);
+    renderPassDesc.colorAttachments[0].texture = asMTLTexture(gfxGetBackbufferTextureLinear()->mtlTexture);
     renderPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
     renderPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
     
@@ -1593,7 +1607,7 @@ void gfxRendererImGuiRenderDrawData()
     // TODO: GfxTexture.makeView(pixelFormat). Assess memory release requirements
     
     GfxRenderPass imguiRenderPass = {};
-    imguiRenderPass.colorAttachments[0].texture = gfxGetCurrentRenderTargetColorBuffer();
+    imguiRenderPass.colorAttachments[0].texture = gfxGetBackbufferTextureLinear();
     imguiRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
     imguiRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
     
@@ -1609,7 +1623,12 @@ void gfxOnSizeChanged()
 
 GfxTexture* gfxGetCurrentRenderTargetColorBuffer()
 {
-    return &currentMTLDrawableTexture;
+    return &currentBackbufferTexture;
+}
+
+GfxTexture* gfxGetBackbufferTextureLinear()
+{
+    return &currentBackbufferTextureLinear;
 }
 
 void gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr)
