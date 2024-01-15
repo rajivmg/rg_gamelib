@@ -968,7 +968,7 @@ struct Image
 };
 typedef eastl::shared_ptr<Image> ImageRef;
 
-ImageRef    loadImage(char const* filename);
+ImageRef    loadImage(char const* filename, bool srgbFormat = true);
 void        unloadImage(Image* ptr);
 
 

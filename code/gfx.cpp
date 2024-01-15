@@ -254,7 +254,7 @@ GfxBlitCmdEncoder* gfxSetBlitPass(char const* tag)
 // IMAGE/BITMAP AND MODEL/MESH
 //-----------------------------------------------------------------------------
 
-ImageRef loadImage(char const* filename)
+ImageRef loadImage(char const* filename, bool srgbFormat/* = true*/)
 {
     rgSize nullTerminatedPathLength = strlen(filename) + 1;
     char const* extStr = filename + nullTerminatedPathLength - 4;
@@ -317,7 +317,7 @@ ImageRef loadImage(char const* filename)
         output->tag[rgArrayCount(Image::tag) - 1] = '\0';
         output->width = width;
         output->height = height;
-        output->format = TinyImageFormat_R8G8B8A8_SRGB;
+        output->format = srgbFormat ? TinyImageFormat_R8G8B8A8_SRGB : TinyImageFormat_R8G8B8A8_UNORM;
         output->mipCount = 1;
         output->sliceCount = 1;
         output->isDDS = false;
