@@ -181,4 +181,8 @@ elseif(APPLE)
     
     set_target_properties(rg_gamelib PROPERTIES XCODE_GENERATE_SCHEME TRUE
                                                 XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
+                                                
+    add_executable(rg_assetprocessor "code/tools/rg_assetprocessor.cpp" ${PUGIXML_SRC_FILES})
+    set_target_properties(rg_assetprocessor PROPERTIES XCODE_GENERATE_SCHEME TRUE
+                                                XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
 endif()

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
 <model name="shaderball" meshCount="2" bufferName="shaderball.bin" vertexBufferOffset="0" index32BufferOffset="1451776" index16BufferOffset="2510944" bufferLength="2510944">
-	<mesh name="Preview_Mesh" hasTexCoord="true" hasNormal="true" hasBinormal="false" has32BitIndices="true" vertexCount="36228" vertexDataOffset="0" indexCount="212424" indexDataOffset="0" />
-	<mesh name="Calibration_Mesh" hasTexCoord="true" hasNormal="true" hasBinormal="false" has32BitIndices="true" vertexCount="9140" vertexDataOffset="1159296" indexCount="52368" indexDataOffset="849696" />
+	<mesh name="Preview_Mesh" hasTexCoord="true" hasNormal="true" hasTangent="false" has32BitIndices="true" vertexCount="36228" vertexDataOffset="0" indexCount="212424" indexDataOffset="0" />
+	<mesh name="Calibration_Mesh" hasTexCoord="true" hasNormal="true" hasTangent="false" has32BitIndices="true" vertexCount="9140" vertexDataOffset="1159296" indexCount="52368" indexDataOffset="849696" />
 </model>

@@ -981,7 +981,7 @@ enum MeshProperties
     MeshProperties_Has32BitIndices = (1 << 0),
     MeshProperties_HasTexCoord = (1 << 1),
     MeshProperties_HasNormal = (1 << 2),
-    MeshProperties_HasBinormal = (1 << 3),
+    MeshProperties_HasTangent = (1 << 3),
 };
 
 RG_DEFINE_ENUM_FLAGS_OPERATOR(MeshProperties);

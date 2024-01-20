@@ -404,9 +404,9 @@ ModelRef loadModel(char const* filename)
         {
             m.properties |= MeshProperties_HasNormal;
         }
-        if(meshNode.attribute("hasBinormal").as_bool() == true)
+        if(meshNode.attribute("hasTangent").as_bool() == true)
         {
-            m.properties |= MeshProperties_HasBinormal;
+            m.properties |= MeshProperties_HasTangent;
         }
         outModel->meshes.push_back(m);
     }

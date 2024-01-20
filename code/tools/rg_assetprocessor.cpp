@@ -14,11 +14,11 @@ struct Vertex {
 	std::vector<float> position;
 	std::vector<float> uv;
 	std::vector<float> normal;
-	std::vector<float> binormal;
+	std::vector<float> tangent;
 
 	bool operator==(const Vertex &a) const
 	{
-		return a.position == this->position && a.normal == this->normal && a.uv == this->uv && a.binormal == this->binormal;
+		return a.position == this->position && a.normal == this->normal && a.uv == this->uv && a.tangent == this->tangent;
 		//constexpr float EPS = 0.000001;
 		//return (fabs(a.position[0] - this->position[0]) < EPS) && (fabs(a.position[1] - this->position[1]) < EPS) && (fabs(a.position[2] - this->position[2]) < EPS); 
 	}
@@ -353,7 +353,7 @@ void convert(std::string input, std::string output)
 
 			bool hasTexCoord;
 			bool hasNormal;
-			bool hasBinormal;
+			bool hasTangent;
 
 			bool has32BitIndices;
 
@@ -381,17 +381,17 @@ void convert(std::string input, std::string output)
 		cgltf_attribute* positionAttrib = findAttribute(cgltf_attribute_type_position,	primitive);
 		cgltf_attribute* texCoordAttrib = findAttribute(cgltf_attribute_type_texcoord,	primitive);
 		cgltf_attribute* normalAttrib	= findAttribute(cgltf_attribute_type_normal,	primitive);
-		cgltf_attribute* binormalAttrib = findAttribute(cgltf_attribute_type_tangent,	primitive);
+		cgltf_attribute* tangentAttrib = findAttribute(cgltf_attribute_type_tangent,	primitive);
 
 		assert(positionAttrib->data->type == cgltf_type_vec3);
 		if(texCoordAttrib) { assert(texCoordAttrib->data->type == cgltf_type_vec2); gfxMesh.hasTexCoord = true; }
 		if(normalAttrib) { assert(normalAttrib->data->type == cgltf_type_vec3); gfxMesh.hasNormal = true; }
-		if(binormalAttrib) { assert(binormalAttrib->data->type == cgltf_type_vec4); gfxMesh.hasBinormal = true; }
+		if(tangentAttrib) { assert(tangentAttrib->data->type == cgltf_type_vec4); gfxMesh.hasTangent = true; }
 
 		cgltf_size vertexCount = positionAttrib->data->count;
 		if(texCoordAttrib) { assert(texCoordAttrib->data->count == vertexCount); }
 		if(normalAttrib) { assert(normalAttrib->data->count == vertexCount); }
-		if(binormalAttrib) { assert(binormalAttrib->data->count == vertexCount); }
+		if(tangentAttrib) { assert(tangentAttrib->data->count == vertexCount); }
 
 		cgltf_size indexCount = primitive->indices->count;
 		bool is32bitIndex = (primitive->indices->component_type == cgltf_component_type_r_32u) ? true : false;
@@ -436,10 +436,10 @@ void convert(std::string input, std::string output)
 				vertexData.push_back(dataFloat[2]);
 			}
 
-			if(binormalAttrib)
+			if(tangentAttrib)
 			{
-				cgltf_buffer_view* bufView = binormalAttrib->data->buffer_view;
-				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + binormalAttrib->data->offset + (x * (binormalAttrib->data->stride + bufView->stride));
+				cgltf_buffer_view* bufView = tangentAttrib->data->buffer_view;
+				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + tangentAttrib->data->offset + (x * (tangentAttrib->data->stride + bufView->stride));
 				float* dataFloat = (float*)buf;
 				vertexData.push_back(dataFloat[0]);
 				vertexData.push_back(dataFloat[1]);
@@ -501,7 +501,7 @@ void convert(std::string input, std::string output)
 		meshNode.append_attribute("name").set_value(m.tag);
 		meshNode.append_attribute("hasTexCoord").set_value(m.hasTexCoord);
 		meshNode.append_attribute("hasNormal").set_value(m.hasNormal);
-		meshNode.append_attribute("hasBinormal").set_value(m.hasBinormal);
+		meshNode.append_attribute("hasTangent").set_value(m.hasTangent);
 		meshNode.append_attribute("has32BitIndices").set_value(m.has32BitIndices);
 		meshNode.append_attribute("vertexCount").set_value(m.vertexCount);
 		meshNode.append_attribute("vertexDataOffset").set_value(m.vertexDataOffset);
