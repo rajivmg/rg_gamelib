@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<model name="shaderball_test1" meshCount="3" bufferName="shaderball_test1.bin" vertexBufferOffset="0" index32BufferOffset="3924144" index16BufferOffset="3924144" bufferLength="4878576">
-	<mesh name="Calibration_Mesh" hasTexCoord="true" hasNormal="true" hasTangent="true" has32BitIndices="false" vertexCount="9297" vertexDataOffset="0" indexCount="52368" indexDataOffset="0">
+<model name="shaderball_test1" meshCount="3" bufferName="shaderball_test1.bin" vertexBufferOffset="0" index32BufferOffset="2611072" index16BufferOffset="2611072" bufferLength="3565504">
+	<mesh name="Calibration_Mesh" hasTexCoord="true" hasNormal="true" hasTangent="false" has32BitIndices="false" vertexCount="9140" vertexDataOffset="0" indexCount="52368" indexDataOffset="0">
 		<transform>
 			<m>1</m>
 			<m>0</m>
@@ -20,7 +20,7 @@
 			<m>1</m>
 		</transform>
 	</mesh>
-	<mesh name="Preview_Mesh" hasTexCoord="true" hasNormal="true" hasTangent="true" has32BitIndices="false" vertexCount="36228" vertexDataOffset="446256" indexCount="212424" indexDataOffset="104736">
+	<mesh name="Preview_Mesh" hasTexCoord="true" hasNormal="true" hasTangent="false" has32BitIndices="false" vertexCount="36228" vertexDataOffset="292480" indexCount="212424" indexDataOffset="104736">
 		<transform>
 			<m>1</m>
 			<m>0</m>
@@ -40,7 +40,7 @@
 			<m>1</m>
 		</transform>
 	</mesh>
-	<mesh name="Preview_Mesh.001" hasTexCoord="true" hasNormal="true" hasTangent="true" has32BitIndices="false" vertexCount="36228" vertexDataOffset="2185200" indexCount="212424" indexDataOffset="529584">
+	<mesh name="Preview_Mesh.001" hasTexCoord="true" hasNormal="true" hasTangent="false" has32BitIndices="false" vertexCount="36228" vertexDataOffset="1451776" indexCount="212424" indexDataOffset="529584">
 		<transform>
 			<m>0.994536877</m>
 			<m>-0.101552546</m>
