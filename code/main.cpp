@@ -500,7 +500,14 @@ rgInt updateAndDraw(rgDouble dt)
             Mesh* m = &g_GameState->shaderballModel->meshes[i];
             
             sceneFowardRenderEncoder->setVertexBuffer(g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->vertexBufferOffset +  m->vertexDataOffset, 0);
-            sceneFowardRenderEncoder->drawIndexedTriangles(m->indexCount, true, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
+            if(m->properties & MeshProperties_Has32BitIndices)
+            {
+                sceneFowardRenderEncoder->drawIndexedTriangles(m->indexCount, true, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
+            }
+            else
+            {
+                sceneFowardRenderEncoder->drawIndexedTriangles(m->indexCount, false, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
+            }
         }
 
         sceneFowardRenderEncoder->end();
