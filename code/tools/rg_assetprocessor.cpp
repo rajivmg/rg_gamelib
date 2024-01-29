@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <map>
 
+#include <vectormath/vectormath.hpp>
+
 #include "pugixml.hpp"
 
 struct Vertex {
@@ -377,7 +379,16 @@ void convert(std::string input, std::string output)
 		cgltf_mesh* mesh = meshNodes[meshIdx]->mesh;
 		assert(mesh->primitives_count == 1); // for now we only support 1 primitive per mesh
 
-		cgltf_node_transform_world(meshNodes[meshIdx], gfxMesh.transform);
+		Matrix4 positonTransformMatrix;
+		Matrix4 normalTangentTransformMatrix;
+		{
+			cgltf_node_transform_world(meshNodes[meshIdx], gfxMesh.transform);
+			positonTransformMatrix.setCol0(Vector4(gfxMesh.transform[0], gfxMesh.transform[1], gfxMesh.transform[2], gfxMesh.transform[3]));
+			positonTransformMatrix.setCol1(Vector4(gfxMesh.transform[4], gfxMesh.transform[5], gfxMesh.transform[6], gfxMesh.transform[7]));
+			positonTransformMatrix.setCol2(Vector4(gfxMesh.transform[8], gfxMesh.transform[9], gfxMesh.transform[10], gfxMesh.transform[11]));
+			positonTransformMatrix.setCol3(Vector4(gfxMesh.transform[12], gfxMesh.transform[13], gfxMesh.transform[14], gfxMesh.transform[15]));
+			normalTangentTransformMatrix = positonTransformMatrix;
+		}
 
 		cgltf_primitive* primitive = mesh->primitives;
 		assert(primitive->type == cgltf_primitive_type_triangles);
@@ -416,9 +427,13 @@ void convert(std::string input, std::string output)
 				cgltf_buffer_view* bufView = positionAttrib->data->buffer_view;
 				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + positionAttrib->data->offset + (x * (positionAttrib->data->stride + bufView->stride));
 				float* dataFloat = (float*)buf;
-				vertexData.push_back(dataFloat[0]);
-				vertexData.push_back(dataFloat[1]);
-				vertexData.push_back(dataFloat[2]);
+				//vertexData.push_back(dataFloat[0]);
+				//vertexData.push_back(dataFloat[1]);
+				//vertexData.push_back(dataFloat[2]);
+				Vector4 transformedPos = positonTransformMatrix * Vector4(dataFloat[0], dataFloat[1], dataFloat[2], 1.0f);
+				vertexData.push_back(transformedPos.getX());
+				vertexData.push_back(transformedPos.getY());
+				vertexData.push_back(transformedPos.getZ());
 			}
 
 			if(texCoordAttrib)
@@ -435,9 +450,13 @@ void convert(std::string input, std::string output)
 				cgltf_buffer_view* bufView = normalAttrib->data->buffer_view;
 				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + normalAttrib->data->offset + (x * (normalAttrib->data->stride + bufView->stride));
 				float* dataFloat = (float*)buf;
-				vertexData.push_back(dataFloat[0]);
-				vertexData.push_back(dataFloat[1]);
-				vertexData.push_back(dataFloat[2]);
+				//vertexData.push_back(dataFloat[0]);
+				//vertexData.push_back(dataFloat[1]);
+				//vertexData.push_back(dataFloat[2]);
+				Vector4 transformedNormal = normalTangentTransformMatrix * Vector4(dataFloat[0], dataFloat[1], dataFloat[2], 1.0f);
+				vertexData.push_back(transformedNormal.getX());
+				vertexData.push_back(transformedNormal.getY());
+				vertexData.push_back(transformedNormal.getZ());
 			}
 
 			if(tangentAttrib)
