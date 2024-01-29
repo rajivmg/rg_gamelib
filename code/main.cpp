@@ -106,7 +106,7 @@ rgInt setup()
     g_GameState->flowerTexture = GfxTexture::create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
     
     //gfxDestroyBuffer("ocean_tile");
-    g_GameState->shaderballModel = loadModel("shaderball.xml");
+    g_GameState->shaderballModel = loadModel("shaderball_test1.xml");
     
     GfxVertexInputDesc vertexDesc = {};
     vertexDesc.elementCount = 3;

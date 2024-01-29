@@ -350,6 +350,16 @@ void unloadImage(Image* ptr)
 
 ModelRef loadModel(char const* filename)
 {
+    auto fetchMatrixArray = [](pugi::xml_node& matrixNode, float* arr) -> void
+    {
+        pugi::xml_node matrixMNode = matrixNode.first_child();
+        for (int i = 0; i < 16; ++i)
+        {
+            arr[i] = matrixMNode.text().as_float();
+            matrixMNode = matrixMNode.next_sibling();
+        }
+    };
+
     FileData xmlFileData = fileRead(filename);
     if(!xmlFileData.isValid)
     {
@@ -387,6 +397,11 @@ ModelRef loadModel(char const* filename)
     {
         Mesh m = {};
         strncpy(m.tag, meshNode.attribute("name").as_string(), sizeof(Mesh::tag));
+
+        //float transformArray[16];
+        //pugi::xml_node transformNode = meshNode.child("transform");
+        //fetchMatrixArray(transformNode, transformArray);
+
         m.vertexCount = meshNode.attribute("vertexCount").as_uint();
         m.vertexDataOffset = meshNode.attribute("vertexDataOffset").as_uint();
         m.indexCount = meshNode.attribute("indexCount").as_uint();

@@ -989,6 +989,7 @@ RG_DEFINE_ENUM_FLAGS_OPERATOR(MeshProperties);
 struct Mesh
 {
     char tag[32];
+    Matrix4 transform;
     MeshProperties properties;
     rgU32 vertexCount;
     rgU32 vertexDataOffset;

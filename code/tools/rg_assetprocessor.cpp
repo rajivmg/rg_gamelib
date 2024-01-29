@@ -357,6 +357,8 @@ void convert(std::string input, std::string output)
 
 			bool has32BitIndices;
 
+			float transform[16];
+
 			uint32_t vertexCount;
 			uint32_t vertexDataOffset;
 			uint32_t indexCount;
@@ -374,6 +376,8 @@ void convert(std::string input, std::string output)
 
 		cgltf_mesh* mesh = meshNodes[meshIdx]->mesh;
 		assert(mesh->primitives_count == 1); // for now we only support 1 primitive per mesh
+
+		cgltf_node_transform_world(meshNodes[meshIdx], gfxMesh.transform);
 
 		cgltf_primitive* primitive = mesh->primitives;
 		assert(primitive->type == cgltf_primitive_type_triangles);
@@ -507,6 +511,12 @@ void convert(std::string input, std::string output)
 		meshNode.append_attribute("vertexDataOffset").set_value(m.vertexDataOffset);
 		meshNode.append_attribute("indexCount").set_value(m.indexCount);
 		meshNode.append_attribute("indexDataOffset").set_value(m.indexDataOffset);
+
+		pugi::xml_node transformNode = meshNode.append_child("transform");
+		for (int k = 0; k < 16; k++)
+		{
+			transformNode.append_child("m").text().set(m.transform[k]);
+		}
 	}
 
 	modelDoc.print(std::cout);
