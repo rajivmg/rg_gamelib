@@ -387,7 +387,8 @@ void convert(std::string input, std::string output)
 			positonTransformMatrix.setCol1(Vector4(gfxMesh.transform[4], gfxMesh.transform[5], gfxMesh.transform[6], gfxMesh.transform[7]));
 			positonTransformMatrix.setCol2(Vector4(gfxMesh.transform[8], gfxMesh.transform[9], gfxMesh.transform[10], gfxMesh.transform[11]));
 			positonTransformMatrix.setCol3(Vector4(gfxMesh.transform[12], gfxMesh.transform[13], gfxMesh.transform[14], gfxMesh.transform[15]));
-			normalTangentTransformMatrix = positonTransformMatrix;
+            
+			normalTangentTransformMatrix = transpose(inverse(positonTransformMatrix));
 		}
 
 		cgltf_primitive* primitive = mesh->primitives;
@@ -453,7 +454,7 @@ void convert(std::string input, std::string output)
 				//vertexData.push_back(dataFloat[0]);
 				//vertexData.push_back(dataFloat[1]);
 				//vertexData.push_back(dataFloat[2]);
-				Vector4 transformedNormal = normalTangentTransformMatrix * Vector4(dataFloat[0], dataFloat[1], dataFloat[2], 1.0f);
+				Vector4 transformedNormal = normalTangentTransformMatrix * Vector4(dataFloat[0], dataFloat[1], dataFloat[2], 0);
 				vertexData.push_back(transformedNormal.getX());
 				vertexData.push_back(transformedNormal.getY());
 				vertexData.push_back(transformedNormal.getZ());
