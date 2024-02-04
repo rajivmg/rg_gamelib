@@ -388,6 +388,9 @@ void convert(std::string input, std::string output)
 			positonTransformMatrix.setCol2(Vector4(gfxMesh.transform[8], gfxMesh.transform[9], gfxMesh.transform[10], gfxMesh.transform[11]));
 			positonTransformMatrix.setCol3(Vector4(gfxMesh.transform[12], gfxMesh.transform[13], gfxMesh.transform[14], gfxMesh.transform[15]));
             
+            // convert right-handed coordinates to left-handed coordinate system
+            positonTransformMatrix = Matrix4::scale(Vector3(1.0f, 1.0f, -1.0f)) * positonTransformMatrix;
+            
 			normalTangentTransformMatrix = transpose(inverse(positonTransformMatrix));
 		}
 

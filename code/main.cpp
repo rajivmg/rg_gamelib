@@ -251,9 +251,9 @@ rgInt setup()
     //
     
     // Initialize camera params
-    g_GameState->cameraPosition = Vector3(0.0f, 3.0f, 3.0f);
+    g_GameState->cameraPosition = Vector3(0.0f, 3.0f, -3.0f);
     g_GameState->cameraPitch = ((rgFloat)M_PI / 4.0f) - 0.15f; // ~45 deg
-    g_GameState->cameraYaw = (rgFloat)M_PI / 2.0f; // 90deg
+    g_GameState->cameraYaw = (rgFloat)M_PI / -2.0f; // 90deg
     
     // Initialize tonemapper params
     g_GameState->tonemapperMinLogLuminance = -2.0f;

@@ -7,6 +7,10 @@
 // will be converter to sRGB. Therefore it expects pixel value to be
 // in linear space.
 
+// Follows left-handed coordinate system
+// Clip coordinates are left-handed
+// Cubemaps are left-handed
+
 #if defined(RG_D3D12_RNDR)
     #define WIN32_LEAN_AND_MEAN
     #include <Windows.h>
