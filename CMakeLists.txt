@@ -138,8 +138,8 @@ if(WIN32)
     set_target_properties(rg_gamelib PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
     set_target_properties(rg_gamelib PROPERTIES VS_STARTUP_PROJECT rg_gamelib)
 
-    add_executable(rg_assetprocessor "code/tools/rg_assetprocessor.cpp" ${PUGIXML_SRC_FILES})
-    set_target_properties(rg_assetprocessor PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
+    add_executable(assetgen "code/tools/assetgen.cpp" ${PUGIXML_SRC_FILES})
+    set_target_properties(assetgen PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
 
     add_custom_target(NatVis SOURCES ${EASTL_ROOT_DIR}/doc/EASTL.natvis ${PUGIXML_ROOT_DIR}/scripts/natvis/pugixml.natvis)
 

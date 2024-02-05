@@ -28,7 +28,7 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
 
 // THE APP
 // -------
-#if 1
+
 extern GameInput* g_GameInput;
 static GameInput* oldGameInput, *newGameInput;
 
@@ -278,7 +278,6 @@ void TheApp::endApp()
 void TheApp::setTitle(const char *_title)
 {
 }
-#endif
 
 // FILE IO
 // -------
