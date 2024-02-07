@@ -259,7 +259,6 @@ extern PhysicSystem* g_PhysicSystem;
 extern rgBool g_ShouldAppQuit;
 extern SDL_Window* g_AppMainWindow;
 
-#if 1
 // APP
 // ---
 
@@ -297,6 +296,5 @@ protected:
     { app->beforeUpdateAndDraw(); app->updateAndDraw(); app->afterUpdateAndDraw(); }  \
     app->endApp();              \
     delete app; return 0; }
-#endif
 
 #endif // __CORE_H__

@@ -13,25 +13,6 @@ struct GameState
     
     GfxGraphicsPSO* simple2dPSO;
     
-    // part of in-game editor state
-    Vector3    cameraRight;
-    Vector3    cameraUp;
-    Vector3    cameraForward;
-    
-    Vector3    cameraPosition;
-    rgFloat    cameraPitch;
-    rgFloat    cameraYaw;
-    
-    Matrix3    cameraBasis;
-    rgFloat    cameraNear;
-    rgFloat    cameraFar;
-    Matrix4    cameraView;
-    Matrix4    cameraProjection;
-    Matrix4    cameraViewProjection;
-    Matrix4    cameraInvView;
-    Matrix4    cameraInvProjection;
-    Matrix4    cameraViewRotOnly;
-
     
     rgFloat tonemapperMinLogLuminance;
     rgFloat tonemapperMaxLogLuminance;

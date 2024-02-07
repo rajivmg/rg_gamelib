@@ -1,6 +1,7 @@
 #include "core.h"
 
 #include "gfx.h"
+#include "viewport.h"
 #include "rg_physic.h"
 
 #include "backends/imgui_impl_sdl2.h"
@@ -23,66 +24,9 @@ GameState* g_GameState;
 GameInput* g_GameInput;
 PhysicSystem* g_PhysicSystem;
 WindowInfo g_WindowInfo;
+Viewport* g_Viewport;
 
 eastl::vector<GfxTexture*> debugTextureHandles;
-
-void updateCamera()
-{
-    GameControllerInput* controller = &g_GameInput->controllers[0];
-    rgAssert(controller);
-    GameMouseState* mouse = &g_GameInput->mouse;
-    rgAssert(mouse);
-    
-    const Vector3 worldNorth = Vector3(0.0f, 0.0f, 1.0f);
-    const Vector3 worldEast = Vector3(1.0f, 0.0f, 0.0f);
-    const Vector3 worldUp = Vector3(0.0f, 1.0f, 0.0f);
-    
-    const rgFloat camMoveSpeed = 2.9f;
-    const rgFloat camStrafeSpeed = 3.6f;
-    // TODO: take FOV in account
-    const rgFloat camHorizonalRotateSpeed = (rgFloat)M_PI / g_WindowInfo.width;
-    const rgFloat camVerticalRotateSpeed = (rgFloat)M_PI / g_WindowInfo.height;
-
-    // Position Delta
-    const rgFloat forward = (rgFloat)(camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0)));
-    const rgFloat strafe = (rgFloat)(camStrafeSpeed * ((controller->right.endedDown ? g_DeltaTime : 0.0) + (controller->left.endedDown ? -g_DeltaTime : 0.0)));
-    const rgFloat ascent = (rgFloat)(camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0)));
-    
-    // Orientation Delta
-    const rgFloat yaw = (-mouse->relX * camHorizonalRotateSpeed) + g_GameState->cameraYaw;
-    const rgFloat pitch = (-mouse->relY * camVerticalRotateSpeed) + g_GameState->cameraPitch;
-    
-    // COMPUTE VIEW MATRIX
-    // Apply Yaw
-    const Quat yawQuat = Quat::rotation(yaw, worldUp);
-    const Vector3 yawedTarget = normalize(rotate(yawQuat, worldEast));
-    // Apply Pitch
-    const Vector3 right = normalize(cross(worldUp, yawedTarget));
-    const Quat pitchQuat = Quat::rotation(pitch, right);
-    const Vector3 pitchedYawedTarget = normalize(rotate(pitchQuat, yawedTarget));
-    
-    // SET CAMERA STATE
-    g_GameState->cameraRight = right;
-    g_GameState->cameraUp = normalize(cross(pitchedYawedTarget, right));
-    g_GameState->cameraForward = pitchedYawedTarget;
-
-    g_GameState->cameraBasis = Matrix3(g_GameState->cameraRight, g_GameState->cameraUp, g_GameState->cameraForward);
-
-    g_GameState->cameraPosition += g_GameState->cameraBasis * Vector3(strafe, ascent, forward);
-    g_GameState->cameraPitch = pitch;
-    g_GameState->cameraYaw = yaw;
-    
-    g_GameState->cameraNear = 0.01f;
-    g_GameState->cameraFar  = 100.0f;
-    
-    g_GameState->cameraView = orthoInverse(Matrix4(g_GameState->cameraBasis, Vector3(g_GameState->cameraPosition)));
-    g_GameState->cameraProjection = makePerspectiveProjectionMatrix(1.4f, (rgFloat)g_WindowInfo.width/g_WindowInfo.height, g_GameState->cameraNear, g_GameState->cameraFar);
-    g_GameState->cameraViewProjection = g_GameState->cameraProjection * g_GameState->cameraView;
-    g_GameState->cameraInvView = inverse(g_GameState->cameraView);
-    g_GameState->cameraInvProjection = inverse(g_GameState->cameraProjection);
-    
-    g_GameState->cameraViewRotOnly = Matrix4(g_GameState->cameraView.getUpper3x3(), Vector3(0, 0, 0));
-}
 
 rgInt setup()
 {
@@ -249,12 +193,8 @@ rgInt setup()
     GfxComputePSO::create("composite", &compositeShaderDesc);
     
     //
-    
-    // Initialize camera params
-    g_GameState->cameraPosition = Vector3(0.0f, 3.0f, -3.0f);
-    g_GameState->cameraPitch = ((rgFloat)M_PI / 4.0f) - 0.15f; // ~45 deg
-    g_GameState->cameraYaw = (rgFloat)M_PI / -2.0f; // 90deg
-    
+    g_Viewport = rgNew(Viewport);
+
     // Initialize tonemapper params
     g_GameState->tonemapperMinLogLuminance = -2.0f;
     g_GameState->tonemapperMaxLogLuminance = 10.0f;
@@ -263,8 +203,6 @@ rgInt setup()
     
     // Initialize show/hide vars
     g_GameState->debugShowGrid = false;
-    
-    //updateCamera();
     
     g_PhysicSystem = rgNew(PhysicSystem);
     
@@ -394,11 +332,8 @@ rgInt updateAndDraw(rgDouble dt)
     if(showImGuiDemo) { ImGui::ShowDemoWindow(&showImGuiDemo); }
     showDebugInterface(NULL);
     
-    if(g_GameInput->mouse.right.endedDown)
-    {
-        updateCamera();
-    }
-    
+    g_Viewport->tick();
+
     // PREPARE COMMON RESOURCES & DATA
     struct CommonParams
     {
@@ -416,15 +351,15 @@ rgInt updateAndDraw(rgDouble dt)
         rgFloat timeGame;
     } commonParams;
     
-    copyMatrix3ToFloatArray(commonParams.cameraBasisMatrix, g_GameState->cameraBasis);
-    copyMatrix4ToFloatArray(commonParams.cameraViewMatrix, g_GameState->cameraView);
-    copyMatrix4ToFloatArray(commonParams.cameraProjMatrix, g_GameState->cameraProjection);
-    copyMatrix4ToFloatArray(commonParams.cameraViewProjMatrix, g_GameState->cameraViewProjection);
-    copyMatrix4ToFloatArray(commonParams.cameraInvViewMatrix, g_GameState->cameraInvView);
-    copyMatrix4ToFloatArray(commonParams.cameraInvProjMatrix, g_GameState->cameraInvProjection);
-    copyMatrix4ToFloatArray(commonParams.cameraViewRotOnlyMatrix, g_GameState->cameraViewRotOnly);
-    commonParams.cameraNear = g_GameState->cameraNear;
-    commonParams.cameraFar  = g_GameState->cameraFar;
+    copyMatrix3ToFloatArray(commonParams.cameraBasisMatrix, g_Viewport->cameraBasis);
+    copyMatrix4ToFloatArray(commonParams.cameraViewMatrix, g_Viewport->cameraView);
+    copyMatrix4ToFloatArray(commonParams.cameraProjMatrix, g_Viewport->cameraProjection);
+    copyMatrix4ToFloatArray(commonParams.cameraViewProjMatrix, g_Viewport->cameraViewProjection);
+    copyMatrix4ToFloatArray(commonParams.cameraInvViewMatrix, g_Viewport->cameraInvView);
+    copyMatrix4ToFloatArray(commonParams.cameraInvProjMatrix, g_Viewport->cameraInvProjection);
+    copyMatrix4ToFloatArray(commonParams.cameraViewRotOnlyMatrix, g_Viewport->cameraViewRotOnly);
+    commonParams.cameraNear = g_Viewport->cameraNear;
+    commonParams.cameraFar  = g_Viewport->cameraFar;
     commonParams.timeDelta = (rgFloat)g_DeltaTime;
     commonParams.timeGame  = (rgFloat)g_Time;
 
