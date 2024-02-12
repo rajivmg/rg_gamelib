@@ -29,8 +29,8 @@ void* __cdecl operator new[](size_t size, const char* name, int flags, unsigned 
 // THE APP
 // -------
 
-extern GameInput* g_GameInput;
-static GameInput* oldGameInput, *newGameInput;
+AppInput* theAppInput;
+static AppInput* oldAppInput, *newAppInput;
 
 static rgBool processGameButtonState(GameButtonState* newButtonState, rgBool isDown)
 {
@@ -43,9 +43,9 @@ static rgBool processGameButtonState(GameButtonState* newButtonState, rgBool isD
     return false;
 }
 
-static rgBool processGameInputs(SDL_Event* event, GameInput* gameInput)
+static rgBool processGameInputs(SDL_Event* event, AppInput* appInput)
 {
-    GameControllerInput* controller1 = &gameInput->controllers[0];
+    GameControllerInput* controller1 = &appInput->controllers[0];
     
     switch(event->type)
     {
@@ -105,10 +105,10 @@ static rgBool processGameInputs(SDL_Event* event, GameInput* gameInput)
             
         case SDL_MOUSEMOTION:
         {
-            gameInput->mouse.x = event->motion.x;
-            gameInput->mouse.y = event->motion.y;
-            gameInput->mouse.relX = event->motion.xrel;
-            gameInput->mouse.relY = event->motion.yrel;
+            appInput->mouse.x = event->motion.x;
+            appInput->mouse.y = event->motion.y;
+            appInput->mouse.relX = event->motion.xrel;
+            appInput->mouse.relY = event->motion.yrel;
         } break;
             
         case SDL_MOUSEBUTTONUP:
@@ -119,17 +119,17 @@ static rgBool processGameInputs(SDL_Event* event, GameInput* gameInput)
             {
                 case SDL_BUTTON_LEFT:
                 {
-                    processGameButtonState(&gameInput->mouse.left, isDown);
+                    processGameButtonState(&appInput->mouse.left, isDown);
                 } break;
                     
                 case SDL_BUTTON_MIDDLE:
                 {
-                    processGameButtonState(&gameInput->mouse.middle, isDown);
+                    processGameButtonState(&appInput->mouse.middle, isDown);
                 } break;
                     
                 case SDL_BUTTON_RIGHT:
                 {
-                    processGameButtonState(&gameInput->mouse.right, isDown);
+                    processGameButtonState(&appInput->mouse.right, isDown);
                 } break;
             }
         } break;
@@ -198,8 +198,8 @@ int TheApp::beginApp()
     currentPerfCounter = SDL_GetPerformanceCounter();
     previousPerfCounter = currentPerfCounter;
     
-    oldGameInput = &inputs[0];
-    newGameInput = &inputs[1];
+    oldAppInput = &inputs[0];
+    newAppInput = &inputs[1];
 }
 
 void TheApp::beforeUpdateAndDraw()
@@ -213,23 +213,23 @@ void TheApp::beforeUpdateAndDraw()
     g_Time = currentPerfCounter / (1.0 * counterFrequency);
     
     // Copy old input state to new input state
-    *newGameInput = {};
-    GameControllerInput* oldController1 = &oldGameInput->controllers[0];
-    GameControllerInput* newController1 = &newGameInput->controllers[0];
+    *newAppInput = {};
+    GameControllerInput* oldController1 = &oldAppInput->controllers[0];
+    GameControllerInput* newController1 = &newAppInput->controllers[0];
     for(rgInt buttonIdx = 0; buttonIdx < rgArrayCount(GameControllerInput::buttons); ++buttonIdx)
     {
         newController1->buttons[buttonIdx].endedDown = oldController1->buttons[buttonIdx].endedDown;
     }
     
     // Copy old mouse input state to new mouse input state
-    newGameInput->mouse.x = oldGameInput->mouse.x;
-    newGameInput->mouse.y = oldGameInput->mouse.y;
+    newAppInput->mouse.x = oldAppInput->mouse.x;
+    newAppInput->mouse.y = oldAppInput->mouse.y;
     for(rgInt buttonIdx = 0; buttonIdx < rgArrayCount(GameControllerInput::buttons); ++buttonIdx)
     {
-        newGameInput->mouse.buttons[buttonIdx].endedDown = oldGameInput->mouse.buttons[buttonIdx].endedDown;
+        newAppInput->mouse.buttons[buttonIdx].endedDown = oldAppInput->mouse.buttons[buttonIdx].endedDown;
     }
     
-    g_GameInput = newGameInput;
+    theAppInput = newAppInput;
     
     SDL_Event event;
     while(SDL_PollEvent(&event) != 0)
@@ -249,7 +249,7 @@ void TheApp::beforeUpdateAndDraw()
         else
         {
             // process event
-            processGameInputs(&event, newGameInput);
+            processGameInputs(&event, newAppInput);
         }
     }
     
@@ -267,7 +267,7 @@ void TheApp::afterUpdateAndDraw()
     gfxRendererImGuiRenderDrawData();
     gfxEndFrame();
     
-    *oldGameInput = *newGameInput;
+    *oldAppInput = *newAppInput;
 }
 
 void TheApp::endApp()

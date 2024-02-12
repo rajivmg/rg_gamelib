@@ -16,7 +16,7 @@ Viewport::~Viewport()
 
 void Viewport::tick()
 {
-	if (g_GameInput->mouse.right.endedDown)
+	if (theAppInput->mouse.right.endedDown)
 	{
 		updateCamera();
 	}
@@ -24,9 +24,9 @@ void Viewport::tick()
 
 void Viewport::updateCamera()
 {
-	GameControllerInput* controller = &g_GameInput->controllers[0];
+	GameControllerInput* controller = &theAppInput->controllers[0];
 	rgAssert(controller);
-	GameMouseState* mouse = &g_GameInput->mouse;
+	GameMouseState* mouse = &theAppInput->mouse;
 	rgAssert(mouse);
 
 	const Vector3 worldNorth = Vector3(0.0f, 0.0f, 1.0f);

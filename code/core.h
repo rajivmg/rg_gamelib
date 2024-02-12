@@ -206,13 +206,13 @@ struct GameControllerInput
 
 #define RG_MAX_GAME_CONTROLLERS 4
 
-struct GameInput
+struct AppInput
 {
     GameMouseState mouse;
     GameControllerInput controllers[RG_MAX_GAME_CONTROLLERS];
 };
 
-extern GameInput* g_GameInput;
+extern AppInput* theAppInput;
 
 
 // FILE IO
@@ -283,7 +283,7 @@ protected:
     char title[64] = "SdlApp";
     bool vsync = true;
     
-    GameInput inputs[2];
+    AppInput inputs[2];
 
     Uint64 currentPerfCounter;
     Uint64 previousPerfCounter;
