@@ -359,8 +359,8 @@ rgInt updateAndDraw(rgDouble dt)
     copyMatrix4ToFloatArray(commonParams.cameraViewRotOnlyMatrix, g_Viewport->cameraViewRotOnly);
     commonParams.cameraNear = g_Viewport->cameraNear;
     commonParams.cameraFar  = g_Viewport->cameraFar;
-    commonParams.timeDelta = (rgFloat)g_DeltaTime;
-    commonParams.timeGame  = (rgFloat)g_Time;
+    commonParams.timeDelta = (rgFloat)theAppInput->deltaTime;
+    commonParams.timeGame  = (rgFloat)theAppInput->time;
 
     GfxFrameResource commonParamsBuffer = gfxGetFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
     
@@ -371,8 +371,8 @@ rgInt updateAndDraw(rgDouble dt)
         {
             for(rgInt j = 0; j < 4; ++j)
             {
-                rgFloat px = (rgFloat)(j * (100) + 10 * (j + 1) + sin(g_Time) * 30);
-                rgFloat py = (rgFloat)(i * (100) + 10 * (i + 1) + cos(g_Time) * 30);
+                rgFloat px = (rgFloat)(j * (100) + 10 * (j + 1) + sin(theAppInput->time) * 30);
+                rgFloat py = (rgFloat)(i * (100) + 10 * (i + 1) + cos(theAppInput->time) * 30);
                 
                 pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, debugTextureHandles[j + i * 4]);
             }
@@ -608,7 +608,7 @@ class Demo3DApp : public TheApp
     
     void updateAndDraw() override
     {
-        ::updateAndDraw(g_DeltaTime);
+        ::updateAndDraw(theAppInput->deltaTime);
     }
 };
 

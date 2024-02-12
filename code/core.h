@@ -210,6 +210,9 @@ struct AppInput
 {
     GameMouseState mouse;
     GameControllerInput controllers[RG_MAX_GAME_CONTROLLERS];
+
+    double deltaTime;
+    double time;
 };
 
 extern AppInput* theAppInput;
@@ -232,8 +235,6 @@ void        fileFree(FileData* fd);
 // UTILS
 // -----
 
-double      getTime();
-double      getDeltaTime();
 char*       getSaveDataPath();
 
 
@@ -247,9 +248,6 @@ struct WindowInfo
 };
 
 extern WindowInfo g_WindowInfo;
-
-extern rgDouble g_DeltaTime;
-extern rgDouble g_Time;
 
 extern rgUInt g_FrameNumber; // Frame number since app started
 

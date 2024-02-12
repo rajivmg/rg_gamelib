@@ -3,8 +3,6 @@
 
 #include "backends/imgui_impl_sdl2.h"
 
-rgDouble    g_DeltaTime;
-rgDouble    g_Time;
 SDL_Window* g_AppMainWindow;
 rgBool      g_ShouldAppQuit;
 rgUInt      g_FrameNumber;
@@ -209,8 +207,8 @@ void TheApp::beforeUpdateAndDraw()
     Uint64 counterFrequency = SDL_GetPerformanceFrequency();
     previousPerfCounter = currentPerfCounter;
     currentPerfCounter = SDL_GetPerformanceCounter();
-    g_DeltaTime = ((currentPerfCounter - previousPerfCounter) / (1.0 * SDL_GetPerformanceFrequency()));
-    g_Time = currentPerfCounter / (1.0 * counterFrequency);
+    theAppInput->deltaTime = ((currentPerfCounter - previousPerfCounter) / (1.0 * SDL_GetPerformanceFrequency()));
+    theAppInput->time = currentPerfCounter / (1.0 * counterFrequency);
     
     // Copy old input state to new input state
     *newAppInput = {};
@@ -375,16 +373,6 @@ void engineLogfImpl(char const* fmt, ...)
     va_start(argList, fmt);
     SDL_LogMessageV(SDL_LOG_CATEGORY_TEST, SDL_LOG_PRIORITY_DEBUG, fmt, argList);
     va_end(argList);
-}
-
-double getTime()
-{
-    return g_Time;
-}
-
-double getDeltaTime()
-{
-    return g_DeltaTime;
 }
 
 char* getSaveDataPath()

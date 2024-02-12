@@ -29,6 +29,8 @@ void Viewport::updateCamera()
 	GameMouseState* mouse = &theAppInput->mouse;
 	rgAssert(mouse);
 
+	const float dT = (float)theAppInput->deltaTime;
+
 	const Vector3 worldNorth = Vector3(0.0f, 0.0f, 1.0f);
 	const Vector3 worldEast = Vector3(1.0f, 0.0f, 0.0f);
 	const Vector3 worldUp = Vector3(0.0f, 1.0f, 0.0f);
@@ -40,9 +42,9 @@ void Viewport::updateCamera()
 	const rgFloat camVerticalRotateSpeed = (rgFloat)M_PI / g_WindowInfo.height;
 
 	// Position Delta
-	const rgFloat forward = (rgFloat)(camMoveSpeed * ((controller->forward.endedDown ? g_DeltaTime : 0.0) + (controller->backward.endedDown ? -g_DeltaTime : 0.0)));
-	const rgFloat strafe = (rgFloat)(camStrafeSpeed * ((controller->right.endedDown ? g_DeltaTime : 0.0) + (controller->left.endedDown ? -g_DeltaTime : 0.0)));
-	const rgFloat ascent = (rgFloat)(camStrafeSpeed * ((controller->up.endedDown ? g_DeltaTime : 0.0) + (controller->down.endedDown ? -g_DeltaTime : 0.0)));
+	const rgFloat forward = (rgFloat)(camMoveSpeed * ((controller->forward.endedDown ? dT : 0.0) + (controller->backward.endedDown ? -dT : 0.0)));
+	const rgFloat strafe = (rgFloat)(camStrafeSpeed * ((controller->right.endedDown ? dT : 0.0) + (controller->left.endedDown ? -dT : 0.0)));
+	const rgFloat ascent = (rgFloat)(camStrafeSpeed * ((controller->up.endedDown ? dT : 0.0) + (controller->down.endedDown ? -dT : 0.0)));
 
 	// Orientation Delta
 	const rgFloat yaw = (-mouse->relX * camHorizonalRotateSpeed) + cameraYaw;
