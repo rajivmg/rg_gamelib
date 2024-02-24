@@ -203,12 +203,6 @@ int TheApp::beginApp()
 void TheApp::beforeUpdateAndDraw()
 {
     ++g_FrameNumber;
-
-    Uint64 counterFrequency = SDL_GetPerformanceFrequency();
-    previousPerfCounter = currentPerfCounter;
-    currentPerfCounter = SDL_GetPerformanceCounter();
-    theAppInput->deltaTime = ((currentPerfCounter - previousPerfCounter) / (1.0 * SDL_GetPerformanceFrequency()));
-    theAppInput->time = currentPerfCounter / (1.0 * counterFrequency);
     
     // Copy old input state to new input state
     *newAppInput = {};
@@ -228,7 +222,15 @@ void TheApp::beforeUpdateAndDraw()
     }
     
     theAppInput = newAppInput;
+
+    // Copy timing information
+    Uint64 counterFrequency = SDL_GetPerformanceFrequency();
+    previousPerfCounter = currentPerfCounter;
+    currentPerfCounter = SDL_GetPerformanceCounter();
+    theAppInput->deltaTime = ((currentPerfCounter - previousPerfCounter) / (1.0 * SDL_GetPerformanceFrequency()));
+    theAppInput->time = currentPerfCounter / (1.0 * counterFrequency);
     
+    // Process events
     SDL_Event event;
     while(SDL_PollEvent(&event) != 0)
     {
