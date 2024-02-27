@@ -730,6 +730,8 @@ void            gfxOnSizeChanged();
 GfxTexture*     gfxGetCurrentRenderTargetColorBuffer();
 GfxTexture*     gfxGetBackbufferTextureLinear();
 
+TinyImageFormat gfxGetBackbufferFormat();
+
 
 //-----------------------------------------------------------------------------
 // GFX HELPER CLASSES

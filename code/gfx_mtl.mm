@@ -1452,7 +1452,7 @@ rgInt gfxInit()
     mtlCommandQueue = [mtlDevice newCommandQueue];
 
     metalLayer.device = mtlDevice;
-    metalLayer.pixelFormat = MTLPixelFormatRGBA8Unorm_sRGB; //MTLPixelFormatBGRA8Unorm_sRGB;
+    metalLayer.pixelFormat = (MTLPixelFormat)TinyImageFormat_ToMTLPixelFormat(gfxGetBackbufferFormat()); //MTLPixelFormatBGRA8Unorm_sRGB;
     metalLayer.maximumDrawableCount = RG_MAX_FRAMES_IN_FLIGHT;
     metalLayer.framebufferOnly = false;
     //metalLayer.displaySyncEnabled = false;
@@ -1629,6 +1629,12 @@ GfxTexture* gfxGetCurrentRenderTargetColorBuffer()
 GfxTexture* gfxGetBackbufferTextureLinear()
 {
     return &currentBackbufferTextureLinear;
+}
+
+TinyImageFormat gfxGetBackbufferFormat()
+{
+    // MTLPixelFormatRGBA8Unorm_sRGB
+    return TinyImageFormat_R8G8B8A8_SRGB;
 }
 
 void gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr)

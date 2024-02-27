@@ -612,4 +612,4 @@ class Demo3DApp : public TheApp
     }
 };
 
-THE_APP_MAIN(Demo3DApp)
+//THE_APP_MAIN(Demo3DApp)

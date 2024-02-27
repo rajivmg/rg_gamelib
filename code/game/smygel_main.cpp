@@ -1,16 +1,16 @@
 #include "gfx.h"
 
-struct Treehouse : TheApp
+struct Smygel : TheApp
 {
     TinyImageFormat colorRTFormat;
     TinyImageFormat depthStencilFormat;
     GfxTexture* colorRT;
     GfxTexture* depthStencil;
     
-    Treehouse()
-    : colorRTFormat(TinyImageFormat_R16G16B16A16_SFLOAT)
-    , depthStencilFormat(TinyImageFormat_D32_SFLOAT_S8_UINT)
+    Smygel()
+    : depthStencilFormat(TinyImageFormat_D32_SFLOAT_S8_UINT)
     {
+        colorRTFormat = gfxGetBackbufferFormat();
     }
     
     void createPipelineStateObjects()
@@ -20,6 +20,8 @@ struct Treehouse : TheApp
     
     void setup() override
     {
+        char const* splashIntroText = "It is not our part to master all the tides of the world, but to do what is in us for the succour of those years wherein we are set, uprooting the evil in the fields that we know, so that those who live after may have clean earth to till. What weather they shall have is not ours to rule.";
+        
         colorRT = GfxTexture::create("colorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height,
                                      colorRTFormat, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
         depthStencil = GfxTexture::create("depthStencil", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height,
@@ -33,4 +35,4 @@ struct Treehouse : TheApp
     }
 };
 
-//THE_APP_MAIN(Treehouse)
+THE_APP_MAIN(Smygel)
