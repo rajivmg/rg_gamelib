@@ -457,11 +457,12 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRe
     return createQuadUV(xPx, yPx, widthPx, heightPx, image->width, image->height);
 }
 
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture* tex)
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgU32 color, rgFloat4 offsetOrientation, GfxTexture* tex)
 {
     TexturedQuad& q = quadList->push_back();
     q.uv = uv;
     q.pos = { posSize.x, posSize.y, 1.0f };
+    q.color = color;
     q.size = posSize.zw;
     q.offsetOrientation = offsetOrientation;
     q.texID = g_BindlessTextureManager->getBindlessIndex(tex);
@@ -469,6 +470,14 @@ void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFl
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams)
 {
+    auto setColor = [](unsigned char* colorArr, rgU32 c)
+    {
+        colorArr[0] = (unsigned char)(c >> 24 & 0x000000FF);
+        colorArr[1] = (unsigned char)(c >> 16 & 0x000000FF);
+        colorArr[2] = (unsigned char)(c >> 8 & 0x000000FF);
+        colorArr[3] = (unsigned char)(c >> 0 & 0x000000FF);
+    };
+    
     rgUInt listSize = (rgUInt)quadList->size();
     for(rgUInt i = 0; i < listSize; ++i)
     {
@@ -482,40 +491,28 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         v[0].pos[2] = t.pos.z;
         v[0].texcoord[0] = t.uv.uvTopLeft[0];
         v[0].texcoord[1] = t.uv.uvTopLeft[1];
-        v[0].color[0] = 1.0f;
-        v[0].color[1] = 1.0f;
-        v[0].color[2] = 1.0f;
-        v[0].color[3] = 1.0f;
+        setColor(v[0].color, t.color);
         
         v[1].pos[0] = t.pos.x + t.size.x;
         v[1].pos[1] = t.pos.y;
         v[1].pos[2] = t.pos.z;
         v[1].texcoord[0] = t.uv.uvBottomRight[0];
         v[1].texcoord[1] = t.uv.uvTopLeft[1];
-        v[1].color[0] = 1.0f;
-        v[1].color[1] = 1.0f;
-        v[1].color[2] = 1.0f;
-        v[1].color[3] = 1.0f;
+        setColor(v[1].color, t.color);
         
         v[2].pos[0] = t.pos.x + t.size.x;
         v[2].pos[1] = t.pos.y + t.size.y;
         v[2].pos[2] = t.pos.z;
         v[2].texcoord[0] = t.uv.uvBottomRight[0];
         v[2].texcoord[1] = t.uv.uvBottomRight[1];
-        v[2].color[0] = 1.0f;
-        v[2].color[1] = 1.0f;
-        v[2].color[2] = 1.0f;
-        v[2].color[3] = 1.0f;
+        setColor(v[2].color, t.color);
         
         v[3].pos[0] = t.pos.x;
         v[3].pos[1] = t.pos.y + t.size.y;
         v[3].pos[2] = t.pos.z;
         v[3].texcoord[0] = t.uv.uvTopLeft[0];
         v[3].texcoord[1] = t.uv.uvBottomRight[1];
-        v[3].color[0] = 1.0f;
-        v[3].color[1] = 1.0f;
-        v[3].color[2] = 1.0f;
-        v[3].color[3] = 1.0f;
+        setColor(v[3].color, t.color);
         
         vertices->push_back(v[0]);
         vertices->push_back(v[3]);

@@ -281,9 +281,14 @@ MTLVertexFormat toMTLVertexFormat(TinyImageFormat fmt)
             break;
         case TinyImageFormat_R8G8B8A8_SRGB:
             result = MTLVertexFormatUChar4Normalized_BGRA;
-        default:
-            rgAssert(!"Not implemented");
             break;
+        case TinyImageFormat_R8G8B8A8_UINT:
+            result = MTLVertexFormatUChar4;
+            break;
+        case TinyImageFormat_R8G8B8A8_UNORM:
+            result = MTLVertexFormatUChar4Normalized;
+            break;
+        DEFAULT_NOT_IMPLEMENTED;
     }
     return result;
 }
@@ -317,6 +322,7 @@ MTLCompareFunction toMTLCompareFunction(GfxCompareFunc func)
     case GfxCompareFunc_GreaterEqual:
         result = MTLCompareFunctionGreaterEqual;
         break;
+    DEFAULT_NOT_IMPLEMENTED;
     }
     return result;
 }

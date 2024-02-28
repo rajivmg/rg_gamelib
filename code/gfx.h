@@ -1046,17 +1046,18 @@ struct TexturedQuad
     QuadUV uv;
     rgU32 texID;
     rgFloat3 pos;
+    rgU32 color;
     rgFloat4 offsetOrientation;
     rgFloat2 size;
 };
 
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgFloat4 offsetOrientation, GfxTexture* tex);
+void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgU32 color, rgFloat4 offsetOrientation, GfxTexture* tex);
 
 struct SimpleVertexFormat
 {
     rgFloat pos[3];
     rgFloat texcoord[2];
-    rgFloat color[4];
+    unsigned char color[4];
 };
 
 struct SimpleInstanceParams

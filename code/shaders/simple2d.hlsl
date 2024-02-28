@@ -6,6 +6,7 @@ struct Vertex2D
     float2 texcoord : TEXCOORD;
     float4 color : COLOR;
 };
+
 struct VertexOut
 {
     float4 position : SV_POSITION;
@@ -43,8 +44,10 @@ VertexOut vsSimple2d(in Vertex2D v, uint vertexID : SV_VERTEXID, uint instanceID
 
 half4 fsSimple2d(in VertexOut f) : SV_TARGET
 {
-    //return f.color;
-    uint texIndex = instanceParams.texID[f.instanceID].x;
-    half4 color = bindlessTexture2D[texIndex].Sample(simpleSampler, f.texcoord);
-    return half4(color);
+    uint textureIdx = instanceParams.texID[f.instanceID].x;
+    
+    half4 texel = bindlessTexture2D[textureIdx].Sample(simpleSampler, f.texcoord);
+    half4 finalColor = texel * f.color;
+    
+    return finalColor;
 }

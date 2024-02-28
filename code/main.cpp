@@ -70,7 +70,7 @@ rgInt setup()
     vertexDesc.elements[2].semanticName = "COLOR";
     vertexDesc.elements[2].semanticIndex = 0;
     vertexDesc.elements[2].offset = 20;
-    vertexDesc.elements[2].format = TinyImageFormat_R32G32B32A32_SFLOAT;
+    vertexDesc.elements[2].format = TinyImageFormat_R8G8B8A8_UNORM;
     vertexDesc.elements[2].bufferIndex = 0;
     vertexDesc.elements[2].stepFunc = GfxVertexStepFunc_PerVertex;
 
@@ -374,10 +374,10 @@ rgInt updateAndDraw(rgDouble dt)
                 rgFloat px = (rgFloat)(j * (100) + 10 * (j + 1) + sin(theAppInput->time) * 30);
                 rgFloat py = (rgFloat)(i * (100) + 10 * (i + 1) + cos(theAppInput->time) * 30);
                 
-                pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, {0, 0, 0, 0}, debugTextureHandles[j + i * 4]);
+                pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, debugTextureHandles[j + i * 4]);
             }
         }
-        pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, {0, 0, 0, 0}, g_GameState->flowerTexture);
+        pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, g_GameState->flowerTexture);
         
         GfxRenderPass simple2dRenderPass = {};
         simple2dRenderPass.colorAttachments[0].texture = g_GameState->baseColor2DRT;
