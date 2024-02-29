@@ -727,7 +727,7 @@ void            gfxRendererImGuiRenderDrawData();
 
 void            gfxOnSizeChanged();
 
-GfxTexture*     gfxGetCurrentRenderTargetColorBuffer();
+GfxTexture*     gfxGetBackbufferTexture();
 GfxTexture*     gfxGetBackbufferTextureLinear();
 
 TinyImageFormat gfxGetBackbufferFormat();

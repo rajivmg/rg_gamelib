@@ -35,4 +35,4 @@ struct Smygel : TheApp
     }
 };
 
-THE_APP_MAIN(Smygel)
+//THE_APP_MAIN(Smygel)

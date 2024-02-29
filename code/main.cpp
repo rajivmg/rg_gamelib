@@ -560,7 +560,7 @@ rgInt updateAndDraw(rgDouble dt)
             
             postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapReinhard"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
-            postfxCmdEncoder->bindTexture("outputImage", gfxGetCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->bindTexture("outputImage", gfxGetBackbufferTexture());
             //postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
@@ -575,7 +575,7 @@ rgInt updateAndDraw(rgDouble dt)
             compositeParams.inputImageDim[1] = g_WindowInfo.height;
             postfxCmdEncoder->setComputePSO(GfxComputePSO::find("composite"_tag));
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColor2DRT);
-            postfxCmdEncoder->bindTexture("outputImage", gfxGetCurrentRenderTargetColorBuffer());
+            postfxCmdEncoder->bindTexture("outputImage", gfxGetBackbufferTexture());
             postfxCmdEncoder->bindBufferFromData("CompositeParams", sizeof(compositeParams), &compositeParams);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
             //
@@ -612,4 +612,4 @@ class Demo3DApp : public TheApp
     }
 };
 
-//THE_APP_MAIN(Demo3DApp)
+THE_APP_MAIN(Demo3DApp)

@@ -1627,7 +1627,7 @@ void gfxOnSizeChanged()
     
 }
 
-GfxTexture* gfxGetCurrentRenderTargetColorBuffer()
+GfxTexture* gfxGetBackbufferTexture()
 {
     return &currentBackbufferTexture;
 }
