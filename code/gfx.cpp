@@ -310,6 +310,7 @@ ImageRef loadImage(char const* filename, bool srgbFormat/* = true*/)
         unsigned char* texData = stbi_load(filename, &width, &height, &texChnl, 4);
         if(texData == NULL)
         {
+            rgLogError("Can't load image file %s", filename);
             return output;
         }
         

@@ -63,9 +63,6 @@ void    gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr);
 template<typename Type>
 struct GfxObjectRegistry
 {
-    // TODO: Is it better to directly use the string as key, but
-    // doing that we will lose the ability to use pre-computed hash.
-    
     typedef eastl::hash_map<rgHash, Type*> ObjectMapType;
     
     static ObjectMapType objects;

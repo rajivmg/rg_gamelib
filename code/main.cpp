@@ -11,6 +11,7 @@
 #include <EASTL/vector.h>
 #include "game/game.h"
 #include "game/skybox.h"
+#include "game/textdraw.h"
 
 #include "shaders/shaderinterop_common.h"
 
@@ -249,6 +250,8 @@ rgInt setup()
     boxBody->CreateFixture(&boxFixtureDef);
 #endif
 
+    FontRef inconFont = loadFont("fonts/inconsolata_26.fnt");
+    Glyph aGlyph = inconFont->glyphs['A'];
     return 0;
 }
 
