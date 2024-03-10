@@ -103,6 +103,22 @@ struct GfxObjectRegistry
         objectsToDestroy[gfxGetFrameIndex()].push_back(itr->second);
     }
     
+    static void destroy(Type* obj)
+    {
+        typename ObjectMapType::iterator itr = eastl::find_if(objects.begin(), objects.end(), [&](const eastl::pair<rgHash, Type*>& objectPair)
+        {
+            if(objectPair.second == obj)
+            {
+                return true;
+            }
+            return false;
+        });
+
+        rgAssert(itr != objects.end());
+        
+        objectsToDestroy[gfxGetFrameIndex()].push_back(obj);
+    }
+    
     static typename ObjectMapType::iterator begin() EA_NOEXCEPT
     {
         return objects.begin();

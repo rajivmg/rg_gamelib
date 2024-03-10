@@ -71,5 +71,5 @@ FontRef loadFont(char const* fontFilename)
 
 void unloadFont(Font* font)
 {
-    //GfxTexture::destroy(font->atlasTexture);
+    GfxTexture::destroy(font->atlasTexture);
 }
