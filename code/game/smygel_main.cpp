@@ -26,6 +26,8 @@ struct Smygel : TheApp
                                      colorRTFormat, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
         depthStencil = GfxTexture::create("depthStencil", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height,
                                           depthStencilFormat, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
+        
+        //pushText(&theGameState->tempTextQuads, FontRef, 50, 100, 32.0f, splashIntroText);
     }
     
     void updateAndDraw() override
@@ -35,4 +37,4 @@ struct Smygel : TheApp
     }
 };
 
-//THE_APP_MAIN(Smygel)
+THE_APP_MAIN(Smygel)

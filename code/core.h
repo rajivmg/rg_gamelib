@@ -38,6 +38,9 @@ typedef uint8_t     rgByte;
 
 typedef uint32_t    rgHash;
 
+typedef uint32_t    uint32;
+typedef int32_t     int32;
+
 static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(rgU32) != sizeof(uint32_t)");
 
 void  engineLogfImpl(char const* fmt, ...);

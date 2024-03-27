@@ -20,15 +20,9 @@ struct Font
     unsigned lineHeight;
     unsigned base;
     
-    // Remove this
-    unsigned scaleW;
-    unsigned scaleH;
-    //
-    
-    GfxTexture* atlasTexture;
+    GfxTexture* texture;
     
     unsigned glyphCount;
-    //eastl::vector<Glyph> glyphs;
     eastl::hash_map<unsigned, Glyph> glyphs;
 };
 

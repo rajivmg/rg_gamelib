@@ -32,7 +32,7 @@ FontRef loadFont(char const* fontFilename)
     strncat(page0Filepath, page0Filename, rgArrayCount(page0Filepath) - 7);
     
     ImageRef page0Image = loadImage(page0Filepath);
-    fontRef->atlasTexture = GfxTexture::create(page0Filename, GfxTextureDim_2D, page0Image->width, page0Image->height, page0Image->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, page0Image->slices);
+    fontRef->texture = GfxTexture::create(page0Filename, GfxTextureDim_2D, page0Image->width, page0Image->height, page0Image->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, page0Image->slices);
     
     // Populate glyph db
     pugi::xml_node charsNode = fontNode.child("chars");
@@ -71,5 +71,11 @@ FontRef loadFont(char const* fontFilename)
 
 void unloadFont(Font* font)
 {
-    GfxTexture::destroy(font->atlasTexture);
+    GfxTexture::destroy(font->texture);
+}
+
+
+void pushText(TexturedQuads* quadList, uint32 x, uint32 y, float fontSize)
+{
+    
 }
