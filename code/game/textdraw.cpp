@@ -55,9 +55,11 @@ FontRef loadFont(char const* fontFilename)
         
         Glyph gly = {};
         gly.id = codepoint;
-        gly.xOffset = charNode.attribute("xoffset").as_uint();
-        gly.yOffset = charNode.attribute("yoffset").as_uint();
-        gly.xAdvance = charNode.attribute("xadvance").as_uint();
+        gly.width = w;
+        gly.height = h;
+        gly.xOffset = charNode.attribute("xoffset").as_int();
+        gly.yOffset = charNode.attribute("yoffset").as_int();
+        gly.xAdvance = charNode.attribute("xadvance").as_int();
         gly.uv = uv;
         
         fontRef->glyphs[codepoint] = gly;
@@ -75,7 +77,26 @@ void unloadFont(Font* font)
 }
 
 
-void pushText(TexturedQuads* quadList, uint32 x, uint32 y, float fontSize)
+void pushText(TexturedQuads* quadList, uint32 x, uint32 y, FontRef font, float fontSize, const char* text)
 {
     
+    rgFloat2 cursorPos {(float)x, (float)y};
+    char* t = (char *)text;
+    
+    while(*t != '\0')
+    {
+        if(*t == '\n')
+        {
+            cursorPos.x = x;
+            cursorPos.y = cursorPos.y + font->lineHeight;
+            ++t;
+        }
+        
+        Glyph& g = font->glyphs[*t];
+        
+        pushTexturedQuad(quadList, g.uv, {cursorPos.x + g.xOffset, cursorPos.y + g.yOffset, (float)g.width, (float)g.height}, 0x00FFFFFF, {0, 0, 0, 0}, font->texture);
+        
+        ++t;
+        cursorPos.x = cursorPos.x + g.xAdvance;
+    }
 }

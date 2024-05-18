@@ -1,4 +1,5 @@
 #include "gfx.h"
+#include "textdraw.h"
 
 struct Smygel : TheApp
 {
@@ -6,6 +7,7 @@ struct Smygel : TheApp
     TinyImageFormat depthStencilFormat;
     GfxTexture* colorRT;
     GfxTexture* depthStencil;
+    FontRef testFont;
     
     Smygel()
     : depthStencilFormat(TinyImageFormat_D32_SFLOAT_S8_UINT)
@@ -69,6 +71,7 @@ struct Smygel : TheApp
         
         createPipelineStateObjects();
         //pushText(&theGameState->tempTextQuads, FontRef, 50, 100, 32.0f, splashIntroText);
+        testFont = loadFont("fonts/inconsolata_26.fnt");
     }
     
     void updateAndDraw() override
@@ -78,12 +81,14 @@ struct Smygel : TheApp
         
         TexturedQuads testQuads;
         pushTexturedQuad(&testQuads, defaultQuadUV, {100.0f, 100.0f, 200.f, 200.f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("flower"_rh));
+        
+        pushText(&testQuads, 100, 500, testFont, 1.0f, "Hello from rg_gamelib");
         //
         GfxRenderPass simple2dRenderPass = {};
         simple2dRenderPass.colorAttachments[0].texture = gfxGetBackbufferTexture();
         simple2dRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         simple2dRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        simple2dRenderPass.colorAttachments[0].clearColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+        simple2dRenderPass.colorAttachments[0].clearColor = { 1.0f, 1.0f, 1.0f, 1.0f };
         simple2dRenderPass.depthStencilAttachmentTexture = depthStencil;
         simple2dRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
         simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
@@ -97,4 +102,4 @@ struct Smygel : TheApp
     }
 };
 
-THE_APP_MAIN(Smygel)
+//THE_APP_MAIN(Smygel)

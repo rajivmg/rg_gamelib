@@ -28,6 +28,8 @@ Viewport* g_Viewport;
 
 eastl::vector<GfxTexture*> debugTextureHandles;
 
+FontRef inconFont;
+
 rgInt setup()
 {
     g_GameState = rgNew(GameState);
@@ -250,7 +252,7 @@ rgInt setup()
     boxBody->CreateFixture(&boxFixtureDef);
 #endif
 
-    FontRef inconFont = loadFont("fonts/inconsolata_26.fnt");
+    inconFont = loadFont("fonts/inconsolata_26.fnt");
     Glyph aGlyph = inconFont->glyphs['A'];
     return 0;
 }
@@ -381,6 +383,8 @@ rgInt updateAndDraw(rgDouble dt)
             }
         }
         pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, g_GameState->flowerTexture);
+        
+        pushText(&g_GameState->characterPortraits, 600, 500, inconFont, 1.0f, "Hello from rg_gamelib");
         
         GfxRenderPass simple2dRenderPass = {};
         simple2dRenderPass.colorAttachments[0].texture = g_GameState->baseColor2DRT;
@@ -615,4 +619,4 @@ class Demo3DApp : public TheApp
     }
 };
 
-//THE_APP_MAIN(Demo3DApp)
+THE_APP_MAIN(Demo3DApp)
