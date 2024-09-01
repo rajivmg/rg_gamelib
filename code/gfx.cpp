@@ -123,7 +123,8 @@ rgInt gfxPostInit()
     ImGui::CreateContext();
     ImGuiIO& imguiIO = ImGui::GetIO();
     imguiIO.Fonts->AddFontFromFileTTF("fonts/Noto_Sans/NotoSans-Regular.ttf", 18);
-    styleImGui();
+    // To change the imgui styling
+    //styleImGui();
 
     gfxRendererImGuiInit();
     
