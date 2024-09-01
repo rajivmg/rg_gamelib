@@ -60,7 +60,7 @@ void  engineLogfImpl(char const* fmt, ...);
 
 #define rgAssert(exp) SDL_assert(exp)
 
-#define DEFAULT_NOT_IMPLEMENTED default: rgAssert(!"Not implemented"); break;
+#define INVALID_DEFAULT_CASE default: rgAssert(!"Not implemented"); break;
 
 #define rgMalloc(s) malloc((s))
 #define rgFree(p) free((p))

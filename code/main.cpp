@@ -408,7 +408,7 @@ rgInt updateAndDraw(rgDouble dt)
         sceneForwardPass.colorAttachments[0].texture = g_GameState->baseColorRT;
         sceneForwardPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         sceneForwardPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        sceneForwardPass.colorAttachments[0].clearColor = { 0.5f, 0.5f, 0.5f, 1.0f };
+        sceneForwardPass.colorAttachments[0].clearColor = { 1.0f, 1.0f, 1.0f, 1.0f };
         sceneForwardPass.depthStencilAttachmentTexture = g_GameState->depthStencilRT;
         sceneForwardPass.depthStencilAttachmentLoadAction = GfxLoadAction_Load;
         sceneForwardPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;

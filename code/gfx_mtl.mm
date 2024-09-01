@@ -288,7 +288,7 @@ MTLVertexFormat toMTLVertexFormat(TinyImageFormat fmt)
         case TinyImageFormat_R8G8B8A8_UNORM:
             result = MTLVertexFormatUChar4Normalized;
             break;
-        DEFAULT_NOT_IMPLEMENTED;
+        INVALID_DEFAULT_CASE;
     }
     return result;
 }
@@ -322,7 +322,7 @@ MTLCompareFunction toMTLCompareFunction(GfxCompareFunc func)
     case GfxCompareFunc_GreaterEqual:
         result = MTLCompareFunctionGreaterEqual;
         break;
-    DEFAULT_NOT_IMPLEMENTED;
+    INVALID_DEFAULT_CASE;
     }
     return result;
 }
@@ -1640,7 +1640,7 @@ GfxTexture* gfxGetBackbufferTextureLinear()
 TinyImageFormat gfxGetBackbufferFormat()
 {
     // MTLPixelFormatRGBA8Unorm_sRGB
-    return TinyImageFormat_R8G8B8A8_SRGB;
+    return TinyImageFormat_B8G8R8A8_SRGB;
 }
 
 void gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr)
