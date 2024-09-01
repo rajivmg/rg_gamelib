@@ -9368,7 +9368,7 @@ inline TinyImageFormat TinyImageFormat_FromMTLPixelFormat(TinyImageFormat_MTLPix
 	case TIF_MTLPixelFormatX32_Stencil8: return TinyImageFormat_D32_SFLOAT_S8_UINT;
 	case TIF_MTLPixelFormatX24_Stencil8: return TinyImageFormat_D24_UNORM_S8_UINT;
 
-	case TIF_MTLPixelFormatBGRA8Unorm_sRGB: return TinyImageFormat_UNDEFINED;
+	case TIF_MTLPixelFormatBGRA8Unorm_sRGB: return TinyImageFormat_B8G8R8A8_SRGB;
 	case TIF_MTLPixelFormatBGR10_XR: return TinyImageFormat_UNDEFINED;
 	case TIF_MTLPixelFormatBGR10_XR_sRGB: return TinyImageFormat_UNDEFINED;
 	case TIF_MTLPixelFormatBGRA10_XR: return TinyImageFormat_UNDEFINED;
