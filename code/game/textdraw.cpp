@@ -31,7 +31,7 @@ FontRef loadFont(char const* fontFilename)
     char page0Filepath[1024] = "fonts/";
     strncat(page0Filepath, page0Filename, rgArrayCount(page0Filepath) - 7);
     
-    ImageRef page0Image = loadImage(page0Filepath);
+    ImageRef page0Image = loadImage(page0Filepath, false);
     fontRef->texture = GfxTexture::create(page0Filename, GfxTextureDim_2D, page0Image->width, page0Image->height, page0Image->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, page0Image->slices);
     
     // Populate glyph db
@@ -94,7 +94,7 @@ void pushText(TexturedQuads* quadList, uint32 x, uint32 y, FontRef font, float f
         
         Glyph& g = font->glyphs[*t];
         
-        pushTexturedQuad(quadList, g.uv, {cursorPos.x + g.xOffset, cursorPos.y + g.yOffset, (float)g.width, (float)g.height}, 0x00FFFFFF, {0, 0, 0, 0}, font->texture);
+        pushTexturedQuad(quadList, g.uv, {cursorPos.x + g.xOffset, cursorPos.y + g.yOffset, (float)g.width, (float)g.height}, 0xffffffff, {0, 0, 0, 0}, font->texture);
         
         ++t;
         cursorPos.x = cursorPos.x + g.xAdvance;

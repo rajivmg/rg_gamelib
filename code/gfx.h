@@ -7,6 +7,16 @@
 // will be converter to sRGB. Therefore it expects pixel value to be
 // in linear space.
 
+// Shader ops are assumed to be in linear colorspace. So using a sRGB
+// format means texture fetches will convert the pixels it read from
+// sRGB to linear colorspace.
+
+// Writing from a fragment shader to a render target will perform linear
+// to sRGB colorspace conversion and handle the blending. But writing to
+// a sRGB texture UAV will not perform the linear to sRGB conversion, but
+// it can be done manully in shader. See:
+// https://wickedengine.net/2022/11/graphics-api-secrets-format-casting/
+
 // Follows left-handed coordinate system
 // Clip coordinates are left-handed
 // Cubemaps are left-handed
