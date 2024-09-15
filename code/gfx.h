@@ -43,6 +43,7 @@
 #include <EASTL/string.h>
 #include <EASTL/vector.h>
 #include <EASTL/fixed_vector.h>
+#include <EASTL/vector_multimap.h>
 
 #define RG_MAX_FRAMES_IN_FLIGHT 3
 #define RG_MAX_BINDLESS_TEXTURE_RESOURCES 100000
@@ -60,8 +61,10 @@ struct  GfxTexture;
 struct  GfxFrameResource;
 class   GfxFrameAllocator;
 struct  TexturedQuad;
+enum    SpriteLayer : rgU8;
 
-typedef eastl::vector<TexturedQuad> TexturedQuads;
+// PERF: check performance with normal multimap
+typedef eastl::vector_multimap<SpriteLayer, TexturedQuad> TexturedQuads;
 
 rgInt   gfxGetFrameIndex();
 void    gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr);
@@ -1064,6 +1067,20 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRe
 // Textured Quad
 // -------------
 
+enum SpriteLayer : rgU8
+{
+    SpriteLayer_0,
+    SpriteLayer_1,
+    SpriteLayer_2,
+    SpriteLayer_3,
+    SpriteLayer_4,
+    SpriteLayer_5,
+    SpriteLayer_6,
+    SpriteLayer_7,
+    SpriteLayer_8,
+    SpriteLayer_9,
+};
+
 struct TexturedQuad
 {
     QuadUV uv;
@@ -1074,7 +1091,7 @@ struct TexturedQuad
     rgFloat2 size;
 };
 
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgU32 color, rgFloat4 offsetOrientation, GfxTexture* tex);
+void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat4 posSize, rgU32 color, rgFloat4 offsetOrientation, GfxTexture* tex);
 
 struct SimpleVertexFormat
 {

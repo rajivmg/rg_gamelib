@@ -94,7 +94,7 @@ void pushText(TexturedQuads* quadList, uint32 x, uint32 y, FontRef font, float f
         
         Glyph& g = font->glyphs[*t];
         
-        pushTexturedQuad(quadList, g.uv, {cursorPos.x + g.xOffset, cursorPos.y + g.yOffset, (float)g.width, (float)g.height}, 0xffffffff, {0, 0, 0, 0}, font->texture);
+        pushTexturedQuad(quadList, SpriteLayer_0, g.uv, {cursorPos.x + g.xOffset, cursorPos.y + g.yOffset, (float)g.width, (float)g.height}, 0xffffffff, {0, 0, 0, 0}, font->texture);
         
         ++t;
         cursorPos.x = cursorPos.x + g.xAdvance;

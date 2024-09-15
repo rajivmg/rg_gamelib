@@ -80,7 +80,9 @@ struct Smygel : TheApp
         ImGui::End();
         
         TexturedQuads testQuads;
-        pushTexturedQuad(&testQuads, defaultQuadUV, {100.0f, 75.0f, 200.f, 200.f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("flower"_rh));
+        pushTexturedQuad(&testQuads, SpriteLayer_1, defaultQuadUV, {100.0f, 75.0f, 200.f, 200.f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("flower"_rh));
+        pushTexturedQuad(&testQuads, SpriteLayer_0, defaultQuadUV, {110.0f, 85.0f, 200.f, 200.f}, 0xFF0000FF, {0, 0, 0, 0}, GfxTexture::find("flower"_rh));
+        pushTexturedQuad(&testQuads, SpriteLayer_0, defaultQuadUV, {120.0f, 95.0f, 200.f, 200.f}, 0x00FF00FF, {0, 0, 0, 0}, GfxTexture::find("flower"_rh));
         
         char const* splashIntroText = "It is not our part to master all the tides of the world,\nbut to do what is in us for the succour of those years wherein we are set,\nuprooting the evil in the fields that we know,\nso that those who live after may have clean earth to till.\nWhat weather they shall have is not ours to rule.";
         

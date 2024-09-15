@@ -459,15 +459,16 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRe
     return createQuadUV(xPx, yPx, widthPx, heightPx, image->width, image->height);
 }
 
-void pushTexturedQuad(TexturedQuads* quadList, QuadUV uv, rgFloat4 posSize, rgU32 color, rgFloat4 offsetOrientation, GfxTexture* tex)
+void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat4 posSize, rgU32 color, rgFloat4 offsetOrientation, GfxTexture* tex)
 {
-    TexturedQuad& q = quadList->push_back();
+    TexturedQuad q;
     q.uv = uv;
     q.pos = { posSize.x, posSize.y, 1.0f };
     q.color = color;
     q.size = posSize.zw;
     q.offsetOrientation = offsetOrientation;
     q.texID = g_BindlessTextureManager->getBindlessIndex(tex);
+    quadList->insert(eastl::pair<SpriteLayer, TexturedQuad>(layer, q));
 }
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams)
@@ -479,11 +480,11 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         colorArr[2] = (unsigned char)(c >> 8 & 0x000000FF);
         colorArr[3] = (unsigned char)(c >> 0 & 0x000000FF);
     };
-    
-    rgUInt listSize = (rgUInt)quadList->size();
-    for(rgUInt i = 0; i < listSize; ++i)
+
+    rgU32 i = 0;
+    for(TexturedQuads::const_iterator iter = quadList->begin(); iter != quadList->end(); ++iter)
     {
-        TexturedQuad& t = (*quadList)[i];
+        TexturedQuad const& t = iter->second;
         
         SimpleVertexFormat v[4];
         // 0 - 1
@@ -523,8 +524,9 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         vertices->push_back(v[1]);
         vertices->push_back(v[3]);
         vertices->push_back(v[2]);
-        
-        instanceParams->texParam[i][0] = t.texID;
+
+        rgAssert(i < 1024); // simple2d.hlsl MAX_INSTANCES
+        instanceParams->texParam[i++][0] = t.texID;
     }
 }
 

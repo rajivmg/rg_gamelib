@@ -371,7 +371,7 @@ rgInt updateAndDraw(rgDouble dt)
     
     // RENDER SIMPLE 2D STUFF
     {
-        g_GameState->characterPortraits.resize(0);
+        g_GameState->characterPortraits.erase(g_GameState->characterPortraits.begin(), g_GameState->characterPortraits.end());
         for(rgInt i = 0; i < 4; ++i)
         {
             for(rgInt j = 0; j < 4; ++j)
@@ -379,10 +379,10 @@ rgInt updateAndDraw(rgDouble dt)
                 rgFloat px = (rgFloat)(j * (100) + 10 * (j + 1) + sin(theAppInput->time) * 30);
                 rgFloat py = (rgFloat)(i * (100) + 10 * (i + 1) + cos(theAppInput->time) * 30);
                 
-                pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {px, py, 100.0f, 100.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, debugTextureHandles[j + i * 4]);
+                pushTexturedQuad(&g_GameState->characterPortraits, SpriteLayer_0, defaultQuadUV, {px, py, 100.0f, 100.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, debugTextureHandles[j + i * 4]);
             }
         }
-        pushTexturedQuad(&g_GameState->characterPortraits, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, g_GameState->flowerTexture);
+        pushTexturedQuad(&g_GameState->characterPortraits, SpriteLayer_0, defaultQuadUV, {200.0f, 300.0f, 447.0f, 400.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, g_GameState->flowerTexture);
         
         pushText(&g_GameState->characterPortraits, 600, 500, inconFont, 1.0f, "Hello from rg_gamelib");
         
