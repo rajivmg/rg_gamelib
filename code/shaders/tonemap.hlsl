@@ -43,10 +43,6 @@ void csGenerateHistogram(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_Gr
     
     if(id.x < inputImageWidth && id.y < inputImageHeight)
     {
-#if 0
-        float2 const uv = (id.xy + 0.5) * float2(1 / inputImageWidth, 1 / inputImageHeight);
-        //float3 hdrColor = inputImage.SampleLevel(
-#else
         float3 hdrColor = inputImage.Load(int3(id.xy, 0)).rgb;
         float luminance = computeLuminance(hdrColor);
         
@@ -56,7 +52,7 @@ void csGenerateHistogram(uint3 id : SV_DispatchThreadID, uint groupIndex : SV_Gr
             float logLuminance = saturate((log2(luminance) - minLogLuminance) * oneOverLogLuminanceRange);
             binIndex = (uint)(logLuminance * (LUMINANCE_HISTOGRAM_BINS_COUNT - 2) + 1);
         }
-#endif
+
         InterlockedAdd(histogramBins[binIndex], 1);
     }
     
@@ -98,6 +94,7 @@ void csComputeAvgLuminance(uint groupIndex : SV_GroupIndex)
         outputBuffer.Store<float>(LUMINANCE_BUFFER_OFFSET_EXPOSURE, exposureKey / max(adaptedLuminance, 0.0001));
     }
     
+    // Enable to clear at the end and remove the need of csClearOutputLuminanceHistogram
     //outputBuffer.Store(LUMINANCE_BUFFER_OFFSET_HISTOGRAM + groupIndex * 4, 0);
 }
 
@@ -130,42 +127,10 @@ float3 ACESFilm(float3 x)
 [numthreads(LUMINANCE_BLOCK_SIZE, LUMINANCE_BLOCK_SIZE, 1)]
 void csReinhard(uint3 id : SV_DispatchThreadID)
 {
-#if 1
     float exposure = outputBuffer.Load<float>(LUMINANCE_BUFFER_OFFSET_EXPOSURE);
     float3 exposedColor = inputImage[id.xy].rgb * exposure;
     float3 tonemappedColor = ACESFilm(exposedColor);
     float3 fc = pow(tonemappedColor, float(1.0 / 2.2));
     outputImage[id.xy] = float4(fc, 1.0);
     return;
-#endif
-    
-    float avgLum = outputBuffer.Load<float>(LUMINANCE_BUFFER_OFFSET_LUMINANCE);
-    
-    float3 hdrColor = inputImage[id.xy].rgb;
-    
-    float exposureBias = 1.0;
-    float3 curr = uncharted2Tonemap(exposureBias * hdrColor);
-    
-    float W = avgLum / 2;
-    float3 whiteScale = 1.0 / uncharted2Tonemap(W);
-    float3 color = curr * whiteScale;
-    
-    float3 finalColor = color;
-    
-    outputImage[id.xy] = float4(finalColor, 1.0);
-    
-    /*
-    float avgLum = outputBuffer.Load(HISTOGRAM_BIN_COUNT);
-    
-    float4 colorHdr = inputImage[id.xy];
-    float3 colorYxy = convertRGB2Yxy(colorHdr.rgb);
-    
-    float ld = colorYxy.x / (9.6 * avgLum);
-    
-    colorYxy.x = reinhard(ld);
-    
-    float3 tonemappedColor = convertYxy2RGB(colorYxy);
-    	
-    outputImage[id.xy] = float4(tonemappedColor.rgb, 1.0);
-     */
 }
