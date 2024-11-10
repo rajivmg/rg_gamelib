@@ -298,7 +298,7 @@ static bool processGLTFMesh(char const *pFilename, char const *pMeshName, Asset:
 }
 
 */
-void convert(std::string input, std::string output)
+void convert(std::string input, std::string output, bool transformVertex)
 {
 	cgltf_data* gltf;
 	cgltf_result result = loadAndParseGLTF(input.c_str(), &gltf);
@@ -379,19 +379,27 @@ void convert(std::string input, std::string output)
 		cgltf_mesh* mesh = meshNodes[meshIdx]->mesh;
 		assert(mesh->primitives_count == 1); // for now we only support 1 primitive per mesh
 
-		Matrix4 positonTransformMatrix;
+		Matrix4 positionTransformMatrix;
 		Matrix4 normalTangentTransformMatrix;
 		{
 			cgltf_node_transform_world(meshNodes[meshIdx], gfxMesh.transform);
-			positonTransformMatrix.setCol0(Vector4(gfxMesh.transform[0], gfxMesh.transform[1], gfxMesh.transform[2], gfxMesh.transform[3]));
-			positonTransformMatrix.setCol1(Vector4(gfxMesh.transform[4], gfxMesh.transform[5], gfxMesh.transform[6], gfxMesh.transform[7]));
-			positonTransformMatrix.setCol2(Vector4(gfxMesh.transform[8], gfxMesh.transform[9], gfxMesh.transform[10], gfxMesh.transform[11]));
-			positonTransformMatrix.setCol3(Vector4(gfxMesh.transform[12], gfxMesh.transform[13], gfxMesh.transform[14], gfxMesh.transform[15]));
+            
+            if(transformVertex)
+            {
+                positionTransformMatrix.setCol0(Vector4(gfxMesh.transform[0], gfxMesh.transform[1], gfxMesh.transform[2], gfxMesh.transform[3]));
+                positionTransformMatrix.setCol1(Vector4(gfxMesh.transform[4], gfxMesh.transform[5], gfxMesh.transform[6], gfxMesh.transform[7]));
+                positionTransformMatrix.setCol2(Vector4(gfxMesh.transform[8], gfxMesh.transform[9], gfxMesh.transform[10], gfxMesh.transform[11]));
+                positionTransformMatrix.setCol3(Vector4(gfxMesh.transform[12], gfxMesh.transform[13], gfxMesh.transform[14], gfxMesh.transform[15]));
+            }
+            else
+            {
+                positionTransformMatrix = Matrix4::identity();
+            }
             
             // convert right-handed coordinates to left-handed coordinate system
-            positonTransformMatrix = Matrix4::scale(Vector3(1.0f, 1.0f, -1.0f)) * positonTransformMatrix;
+            positionTransformMatrix = Matrix4::scale(Vector3(1.0f, 1.0f, -1.0f)) * positionTransformMatrix;
             
-			normalTangentTransformMatrix = transpose(inverse(positonTransformMatrix));
+			normalTangentTransformMatrix = transpose(inverse(positionTransformMatrix));
 		}
 
 		cgltf_primitive* primitive = mesh->primitives;
@@ -431,13 +439,11 @@ void convert(std::string input, std::string output)
 				cgltf_buffer_view* bufView = positionAttrib->data->buffer_view;
 				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + positionAttrib->data->offset + (x * (positionAttrib->data->stride + bufView->stride));
 				float* dataFloat = (float*)buf;
-				//vertexData.push_back(dataFloat[0]);
-				//vertexData.push_back(dataFloat[1]);
-				//vertexData.push_back(dataFloat[2]);
-				Vector4 transformedPos = positonTransformMatrix * Vector4(dataFloat[0], dataFloat[1], dataFloat[2], 1.0f);
-				vertexData.push_back(transformedPos.getX());
-				vertexData.push_back(transformedPos.getY());
-				vertexData.push_back(transformedPos.getZ());
+                
+                Vector4 transformedPos = positionTransformMatrix * Vector4(dataFloat[0], dataFloat[1], dataFloat[2], 1.0f);
+                vertexData.push_back(transformedPos.getX());
+                vertexData.push_back(transformedPos.getY());
+                vertexData.push_back(transformedPos.getZ());
 			}
 
 			if(texCoordAttrib)
@@ -454,13 +460,11 @@ void convert(std::string input, std::string output)
 				cgltf_buffer_view* bufView = normalAttrib->data->buffer_view;
 				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + normalAttrib->data->offset + (x * (normalAttrib->data->stride + bufView->stride));
 				float* dataFloat = (float*)buf;
-				//vertexData.push_back(dataFloat[0]);
-				//vertexData.push_back(dataFloat[1]);
-				//vertexData.push_back(dataFloat[2]);
-				Vector4 transformedNormal = normalTangentTransformMatrix * Vector4(dataFloat[0], dataFloat[1], dataFloat[2], 0);
-				vertexData.push_back(transformedNormal.getX());
-				vertexData.push_back(transformedNormal.getY());
-				vertexData.push_back(transformedNormal.getZ());
+                
+                Vector4 transformedNormal = normalTangentTransformMatrix * Vector4(dataFloat[0], dataFloat[1], dataFloat[2], 0);
+                vertexData.push_back(transformedNormal.getX());
+                vertexData.push_back(transformedNormal.getY());
+                vertexData.push_back(transformedNormal.getZ());
 			}
 
 			if(tangentAttrib)
@@ -468,10 +472,12 @@ void convert(std::string input, std::string output)
 				cgltf_buffer_view* bufView = tangentAttrib->data->buffer_view;
 				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + tangentAttrib->data->offset + (x * (tangentAttrib->data->stride + bufView->stride));
 				float* dataFloat = (float*)buf;
-				vertexData.push_back(dataFloat[0]);
-				vertexData.push_back(dataFloat[1]);
-				vertexData.push_back(dataFloat[2]);
-				vertexData.push_back(dataFloat[3]);
+                
+                // TODO: Implement vertex transform
+                vertexData.push_back(dataFloat[0]);
+                vertexData.push_back(dataFloat[1]);
+                vertexData.push_back(dataFloat[2]);
+                vertexData.push_back(dataFloat[3]);
 			}
 		}
 
@@ -487,8 +493,6 @@ void convert(std::string input, std::string output)
 				uint16_t* dataU16 = (uint16_t*)((uint8_t*)indicesBufView->buffer->data + indicesBufView->offset + primitive->indices->offset + (d * primitive->indices->stride));
 				index16Data.push_back(*dataU16);
 			}
-
-			//gfxMesh.has32BitIndices = false;
 		}
 		else if(primitive->indices->component_type == cgltf_component_type_r_32u)
 		{
@@ -498,8 +502,6 @@ void convert(std::string input, std::string output)
 				uint32_t* dataU32 = (uint32_t*)((uint8_t*)indicesBufView->buffer->data + indicesBufView->offset + primitive->indices->offset + (d * primitive->indices->stride));
 				index32Data.push_back(*dataU32);
 			}
-			
-			//gfxMesh.has32BitIndices = true;
 		}
 	}
 
@@ -559,16 +561,22 @@ int main(int argc, char **argv)
 		std::cerr << "Wrong number of arguments, just give me the the name of input and output file. Example: cow.gltf cow" << std::endl;
 		return EXIT_FAILURE;
 	}
+    
+    bool transformVertices = false;
+    if(argc > 3)
+    {
+        int i = 3;
+        while(i < argc)
+        {
+            if(strcmp(argv[i], "--transformvertices"))
+            {
+                transformVertices = true;
+            }
+            ++i;
+        }
+    }
 
-	try
-	{
-		convert(std::string(argv[1]), std::string(argv[2]));
-	}
-	catch(const std::exception &e)
-	{
-		std::cerr << e.what() << std::endl;
-		return EXIT_FAILURE;
-	}
-	
-	return EXIT_SUCCESS;
+    convert(std::string(argv[1]), std::string(argv[2]), transformVertices);
+
+    return EXIT_SUCCESS;
 }
