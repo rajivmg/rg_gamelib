@@ -32,9 +32,6 @@ ComPtr<ID3D12Fence> frameFence;
 UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 HANDLE frameFenceEvent;
 
-ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
-rgUInt rtvDescriptorSize;
-
 ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
 rgUInt dsvDescriptorSize;
 
@@ -45,7 +42,8 @@ rgU32  descriptorRangeOffsetBindlessTexture2D;
 ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
 ComPtr<ID3D12GraphicsCommandList> currentCommandList;
 
-GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
+// Pair of GfxTexture* and descriptor offset in stagedRtvDescriptorAllocator
+eastl::pair<GfxTexture*, rgU32> swapchainTextureDescriptor[RG_MAX_FRAMES_IN_FLIGHT];
 GfxTexture* depthStencilTexture;
 
 struct ResourceCopyTask
@@ -410,6 +408,7 @@ DescriptorAllocator* samplerDescriptorAllocator;
 
 DescriptorAllocator* stagedCbvSrvUavDescriptorAllocator;
 DescriptorAllocator* stagedSamplerDescriptorAllocator;
+DescriptorAllocator* stagedRtvDescriptorAllocator;
 
 //*****************************************************************************
 // GfxBuffer Implementation
@@ -1421,11 +1420,8 @@ void GfxFrameAllocator::destroy()
 
 void GfxFrameAllocator::releaseResources()
 {
-    rgInt l = (rgInt)d3dResources.size();
-    for(rgInt i = 0; i < l; ++i)
-    {
-        d3dResources[i]->Release();
-    }
+    // NOTE: clear() will call the ComPtr destructors which will release the resouce.
+    //          i.e. no need to call ->Release() on each d3dResources manually.
     d3dResources.clear();
 }
 
@@ -1615,17 +1611,15 @@ rgInt gfxInit()
     BreakIfFail(dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
     BreakIfFail(dxgiSwapchain1.As(&dxgiSwapchain));
 
-    // create swapchain RTV
-    rtvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, MAX_RTV_DESCRIPTOR, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    rtvDescriptorSize = getDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    // create swapchain RTV and descriptors
+    stagedRtvDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 0, 128);
 
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         ComPtr<ID3D12Resource> texResource;
         BreakIfFail(dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
-        getDevice()->CreateRenderTargetView(texResource.Get(), nullptr, rtvDescriptorHandle);
-        rtvDescriptorHandle.Offset(1, rtvDescriptorSize);
+        rgU32 stagedRtvDescriptorIndex = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
+        getDevice()->CreateRenderTargetView(texResource.Get(), nullptr, stagedRtvDescriptorAllocator->getCpuHandle(stagedRtvDescriptorIndex));
 
         D3D12_RESOURCE_DESC desc = texResource->GetDesc();
         GfxTexture* texRT = rgNew(GfxTexture);
@@ -1636,7 +1630,7 @@ rgInt gfxInit()
         texRT->usage = GfxTextureUsage_RenderTarget;
         texRT->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
         texRT->d3dTexture = texResource;
-        swapchainTextures[i] = texRT;
+        swapchainTextureDescriptor[i] = eastl::make_pair(texRT, stagedRtvDescriptorIndex);
     }
 
     dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
@@ -1698,10 +1692,10 @@ rgInt draw()
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
     currentCommandList->RSSetScissorRects(1, &scissorRect);
 
-    GfxTexture* currentRenderTarget = swapchainTextures[g_FrameIndex];
+    GfxTexture* currentRenderTarget = swapchainTextureDescriptor[g_FrameIndex].first;// swapchainTextures[g_FrameIndex];
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), g_FrameIndex, rtvDescriptorSize);
+    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = stagedRtvDescriptorAllocator->getCpuHandle(swapchainTextureDescriptor[g_FrameIndex].second);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     currentCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
     currentCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
@@ -1751,6 +1745,7 @@ void gfxStartNextFrame()
     samplerDescriptorAllocator->beginFrame();
     stagedCbvSrvUavDescriptorAllocator->beginFrame();
     stagedSamplerDescriptorAllocator->beginFrame();
+    stagedRtvDescriptorAllocator->beginFrame();
 
     ID3D12DescriptorHeap* descHeaps[] = { cbvSrvUavDescriptorAllocator->getHeap(), samplerDescriptorAllocator->getHeap() };
     currentCommandList->SetDescriptorHeaps(rgArrayCount(descHeaps), descHeaps);
@@ -1760,7 +1755,7 @@ void gfxStartNextFrame()
 
 void gfxEndFrame()
 {
-    GfxTexture* currentRenderTarget = swapchainTextures[g_FrameIndex];
+    GfxTexture* currentRenderTarget = swapchainTextureDescriptor[g_FrameIndex].first;
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     BreakIfFail(currentCommandList->Close());
@@ -1821,9 +1816,14 @@ void gfxRendererImGuiRenderDrawData()
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), currentCommandList.Get());
 }
 
-GfxTexture* gfxGetCurrentRenderTargetColorBuffer()
+TinyImageFormat gfxGetBackbufferFormat()
 {
-    return swapchainTextures[g_FrameIndex];
+    return TinyImageFormat_B8G8R8A8_UNORM;
+}
+
+GfxTexture* gfxGetBackbufferTexture()
+{
+    return swapchainTextureDescriptor[g_FrameIndex].first;
 }
 
 #undef BreakIfFail
