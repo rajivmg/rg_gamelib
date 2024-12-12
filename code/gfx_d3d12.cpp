@@ -32,9 +32,6 @@ ComPtr<ID3D12Fence> frameFence;
 UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 HANDLE frameFenceEvent;
 
-ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap;
-rgUInt dsvDescriptorSize;
-
 rgU32  pipelineCbvSrvUavDescriptorRangeOffset;
 rgU32  pipelineSamplerDescriptorRangeOffset;
 rgU32  descriptorRangeOffsetBindlessTexture2D;
@@ -44,7 +41,9 @@ ComPtr<ID3D12GraphicsCommandList> currentCommandList;
 
 // Pair of GfxTexture* and descriptor offset in stagedRtvDescriptorAllocator
 eastl::pair<GfxTexture*, rgU32> swapchainTextureDescriptor[RG_MAX_FRAMES_IN_FLIGHT];
-GfxTexture* depthStencilTexture;
+
+// Pair of GfxTexture* and descriptor offset in stagedDsvDescriptorAllocator
+eastl::pair<GfxTexture*, rgU32> depthStencilTextureDescriptor;
 
 struct ResourceCopyTask
 {
@@ -409,6 +408,7 @@ DescriptorAllocator* samplerDescriptorAllocator;
 DescriptorAllocator* stagedCbvSrvUavDescriptorAllocator;
 DescriptorAllocator* stagedSamplerDescriptorAllocator;
 DescriptorAllocator* stagedRtvDescriptorAllocator;
+DescriptorAllocator* stagedDsvDescriptorAllocator;
 
 //*****************************************************************************
 // GfxBuffer Implementation
@@ -1622,6 +1622,8 @@ rgInt gfxInit()
         getDevice()->CreateRenderTargetView(texResource.Get(), nullptr, stagedRtvDescriptorAllocator->getCpuHandle(stagedRtvDescriptorIndex));
 
         D3D12_RESOURCE_DESC desc = texResource->GetDesc();
+
+        // NOTE: we don't create this through GfxTexture::create() because the underlying texture resource is already created
         GfxTexture* texRT = rgNew(GfxTexture);
         strncpy(texRT->tag, "RenderTarget", 32);
         texRT->dim = GfxTextureDim_2D;
@@ -1633,15 +1635,17 @@ rgInt gfxInit()
         swapchainTextureDescriptor[i] = eastl::make_pair(texRT, stagedRtvDescriptorIndex);
     }
 
-    dsvDescriptorHeap = createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 32, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
-    depthStencilTexture = GfxTexture::create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
+    stagedDsvDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 0, 32);
+    GfxTexture* depthStencilTexture = GfxTexture::create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
 
+    rgU32 stagedDsvDescriptorIndex = stagedDsvDescriptorAllocator->allocatePersistentDescriptor();
     D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
     dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsDesc.Texture2D.MipSlice = 0;
     dsDesc.Flags = D3D12_DSV_FLAG_NONE;
-    getDevice()->CreateDepthStencilView(depthStencilTexture->d3dTexture.Get(), &dsDesc, dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    getDevice()->CreateDepthStencilView(depthStencilTexture->d3dTexture.Get(), &dsDesc, stagedDsvDescriptorAllocator->getCpuHandle(stagedDsvDescriptorIndex));
+    depthStencilTextureDescriptor = eastl::make_pair(depthStencilTexture, stagedDsvDescriptorIndex);
 
     // create descriptor heaps
     cbvSrvUavDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 30000, RG_MAX_BINDLESS_TEXTURE_RESOURCES + 100);
@@ -1692,11 +1696,11 @@ rgInt draw()
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
     currentCommandList->RSSetScissorRects(1, &scissorRect);
 
-    GfxTexture* currentRenderTarget = swapchainTextureDescriptor[g_FrameIndex].first;// swapchainTextures[g_FrameIndex];
+    GfxTexture* currentRenderTarget = swapchainTextureDescriptor[g_FrameIndex].first;
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = stagedRtvDescriptorAllocator->getCpuHandle(swapchainTextureDescriptor[g_FrameIndex].second);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = stagedDsvDescriptorAllocator->getCpuHandle(depthStencilTextureDescriptor.second);
     currentCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
     currentCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
 
