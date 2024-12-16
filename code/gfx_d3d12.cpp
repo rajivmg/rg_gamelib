@@ -1276,6 +1276,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
 //-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount)
 {
+    currentCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     currentCommandList->DrawInstanced(vertexCount, instanceCount, vertexStart, 0);
 }
 
@@ -1619,7 +1620,8 @@ rgInt gfxInit()
         ComPtr<ID3D12Resource> texResource;
         BreakIfFail(dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
         rgU32 stagedRtvDescriptorIndex = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
-        getDevice()->CreateRenderTargetView(texResource.Get(), nullptr, stagedRtvDescriptorAllocator->getCpuHandle(stagedRtvDescriptorIndex));
+        D3D12_CPU_DESCRIPTOR_HANDLE descHandle = stagedRtvDescriptorAllocator->getCpuHandle(stagedRtvDescriptorIndex);
+        getDevice()->CreateRenderTargetView(texResource.Get(), nullptr, descHandle);
 
         D3D12_RESOURCE_DESC desc = texResource->GetDesc();
 
@@ -1632,6 +1634,7 @@ rgInt gfxInit()
         texRT->usage = GfxTextureUsage_RenderTarget;
         texRT->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
         texRT->d3dTexture = texResource;
+        texRT->d3dTextureView = descHandle;
         swapchainTextureDescriptor[i] = eastl::make_pair(texRT, stagedRtvDescriptorIndex);
     }
 
