@@ -42,9 +42,6 @@ ComPtr<ID3D12GraphicsCommandList> currentCommandList;
 // Pair of GfxTexture* and descriptor offset in stagedRtvDescriptorAllocator
 eastl::pair<GfxTexture*, rgU32> swapchainTextureDescriptor[RG_MAX_FRAMES_IN_FLIGHT];
 
-// Pair of GfxTexture* and descriptor offset in stagedDsvDescriptorAllocator
-eastl::pair<GfxTexture*, rgU32> depthStencilTextureDescriptor;
-
 struct ResourceCopyTask
 {
     enum ResourceType
@@ -214,6 +211,25 @@ static ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(ComPtr<ID3D12
     BreakIfFail(getDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), pipelineState, IID_PPV_ARGS(&commandList)));
     BreakIfFail(commandList->Close());
     return commandList;
+}
+
+static GfxD3DView makeD3DView(D3D12_CPU_DESCRIPTOR_HANDLE desc, rgU32 descIndex)
+{
+    return { desc, descIndex, true };
+}
+
+static void clearD3DViewsArray(GfxD3DView views[GfxD3DViewType_COUNT] /*--  equivalent to GfxD3DView *views  --*/)
+{
+    for (rgInt i = 0; i < GfxD3DViewType_COUNT; ++i)
+    {
+        views[i].isValid = false;
+    }
+}
+
+static GfxD3DView getD3DView(GfxTexture* obj, GfxD3DViewType type)
+{
+    rgAssert(obj->d3dViews[type].isValid == true);
+    return obj->d3dViews[type];
 }
 
 static void setDebugName(ComPtr<ID3D12Object> d3dObject, char const* name)
@@ -418,6 +434,8 @@ void GfxBuffer::createGfxObject(char const* tag, GfxMemoryType memoryType, void*
 {
     rgAssert(size > 0);
 
+    clearD3DViewsArray(obj->d3dViews);
+
     ComPtr<ID3D12Resource> bufferResource;
 
     D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
@@ -608,7 +626,7 @@ void GfxSamplerState::destroyGfxObject(GfxSamplerState* obj)
 // GfxTexture Implementation
 //*****************************************************************************
 
-ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices)
+static ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices)
 {
     DXGI_FORMAT textureFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
     rgUInt mipmapLevelCount = GfxTexture::calcMipmapCount(mipFlag, width, height);
@@ -673,16 +691,16 @@ ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim,
         rgAssert(!"Unsupported texture dim");
     }
 
-    ComPtr<ID3D12Resource> texRes;
+    ComPtr<ID3D12Resource> textureResource;
     BreakIfFail(getDevice()->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
         D3D12_HEAP_FLAG_NONE,
         &resourceDesc,
         initialState,
         clearValue,
-        IID_PPV_ARGS(&texRes)));
+        IID_PPV_ARGS(&textureResource)));
 
-    setDebugName(texRes, tag);
+    setDebugName(textureResource, tag);
 
     if(slices != nullptr)
     {
@@ -702,12 +720,12 @@ ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim,
             subResourceData[s].SlicePitch = slices[s].slicePitch;
         }
 
-        resourceUploader->Upload(texRes.Get(), 0, subResourceData, sliceCount);
+        resourceUploader->Upload(textureResource.Get(), 0, subResourceData, sliceCount);
 
         if(mipFlag == GfxTextureMipFlag_GenMips)
         {
-            resourceUploader->Transition(texRes.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-            resourceUploader->GenerateMips(texRes.Get());
+            resourceUploader->Transition(textureResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            resourceUploader->GenerateMips(textureResource.Get());
         }
 
         if(isUAV)
@@ -717,16 +735,71 @@ ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim,
         }
     }
 
-    return texRes;
+    return textureResource;
+}
+
+static GfxD3DView createRenderTargetView(ComPtr<ID3D12Resource> resource, TinyImageFormat format)
+{
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.Format = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice = 0;
+
+    rgU32 descriptorIndex = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
+    D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = stagedRtvDescriptorAllocator->getCpuHandle(descriptorIndex);
+    getDevice()->CreateRenderTargetView(resource.Get(), &rtvDesc, descriptorHandle);
+
+    return makeD3DView(descriptorHandle, descriptorIndex);
+}
+
+static GfxD3DView createDepthStencilView(ComPtr<ID3D12Resource> resource, TinyImageFormat format)
+{
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.Format = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
+    dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+    dsvDesc.Texture2D.MipSlice = 0;
+    dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+    
+    rgU32 descriptorIndex = stagedDsvDescriptorAllocator->allocatePersistentDescriptor();
+    D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = stagedDsvDescriptorAllocator->getCpuHandle(descriptorIndex);
+    
+    getDevice()->CreateDepthStencilView(resource.Get(), &dsvDesc, descriptorHandle);
+    
+    return makeD3DView(descriptorHandle, descriptorIndex);
 }
 
 void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
-    obj->d3dTexture = createTextureResource(tag, dim, width, height, format, mipFlag, usage, slices);
+    clearD3DViewsArray(obj->d3dViews);
+    
+    obj->d3dResource = createTextureResource(tag, dim, width, height, format, mipFlag, usage, slices);
+
+    if (usage & GfxTextureUsage_RenderTarget)
+    {
+        rgAssert(dim == GfxTextureDim_2D);
+        obj->d3dViews[GfxD3DViewType_RTV] = createRenderTargetView(obj->d3dResource, format);
+    }
+
+    if (usage & GfxTextureUsage_DepthStencil)
+    {
+        rgAssert(dim == GfxTextureDim_2D);
+        obj->d3dViews[GfxD3DViewType_DSV] = createDepthStencilView(obj->d3dResource, format);
+    }
 }
 
 void GfxTexture::destroyGfxObject(GfxTexture* obj)
 {
+    if (obj->usage & GfxTextureUsage_RenderTarget)
+    {
+        rgAssert(obj->d3dViews[GfxD3DViewType_RTV].isValid == true);
+        stagedRtvDescriptorAllocator->releasePersistentDescriptor(obj->d3dViews[GfxD3DViewType_RTV].descriptorIndex);
+    }
+
+    if(obj->usage & GfxTextureUsage_DepthStencil)
+    {
+        rgAssert(obj->d3dViews[GfxD3DViewType_DSV].isValid == true);
+        stagedDsvDescriptorAllocator->releasePersistentDescriptor(obj->d3dViews[GfxD3DViewType_DSV].descriptorIndex);
+    }
 }
 
 
@@ -1092,6 +1165,40 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 
     // TODO REF: https://github.com/gpuweb/gpuweb/issues/23
     //d3dGraphicsCommandlist->OMSetRenderTargets()
+
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv[RG_MAX_COLOR_ATTACHMENTS] = {};
+    UINT rtvCount = 0;
+    D3D12_CPU_DESCRIPTOR_HANDLE dsv = {};
+
+    for (rgInt c = 0; c < RG_MAX_COLOR_ATTACHMENTS; ++c)
+    {
+        if (renderPass->colorAttachments[c].texture == NULL)
+        {
+            continue;
+        }
+
+        GfxD3DView view = getD3DView(renderPass->colorAttachments[c].texture, GfxD3DViewType_RTV);
+
+        if (renderPass->colorAttachments[c].loadAction == GfxLoadAction_Clear)
+        {
+            currentCommandList->ClearRenderTargetView(view.descriptor, renderPass->colorAttachments[c].clearColor.v, 0, NULL);
+        }
+
+        rtv[rtvCount++] = view.descriptor;
+    }
+
+    if (renderPass->depthStencilAttachmentTexture != NULL)
+    {
+        GfxD3DView view = getD3DView(renderPass->depthStencilAttachmentTexture, GfxD3DViewType_DSV);
+        dsv = view.descriptor;
+
+        if (renderPass->depthStencilAttachmentLoadAction == GfxLoadAction_Clear)
+        {
+            currentCommandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, renderPass->clearDepth, renderPass->clearStencil, 0, NULL);
+        }
+    }
+
+    currentCommandList->OMSetRenderTargets(rtvCount, rtv, FALSE, &dsv);
 }
 
 void GfxRenderCmdEncoder::end()
@@ -1612,9 +1719,17 @@ rgInt gfxInit()
     BreakIfFail(dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
     BreakIfFail(dxgiSwapchain1.As(&dxgiSwapchain));
 
-    // create swapchain RTV and descriptors
+    // create descriptor heaps
+    cbvSrvUavDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 30000, RG_MAX_BINDLESS_TEXTURE_RESOURCES + 100);
+    samplerDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 256, 0);
+    stagedCbvSrvUavDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 0, 100000);
+    stagedSamplerDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 0, 1024);
     stagedRtvDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 0, 128);
+    stagedDsvDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 0, 64);
 
+    descriptorRangeOffsetBindlessTexture2D = cbvSrvUavDescriptorAllocator->allocatePersistentDescriptorRange(RG_MAX_BINDLESS_TEXTURE_RESOURCES);
+    
+    // create swapchain RTV
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         ComPtr<ID3D12Resource> texResource;
@@ -1633,30 +1748,10 @@ rgInt gfxInit()
         texRT->height = (rgUInt)desc.Height;
         texRT->usage = GfxTextureUsage_RenderTarget;
         texRT->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
-        texRT->d3dTexture = texResource;
-        texRT->d3dTextureView = descHandle;
+        texRT->d3dResource = texResource;
+        texRT->d3dViews[GfxD3DViewType_RTV] = makeD3DView(descHandle, stagedRtvDescriptorIndex);
         swapchainTextureDescriptor[i] = eastl::make_pair(texRT, stagedRtvDescriptorIndex);
     }
-
-    stagedDsvDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 0, 32);
-    GfxTexture* depthStencilTexture = GfxTexture::create("DepthStencilTarget", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
-
-    rgU32 stagedDsvDescriptorIndex = stagedDsvDescriptorAllocator->allocatePersistentDescriptor();
-    D3D12_DEPTH_STENCIL_VIEW_DESC dsDesc = {};
-    dsDesc.Format = DXGI_FORMAT_D32_FLOAT;
-    dsDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    dsDesc.Texture2D.MipSlice = 0;
-    dsDesc.Flags = D3D12_DSV_FLAG_NONE;
-    getDevice()->CreateDepthStencilView(depthStencilTexture->d3dTexture.Get(), &dsDesc, stagedDsvDescriptorAllocator->getCpuHandle(stagedDsvDescriptorIndex));
-    depthStencilTextureDescriptor = eastl::make_pair(depthStencilTexture, stagedDsvDescriptorIndex);
-
-    // create descriptor heaps
-    cbvSrvUavDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 30000, RG_MAX_BINDLESS_TEXTURE_RESOURCES + 100);
-    samplerDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, 256, 0);
-    stagedCbvSrvUavDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 0, 100000);
-    stagedSamplerDescriptorAllocator = rgNew(DescriptorAllocator)(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 0, 1024);
-
-    descriptorRangeOffsetBindlessTexture2D = cbvSrvUavDescriptorAllocator->allocatePersistentDescriptorRange(RG_MAX_BINDLESS_TEXTURE_RESOURCES);
 
     // create command allocators
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
@@ -1700,15 +1795,7 @@ rgInt draw()
     currentCommandList->RSSetScissorRects(1, &scissorRect);
 
     GfxTexture* currentRenderTarget = swapchainTextureDescriptor[g_FrameIndex].first;
-    currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-    D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = stagedRtvDescriptorAllocator->getCpuHandle(swapchainTextureDescriptor[g_FrameIndex].second);
-    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = stagedDsvDescriptorAllocator->getCpuHandle(depthStencilTextureDescriptor.second);
-    currentCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-    currentCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, NULL);
-
-    const rgFloat clearColor[] = { 0.5f, 0.5f, 0.5f, 1.0f };
-    currentCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dResource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     return 0;
 }
@@ -1763,7 +1850,7 @@ void gfxStartNextFrame()
 void gfxEndFrame()
 {
     GfxTexture* currentRenderTarget = swapchainTextureDescriptor[g_FrameIndex].first;
-    currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dTexture.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dResource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     BreakIfFail(currentCommandList->Close());
 
@@ -1803,7 +1890,7 @@ void gfxSetBindlessResource(rgU32 slot, GfxTexture* resource)
     srvDesc.Texture2D.PlaneSlice = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-    getDevice()->CreateShaderResourceView(resource->d3dTexture.Get(), nullptr, cbvSrvUavDescriptorAllocator->getCpuHandle(descriptorRangeOffsetBindlessTexture2D + slot));
+    getDevice()->CreateShaderResourceView(resource->d3dResource.Get(), nullptr, cbvSrvUavDescriptorAllocator->getCpuHandle(descriptorRangeOffsetBindlessTexture2D + slot));
 }
 
 void gfxRendererImGuiInit()

@@ -72,7 +72,9 @@ void    gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr);
 // Gfx Object Registry
 // -------------------
 // NOTE: A base class for every Gfx resource type
-
+// TODO: Add a destroyAllObjectsNow() function to be
+// called at the last frame of the application, because 
+// there will not be more frames to free and destroy objects.
 template<typename Type>
 struct GfxObjectRegistry
 {
@@ -112,6 +114,9 @@ struct GfxObjectRegistry
     static void destroy(rgHash hash)
     {
         typename ObjectMapType::iterator itr = objects.find(hash);
+        // CANNOT find the object, MAKE SURE the hash is valid, AND
+        // the object is not a global variable causing it's destructor
+        // to be called after 'objects' hash_map is destructed.
         rgAssert(itr != objects.end());
         objectsToDestroy[gfxGetFrameIndex()].push_back(itr->second);
     }
@@ -127,7 +132,10 @@ struct GfxObjectRegistry
             return false;
         });
 
-        rgAssert(itr != objects.end());
+        // CANNOT find the object, MAKE SURE the pointer is valid, AND
+        // the object is not a global variable causing it's destructor
+        // to be called after 'objects' hash_map is destructed.
+        rgAssert(itr != objects.end()); // TODO: replace with rgCriticalCheck()
         
         objectsToDestroy[gfxGetFrameIndex()].push_back(obj);
     }
@@ -177,6 +185,26 @@ eastl::vector<Type*> GfxObjectRegistry<Type>::objectsToDestroy[RG_MAX_FRAMES_IN_
 // GFX OBJECT TYPES
 //-----------------------------------------------------------------------------
 
+// Only D3D12: Descriptor/View stuff
+#ifdef RG_D3D12_RNDR
+enum GfxD3DViewType
+{
+    GfxD3DViewType_CBV,
+    GfxD3DViewType_SRV,
+    GfxD3DViewType_UAV,
+    GfxD3DViewType_RTV,
+    GfxD3DViewType_DSV,
+    GfxD3DViewType_COUNT
+};
+
+struct GfxD3DView
+{
+    D3D12_CPU_DESCRIPTOR_HANDLE descriptor;
+    rgU32 descriptorIndex;
+    rgBool isValid;
+};
+#endif
+
 // Buffer type
 // -------------------
 
@@ -211,6 +239,7 @@ struct GfxBuffer : GfxObjectRegistry<GfxBuffer>
     GfxMemoryType   memoryType;
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource>  d3dResource;
+    GfxD3DView              d3dViews[GfxD3DViewType_COUNT];
     CD3DX12_RANGE           mappedRange;
 #elif defined(RG_METAL_RNDR)
     void*           mtlBuffer; // type: id<MTLBuffer>
@@ -290,8 +319,8 @@ struct GfxTexture : GfxObjectRegistry<GfxTexture>
     rgU32           texID;
 
 #if defined(RG_D3D12_RNDR)
-    ComPtr<ID3D12Resource>          d3dTexture;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE   d3dTextureView;
+    ComPtr<ID3D12Resource>          d3dResource;
+    GfxD3DView                      d3dViews[GfxD3DViewType_COUNT];
 #elif defined(RG_METAL_RNDR)
     void*           mtlTexture; // type: id<MTLTexture>
 #elif defined(RG_VULKAN_RNDR)
@@ -418,7 +447,7 @@ struct GfxRenderPass
     GfxLoadAction           depthStencilAttachmentLoadAction;
     GfxStoreAction          depthStencilAttachmentStoreAction;
     rgFloat                 clearDepth;
-    rgU32                   clearStencil;
+    rgU8                    clearStencil;
 };
 
 // PSO and State types

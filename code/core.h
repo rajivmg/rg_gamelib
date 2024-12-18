@@ -59,6 +59,7 @@ void  engineLogfImpl(char const* fmt, ...);
 #define rgSizeOfU32(x) ((rgU32)sizeof(x))
 
 #define rgAssert(exp) SDL_assert(exp)
+#define rgCriticalCheck(exp)
 
 #define INVALID_DEFAULT_CASE default: rgAssert(!"Not implemented"); break;
 
