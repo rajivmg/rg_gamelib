@@ -741,7 +741,7 @@ static ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureD
 static GfxD3DView createRenderTargetView(ComPtr<ID3D12Resource> resource, TinyImageFormat format)
 {
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-    rtvDesc.Format = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
+    rtvDesc.Format = toDXGIFormat(format);
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
     rtvDesc.Texture2D.MipSlice = 0;
 
@@ -755,7 +755,7 @@ static GfxD3DView createRenderTargetView(ComPtr<ID3D12Resource> resource, TinyIm
 static GfxD3DView createDepthStencilView(ComPtr<ID3D12Resource> resource, TinyImageFormat format)
 {
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
-    dsvDesc.Format = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
+    dsvDesc.Format = toDXGIFormat(format);
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     dsvDesc.Texture2D.MipSlice = 0;
     dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
@@ -1907,6 +1907,9 @@ void gfxRendererImGuiNewFrame()
 
 void gfxRendererImGuiRenderDrawData()
 {
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv, dsv;
+    rtv = stagedRtvDescriptorAllocator->getCpuHandle(swapchainTextureDescriptor[g_FrameIndex].second);
+    currentCommandList->OMSetRenderTargets(1, &rtv, FALSE, NULL);
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), currentCommandList.Get());
 }
 
