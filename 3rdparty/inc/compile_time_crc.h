@@ -108,18 +108,13 @@ constexpr uint32_t compute(const char* data, uint32_t len, uint32_t crc = 0)
 #define CRC32_STR(str)                                                           \
     std::integral_constant<uint32_t, crc::compute(str, sizeof(str)-1)>::value
 
-// TODO: Rework this
+// RG_ONLY:-
 typedef uint32_t rgHash;
 
 inline rgHash rgCRC32(char const* str) { return crc::compute((str), (uint32_t)strlen(str)); }
 inline rgHash rgCRC32(char const* data, uint32_t len, rgHash crc = 0) { return crc::compute(data, len, crc); }
 
-constexpr rgHash operator""_rh(const char* str, size_t len)
-{
-    return (rgHash)crc::compute(str, (uint32_t)len);
-}
-
-constexpr rgHash operator""_tag(const char* str, size_t len)
+constexpr rgHash operator""_rghash(const char* str, size_t len)
 {
     return (rgHash)crc::compute(str, (uint32_t)len);
 }
