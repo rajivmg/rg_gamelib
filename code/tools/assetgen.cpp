@@ -473,11 +473,11 @@ void convert(std::string input, std::string output, bool transformVertex)
 				uint8_t* buf = (uint8_t*)bufView->buffer->data + bufView->offset + tangentAttrib->data->offset + (x * (tangentAttrib->data->stride + bufView->stride));
 				float* dataFloat = (float*)buf;
                 
-                // TODO: Implement vertex transform
-                vertexData.push_back(dataFloat[0]);
-                vertexData.push_back(dataFloat[1]);
-                vertexData.push_back(dataFloat[2]);
-                vertexData.push_back(dataFloat[3]);
+                Vector4 transformedTangent = normalTangentTransformMatrix * Vector4(dataFloat[0], dataFloat[1], dataFloat[2], dataFloat[3]);
+                vertexData.push_back(transformedTangent.getX());
+                vertexData.push_back(transformedTangent.getY());
+                vertexData.push_back(transformedTangent.getZ());
+                vertexData.push_back(transformedTangent.getW());
 			}
 		}
 

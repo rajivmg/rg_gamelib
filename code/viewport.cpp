@@ -80,4 +80,15 @@ void Viewport::updateCamera()
     cameraInvProjection = inverse(cameraProjection);
 
     cameraViewRotOnly = Matrix4(cameraView.getUpper3x3(), Vector3(0, 0, 0));
+    
+    // Update CameraParamsGPU
+    copyMatrix3ToFloatArray(cameraParamsGPU.basisMatrix, cameraBasis);
+    copyMatrix4ToFloatArray(cameraParamsGPU.viewMatrix, cameraView);
+    copyMatrix4ToFloatArray(cameraParamsGPU.projMatrix, cameraProjection);
+    copyMatrix4ToFloatArray(cameraParamsGPU.viewProjMatrix, cameraViewProjection);
+    copyMatrix4ToFloatArray(cameraParamsGPU.invViewMatrix, cameraInvView);
+    copyMatrix4ToFloatArray(cameraParamsGPU.invProjMatrix, cameraInvProjection);
+    copyMatrix4ToFloatArray(cameraParamsGPU.viewRotOnlyMatrix, cameraViewRotOnly);
+    cameraParamsGPU.near = cameraNear;
+    cameraParamsGPU.far  = cameraFar;
 }

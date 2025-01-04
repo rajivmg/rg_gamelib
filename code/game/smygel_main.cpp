@@ -1,5 +1,6 @@
 #include "gfx.h"
 #include "textdraw.h"
+#include "viewport.h"
 
 struct Smygel : TheApp
 {
@@ -8,6 +9,8 @@ struct Smygel : TheApp
     GfxTexture* colorRT;
     GfxTexture* depthStencil;
     FontRef testFont;
+    
+    Viewport* viewport;
     
     Smygel()
     : depthStencilFormat(TinyImageFormat_D32_SFLOAT_S8_UINT)
@@ -72,10 +75,17 @@ struct Smygel : TheApp
         createPipelineStateObjects();
         //pushText(&theGameState->tempTextQuads, FontRef, 50, 100, 32.0f, splashIntroText);
         testFont = loadFont("fonts/inconsolata_26.fnt");
+        
+        viewport = rgNew(Viewport);
     }
     
     void updateAndDraw() override
     {
+        viewport->tick();
+        
+        CameraParamsGPU* cameraParams = viewport->getCameraParamsGPU();
+        GfxFrameResource cameraParamsBuffer = gfxGetFrameAllocator()->newBuffer("cameraParams", sizeof(CameraParamsGPU), cameraParams);
+        
         ImGui::Begin("Hello");
         ImGui::End();
         
