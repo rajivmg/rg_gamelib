@@ -12,6 +12,8 @@ struct Smygel : TheApp
     
     Viewport* viewport;
     
+    rgBool isMapEditorOpen;
+    
     Smygel()
     : depthStencilFormat(TinyImageFormat_D32_SFLOAT_S8_UINT)
     {
@@ -81,13 +83,12 @@ struct Smygel : TheApp
     
     void updateAndDraw() override
     {
+        ImGui::ShowDemoWindow();
+        mapEditorUpdateAndDraw();
         viewport->tick();
         
         CameraParamsGPU* cameraParams = viewport->getCameraParamsGPU();
         GfxFrameResource cameraParamsBuffer = gfxGetFrameAllocator()->newBuffer("cameraParams", sizeof(CameraParamsGPU), cameraParams);
-        
-        ImGui::Begin("Hello");
-        ImGui::End();
         
         TexturedQuads testQuads;
         pushTexturedQuad(&testQuads, SpriteLayer_1, defaultQuadUV, {100.0f, 75.0f, 200.f, 200.f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("flower"_rghash));
@@ -107,13 +108,59 @@ struct Smygel : TheApp
         simple2dRenderPass.depthStencilAttachmentTexture = depthStencil;
         simple2dRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
         simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
-        simple2dRenderPass.clearDepth = 1.0f;
+        simple2dRenderPass.clearDepth = 0.0f;
         
         GfxRenderCmdEncoder* simple2dRenderEncoder = gfxSetRenderPass("Simple2D Pass", &simple2dRenderPass);
         simple2dRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("texturedQuad"_rghash));
         simple2dRenderEncoder->drawTexturedQuads(&testQuads);
         simple2dRenderEncoder->end();
         //
+    }
+    
+    void mapEditorUpdateAndDraw()
+    {
+        if(!ImGui::Begin("Map Editor", &isMapEditorOpen))
+        {
+            ImGui::End();
+            return;
+        }
+        
+        ImGuiIO& io = ImGui::GetIO();
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        
+        static ImVec2 canvasPan = ImVec2(0.0f, 0.0f);
+        ImVec2 canvasP0 = ImGui::GetCursorScreenPos();
+        ImVec2 canvasSize = ImGui::GetContentRegionAvail();
+        ImVec2 canvasP1 = ImVec2(canvasP0.x + canvasSize.x, canvasP0.y + canvasSize.y);
+        
+        drawList->AddRectFilled(canvasP0, canvasP1, IM_COL32(50, 50, 50, 255));
+        drawList->AddRect(canvasP0, canvasP1, IM_COL32(255, 255, 255, 255));
+        
+        ImGui::InvisibleButton("mapcanvas", canvasSize, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+        const bool isHovered = ImGui::IsItemHovered();
+        const bool isActive = ImGui::IsItemActive();
+        const ImVec2 origin(canvasP0.x + canvasPan.x, canvasP0.y + canvasPan.y);
+        const ImVec2 canvasMousePos(io.MousePos.x - origin.x, io.MousePos.y - origin.y);
+        
+        if(isActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+        {
+            canvasPan.x += io.MouseDelta.x;
+            canvasPan.y += io.MouseDelta.y;
+        }
+        
+        drawList->PushClipRect(canvasP0, canvasP1, true);
+        const float GridStep = 16.0f;
+        for(float x = fmodf(canvasPan.x, GridStep); x < canvasSize.x; x += GridStep)
+        {
+            drawList->AddLine(ImVec2(canvasP0.x + x, canvasP0.y), ImVec2(canvasP0.x + x, canvasP1.y), IM_COL32(200, 200, 200, 40));
+        }
+        for(float y = fmodf(canvasPan.y, GridStep); y < canvasSize.y; y += GridStep)
+        {
+            drawList->AddLine(ImVec2(canvasP0.x, canvasP0.y + y), ImVec2(canvasP1.x, canvasP0.y + y), IM_COL32(200, 200, 200, 40));
+        }
+        drawList->PopClipRect();
+        
+        ImGui::End();
     }
 };
 
