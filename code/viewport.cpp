@@ -89,6 +89,6 @@ void Viewport::updateCamera()
     copyMatrix4ToFloatArray(cameraParamsGPU.invViewMatrix, cameraInvView);
     copyMatrix4ToFloatArray(cameraParamsGPU.invProjMatrix, cameraInvProjection);
     copyMatrix4ToFloatArray(cameraParamsGPU.viewRotOnlyMatrix, cameraViewRotOnly);
-    cameraParamsGPU.near = cameraNear;
-    cameraParamsGPU.far  = cameraFar;
+    cameraParamsGPU.nearPlane = cameraNear;
+    cameraParamsGPU.farPlane  = cameraFar;
 }

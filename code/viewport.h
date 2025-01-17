@@ -13,8 +13,8 @@ struct CameraParamsGPU
     rgFloat invViewMatrix[16];
     rgFloat invProjMatrix[16];
     rgFloat viewRotOnlyMatrix[16];
-    rgFloat near;
-    rgFloat far;
+    rgFloat nearPlane;
+    rgFloat farPlane;
     rgFloat _padding2[2];
 };
 
