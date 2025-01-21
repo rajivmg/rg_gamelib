@@ -662,7 +662,7 @@ struct GfxRenderCmdEncoder
     void bindTexture(char const* bindingTag, GfxTexture* texture);
     void bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
     
-    void drawTexturedQuads(TexturedQuads* quads);
+    void drawTexturedQuads(TexturedQuads* quads, Matrix4 const* viewMatrix, Matrix4 const* projectionMatrix);
     void drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount);
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount);
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount);

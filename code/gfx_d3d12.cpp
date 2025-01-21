@@ -1340,7 +1340,7 @@ void GfxRenderCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* textur
 }
 
 //-----------------------------------------------------------------------------
-void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
+void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads, Matrix4 const* viewMatrix, Matrix4 const* projectionMatrix)
 {
     if(quads->size() < 1)
     {
@@ -1364,8 +1364,23 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads)
         rgFloat view2d[16];
     } cameraParams;
 
-    copyMatrix4ToFloatArray(cameraParams.projection2d, makeOrthographicProjectionMatrix(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
-    copyMatrix4ToFloatArray(cameraParams.view2d, Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0)));
+    if(projectionMatrix != nullptr)
+    {
+        copyMatrix4ToFloatArray(cameraParams.projection2d, *projectionMatrix);
+    }
+    else
+    {
+        copyMatrix4ToFloatArray(cameraParams.projection2d, makeOrthographicProjectionMatrix(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
+    }
+
+    if(viewMatrix != nullptr)
+    {
+        copyMatrix4ToFloatArray(cameraParams.view2d, *viewMatrix);
+    }
+    else
+    {
+        copyMatrix4ToFloatArray(cameraParams.view2d, Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0)));
+    }
 
     GfxFrameResource cameraBuffer = gfxGetFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
 

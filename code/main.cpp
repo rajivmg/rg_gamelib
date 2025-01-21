@@ -398,7 +398,7 @@ rgInt updateAndDraw(rgDouble dt)
         
         GfxRenderCmdEncoder* simple2dRenderEncoder = gfxSetRenderPass("Simple2D Pass", &simple2dRenderPass);
         simple2dRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("simple2d"_rghash));
-        simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits);
+        simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits, nullptr, nullptr);
         simple2dRenderEncoder->end();
     }
      

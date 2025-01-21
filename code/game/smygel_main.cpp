@@ -89,7 +89,7 @@ struct Smygel : TheApp
         
         CameraParamsGPU* cameraParams = viewport->getCameraParamsGPU();
         GfxFrameResource cameraParamsBuffer = gfxGetFrameAllocator()->newBuffer("cameraParams", sizeof(CameraParamsGPU), cameraParams);
-        
+
         TexturedQuads testQuads;
         pushTexturedQuad(&testQuads, SpriteLayer_1, defaultQuadUV, {100.0f, 75.0f, 200.f, 200.f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("flower"_rghash));
         pushTexturedQuad(&testQuads, SpriteLayer_0, defaultQuadUV, {110.0f, 85.0f, 200.f, 200.f}, 0xFF0000FF, {0, 0, 0, 0}, GfxTexture::find("flower"_rghash));
@@ -99,6 +99,17 @@ struct Smygel : TheApp
         
         pushText(&testQuads, 100, 500, testFont, 1.0f, "Hello from rg_gamelib");
         pushText(&testQuads, 300, 100, testFont, 1.0f, splashIntroText);
+
+        Matrix4 worldProjMatrix = makeOrthographicProjectionMatrix(0, 16.0f, 9.0f, 0, 0.1f, 10.0f);
+        static rgFloat2 worldCamP;
+        ImGui::DragFloat2("worldCamP", worldCamP.v, 0.1f);
+        Matrix4 worldViewMatrix = Matrix4::lookAt(Point3(worldCamP.x, worldCamP.y, 0), Point3(worldCamP.x, worldCamP.y, -1000.0f), Vector3(0, 1.0f, 0));
+        TexturedQuads worldTexturedQuads;
+        for(rgInt x = -8; x < 8; ++x)
+        {
+            pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, { (rgFloat)x, 0, 1.0f, 1.0f }, 0x00FF00FF, { 0, 0, 0, 0 }, GfxTexture::find("flower"_rghash));
+        }
+
         //
         GfxRenderPass simple2dRenderPass = {};
         simple2dRenderPass.colorAttachments[0].texture = gfxGetBackbufferTexture();
@@ -112,7 +123,8 @@ struct Smygel : TheApp
         
         GfxRenderCmdEncoder* simple2dRenderEncoder = gfxSetRenderPass("Simple2D Pass", &simple2dRenderPass);
         simple2dRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("texturedQuad"_rghash));
-        simple2dRenderEncoder->drawTexturedQuads(&testQuads);
+        simple2dRenderEncoder->drawTexturedQuads(&testQuads, nullptr, nullptr);
+        simple2dRenderEncoder->drawTexturedQuads(&worldTexturedQuads, &worldViewMatrix, &worldProjMatrix);
         simple2dRenderEncoder->end();
         //
     }
@@ -125,6 +137,12 @@ struct Smygel : TheApp
             return;
         }
         
+        ImGui::PushStyleColor(ImGuiCol_Button, (ImVec4)ImColor::HSV(2.0f / 7.0f, 0.6f, 0.6f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, (ImVec4)ImColor::HSV(2.0f / 7.0f, 0.7f, 0.7f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, (ImVec4)ImColor::HSV(2.0f / 7.0f, 0.8f, 0.8f));
+        ImGui::Button("Save");
+        ImGui::PopStyleColor(3);
+
         ImGuiIO& io = ImGui::GetIO();
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         
@@ -158,6 +176,13 @@ struct Smygel : TheApp
         {
             drawList->AddLine(ImVec2(canvasP0.x, canvasP0.y + y), ImVec2(canvasP1.x, canvasP0.y + y), IM_COL32(200, 200, 200, 40));
         }
+        //for(float x = fmodf(canvasPan.x, GridStep); x < canvasSize.x; x += GridStep)
+        //{
+        //    for(float y = fmodf(canvasPan.y, GridStep); y < canvasSize.y; y += GridStep)
+        //    {
+        //        drawList->AddCircleFilled(ImVec2(canvasP0.x + x, canvasP0.y + y), 3, IM_COL32(250, 160, 170, 255));
+        //    }
+        //}
         drawList->PopClipRect();
         
         ImGui::End();
