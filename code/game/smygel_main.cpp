@@ -63,6 +63,9 @@ struct Smygel : TheApp
         // setup test texture
         ImageRef flowerTex = loadImage("flower.png");
         GfxTexture::create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
+        
+        ImageRef oceanTex = loadImage("ocean_tile.png");
+        GfxTexture::create("ocean", GfxTextureDim_2D, oceanTex->width, oceanTex->height, oceanTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, oceanTex->slices);
     }
     
     void setup() override
@@ -105,17 +108,26 @@ struct Smygel : TheApp
         ImGui::DragFloat2("worldCamP", worldCamP.v, 0.1f);
         Matrix4 worldViewMatrix = Matrix4::lookAt(Point3(worldCamP.x, worldCamP.y, 0), Point3(worldCamP.x, worldCamP.y, -1000.0f), Vector3(0, 1.0f, 0));
         TexturedQuads worldTexturedQuads;
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {5.0f, 5.0f, 1.0f, 1.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("ocean"_rghash));
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {7.0f, 5.0f, 1.0f, 1.0f}, 0x00FF00FF, {0, 0, M_PI_4, 0}, GfxTexture::find("ocean"_rghash));
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f, 1.0f, 1.0f}, 0xFF0000FF, {2.5f, 2.5f, M_PI_4, 0}, GfxTexture::find("ocean"_rghash));
+        
         for(rgInt x = -8; x < 8; ++x)
         {
             pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, { (rgFloat)x, 0, 1.0f, 1.0f }, 0x00FF00FF, { 0, 0, 0, 0 }, GfxTexture::find("flower"_rghash));
         }
+        
+        auto pushLine = [](TexturedQuads& quads, SpriteLayer layer, QuadUV uv, Vector2 a, Vector2 b, rgU32 color, GfxTexture* tex)
+        {
+            
+        };
 
         //
         GfxRenderPass simple2dRenderPass = {};
         simple2dRenderPass.colorAttachments[0].texture = gfxGetBackbufferTexture();
         simple2dRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Clear;
         simple2dRenderPass.colorAttachments[0].storeAction = GfxStoreAction_Store;
-        simple2dRenderPass.colorAttachments[0].clearColor = { 0.2f, 0.4f, 0.0f, 1.0f };
+        simple2dRenderPass.colorAttachments[0].clearColor = { 0.4f, 0.4f, 0.4f, 1.0f };
         simple2dRenderPass.depthStencilAttachmentTexture = depthStencil;
         simple2dRenderPass.depthStencilAttachmentLoadAction = GfxLoadAction_Clear;
         simple2dRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
