@@ -27,7 +27,7 @@ jobs:
     - name: Setup SDL2 frameworks
       uses: BrettDong/setup-sdl2-frameworks@main
       with:
-          sdl2: latest
+          sdl2: 2.30.11
           
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
