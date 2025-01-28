@@ -1313,12 +1313,14 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource co
     rgAssert(resource != nullptr);
     GfxPipelineArgument& argument = getPipelineArgument(bindingTag);
 
-    if(argument.type = GfxPipelineArgument::Type_ConstantBuffer)
+    if(argument.type == GfxPipelineArgument::Type_ConstantBuffer)
     {
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
         cbvDesc.BufferLocation = resource->d3dResource->GetGPUVirtualAddress();
         cbvDesc.SizeInBytes = resource->sizeInBytes;
 
+        // TODO: Handle multiple draws resources per pipeline.
+        // i.e. after every draw bump the descriptor range and reset the descriptor tables
         getDevice()->CreateConstantBufferView(&cbvDesc, cbvSrvUavDescriptorAllocator->getCpuHandle(pipelineCbvSrvUavDescriptorRangeOffset + argument.d3dOffsetInDescriptorTable));
     }
 }
@@ -1382,7 +1384,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads, Matrix4 const*
         copyMatrix4ToFloatArray(cameraParams.view2d, Matrix4::lookAt(Point3(0, 0, 0), Point3(0, 0, -1000.0f), Vector3(0, 1.0f, 0)));
     }
 
-    GfxFrameResource cameraBuffer = gfxGetFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), (void*)&cameraParams);
+    GfxFrameResource cameraBuffer = gfxGetFrameAllocator()->newBuffer("cameraCBuffer", sizeof(cameraParams), &cameraParams);
 
     // --
 
@@ -1582,7 +1584,7 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
     GfxFrameResource output;
     output.type = GfxFrameResource::Type_Buffer;
     output.sizeInBytes = alignedSize;
-    output.d3dResource = bufferResource.Get();
+    output.d3dResource = bufferResource;
     return output;
 }
 

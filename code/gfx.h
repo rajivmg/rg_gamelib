@@ -905,7 +905,7 @@ struct GfxFrameResource
     void* mtlBuffer; //type: id<MTLBuffer>
     void* mtlTexture; //type: id<MTLTexture>
 #elif defined(RG_D3D12_RNDR)
-    ID3D12Resource* d3dResource;
+    ComPtr<ID3D12Resource> d3dResource;
 #endif
 };
 
