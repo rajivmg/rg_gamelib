@@ -108,9 +108,11 @@ struct Smygel : TheApp
         ImGui::DragFloat2("worldCamP", worldCamP.v, 0.1f);
         Matrix4 worldViewMatrix = Matrix4::lookAt(Point3(worldCamP.x, worldCamP.y, 0), Point3(worldCamP.x, worldCamP.y, -1000.0f), Vector3(0, 1.0f, 0));
         TexturedQuads worldTexturedQuads;
+        static rgFloat ang;
+        ang += (float)theAppInput->deltaTime;
         pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {5.0f, 5.0f, 1.0f, 1.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("ocean"_rghash));
-        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {7.0f, 5.0f, 1.0f, 1.0f}, 0x00FF00FF, {0, 0, M_PI_4, 0}, GfxTexture::find("ocean"_rghash));
-        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f, 1.0f, 1.0f}, 0xFF0000FF, {2.5f, 2.5f, M_PI_4, 0}, GfxTexture::find("ocean"_rghash));
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {7.0f, 5.0f, 1.0f, 1.0f}, 0x00FF00FF, {0, 0, ang, 0}, GfxTexture::find("ocean"_rghash));
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f, 1.0f, 1.0f}, 0xFF0000FF, {-0.5f, -0.5f, ang, 0}, GfxTexture::find("ocean"_rghash));
         
         for(rgInt x = -8; x < 8; ++x)
         {

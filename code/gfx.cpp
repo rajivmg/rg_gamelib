@@ -489,40 +489,48 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         SimpleVertexFormat v[4];
         // 0 - 1
         // 3 - 2
-#if 0
-        Matrix3 xform;
-        xform.rotationZ(t.offsetOrientation.z);
-        //Vector3 translation(t.pos.x + t.offsetOrientation.x, t.pos.y + t.offsetOrientation.y, t.pos.z);
-        Vector3 translation(0, 0, 0);
-        Vector3 p0 = (xform * Vector3(-t.offsetOrientation.x, -t.offsetOrientation.y, 0.0f)) + translation;
-        Vector3 p1 = (xform * Vector3(t.size.x - t.offsetOrientation.x, -t.offsetOrientation.y, 0.0f)) + translation;
-        Vector3 p2 = (xform * Vector3(t.size.x - t.offsetOrientation.x, t.size.y - t.offsetOrientation.y, 0.0f)) + translation;
-        Vector3 p3 = (xform * Vector3(-t.offsetOrientation.x, t.size.y - t.offsetOrientation.y, 0.0f)) + translation;
-        
-        v[0].pos[0] = p0.getX();
-        v[0].pos[1] = p0.getY();
-        v[0].pos[2] = p0.getZ();
+#if 1
+        rgFloat s, c;
+        s = sinf(t.offsetOrientation.z);
+        c = cosf(t.offsetOrientation.z);
+
+        rgFloat2 translateAfter{t.pos.x + t.offsetOrientation.x, t.pos.y + t.offsetOrientation.y};
+
+        rgFloat2 p0{-t.offsetOrientation.x, -t.offsetOrientation.y};
+        rgFloat2 p1{t.size.x - t.offsetOrientation.x, -t.offsetOrientation.y};
+        rgFloat2 p2{t.size.x - t.offsetOrientation.x, t.size.y - t.offsetOrientation.y};
+        rgFloat2 p3{-t.offsetOrientation.x, t.size.y - t.offsetOrientation.y};
+
+        // TODO: enable to use scale
+        //p0 = p0 * t.offsetOrientation.w;
+        //p1 = p1 * t.offsetOrientation.w;
+        //p2 = p2 * t.offsetOrientation.w;
+        //p3 = p3 * t.offsetOrientation.w;
+
+        v[0].pos[0] = c * p0.x - s * p0.y + translateAfter.x;
+        v[0].pos[1] = s * p0.x + c * p0.y + translateAfter.y;
+        v[0].pos[2] = t.pos.z;
         v[0].texcoord[0] = t.uv.uvTopLeft[0];
         v[0].texcoord[1] = t.uv.uvTopLeft[1];
         setColor(v[0].color, t.color);
-        
-        v[1].pos[0] = p1.getX();
-        v[1].pos[1] = p1.getY();
-        v[1].pos[2] = p1.getZ();
+
+        v[1].pos[0] = c * p1.x - s * p1.y + translateAfter.x;
+        v[1].pos[1] = s * p1.x + c * p1.y + translateAfter.y;
+        v[1].pos[2] = t.pos.z;
         v[1].texcoord[0] = t.uv.uvBottomRight[0];
         v[1].texcoord[1] = t.uv.uvTopLeft[1];
         setColor(v[1].color, t.color);
-        
-        v[2].pos[0] = p2.getX();
-        v[2].pos[1] = p2.getY();
-        v[2].pos[2] = p2.getZ();
+
+        v[2].pos[0] = c * p2.x - s * p2.y + translateAfter.x;
+        v[2].pos[1] = s * p2.x + c * p2.y + translateAfter.y;
+        v[2].pos[2] = t.pos.z;
         v[2].texcoord[0] = t.uv.uvBottomRight[0];
         v[2].texcoord[1] = t.uv.uvBottomRight[1];
         setColor(v[2].color, t.color);
-        
-        v[3].pos[0] = p3.getX();
-        v[3].pos[1] = p3.getY();
-        v[3].pos[2] = p3.getZ();
+
+        v[3].pos[0] = c * p3.x - s * p3.y + translateAfter.x;
+        v[3].pos[1] = s * p3.x + c * p3.y + translateAfter.y;
+        v[3].pos[2] = t.pos.z;
         v[3].texcoord[0] = t.uv.uvTopLeft[0];
         v[3].texcoord[1] = t.uv.uvBottomRight[1];
         setColor(v[3].color, t.color);

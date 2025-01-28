@@ -94,6 +94,75 @@ union rgFloat2
     };
 };
 
+RG_INLINE rgFloat2 operator+(rgFloat2 const& a, rgFloat b)
+{
+    return rgFloat2{a.x + b, a.y + b};
+}
+
+RG_INLINE rgFloat2 operator-(rgFloat2 const& a, rgFloat b)
+{
+    return rgFloat2{a.x - b, a.y - b};
+}
+
+RG_INLINE rgFloat2 operator*(rgFloat2 const& a, rgFloat b)
+{
+    return rgFloat2{a.x * b, a.y * b};
+}
+
+RG_INLINE rgFloat2 operator/(rgFloat2 const& a, rgFloat b)
+{
+    return rgFloat2{a.x / b, a.y / b};
+}
+
+RG_INLINE rgFloat2 operator+(rgFloat2 const& a, rgFloat2 const& b)
+{
+    return rgFloat2{a.x + b.x, a.y + b.y};
+}
+
+RG_INLINE rgFloat2 operator-(rgFloat2 const& a, rgFloat2 const& b)
+{
+    return rgFloat2{a.x - b.x, a.y - b.y};
+}
+
+RG_INLINE rgFloat2 operator*(rgFloat2 const& a, rgFloat2 const& b)
+{
+    return rgFloat2{a.x * b.x, a.y * b.y};
+}
+
+RG_INLINE rgFloat2 operator/(rgFloat2 const& a, rgFloat2 const& b)
+{
+    return rgFloat2{a.x / b.x, a.y / b.y};
+}
+
+RG_INLINE rgFloat2& operator+=(rgFloat2& a, rgFloat2 const& b)
+{
+    a = a + b;
+    return a;
+}
+
+RG_INLINE rgFloat2& operator-=(rgFloat2& a, rgFloat2 const& b)
+{
+    a = a - b;
+    return a;
+}
+
+RG_INLINE rgFloat2& operator*=(rgFloat2& a, rgFloat2 const& b)
+{
+    a = a * b;
+    return a;
+}
+
+RG_INLINE rgFloat2& operator/=(rgFloat2& a, rgFloat2 const& b)
+{
+    a = a / b;
+    return a;
+}
+
+RG_INLINE rgFloat2 operator-(rgFloat2 const& a)
+{
+    return rgFloat2{-a.x, -a.y};
+}
+
 union rgFloat4
 {
     rgFloat v[4];
@@ -151,7 +220,7 @@ RG_INLINE rgFloat3& operator+=(rgFloat3& a, const rgFloat3& b)
     return a;
 }
 
-RG_INLINE rgFloat3 operator*(rgFloat3& a, rgFloat b)
+RG_INLINE rgFloat3 operator*(rgFloat3 const& a, rgFloat b)
 {
     return rgFloat3{a.x * b, a.y * b, a.z * b};
 }

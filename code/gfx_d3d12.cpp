@@ -637,7 +637,7 @@ static ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureD
 
     if(usage & GfxTextureUsage_DepthStencil)
     {
-        initialClearValue.DepthStencil = { 1.0f, 0 };
+        initialClearValue.DepthStencil = { 0, 0 };
         clearValue = &initialClearValue;
     }
     else if(usage & GfxTextureUsage_RenderTarget)
