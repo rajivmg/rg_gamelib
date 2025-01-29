@@ -39,8 +39,8 @@ rgU32  descriptorRangeOffsetBindlessTexture2D;
 ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
 ComPtr<ID3D12GraphicsCommandList> currentCommandList;
 
-// Pair of GfxTexture* and descriptor offset in stagedRtvDescriptorAllocator
-eastl::pair<GfxTexture*, rgU32> swapchainTextureDescriptor[RG_MAX_FRAMES_IN_FLIGHT];
+GfxTexture* swapchainLinearTexture[RG_MAX_FRAMES_IN_FLIGHT];
+GfxTexture* swapchainTextures[RG_MAX_FRAMES_IN_FLIGHT];
 
 struct ResourceCopyTask
 {
@@ -1160,11 +1160,8 @@ void GfxComputePSO::destroyGfxObject(GfxComputePSO* obj)
 
 void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
 {
-    // enabled this vvv later
+    // enabled this vvv later ??
     //d3dGraphicsCommandlist = createGraphicsCommandList(getCommandAllocator(), nullptr);
-
-    // TODO REF: https://github.com/gpuweb/gpuweb/issues/23
-    //d3dGraphicsCommandlist->OMSetRenderTargets()
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtv[RG_MAX_COLOR_ATTACHMENTS] = {};
     UINT rtvCount = 0;
@@ -1237,15 +1234,12 @@ void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 wid
 }
 
 //-----------------------------------------------------------------------------
-void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
+void bumpDescriptorTables(GfxGraphicsPSO* pso)
 {
-    GfxState::graphicsPSO = pso;
-
-    currentCommandList->SetPipelineState(pso->d3dPSO.Get());
-    currentCommandList->SetGraphicsRootSignature(pso->d3dRootSignature.Get());
-
     pipelineCbvSrvUavDescriptorRangeOffset = cbvSrvUavDescriptorAllocator->allocateDescriptorRange(pso->d3dCbvSrvUavDescriptorCount);
     pipelineSamplerDescriptorRangeOffset = samplerDescriptorAllocator->allocateDescriptorRange(pso->d3dSamplerDescriptorCount);
+
+    // TODO: handle compute descriptor tables
 
     // cbv srv uav descriptor table
     if(GfxState::graphicsPSO->d3dHasCBVSRVUAVs)
@@ -1262,6 +1256,16 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
     {
         currentCommandList->SetGraphicsRootDescriptorTable(BINDLESS_CBVSRVUAV_ROOT_PARAMETER_INDEX, cbvSrvUavDescriptorAllocator->getGpuHandle(descriptorRangeOffsetBindlessTexture2D));
     }
+}
+
+void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
+{
+    GfxState::graphicsPSO = pso;
+
+    currentCommandList->SetPipelineState(pso->d3dPSO.Get());
+    currentCommandList->SetGraphicsRootSignature(pso->d3dRootSignature.Get());
+
+    bumpDescriptorTables(pso);
 }
 
 //-----------------------------------------------------------------------------
@@ -1402,6 +1406,9 @@ void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rg
 {
     currentCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     currentCommandList->DrawInstanced(vertexCount, instanceCount, vertexStart, 0);
+    // TODO: Defer the bump until we try to bind something after the draw
+    // TODO: Defer the bump until we try to bind something after the draw
+    bumpDescriptorTables(GfxState::graphicsPSO);
 }
 
 void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount)
@@ -1749,25 +1756,43 @@ rgInt gfxInit()
     // create swapchain RTV
     for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        ComPtr<ID3D12Resource> texResource;
-        BreakIfFail(dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&texResource)));
-        rgU32 stagedRtvDescriptorIndex = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
-        D3D12_CPU_DESCRIPTOR_HANDLE descHandle = stagedRtvDescriptorAllocator->getCpuHandle(stagedRtvDescriptorIndex);
-        getDevice()->CreateRenderTargetView(texResource.Get(), nullptr, descHandle);
+        ComPtr<ID3D12Resource> renderTargetLinear;
+        BreakIfFail(dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&renderTargetLinear)));
+        D3D12_RESOURCE_DESC rtLinearDescription = renderTargetLinear->GetDesc();
 
-        D3D12_RESOURCE_DESC desc = texResource->GetDesc();
+        rgU32 rtLinearDescIdx = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
+        D3D12_CPU_DESCRIPTOR_HANDLE rtLinearDescriptor = stagedRtvDescriptorAllocator->getCpuHandle(rtLinearDescIdx);
+        getDevice()->CreateRenderTargetView(renderTargetLinear.Get(), nullptr, rtLinearDescriptor);
+
+        rgU32 rtSrgbDescIdx = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
+        D3D12_CPU_DESCRIPTOR_HANDLE rtSrgbDescriptor = stagedRtvDescriptorAllocator->getCpuHandle(rtSrgbDescIdx);
+        D3D12_RENDER_TARGET_VIEW_DESC rtSrgbView = {};
+        rtSrgbView.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+        rtSrgbView.Format = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(convertLinearToSRGBFormat(TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)rtLinearDescription.Format)));
+        getDevice()->CreateRenderTargetView(renderTargetLinear.Get(), &rtSrgbView, rtSrgbDescriptor);
 
         // NOTE: we don't create this through GfxTexture::create() because the underlying texture resource is already created
-        GfxTexture* texRT = rgNew(GfxTexture);
-        strncpy(texRT->tag, "RenderTarget", 32);
-        texRT->dim = GfxTextureDim_2D;
-        texRT->width = (rgUInt)desc.Width;
-        texRT->height = (rgUInt)desc.Height;
-        texRT->usage = GfxTextureUsage_RenderTarget;
-        texRT->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)desc.Format);
-        texRT->d3dResource = texResource;
-        texRT->d3dViews[GfxD3DViewType_RTV] = makeD3DView(descHandle, stagedRtvDescriptorIndex);
-        swapchainTextureDescriptor[i] = eastl::make_pair(texRT, stagedRtvDescriptorIndex);
+        GfxTexture* rtLinearTexture = rgNew(GfxTexture);
+        strncpy(rtLinearTexture->tag, "RenderTargetLinear", 32);
+        rtLinearTexture->dim = GfxTextureDim_2D;
+        rtLinearTexture->width = (rgUInt)rtLinearDescription.Width;
+        rtLinearTexture->height = (rgUInt)rtLinearDescription.Height;
+        rtLinearTexture->usage = GfxTextureUsage_RenderTarget;
+        rtLinearTexture->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)rtLinearDescription.Format);
+        rtLinearTexture->d3dResource = renderTargetLinear;
+        rtLinearTexture->d3dViews[GfxD3DViewType_RTV] = makeD3DView(rtLinearDescriptor, rtLinearDescIdx);
+        swapchainLinearTexture[i] = rtLinearTexture;
+
+        GfxTexture* rtSrgbTexture = rgNew(GfxTexture);
+        strncpy(rtSrgbTexture->tag, "RenderTargetSRGB", 32);
+        rtSrgbTexture->dim = GfxTextureDim_2D;
+        rtSrgbTexture->width = (rgUInt)rtLinearDescription.Width;
+        rtSrgbTexture->height = (rgUInt)rtLinearDescription.Height;
+        rtSrgbTexture->usage = GfxTextureUsage_RenderTarget;
+        rtSrgbTexture->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)rtSrgbView.Format);
+        rtSrgbTexture->d3dResource = renderTargetLinear;
+        rtSrgbTexture->d3dViews[GfxD3DViewType_RTV] = makeD3DView(rtSrgbDescriptor, rtSrgbDescIdx);
+        swapchainTextures[i] = rtSrgbTexture;
     }
 
     // create command allocators
@@ -1811,7 +1836,7 @@ rgInt draw()
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
     currentCommandList->RSSetScissorRects(1, &scissorRect);
 
-    GfxTexture* currentRenderTarget = swapchainTextureDescriptor[g_FrameIndex].first;
+    GfxTexture* currentRenderTarget = swapchainTextures[g_FrameIndex];
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dResource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
     return 0;
@@ -1866,7 +1891,7 @@ void gfxStartNextFrame()
 
 void gfxEndFrame()
 {
-    GfxTexture* currentRenderTarget = swapchainTextureDescriptor[g_FrameIndex].first;
+    GfxTexture* currentRenderTarget = swapchainTextures[g_FrameIndex];
     currentCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(currentRenderTarget->d3dResource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
     BreakIfFail(currentCommandList->Close());
@@ -1881,7 +1906,7 @@ void gfxEndFrame()
     UINT64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
     BreakIfFail(commandQueue->Signal(frameFence.Get(), fenceValueToSignal));
 
-    resourceUploader->Begin();
+    resourceUploader->Begin(); // Should this be moved to gfxRunOnFrameBeginJob()?
 }
 
 void gfxOnSizeChanged()
@@ -1924,20 +1949,24 @@ void gfxRendererImGuiNewFrame()
 
 void gfxRendererImGuiRenderDrawData()
 {
-    D3D12_CPU_DESCRIPTOR_HANDLE rtv, dsv;
-    rtv = stagedRtvDescriptorAllocator->getCpuHandle(swapchainTextureDescriptor[g_FrameIndex].second);
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv = getD3DView(swapchainLinearTexture[g_FrameIndex], GfxD3DViewType_RTV).descriptor;
     currentCommandList->OMSetRenderTargets(1, &rtv, FALSE, NULL);
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), currentCommandList.Get());
 }
 
 TinyImageFormat gfxGetBackbufferFormat()
 {
-    return TinyImageFormat_B8G8R8A8_UNORM;
+    return TinyImageFormat_B8G8R8A8_SRGB;
 }
 
 GfxTexture* gfxGetBackbufferTexture()
 {
-    return swapchainTextureDescriptor[g_FrameIndex].first;
+    return swapchainTextures[g_FrameIndex];
+}
+
+GfxTexture* gfxGetBackbufferTextureLinear()
+{
+    return swapchainLinearTexture[g_FrameIndex];
 }
 
 #undef BreakIfFail

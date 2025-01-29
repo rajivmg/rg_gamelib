@@ -675,6 +675,9 @@ TinyImageFormat convertLinearToSRGBFormat(TinyImageFormat linearFormat)
         case TinyImageFormat_R8G8B8A8_UNORM:
             newFormat = TinyImageFormat_R8G8B8A8_SRGB;
             break;
+        case TinyImageFormat_B8G8R8A8_UNORM:
+            newFormat = TinyImageFormat_B8G8R8A8_SRGB;
+            break;
     }
     
     rgAssert(newFormat != TinyImageFormat_UNDEFINED);
