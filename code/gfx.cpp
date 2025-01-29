@@ -471,6 +471,27 @@ void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgF
     quadList->insert(eastl::pair<SpriteLayer, TexturedQuad>(layer, q));
 }
 
+void pushTexturedLine(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat2 pointA, rgFloat2 pointB, rgFloat thickness, rgU32 color, GfxTexture* tex)
+{
+    rgFloat2 a = pointA;
+    rgFloat2 b = pointB;
+    /*if (b.x < a.x)
+    {
+        rgFloat2 t = a;
+        a = b;
+        b = t;
+    }*/
+    
+    rgFloat2 ab = b - a;
+    rgFloat l = length(ab);
+    rgFloat tHalf = thickness / 2.0f;
+    a.y = a.y - tHalf;
+    b.y = b.y - tHalf;
+    
+    
+    pushTexturedQuad(quadList, layer, uv, {a.x, a.y, l, thickness}, color, {tHalf, 0, 1, 1 }, tex);
+}
+
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams)
 {
     auto setColor = [](unsigned char* colorArr, rgU32 c)

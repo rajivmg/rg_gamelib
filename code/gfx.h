@@ -1121,6 +1121,7 @@ struct TexturedQuad
 };
 
 void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat4 posSize, rgU32 color, rgFloat4 offsetOrientation, GfxTexture* tex);
+void pushTexturedLine(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat2 pointA, rgFloat2 pointB, rgFloat thickness, rgU32 color, GfxTexture* tex);
 
 struct SimpleVertexFormat
 {

@@ -163,6 +163,11 @@ RG_INLINE rgFloat2 operator-(rgFloat2 const& a)
     return rgFloat2{-a.x, -a.y};
 }
 
+RG_INLINE rgFloat length(rgFloat2 const& a)
+{
+    return sqrtf(a.x * a.x + a.y * a.y);
+}
+
 union rgFloat4
 {
     rgFloat v[4];
