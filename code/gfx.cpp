@@ -475,21 +475,27 @@ void pushTexturedLine(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgF
 {
     rgFloat2 a = pointA;
     rgFloat2 b = pointB;
-    /*if (b.x < a.x)
+
+    // arctan works between -90 to 90 so swap a and b if b is behind a
+    if (b.x < a.x)
     {
         rgFloat2 t = a;
         a = b;
         b = t;
-    }*/
+    }
     
     rgFloat2 ab = b - a;
     rgFloat l = length(ab);
     rgFloat tHalf = thickness / 2.0f;
+
+    // adjust the y, so that middle of the thickness it at pointA
     a.y = a.y - tHalf;
     b.y = b.y - tHalf;
-    
-    
-    pushTexturedQuad(quadList, layer, uv, {a.x, a.y, l, thickness}, color, {tHalf, 0, 1, 1 }, tex);
+
+    rgFloat ang;
+    ang = atan((b.y - a.y) / (b.x - a.x));
+    //ImGui::Text("ang %f", ang);
+    pushTexturedQuad(quadList, layer, uv, {a.x, a.y, l, thickness}, color, {0, tHalf, ang, 1 }, tex);
 }
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams)

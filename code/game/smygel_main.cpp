@@ -117,8 +117,17 @@ struct Smygel : TheApp
         pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f, 1.0f, 1.0f}, 0xFF0000FF, {0.5f, 0.5f, ang, 0}, GfxTexture::find("ocean"_rghash));
         
         pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f, 1.0f, 1.0f}, 0xFF0000FF, {-0.5f, -0.5f, ang, 0}, GfxTexture::find("ocean"_rghash));
-        pushTexturedLine(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f}, {8.5f, 4.5f}, 0.2f, 0xFF000FF, GfxTexture::find("ocean"_rghash));
         
+        {
+            rgFloat s = sinf(ang);
+            rgFloat c = cosf(ang);
+            rgFloat2 b = {7.0f + s * 2.0f, 5.0f + c * 2.0f};
+            pushTexturedLine(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {7.0f, 5.0f}, b, 0.1f, 0xFF000FF, GfxTexture::find("ocean"_rghash));
+        }
+
+        rgFloat2 m = { theAppInput->mouse.x, theAppInput->mouse.y };
+        pushTexturedLine(&testQuads, SpriteLayer_1, defaultQuadUV, { 600.0f, 300.0f }, m, 10.0f, 0x331de2ff, GfxTexture::find("ocean"_rghash));
+
         for(rgInt x = -8; x < 8; ++x)
         {
             pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, { (rgFloat)x, 0, 1.0f, 1.0f }, 0x00FF00FF, { 0, 0, 0, 0 }, GfxTexture::find("flower"_rghash));
