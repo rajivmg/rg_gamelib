@@ -1083,14 +1083,14 @@ void     unloadModel(Model* ptr);
 struct QuadUV
 {
     // TODO: use Vector4 here?
-    rgFloat uvTopLeft[2];
-    rgFloat uvBottomRight[2];
+    rgFloat2 uvTopLeft;
+    rgFloat2 uvBottomRight;
 };
- 
 extern QuadUV defaultQuadUV;
 
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRef image);
+QuadUV repeatQuadUV(rgFloat2 repeatXY);
 
 
 // Textured Quad

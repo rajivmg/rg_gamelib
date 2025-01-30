@@ -445,11 +445,11 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 r
 {
     QuadUV r;
 
-    r.uvTopLeft[0] = (rgFloat)xPx / refWidthPx;
-    r.uvTopLeft[1] = (rgFloat)yPx / refHeightPx;
+    r.uvTopLeft.x = (rgFloat)xPx / refWidthPx;
+    r.uvTopLeft.y = (rgFloat)yPx / refHeightPx;
 
-    r.uvBottomRight[0] = (xPx + widthPx) / (rgFloat)refWidthPx;
-    r.uvBottomRight[1] = (yPx + heightPx) / (rgFloat)refHeightPx;
+    r.uvBottomRight.x = (xPx + widthPx) / (rgFloat)refWidthPx;
+    r.uvBottomRight.y = (yPx + heightPx) / (rgFloat)refHeightPx;
 
     return r;
 }
@@ -457,6 +457,14 @@ QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 r
 QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRef image)
 {
     return createQuadUV(xPx, yPx, widthPx, heightPx, image->width, image->height);
+}
+
+QuadUV repeatQuadUV(rgFloat2 repeatXY)
+{
+    QuadUV r;
+    r.uvTopLeft = {0, 0};
+    r.uvBottomRight = repeatXY;
+    return r;
 }
 
 void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat4 posSize, rgU32 color, rgFloat4 offsetOrientation, GfxTexture* tex)
@@ -482,6 +490,11 @@ void pushTexturedLine(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgF
         rgFloat2 t = a;
         a = b;
         b = t;
+        
+        // swap uv. should this be done depends on the situation
+        rgFloat2 tempUV = uv.uvTopLeft;
+        uv.uvTopLeft = uv.uvBottomRight;
+        uv.uvBottomRight = tempUV;
     }
     
     rgFloat2 ab = b - a;
@@ -537,29 +550,29 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         v[0].pos[0] = c * p0.x - s * p0.y + translateAfter.x;
         v[0].pos[1] = s * p0.x + c * p0.y + translateAfter.y;
         v[0].pos[2] = t.pos.z;
-        v[0].texcoord[0] = t.uv.uvTopLeft[0];
-        v[0].texcoord[1] = t.uv.uvTopLeft[1];
+        v[0].texcoord[0] = t.uv.uvTopLeft.x;
+        v[0].texcoord[1] = t.uv.uvTopLeft.y;
         setColor(v[0].color, t.color);
 
         v[1].pos[0] = c * p1.x - s * p1.y + translateAfter.x;
         v[1].pos[1] = s * p1.x + c * p1.y + translateAfter.y;
         v[1].pos[2] = t.pos.z;
-        v[1].texcoord[0] = t.uv.uvBottomRight[0];
-        v[1].texcoord[1] = t.uv.uvTopLeft[1];
+        v[1].texcoord[0] = t.uv.uvBottomRight.x;
+        v[1].texcoord[1] = t.uv.uvTopLeft.y;
         setColor(v[1].color, t.color);
 
         v[2].pos[0] = c * p2.x - s * p2.y + translateAfter.x;
         v[2].pos[1] = s * p2.x + c * p2.y + translateAfter.y;
         v[2].pos[2] = t.pos.z;
-        v[2].texcoord[0] = t.uv.uvBottomRight[0];
-        v[2].texcoord[1] = t.uv.uvBottomRight[1];
+        v[2].texcoord[0] = t.uv.uvBottomRight.x;
+        v[2].texcoord[1] = t.uv.uvBottomRight.y;
         setColor(v[2].color, t.color);
 
         v[3].pos[0] = c * p3.x - s * p3.y + translateAfter.x;
         v[3].pos[1] = s * p3.x + c * p3.y + translateAfter.y;
         v[3].pos[2] = t.pos.z;
-        v[3].texcoord[0] = t.uv.uvTopLeft[0];
-        v[3].texcoord[1] = t.uv.uvBottomRight[1];
+        v[3].texcoord[0] = t.uv.uvTopLeft.x;
+        v[3].texcoord[1] = t.uv.uvBottomRight.y;
         setColor(v[3].color, t.color);
 #else
         v[0].pos[0] = t.pos.x;

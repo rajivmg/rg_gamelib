@@ -66,6 +66,9 @@ struct Smygel : TheApp
         
         ImageRef oceanTex = loadImage("ocean_tile.png");
         GfxTexture::create("ocean", GfxTextureDim_2D, oceanTex->width, oceanTex->height, oceanTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, oceanTex->slices);
+    
+        ImageRef arrowTex = loadImage("test_arrow.png");
+        GfxTexture::create("arrow", GfxTextureDim_2D, arrowTex->width, arrowTex->height, arrowTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, arrowTex->slices);
     }
     
     void setup() override
@@ -125,8 +128,13 @@ struct Smygel : TheApp
             pushTexturedLine(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {7.0f, 5.0f}, b, 0.1f, 0xFF000FF, GfxTexture::find("ocean"_rghash));
         }
 
-        rgFloat2 m = { theAppInput->mouse.x, theAppInput->mouse.y };
-        pushTexturedLine(&testQuads, SpriteLayer_1, defaultQuadUV, { 600.0f, 300.0f }, m, 10.0f, 0x331de2ff, GfxTexture::find("ocean"_rghash));
+        {
+            rgFloat2 p = { 600.0f, 300.0f };
+            rgFloat2 m = {theAppInput->mouse.x, theAppInput->mouse.y};
+            rgFloat l = length(m - p);
+            rgFloat repeatU = l / 16.0f;
+            pushTexturedLine(&testQuads, SpriteLayer_1, repeatQuadUV({repeatU, 1.0f}), p, m, 16.0f, 0x331de2ff, GfxTexture::find("arrow"_rghash));
+        }
 
         for(rgInt x = -8; x < 8; ++x)
         {
