@@ -130,7 +130,7 @@ struct Smygel : TheApp
 
         {
             rgFloat2 p = { 600.0f, 300.0f };
-            rgFloat2 m = {theAppInput->mouse.x, theAppInput->mouse.y};
+            rgFloat2 m = {(rgFloat)theAppInput->mouse.x, (rgFloat)theAppInput->mouse.y};
             rgFloat l = length(m - p);
             rgFloat repeatU = l / 16.0f;
             pushTexturedLine(&testQuads, SpriteLayer_1, repeatQuadUV({repeatU, 1.0f}), p, m, 16.0f, 0x331de2ff, GfxTexture::find("arrow"_rghash));
@@ -140,11 +140,6 @@ struct Smygel : TheApp
         {
             pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, { (rgFloat)x, 0, 1.0f, 1.0f }, 0x00FF00FF, { 0, 0, 0, 0 }, GfxTexture::find("flower"_rghash));
         }
-        
-        auto pushLine = [](TexturedQuads& quads, SpriteLayer layer, QuadUV uv, Vector2 a, Vector2 b, rgU32 color, GfxTexture* tex)
-        {
-            
-        };
 
         //
         GfxRenderPass simple2dRenderPass = {};
