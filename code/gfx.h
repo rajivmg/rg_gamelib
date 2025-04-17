@@ -667,7 +667,7 @@ struct GfxRenderCmdEncoder
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount);
     void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount);
 
-    GfxPipelineArgument& getPipelineArgument(char const* bindingTag);
+    GfxPipelineArgument* getPipelineArgument(char const* bindingTag);
     
     rgBool hasEnded;
 #if defined(RG_METAL_RNDR)

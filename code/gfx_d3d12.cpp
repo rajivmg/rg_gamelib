@@ -179,6 +179,34 @@ static GfxPipelineArgument::Type toGfxPipelineArgumentType(D3D12_SHADER_INPUT_BI
     return outType;
 };
 
+static D3D12_SRV_DIMENSION toD3DSRVDimension(GfxTextureDim dim)
+{
+    D3D12_SRV_DIMENSION result = D3D12_SRV_DIMENSION_UNKNOWN;
+    switch(dim)
+    {
+        case GfxTextureDim_2D:
+        {
+            result = D3D12_SRV_DIMENSION_TEXTURE2D;
+        }break;
+
+        case GfxTextureDim_Cube:
+        {
+            result = D3D12_SRV_DIMENSION_TEXTURECUBE;
+        } break;
+
+        case GfxTextureDim_Buffer:
+        {
+            result = D3D12_SRV_DIMENSION_BUFFER;
+        } break;
+
+        default:
+        {
+            rgAssert(!"Unsupported GfxTextureDim value");
+        } break;
+    }
+    return result;
+}
+
 static ComPtr<ID3D12CommandAllocator> getCommandAllocator()
 {
     return commandAllocator[g_FrameIndex];
@@ -230,6 +258,11 @@ static GfxD3DView getD3DView(GfxTexture* obj, GfxD3DViewType type)
 {
     rgAssert(obj->d3dViews[type].isValid == true);
     return obj->d3dViews[type];
+}
+
+static bool validD3DView(GfxTexture* obj, GfxD3DViewType type)
+{
+    return obj->d3dViews[type].isValid;
 }
 
 static void setDebugName(ComPtr<ID3D12Object> d3dObject, char const* name)
@@ -768,22 +801,61 @@ static GfxD3DView createDepthStencilView(ComPtr<ID3D12Resource> resource, TinyIm
     return makeD3DView(descriptorHandle, descriptorIndex);
 }
 
+static GfxD3DView createTextureShaderResourceView(ComPtr<ID3D12Resource> resource, GfxTextureDim dim, TinyImageFormat format)
+{
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
+    srvDesc.ViewDimension = toD3DSRVDimension(dim);
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+    switch(dim)
+    {
+        case GfxTextureDim_2D:
+        {
+            srvDesc.Texture2D.MipLevels = 1;
+        } break;
+        case GfxTextureDim_Cube:
+        {
+            srvDesc.TextureCube.MipLevels = 1;
+        } break;
+        case GfxTextureDim_Buffer:
+        {
+
+        } break;
+        default:
+        {
+            rgAssert(!"Unsupported GfxTextureDim");
+        }
+    }
+
+    rgU32 index = stagedCbvSrvUavDescriptorAllocator->allocatePersistentDescriptor();
+    D3D12_CPU_DESCRIPTOR_HANDLE handle= stagedCbvSrvUavDescriptorAllocator->getCpuHandle(index);
+    getDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, handle);
+
+    return makeD3DView(handle, index);
+}
+
 void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
     clearD3DViewsArray(obj->d3dViews);
     
     obj->d3dResource = createTextureResource(tag, dim, width, height, format, mipFlag, usage, slices);
 
-    if (usage & GfxTextureUsage_RenderTarget)
+    if(usage & GfxTextureUsage_RenderTarget)
     {
         rgAssert(dim == GfxTextureDim_2D);
         obj->d3dViews[GfxD3DViewType_RTV] = createRenderTargetView(obj->d3dResource, format);
     }
 
-    if (usage & GfxTextureUsage_DepthStencil)
+    if(usage & GfxTextureUsage_DepthStencil)
     {
         rgAssert(dim == GfxTextureDim_2D);
         obj->d3dViews[GfxD3DViewType_DSV] = createDepthStencilView(obj->d3dResource, format);
+    }
+
+    if (usage == GfxTextureUsage_ShaderRead)
+    {
+        obj->d3dViews[GfxD3DViewType_SRV] = createTextureShaderResourceView(obj->d3dResource, dim, format);
     }
 }
 
@@ -799,6 +871,12 @@ void GfxTexture::destroyGfxObject(GfxTexture* obj)
     {
         rgAssert(obj->d3dViews[GfxD3DViewType_DSV].isValid == true);
         stagedDsvDescriptorAllocator->releasePersistentDescriptor(obj->d3dViews[GfxD3DViewType_DSV].descriptorIndex);
+    }
+
+    if(obj->usage & GfxTextureUsage_ShaderRead)
+    {
+        rgAssert(obj->d3dViews[GfxD3DViewType_SRV].isValid == true);
+        stagedCbvSrvUavDescriptorAllocator->releasePersistentDescriptor(obj->d3dViews[GfxD3DViewType_SRV].descriptorIndex);
     }
 }
 
@@ -1234,8 +1312,20 @@ void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 wid
 }
 
 //-----------------------------------------------------------------------------
-void bumpDescriptorTables(GfxGraphicsPSO* pso)
+static rgBool isDescriptorTableBumpNeeded = false;
+
+void needDescriptorTableBump(rgBool bumpNeeded)
 {
+    isDescriptorTableBumpNeeded = bumpNeeded;
+}
+
+void bumpGraphicsDescriptorTablesIfNeeded(GfxGraphicsPSO* pso)
+{
+    if (!isDescriptorTableBumpNeeded)
+    {
+        return;
+    }
+
     pipelineCbvSrvUavDescriptorRangeOffset = cbvSrvUavDescriptorAllocator->allocateDescriptorRange(pso->d3dCbvSrvUavDescriptorCount);
     pipelineSamplerDescriptorRangeOffset = samplerDescriptorAllocator->allocateDescriptorRange(pso->d3dSamplerDescriptorCount);
 
@@ -1256,6 +1346,8 @@ void bumpDescriptorTables(GfxGraphicsPSO* pso)
     {
         currentCommandList->SetGraphicsRootDescriptorTable(BINDLESS_CBVSRVUAV_ROOT_PARAMETER_INDEX, cbvSrvUavDescriptorAllocator->getGpuHandle(descriptorRangeOffsetBindlessTexture2D));
     }
+
+    isDescriptorTableBumpNeeded = false;
 }
 
 void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
@@ -1265,7 +1357,7 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
     currentCommandList->SetPipelineState(pso->d3dPSO.Get());
     currentCommandList->SetGraphicsRootSignature(pso->d3dRootSignature.Get());
 
-    bumpDescriptorTables(pso);
+    needDescriptorTableBump(true);
 }
 
 //-----------------------------------------------------------------------------
@@ -1273,6 +1365,12 @@ void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset,
 {
     // We might be able to directly add offset to gpu address
     // https://www.milty.nl/grad_guide/basic_implementation/d3d12/buffers.html
+
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+    vertexBufferView.BufferLocation = buffer->d3dResource->GetGPUVirtualAddress() + offset;
+    vertexBufferView.SizeInBytes = buffer->size - offset;
+    vertexBufferView.StrideInBytes = GfxState::graphicsPSO->d3dVertexStrideInBytes;
+    currentCommandList->IASetVertexBuffers(slot, 1, &vertexBufferView);
 }
 
 void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU32 slot)
@@ -1285,7 +1383,7 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU3
 }
 
 //-----------------------------------------------------------------------------
-GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindingTag)
+GfxPipelineArgument* GfxRenderCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
     rgAssert(GfxState::graphicsPSO != nullptr);
     rgAssert(bindingTag);
@@ -1297,9 +1395,9 @@ GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindin
         rgAssert(false);
     }
 
-    GfxPipelineArgument& info = infoIter->second;
+    GfxPipelineArgument* info = &infoIter->second;
 
-    if(((info.stages & GfxStage_VS) != GfxStage_VS) && (info.stages & GfxStage_FS) != GfxStage_FS)
+    if(((info->stages & GfxStage_VS) != GfxStage_VS) && (info->stages & GfxStage_FS) != GfxStage_FS)
     {
         rgLogError("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, GfxState::graphicsPSO->tag);
         rgAssert(!"TODO: LogError should stop the execution");
@@ -1315,9 +1413,11 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, 
 void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource const* resource)
 {
     rgAssert(resource != nullptr);
-    GfxPipelineArgument& argument = getPipelineArgument(bindingTag);
 
-    if(argument.type == GfxPipelineArgument::Type_ConstantBuffer)
+    bumpGraphicsDescriptorTablesIfNeeded(GfxState::graphicsPSO);
+
+    GfxPipelineArgument* argument = getPipelineArgument(bindingTag);
+    if(argument->type == GfxPipelineArgument::Type_ConstantBuffer)
     {
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
         cbvDesc.BufferLocation = resource->d3dResource->GetGPUVirtualAddress();
@@ -1325,7 +1425,7 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource co
 
         // TODO: Handle multiple draws resources per pipeline.
         // i.e. after every draw bump the descriptor range and reset the descriptor tables
-        getDevice()->CreateConstantBufferView(&cbvDesc, cbvSrvUavDescriptorAllocator->getCpuHandle(pipelineCbvSrvUavDescriptorRangeOffset + argument.d3dOffsetInDescriptorTable));
+        getDevice()->CreateConstantBufferView(&cbvDesc, cbvSrvUavDescriptorAllocator->getCpuHandle(pipelineCbvSrvUavDescriptorRangeOffset + argument->d3dOffsetInDescriptorTable));
     }
 }
 
@@ -1333,9 +1433,11 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource co
 void GfxRenderCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerState* sampler)
 {
     rgAssert(sampler != nullptr);
-    GfxPipelineArgument& argument = getPipelineArgument(bindingTag);
 
-    D3D12_CPU_DESCRIPTOR_HANDLE destDescriptorHandle = samplerDescriptorAllocator->getCpuHandle(pipelineSamplerDescriptorRangeOffset + argument.d3dOffsetInDescriptorTable);
+    bumpGraphicsDescriptorTablesIfNeeded(GfxState::graphicsPSO);
+
+    GfxPipelineArgument* argument = getPipelineArgument(bindingTag);
+    D3D12_CPU_DESCRIPTOR_HANDLE destDescriptorHandle = samplerDescriptorAllocator->getCpuHandle(pipelineSamplerDescriptorRangeOffset + argument->d3dOffsetInDescriptorTable);
     D3D12_CPU_DESCRIPTOR_HANDLE srcDescriptorhandle = stagedSamplerDescriptorAllocator->getCpuHandle(sampler->d3dStagedDescriptorIndex);
     getDevice()->CopyDescriptorsSimple(1, destDescriptorHandle, srcDescriptorhandle, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 }
@@ -1343,6 +1445,19 @@ void GfxRenderCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSta
 //-----------------------------------------------------------------------------
 void GfxRenderCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* texture)
 {
+    rgAssert(texture != nullptr && bindingTag != nullptr);
+
+    bumpGraphicsDescriptorTablesIfNeeded(GfxState::graphicsPSO);
+
+    GfxPipelineArgument* argument = getPipelineArgument(bindingTag);
+
+    rgAssert(argument->type = GfxPipelineArgument::Type_Texture2D); // TODO: Support more texture types for bindTexture
+    D3D12_CPU_DESCRIPTOR_HANDLE destDescriptorHandle = cbvSrvUavDescriptorAllocator->getCpuHandle(pipelineCbvSrvUavDescriptorRangeOffset + argument->d3dOffsetInDescriptorTable);
+    
+    rgAssert(validD3DView(texture, GfxD3DViewType_SRV));
+    D3D12_CPU_DESCRIPTOR_HANDLE srcDescriptorHandle = getD3DView(texture, GfxD3DViewType_SRV).descriptor;
+
+    getDevice()->CopyDescriptorsSimple(1, destDescriptorHandle, srcDescriptorHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 //-----------------------------------------------------------------------------
@@ -1406,13 +1521,22 @@ void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rg
 {
     currentCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     currentCommandList->DrawInstanced(vertexCount, instanceCount, vertexStart, 0);
-    // TODO: Defer the bump until we try to bind something after the draw
-    // TODO: Defer the bump until we try to bind something after the draw
-    bumpDescriptorTables(GfxState::graphicsPSO);
+    
+    needDescriptorTableBump(true);
 }
 
 void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount)
 {
+    D3D12_INDEX_BUFFER_VIEW indexBufferView;
+    indexBufferView.BufferLocation = indexBuffer->d3dResource->GetGPUVirtualAddress() + bufferOffset;
+    indexBufferView.SizeInBytes = indexBuffer->size - bufferOffset;
+    indexBufferView.Format = is32bitIndex ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+
+    currentCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    currentCommandList->IASetIndexBuffer(&indexBufferView);
+    currentCommandList->DrawIndexedInstanced(indexCount, instanceCount, 0, 0, 0);
+    
+    needDescriptorTableBump(true);
 }
 
 void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount)
