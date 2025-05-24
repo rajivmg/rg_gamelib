@@ -941,7 +941,7 @@ void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU3
 }
 
 //-----------------------------------------------------------------------------
-GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindingTag)
+GfxPipelineArgument* GfxRenderCmdEncoder::getPipelineArgument(char const* bindingTag)
 {
     rgAssert(GfxState::graphicsPSO != nullptr);
     rgAssert(bindingTag);
@@ -953,9 +953,9 @@ GfxPipelineArgument& GfxRenderCmdEncoder::getPipelineArgument(char const* bindin
         rgAssert(false);
     }
     
-    GfxPipelineArgument& info = infoIter->second;
+    GfxPipelineArgument* info = &infoIter->second;
     
-    if(((info.stages & GfxStage_VS) != GfxStage_VS) && (info.stages & GfxStage_FS) != GfxStage_FS)
+    if(((info->stages & GfxStage_VS) != GfxStage_VS) && (info->stages & GfxStage_FS) != GfxStage_FS)
     {
         rgLogError("Resource/Binding(%s) cannot be found in the current pipeline(%s)", bindingTag, GfxState::graphicsPSO->tag);
         rgAssert(!"TODO: LogError should stop the execution");
@@ -968,20 +968,20 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, 
 {
     rgAssert(buffer != nullptr);
 
-    GfxPipelineArgument& info = getPipelineArgument(bindingTag);
+    GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     
     // TODO: Assert check valid Stage
     
     // TODO: Look into the logic of binding on both stages..
     // binding should be same.. type should be same... etc.
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
-    if((info.stages & GfxStage_VS) == GfxStage_VS)
+    if((info->stages & GfxStage_VS) == GfxStage_VS)
     {
-        [encoder setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.registerIndex];
+        [encoder setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:info->registerIndex];
     }
-    if((info.stages & GfxStage_FS) == GfxStage_FS)
+    if((info->stages & GfxStage_FS) == GfxStage_FS)
     {
-        [encoder setFragmentBuffer:getMTLBuffer(buffer) offset:offset atIndex:info.registerIndex];
+        [encoder setFragmentBuffer:getMTLBuffer(buffer) offset:offset atIndex:info->registerIndex];
     }
 }
 
@@ -989,19 +989,19 @@ void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource co
 {
     rgAssert(resource && resource->type == GfxFrameResource::Type_Buffer);
     
-    GfxPipelineArgument& info = getPipelineArgument(bindingTag);
+    GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     
     // TODO: Look into the logic of binding on both stages..
     // binding should be same.. type should be same... etc.
-    if((info.stages & GfxStage_VS) == GfxStage_VS)
+    if((info->stages & GfxStage_VS) == GfxStage_VS)
     {
-        [encoder setVertexBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info.registerIndex];
+        [encoder setVertexBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info->registerIndex];
     }
-    if((info.stages & GfxStage_FS) == GfxStage_FS)
+    if((info->stages & GfxStage_FS) == GfxStage_FS)
     {
-        [encoder setFragmentBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info.registerIndex];
+        [encoder setFragmentBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info->registerIndex];
     }
 }
 
@@ -1010,16 +1010,16 @@ void GfxRenderCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSta
 {
     rgAssert(sampler != nullptr);
     
-    GfxPipelineArgument& info = getPipelineArgument(bindingTag);
+    GfxPipelineArgument* info = getPipelineArgument(bindingTag);
     
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
-    if((info.stages & GfxStage_VS) == GfxStage_VS)
+    if((info->stages & GfxStage_VS) == GfxStage_VS)
     {
-        [encoder setVertexSamplerState:getMTLSamplerState(sampler) atIndex:info.registerIndex];
+        [encoder setVertexSamplerState:getMTLSamplerState(sampler) atIndex:info->registerIndex];
     }
-    if((info.stages & GfxStage_FS) == GfxStage_FS)
+    if((info->stages & GfxStage_FS) == GfxStage_FS)
     {
-        [encoder setFragmentSamplerState:getMTLSamplerState(sampler) atIndex:info.registerIndex];
+        [encoder setFragmentSamplerState:getMTLSamplerState(sampler) atIndex:info->registerIndex];
     }
 }
 
@@ -1028,18 +1028,18 @@ void GfxRenderCmdEncoder::bindTexture(char const* bindingTag, GfxTexture* textur
 {
     rgAssert(texture != nullptr);
     
-    GfxPipelineArgument& info = getPipelineArgument(bindingTag);
+    GfxPipelineArgument* info = getPipelineArgument(bindingTag);
 
     id<MTLRenderCommandEncoder> encoder = asMTLRenderCommandEncoder(mtlRenderCommandEncoder);
     // TODO: Look into the logic of binding on both stages..
     // binding should be same.. type should be same... etc.
-    if((info.stages & GfxStage_VS) == GfxStage_VS)
+    if((info->stages & GfxStage_VS) == GfxStage_VS)
     {
-        [encoder setVertexTexture:getMTLTexture(texture) atIndex:info.registerIndex];
+        [encoder setVertexTexture:getMTLTexture(texture) atIndex:info->registerIndex];
     }
-    if((info.stages & GfxStage_FS) == GfxStage_FS)
+    if((info->stages & GfxStage_FS) == GfxStage_FS)
     {
-        [encoder setFragmentTexture:getMTLTexture(texture) atIndex:info.registerIndex];
+        [encoder setFragmentTexture:getMTLTexture(texture) atIndex:info->registerIndex];
     }
     else
     {
