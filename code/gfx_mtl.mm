@@ -679,7 +679,7 @@ void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertex
         }
     
         MTLRenderPipelineDescriptor* psoDesc = [[MTLRenderPipelineDescriptor alloc] init];
-        psoDesc.label = [NSString stringWithUTF8String:tag];
+        [psoDesc setLabel:[NSString stringWithUTF8String:tag]];
         
         [psoDesc setVertexFunction:vs];
         [psoDesc setFragmentFunction:fs];
@@ -846,6 +846,7 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
     
     id<MTLRenderCommandEncoder> re = [getMTLCommandBuffer() renderCommandEncoderWithDescriptor:renderPassDesc];
     rgAssert(re != nil);
+    [re setLabel: [NSString stringWithUTF8String:tag]];
     [re pushDebugGroup:[NSString stringWithUTF8String:tag]];
     
     [renderPassDesc autorelease];
