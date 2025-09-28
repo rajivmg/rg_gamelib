@@ -7,10 +7,14 @@
 #include <vector>
 #include <unordered_map>
 #include <map>
+#include <set>
 
 #include <vectormath/vectormath.hpp>
 
 #include "pugixml.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#include "stb_image_write.h"
 
 struct Vertex {
 	std::vector<float> position;
@@ -323,6 +327,52 @@ void convert(std::string input, std::string output, bool transformVertex)
 		return nullptr;
 	};
 
+    struct Material
+    {
+        cgltf_material* srcMaterial;
+        
+        void* srcDiffuseMap;
+        void* srcMetallicRoughnessMap;
+        void* srcNormalMap;
+        void* srcAOMap;
+    };
+    std::vector<Material> loadedMaterials;
+    
+    auto LoadMaterial = [&](cgltf_material* gltf_material) -> int
+    {
+        for(int f = 0; f < (int)loadedMaterials.size(); ++f)
+        {
+            if(loadedMaterials[f].srcMaterial == gltf_material)
+            {
+                return f;
+            }
+        }
+        
+        char* diffuseTexturePath = gltf_material->pbr_metallic_roughness.base_color_texture.texture->image->uri;
+        char* metallicRoughnessPath = gltf_material->pbr_metallic_roughness.metallic_roughness_texture.texture->image->uri;
+        char* normalPath = gltf_material->normal_texture.texture->image->uri;
+        char* aoPath = gltf_material->occlusion_texture.texture->image->uri;
+        
+        Material material = {0};
+        material.srcMaterial = gltf_material;
+        
+        int tex_width, tex_height, tex_channel;
+        int temp_tex_width, temp_tex_height;
+        
+        if(diffuseTexturePath)
+        {
+            material.srcDiffuseMap = stbi_load(diffuseTexturePath, &tex_width, &tex_height, &tex_channel, 4);
+        }
+        
+        if(metallicRoughnessPath)
+        {
+            material.srcMetallicRoughnessMap = stbi_load(metallicRoughnessPath, &temp_tex_width, &temp_tex_height, &tex_channel, 4);
+            assert(tex_width == temp_tex_width);
+            assert(tex_height == temp_tex_height);
+        }
+        
+    };
+    
 	// 1. Find concerned nodes in the scene
 	std::vector<cgltf_node*> meshNodes;
 	std::vector<cgltf_node*> lightNodes; // TODO
@@ -348,6 +398,8 @@ void convert(std::string input, std::string output, bool transformVertex)
 
 		uint8_t* buffer;
 		uint32_t bufferLength;
+        
+        std::set<std::string> textures;
 
 		struct Mesh
 		{
@@ -365,6 +417,9 @@ void convert(std::string input, std::string output, bool transformVertex)
 			uint32_t vertexDataOffset;
 			uint32_t indexCount;
 			uint32_t indexDataOffset;
+            
+            std::string diffuseAlphaOrDiffuseMetallicMap; // sRGB8_A8
+            std::string normalRoughnessAOMap; // RGBA8
 		};
 
 		std::vector<Mesh> meshes;
@@ -503,6 +558,9 @@ void convert(std::string input, std::string output, bool transformVertex)
 				index32Data.push_back(*dataU32);
 			}
 		}
+        
+        assert(primitive->material);
+        LoadMaterial(primitive->material);
 	}
 
 	cgltf_free(gltf);
