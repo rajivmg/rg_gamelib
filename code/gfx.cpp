@@ -284,13 +284,14 @@ ImageRef loadImage(char const* filename, bool srgbFormat/* = true*/)
         output->width = (rgUInt)metadata.width;
         output->height = (rgUInt)metadata.height;
         output->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)metadata.format);
-        output->mipCount = (rgUInt)metadata.mipLevels;
+        output->mipFlag = (GfxTextureMipFlag)metadata.mipLevels;
         output->sliceCount = (rgUInt)metadata.arraySize;
         output->isDDS = true;
         output->memory = (rgU8*)rgMalloc(scratchImage.GetPixelsSize());
         
         rgU8* basememory = output->memory;
         rgU32 offset = 0;
+        rgAssert(scratchImage.GetImageCount() <= rgArrayCount(Image::slices));
         for(rgInt i = 0; i < scratchImage.GetImageCount(); ++i)
         {
             const DirectX::Image* img = scratchImage.GetImages() + i;
@@ -320,7 +321,7 @@ ImageRef loadImage(char const* filename, bool srgbFormat/* = true*/)
         output->width = width;
         output->height = height;
         output->format = srgbFormat ? TinyImageFormat_R8G8B8A8_SRGB : TinyImageFormat_R8G8B8A8_UNORM;
-        output->mipCount = 1;
+        output->mipFlag = GfxTextureMipFlag_GenMips;
         output->sliceCount = 1;
         output->isDDS = false;
         output->memory = texData;

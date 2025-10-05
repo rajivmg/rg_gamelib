@@ -303,6 +303,10 @@ enum GfxTextureMipFlag
     GfxTextureMipFlag_10Mips,
     GfxTextureMipFlag_11Mips,
     GfxTextureMipFlag_12Mips,
+    GfxTextureMipFlag_13Mips,
+    GfxTextureMipFlag_14Mips,
+    GfxTextureMipFlag_15Mips,
+    GfxTextureMipFlag_16Mips,
     GfxTextureMipFlag_END_MIPS,
     GfxTextureMipFlag_GenMips,
 };
@@ -1020,9 +1024,9 @@ struct Image
     rgU16           height;
     TinyImageFormat format;
     rgBool          isDDS;
-    rgU8            mipCount;
+    GfxTextureMipFlag mipFlag;
     rgU8            sliceCount;
-    ImageSlice      slices[12];
+    ImageSlice      slices[15];
     rgU8*           memory;
 
     void*           dxTexScratchImage;

@@ -489,18 +489,21 @@ void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, rgUInt widt
     // copy the texture data
     if(slices && slices[0].pixels != NULL)
     {
-        // TODO: handle when mipmapLevelCount > 1 but mipFlag is not GenMips
-        // i.e. copy mip data from slices to texture memory
-        if(mipmapLevelCount > 1)
+        rgUInt sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
+        rgUInt mipsToCopy = (mipFlag == GfxTextureMipFlag_GenMips) ? 1 : mipmapLevelCount;
+        if(dim == GfxTextureDim_Cube)
         {
-            rgAssert(mipFlag == GfxTextureMipFlag_GenMips);
+            rgAssert(mipsToCopy == 1);
         }
         
-        rgInt sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
-        for(rgInt s = 0; s < sliceCount; ++s)
+        for(rgUInt m = 0; m < mipsToCopy; ++m)
         {
-            MTLRegion region = MTLRegionMake2D(0, 0, width, height);
-            [te replaceRegion:region mipmapLevel:0 slice:s withBytes:slices[s].pixels bytesPerRow:slices[s].rowPitch bytesPerImage:0];
+            for(rgUInt s = 0; s < sliceCount; ++s)
+            {
+                ImageSlice* slc = &slices[s + m];
+                MTLRegion region = MTLRegionMake2D(0, 0, slc->width, slc->height);
+                [te replaceRegion:region mipmapLevel:m slice:s withBytes:slc->pixels bytesPerRow:slc->rowPitch bytesPerImage:0];
+            }
         }
         
         if(mipFlag == GfxTextureMipFlag_GenMips)
@@ -951,7 +954,7 @@ GfxPipelineArgument* GfxRenderCmdEncoder::getPipelineArgument(char const* bindin
     if(infoIter == GfxState::graphicsPSO->arguments.end())
     {
         rgLogError("Can't find the specified bindingTag(%s) in the shaders", bindingTag);
-        rgAssert(false);
+        return;
     }
     
     GfxPipelineArgument* info = &infoIter->second;
