@@ -9,11 +9,22 @@
 #include <map>
 #include <set>
 
+#include "DirectXTex.h"
+#define NULL 0
+
+
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <unistd.h>
+#endif
+
 #include <vectormath/vectormath.hpp>
 
 #include "pugixml.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
 struct Vertex {
@@ -49,7 +60,7 @@ cgltf_result loadAndParseGLTF(const char* filename, cgltf_data** outData)
 		std::cout << "GLTF validation finished with error " << (uint32_t)result << " for file " << filename << std::endl;
 	}
 
-	result = cgltf_load_buffers(&options, data, "./");
+	result = cgltf_load_buffers(&options, data, filename);
 	if(cgltf_result_success != result)
 	{
 		std::cout << "Failed to load buffers from gltf file " << filename << " with error " << (uint32_t)result << std::endl;
@@ -302,6 +313,118 @@ static bool processGLTFMesh(char const *pFilename, char const *pMeshName, Asset:
 }
 
 */
+
+void convertTextures(char const* name, char const* basePath, char const* diffusePath, char const* metallicRoughnessPath, char const* normalPath)
+{
+    char rootWd[512];
+    getcwd(rootWd, 512);
+    
+    if(basePath)
+    {
+        chdir(basePath);
+    }
+
+    int tex_width, tex_height, tex_channel;
+    int temp_tex_width, temp_tex_height;
+    
+    uint32_t *srcDiffuseMap, *srcMetallicRoughnessMap, *srcNormalMap;
+    if(diffusePath)
+    {
+        srcDiffuseMap = (uint32_t*)stbi_load(diffusePath, &tex_width, &tex_height, &tex_channel, 4);
+    }
+    
+    if(metallicRoughnessPath)
+    {
+        srcMetallicRoughnessMap = (uint32_t*)stbi_load(metallicRoughnessPath, &temp_tex_width, &temp_tex_height, &tex_channel, 4);
+        assert(tex_width == temp_tex_width);
+        assert(tex_height == temp_tex_height);
+    }
+    
+    if(normalPath)
+    {
+        srcNormalMap = (uint32_t*)stbi_load(normalPath, &temp_tex_width, &temp_tex_height, &tex_channel, 4);
+        assert(tex_width == temp_tex_width);
+        assert(tex_height == temp_tex_height);
+    }
+    
+    chdir(rootWd);
+    chdir("compiled");
+    
+    uint32_t *dstDiffuseAlphaMap, *dstNormalMap, *dstPropertyMap;
+    dstDiffuseAlphaMap = (uint32_t*)malloc(tex_width * tex_height * 4);
+    dstNormalMap = (uint32_t*)malloc(tex_width * tex_height * 4);
+    dstPropertyMap = (uint32_t*)malloc(tex_width * tex_height * 4);
+    
+    for(int y = 0; y < tex_height; ++y)
+    {
+        for(int x = 0; x < tex_width; ++x)
+        {
+            // RRGGBBAA = 0xAABBGGRR
+            
+            uint32_t diffuse = srcDiffuseMap[x + (y * tex_width)] & 0x00FFFFFF;
+            uint32_t alpha = (srcDiffuseMap[x + (y * tex_width)] & 0xFF000000) >> 24;
+            uint32_t metallic = (srcMetallicRoughnessMap[x + (y * tex_width)] & 0x00FF0000) >> 16;
+            uint32_t roughness = (srcMetallicRoughnessMap[x + (y * tex_width)] & 0x0000FF00) >> 8;
+            uint32_t normal_x = (srcNormalMap[x + (y * tex_width)] & 0x000000FF);
+            uint32_t normal_y = (srcNormalMap[x + (y * tex_width)] & 0x0000FF00) >> 8;
+            uint32_t normal_z = (srcNormalMap[x + (y * tex_width)] & 0x00FF0000) >> 16;
+            
+            dstDiffuseAlphaMap[x + (y * tex_width)] = diffuse | (alpha << 24);
+            dstNormalMap[x + (y * tex_width)] = normal_x | (normal_y << 8) | (normal_z << 16) | (0xFF << 24);
+            dstPropertyMap[x + (y * tex_width)] = roughness | (0xFF << 8) | (0xFF << 16) | (metallic << 24);
+        }
+    }
+    
+    stbi_image_free(srcDiffuseMap);
+    stbi_image_free(srcMetallicRoughnessMap);
+    stbi_image_free(srcNormalMap);
+    
+    int stride = tex_width * 4;
+    
+    auto writeDXImage = [&](wchar_t* filename, void* imagePixels, bool isSRGB) -> void
+    {
+        DirectX::Image outImage;
+        
+        outImage.width = tex_width;
+        outImage.height = tex_height;
+        outImage.format = isSRGB ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
+        outImage.rowPitch = tex_width * 4;
+        outImage.slicePitch = tex_width * tex_height * 4;
+        outImage.pixels = (uint8_t*)imagePixels;
+        
+        DirectX::ScratchImage mipChain;
+        DirectX::GenerateMipMaps(outImage, isSRGB ? DirectX::TEX_FILTER_SRGB : DirectX::TEX_FILTER_DEFAULT, 0, mipChain);
+        
+        //DirectX::SaveToDDSFile(outImage, DirectX::DDS_FLAGS_NONE, filename);
+        DirectX::SaveToDDSFile(mipChain.GetImages(), mipChain.GetImageCount(), mipChain.GetMetadata(), DirectX::DDS_FLAGS_NONE, filename);
+    };
+    
+    {
+        char diffuseAlphaPNG[256];
+        snprintf(diffuseAlphaPNG, 256, "%s_difalp.dds", name);
+        //stbi_write_png(diffuseAlphaPNG, tex_width, tex_height, 4, dstDiffuseAlphaMap, stride);
+        //free(dstDiffuseAlphaMap);
+    
+        wchar_t diffuseAlphaFilename[512];
+        mbstowcs(diffuseAlphaFilename, diffuseAlphaPNG, 512);
+        writeDXImage(diffuseAlphaFilename, dstDiffuseAlphaMap, true);
+    }
+    
+    {
+        char normalPNG[256];
+        snprintf(normalPNG, 256, "%s_norm.png", name);
+        stbi_write_png(normalPNG, tex_width, tex_height, 4, dstNormalMap, stride);
+        free(dstNormalMap);
+    }
+    
+    {
+        char propertiesPNG[256];
+        snprintf(propertiesPNG, 256, "%s_prop.png", name);
+        stbi_write_png(propertiesPNG, tex_width, tex_height, 4, dstPropertyMap, stride);
+        free(dstPropertyMap);
+    }
+}
+
 void convert(std::string input, std::string output, bool transformVertex)
 {
 	cgltf_data* gltf;
@@ -353,24 +476,25 @@ void convert(std::string input, std::string output, bool transformVertex)
         char* normalPath = gltf_material->normal_texture.texture->image->uri;
         char* aoPath = gltf_material->occlusion_texture.texture->image->uri;
         
+        std::string basePath;
+        size_t lp;
+        lp = input.find_last_of("/");
+        if(lp == std::string::npos)
+        {
+            lp = input.find_last_of("\\");
+        }
+        assert(lp != std::string::npos);
+        basePath = input.substr(0, lp);
+        
+        
         Material material = {0};
         material.srcMaterial = gltf_material;
         
-        int tex_width, tex_height, tex_channel;
-        int temp_tex_width, temp_tex_height;
+        char name[512];
+        snprintf(name, 512, "%s_%s", output.c_str(), gltf_material->name);
+        convertTextures(name, basePath.c_str(), diffuseTexturePath, metallicRoughnessPath, normalPath);
         
-        if(diffuseTexturePath)
-        {
-            material.srcDiffuseMap = stbi_load(diffuseTexturePath, &tex_width, &tex_height, &tex_channel, 4);
-        }
-        
-        if(metallicRoughnessPath)
-        {
-            material.srcMetallicRoughnessMap = stbi_load(metallicRoughnessPath, &temp_tex_width, &temp_tex_height, &tex_channel, 4);
-            assert(tex_width == temp_tex_width);
-            assert(tex_height == temp_tex_height);
-        }
-        
+        loadedMaterials.push_back(material);
     };
     
 	// 1. Find concerned nodes in the scene
