@@ -314,7 +314,8 @@ static bool processGLTFMesh(char const *pFilename, char const *pMeshName, Asset:
 
 */
 
-void convertTextures(char const* name, char const* basePath, char const* diffusePath, char const* metallicRoughnessPath, char const* normalPath)
+void convertTextures(char const* name, char const* basePath, char const* diffusePath, char const* metallicRoughnessPath, char const* normalPath,
+                     std::string* outDiffuseAlphaFilename, std::string* outNormalFilename, std::string* outPropertiesFilename)
 {
     char rootWd[512];
     getcwd(rootWd, 512);
@@ -400,29 +401,36 @@ void convertTextures(char const* name, char const* basePath, char const* diffuse
     };
     
     {
-        char diffuseAlphaPNG[256];
-        snprintf(diffuseAlphaPNG, 256, "%s_difalp.dds", name);
-        //stbi_write_png(diffuseAlphaPNG, tex_width, tex_height, 4, dstDiffuseAlphaMap, stride);
-        //free(dstDiffuseAlphaMap);
-    
-        wchar_t diffuseAlphaFilename[512];
-        mbstowcs(diffuseAlphaFilename, diffuseAlphaPNG, 512);
+        char diffuseAlphaDDS[256];
+        snprintf(diffuseAlphaDDS, 256, "%s_difalp.dds", name);
+        outDiffuseAlphaFilename->assign(diffuseAlphaDDS);
+        wchar_t diffuseAlphaFilename[256];
+        mbstowcs(diffuseAlphaFilename, diffuseAlphaDDS, 256);
         writeDXImage(diffuseAlphaFilename, dstDiffuseAlphaMap, true);
+        free(dstDiffuseAlphaMap);
     }
     
     {
-        char normalPNG[256];
-        snprintf(normalPNG, 256, "%s_norm.png", name);
-        stbi_write_png(normalPNG, tex_width, tex_height, 4, dstNormalMap, stride);
+        char normalDDS[256];
+        snprintf(normalDDS, 256, "%s_norm.dds", name);
+        outNormalFilename->assign(normalDDS);
+        wchar_t normalFilename[256];
+        mbstowcs(normalFilename, normalDDS, 256);
+        writeDXImage(normalFilename, dstNormalMap, false);
         free(dstNormalMap);
     }
     
     {
-        char propertiesPNG[256];
-        snprintf(propertiesPNG, 256, "%s_prop.png", name);
-        stbi_write_png(propertiesPNG, tex_width, tex_height, 4, dstPropertyMap, stride);
+        char propertiesDDS[256];
+        snprintf(propertiesDDS, 256, "%s_prop.dds", name);
+        outPropertiesFilename->assign(propertiesDDS);
+        wchar_t propertiesFilename[256];
+        mbstowcs(propertiesFilename, propertiesDDS, 256);
+        writeDXImage(propertiesFilename, dstPropertyMap, false);
         free(dstPropertyMap);
     }
+    
+    chdir(rootWd);
 }
 
 void convert(std::string input, std::string output, bool transformVertex)
@@ -454,10 +462,11 @@ void convert(std::string input, std::string output, bool transformVertex)
     {
         cgltf_material* srcMaterial;
         
-        void* srcDiffuseMap;
-        void* srcMetallicRoughnessMap;
-        void* srcNormalMap;
-        void* srcAOMap;
+        std::string name;
+        
+        std::string diffuseAlphaMapFilename;
+        std::string normalMapFilename;
+        std::string propertiesMapFilename;
     };
     std::vector<Material> loadedMaterials;
     
@@ -486,15 +495,24 @@ void convert(std::string input, std::string output, bool transformVertex)
         assert(lp != std::string::npos);
         basePath = input.substr(0, lp);
         
-        
-        Material material = {0};
+
+        int result = loadedMaterials.size();
+        loadedMaterials.emplace_back();
+        Material& material = loadedMaterials.back();
         material.srcMaterial = gltf_material;
         
         char name[512];
-        snprintf(name, 512, "%s_%s", output.c_str(), gltf_material->name);
-        convertTextures(name, basePath.c_str(), diffuseTexturePath, metallicRoughnessPath, normalPath);
-        
-        loadedMaterials.push_back(material);
+        if(gltf_material->name)
+        {
+            snprintf(name, 512, "%s_%s", output.c_str(), gltf_material->name);
+        }
+        else
+        {
+            snprintf(name, 512, "%s_mat%d", output.c_str(), loadedMaterials.size());
+        }
+        material.name.assign(name);
+
+        convertTextures(name, basePath.c_str(), diffuseTexturePath, metallicRoughnessPath, normalPath, &material.diffuseAlphaMapFilename, &material.normalMapFilename, &material.propertiesMapFilename);
     };
     
 	// 1. Find concerned nodes in the scene
@@ -542,8 +560,7 @@ void convert(std::string input, std::string output, bool transformVertex)
 			uint32_t indexCount;
 			uint32_t indexDataOffset;
             
-            std::string diffuseAlphaOrDiffuseMetallicMap; // sRGB8_A8
-            std::string normalRoughnessAOMap; // RGBA8
+            int materialIndex;
 		};
 
 		std::vector<Mesh> meshes;
@@ -603,12 +620,16 @@ void convert(std::string input, std::string output, bool transformVertex)
 		bool is32bitIndex = (primitive->indices->component_type == cgltf_component_type_r_32u) ? true : false;
 		gfxMesh.has32BitIndices = is32bitIndex;
 
+        // Load primitive material
+        assert(primitive->material);
+        int matIndex = LoadMaterial(primitive->material);
+        
 		strncpy(gfxMesh.tag, mesh->name, sizeof(GfxModel::Mesh::tag));
 		gfxMesh.vertexCount = vertexCount;
 		gfxMesh.vertexDataOffset = (uint32_t)(vertexData.size() * sizeof(float));
 		gfxMesh.indexCount = indexCount;
 		gfxMesh.indexDataOffset = (uint32_t) (is32bitIndex ? (index32Data.size() * sizeof(uint32_t)) : (index16Data.size() * sizeof(uint16_t)));
-
+        gfxMesh.materialIndex = matIndex;
 		gfxModel.meshes.push_back(gfxMesh);
 
 		for(unsigned int x = 0; x < vertexCount; ++x)
@@ -682,12 +703,7 @@ void convert(std::string input, std::string output, bool transformVertex)
 				index32Data.push_back(*dataU32);
 			}
 		}
-        
-        assert(primitive->material);
-        LoadMaterial(primitive->material);
 	}
-
-	cgltf_free(gltf);
 
     uint32_t vertexBufferLength = (vertexData.size() * sizeof(float));
     uint32_t index32BufferLength = (index32Data.size() * sizeof(uint32_t));
@@ -696,6 +712,19 @@ void convert(std::string input, std::string output, bool transformVertex)
 
 	// Write XML and BIN
 	pugi::xml_document modelDoc;
+    
+    pugi::xml_node materialsNode = modelDoc.append_child("materials");
+    materialsNode.append_attribute("count").set_value(loadedMaterials.size());
+    for(int matIndex = 0; matIndex < loadedMaterials.size(); ++matIndex)
+    {
+        Material* mat = &loadedMaterials[matIndex];
+        pugi::xml_node matNode = materialsNode.append_child("mat");
+        matNode.append_attribute("name").set_value(mat->name.c_str());
+        matNode.append_child("difalpha").append_attribute("path").set_value(mat->diffuseAlphaMapFilename.c_str());
+        matNode.append_child("norm").append_attribute("path").set_value(mat->normalMapFilename.c_str());
+        matNode.append_child("prop").append_attribute("path").set_value(mat->propertiesMapFilename.c_str());
+    }
+    
  	pugi::xml_node modelNode =  modelDoc.append_child("model");
 	modelNode.append_attribute("name").set_value(output.c_str());
 	modelNode.append_attribute("meshCount").set_value((uint32_t)gfxModel.meshes.size());
@@ -718,6 +747,7 @@ void convert(std::string input, std::string output, bool transformVertex)
 		meshNode.append_attribute("vertexDataOffset").set_value(m.vertexDataOffset);
 		meshNode.append_attribute("indexCount").set_value(m.indexCount);
 		meshNode.append_attribute("indexDataOffset").set_value(m.indexDataOffset);
+        meshNode.append_attribute("materialIndex").set_value(m.materialIndex);
 
 		pugi::xml_node transformNode = meshNode.append_child("transform");
 		for (int k = 0; k < 16; k++)
@@ -729,6 +759,8 @@ void convert(std::string input, std::string output, bool transformVertex)
 	modelDoc.print(std::cout);
 	modelDoc.save_file((output + ".xml").c_str());
 
+    cgltf_free(gltf);
+    
 	FILE* fs = fopen((output + ".bin").c_str(), "wb");
 	fwrite(vertexData.data(), sizeof(float), vertexData.size(), fs);
 	fwrite(index32Data.data(), sizeof(uint32_t), index32Data.size(), fs);
