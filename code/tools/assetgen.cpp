@@ -513,6 +513,8 @@ void convert(std::string input, std::string output, bool transformVertex)
         material.name.assign(name);
 
         convertTextures(name, basePath.c_str(), diffuseTexturePath, metallicRoughnessPath, normalPath, &material.diffuseAlphaMapFilename, &material.normalMapFilename, &material.propertiesMapFilename);
+        
+        return result;
     };
     
 	// 1. Find concerned nodes in the scene
@@ -747,7 +749,7 @@ void convert(std::string input, std::string output, bool transformVertex)
 		meshNode.append_attribute("vertexDataOffset").set_value(m.vertexDataOffset);
 		meshNode.append_attribute("indexCount").set_value(m.indexCount);
 		meshNode.append_attribute("indexDataOffset").set_value(m.indexDataOffset);
-        meshNode.append_attribute("materialIndex").set_value(m.materialIndex);
+        meshNode.append_attribute("mat").set_value(m.materialIndex);
 
 		pugi::xml_node transformNode = meshNode.append_child("transform");
 		for (int k = 0; k < 16; k++)
@@ -757,6 +759,11 @@ void convert(std::string input, std::string output, bool transformVertex)
 	}
 
 	modelDoc.print(std::cout);
+    
+    char rootWd[512];
+    getcwd(rootWd, 512);
+    chdir("compiled");
+    
 	modelDoc.save_file((output + ".xml").c_str());
 
     cgltf_free(gltf);
@@ -766,6 +773,8 @@ void convert(std::string input, std::string output, bool transformVertex)
 	fwrite(index32Data.data(), sizeof(uint32_t), index32Data.size(), fs);
 	fwrite(index16Data.data(), sizeof(uint16_t), index16Data.size(), fs);
 	fclose(fs);
+    
+    chdir(rootWd);
 }
 
 int main(int argc, char **argv)
