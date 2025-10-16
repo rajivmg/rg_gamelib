@@ -44,6 +44,7 @@
 #include <EASTL/vector.h>
 #include <EASTL/fixed_vector.h>
 #include <EASTL/vector_multimap.h>
+#include <EASTL/hash_map.h>
 
 #define RG_MAX_FRAMES_IN_FLIGHT 3
 #define RG_MAX_BINDLESS_TEXTURE_RESOURCES 100000
@@ -807,6 +808,9 @@ class GfxBindlessResourceManager
 
     typedef eastl::vector<rgU32> SlotList;
     SlotList freeSlots; // Indexes in referenceList which are unused
+    
+    typedef eastl::hash_map<Type*, rgU32> ResourcePtrSlotMapType;
+    ResourcePtrSlotMapType resourcePtrSlotMap;
 
     rgU32 getFreeSlot()
     {
@@ -834,11 +838,17 @@ class GfxBindlessResourceManager
 
         resources[slot] = nullptr;
         freeSlots.push_back(slot);
+        typename ResourcePtrSlotMapType::iterator itr = resourcePtrSlotMap.find(slot);
+        rgAssert(itr != resourcePtrSlotMap.end());
+        resourcePtrSlotMap.erase(itr);
     }
 
     void setResourcePtrInSlot(rgU32 slot, Type* ptr)
     {
+        rgAssert(ptr);
+        rgAssert(slot != UINT32_MAX);
         resources[slot] = ptr;
+        resourcePtrSlotMap.insert(eastl::make_pair(ptr, slot));
         gfxSetBindlessResource(slot, ptr);
         // TODO: make sure we're not updating a resource in flight
         // this should be implictly handled from _releaseSlot
@@ -846,12 +856,10 @@ class GfxBindlessResourceManager
 
     rgU32 getSlotOfResourcePtr(Type* ptr)
     {
-        for(rgUInt i = 0, size = (rgUInt)resources.size(); i < size; ++i)
+        typename ResourcePtrSlotMapType::iterator itr = resourcePtrSlotMap.find(ptr);
+        if(itr != resourcePtrSlotMap.end())
         {
-            if(resources[i] == ptr)
-            {
-                return i;
-            }
+            return itr->second;
         }
         return kInvalidValue;
     }
@@ -866,8 +874,17 @@ public:
     {
         return resources.end();
     }
-
-    rgU32 getBindlessIndex(Type* ptr)
+    
+    // When it is known that the resource is not already stored
+    rgU32 store(Type* ptr)
+    {
+        rgU32 slot = getFreeSlot();
+        setResourcePtrInSlot(slot, ptr);
+        return slot;
+    }
+    
+    // When it is not known whether the resource is already stored or not
+    rgU32 storeIfNotPresent(Type* ptr)
     {
         rgU32 slot = getSlotOfResourcePtr(ptr);
         if(slot == kInvalidValue)

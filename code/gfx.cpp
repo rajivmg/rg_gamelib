@@ -476,7 +476,7 @@ void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgF
     q.color = color;
     q.size = posSize.zw;
     q.offsetOrientation = offsetOrientation;
-    q.texID = g_BindlessTextureManager->getBindlessIndex(tex);
+    q.texID = g_BindlessTextureManager->storeIfNotPresent(tex);
     quadList->insert(eastl::pair<SpriteLayer, TexturedQuad>(layer, q));
 }
 
