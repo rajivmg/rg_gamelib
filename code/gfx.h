@@ -1054,6 +1054,22 @@ ImageRef    loadImage(char const* filename, bool srgbFormat = true);
 void        unloadImage(Image* ptr);
 
 
+// Default Material
+// ----------------
+
+struct DefaultMaterial
+{
+    eastl::string tag;
+    GfxTexture* diffuseAlpha;
+    GfxTexture* normal;
+    GfxTexture* properties;
+    
+    typedef eastl::hash_map<rgHash, DefaultMaterial*> LoadedMaterialsType;
+    static LoadedMaterialsType s_LoadedMaterials;
+};
+typedef eastl::shared_ptr<DefaultMaterial> DefaultMaterialRef;
+
+
 // Model and Mesh
 //---------------
 
