@@ -1059,7 +1059,7 @@ void        unloadImage(Image* ptr);
 
 struct DefaultMaterial
 {
-    eastl::string tag;
+    rgChar tag[32];
     GfxTexture* diffuseAlpha;
     GfxTexture* normal;
     GfxTexture* properties;
@@ -1093,6 +1093,7 @@ struct Mesh
     rgU32 vertexDataOffset;
     rgU32 indexCount;
     rgU32 indexDataOffset;
+    DefaultMaterialRef material;
 };
 
 struct Model

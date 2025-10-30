@@ -1,11 +1,14 @@
 //#include <mmgr/mmgr.cpp>
 #include "gfx.h"
+#include <utils.h>
 
 #include <string.h>
 #include <EASTL/string.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+
+#include <SDL2/SDL_filesystem.h>
 
 #include "pugixml.hpp"
 #include "DirectXTex.h"
@@ -350,6 +353,19 @@ void unloadImage(Image* ptr)
     rgDelete(ptr);
 }
 
+
+static DefaultMaterialRef loadMaterial(eastl::string basePath, pugi::xml_node* matNode)
+{
+    DefaultMaterial* material = rgNew(DefaultMaterial);
+    strncpy(material->tag, matNode->attribute("name").as_string(), sizeof(DefaultMaterial::tag));
+    
+    eastl::string rootWd = getCurrentWorkingDir();
+    changeWorkingDir(basePath);
+    
+    loadImage(matNode->child("difalpha").attribute("path").as_string());
+    
+    changeWorkingDir(rootWd);
+}
 
 ModelRef loadModel(char const* filename)
 {

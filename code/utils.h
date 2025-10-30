@@ -2,10 +2,14 @@
 #define __UTILS_H__
 
 #include "core.h"
+#include <EASTL/string.h>
 
 // HELPER FUNCTIONS
 // -----------------
 
+eastl::string   extractBasePath(eastl::string path);
+eastl::string   getCurrentWorkingDir();
+void            changeWorkingDir(eastl::string dir);
 
 // INLINE FUNCTIONS
 // ----------------
