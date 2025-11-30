@@ -6,6 +6,7 @@
 SDL_Window* g_AppMainWindow;
 rgBool      g_ShouldAppQuit;
 rgUInt      g_FrameNumber;
+WindowInfo  g_WindowInfo;
 
 // EASTL MEMORY OVERLOADS
 // ----------------------

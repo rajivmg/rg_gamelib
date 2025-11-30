@@ -14,6 +14,9 @@ struct Smygel : TheApp
     
     rgBool isMapEditorOpen;
     
+    GfxTexture *flower, *ocean, *arrow;
+    GfxGraphicsPSO *texturedQuadPSO;
+    
     Smygel()
     : depthStencilFormat(TinyImageFormat_D32_SFLOAT_S8_UINT)
     {
@@ -38,7 +41,7 @@ struct Smygel : TheApp
         vfTexturedQuad.elements[1].format = TinyImageFormat_R32G32_SFLOAT;
         vfTexturedQuad.elements[1].bufferIndex = 0;
         vfTexturedQuad.elements[1].stepFunc = GfxVertexStepFunc_PerVertex;
-
+        
         
         vfTexturedQuad.elements[2].semanticName = "COLOR";
         vfTexturedQuad.elements[2].semanticIndex = 0;
@@ -58,17 +61,19 @@ struct Smygel : TheApp
         texturedQuadRenderStateDesc.colorAttachments[0].blendingEnabled = true;
         texturedQuadRenderStateDesc.depthStencilAttachmentFormat = depthStencilFormat;
         
-        GfxGraphicsPSO::create("texturedQuad", &vfTexturedQuad, &textureQuadShaderDesc, &texturedQuadRenderStateDesc);
+        texturedQuadPSO = GfxGraphicsPSO::create("texturedQuad", &vfTexturedQuad, &textureQuadShaderDesc, &texturedQuadRenderStateDesc);
         
         // setup test texture
         ImageRef flowerTex = loadImage("flower.png");
-        GfxTexture::create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
+        flower = GfxTexture::create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
         
-        ImageRef oceanTex = loadImage("ocean_tile.png");
-        GfxTexture::create("ocean", GfxTextureDim_2D, oceanTex->width, oceanTex->height, oceanTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, oceanTex->slices);
-    
+        ImageRef oceanTex = loadImage("compiled/spaceship_Material.001_difalp.dds");
+        ocean = GfxTexture::create("ocean", GfxTextureDim_2D, oceanTex->width, oceanTex->height, oceanTex->format, oceanTex->mipFlag, GfxTextureUsage_ShaderRead, oceanTex->slices);
+        
         ImageRef arrowTex = loadImage("test_arrow.png");
-        GfxTexture::create("arrow", GfxTextureDim_2D, arrowTex->width, arrowTex->height, arrowTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, arrowTex->slices);
+        arrow = GfxTexture::create("arrow", GfxTextureDim_2D, arrowTex->width, arrowTex->height, arrowTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, arrowTex->slices);
+            
+        //ImageRef ff = loadImage("compiled/spaceship_Material.001_difalp.dds");
     }
     
     void setup() override
@@ -97,9 +102,9 @@ struct Smygel : TheApp
         GfxFrameResource cameraParamsBuffer = gfxGetFrameAllocator()->newBuffer("cameraParams", sizeof(CameraParamsGPU), cameraParams);
 
         TexturedQuads testQuads;
-        pushTexturedQuad(&testQuads, SpriteLayer_1, defaultQuadUV, {100.0f, 75.0f, 200.f, 200.f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("flower"_rghash));
-        pushTexturedQuad(&testQuads, SpriteLayer_0, defaultQuadUV, {110.0f, 85.0f, 200.f, 200.f}, 0xFF0000FF, {0, 0, 0, 0}, GfxTexture::find("flower"_rghash));
-        pushTexturedQuad(&testQuads, SpriteLayer_0, defaultQuadUV, {120.0f, 95.0f, 200.f, 200.f}, 0x00FF00FF, {0, 0, 0, 0}, GfxTexture::find("flower"_rghash));
+        pushTexturedQuad(&testQuads, SpriteLayer_1, defaultQuadUV, {100.0f, 75.0f, 200.f, 200.f}, 0xFFFFFFFF, {0, 0, 0, 0}, flower);
+        pushTexturedQuad(&testQuads, SpriteLayer_0, defaultQuadUV, {110.0f, 85.0f, 200.f, 200.f}, 0xFF0000FF, {0, 0, 0, 0}, flower);
+        pushTexturedQuad(&testQuads, SpriteLayer_0, defaultQuadUV, {120.0f, 95.0f, 200.f, 200.f}, 0x00FF00FF, {0, 0, 0, 0}, flower);
         
         char const* splashIntroText = "It is not our part to master all the tides of the world,\nbut to do what is in us for the succour of those years wherein we are set,\nuprooting the evil in the fields that we know,\nso that those who live after may have clean earth to till.\nWhat weather they shall have is not ours to rule.";
         
@@ -113,19 +118,19 @@ struct Smygel : TheApp
         TexturedQuads worldTexturedQuads;
         static rgFloat ang;
         ang += (float)theAppInput->deltaTime;
-        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {5.0f, 5.0f, 1.0f, 1.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("ocean"_rghash));
-        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {5.0f, 5.0f, -1.0f, 1.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("ocean"_rghash));
-        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {5.0f, 5.0f, -1.0f, -1.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, GfxTexture::find("ocean"_rghash));
-        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {7.0f, 5.0f, 1.0f, 1.0f}, 0x00FF00FF, {0, 0, ang, 0}, GfxTexture::find("ocean"_rghash));
-        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f, 1.0f, 1.0f}, 0xFF0000FF, {0.5f, 0.5f, ang, 0}, GfxTexture::find("ocean"_rghash));
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {5.0f, 5.0f, 1.0f, 1.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, ocean);
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {5.0f, 5.0f, -1.0f, 1.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, ocean);
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {5.0f, 5.0f, -1.0f, -1.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, ocean);
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {7.0f, 5.0f, 1.0f, 1.0f}, 0x00FF00FF, {0, 0, ang, 0}, ocean);
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f, 1.0f, 1.0f}, 0xFF0000FF, {0.5f, 0.5f, ang, 0}, ocean);
         
-        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f, 1.0f, 1.0f}, 0xFF0000FF, {-0.5f, -0.5f, ang, 0}, GfxTexture::find("ocean"_rghash));
+        pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f, 1.0f, 1.0f}, 0xFF0000FF, {-0.5f, -0.5f, ang, 0}, ocean);
         
         {
             rgFloat s = sinf(ang);
             rgFloat c = cosf(ang);
             rgFloat2 b = {7.0f + s * 2.0f, 5.0f + c * 2.0f};
-            pushTexturedLine(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {7.0f, 5.0f}, b, 0.1f, 0xFF000FF, GfxTexture::find("ocean"_rghash));
+            pushTexturedLine(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {7.0f, 5.0f}, b, 0.1f, 0xFF000FF, ocean);
         }
 
         {
@@ -133,12 +138,12 @@ struct Smygel : TheApp
             rgFloat2 m = {(rgFloat)theAppInput->mouse.x, (rgFloat)theAppInput->mouse.y};
             rgFloat l = length(m - p);
             rgFloat repeatU = l / 16.0f;
-            pushTexturedLine(&testQuads, SpriteLayer_1, repeatQuadUV({repeatU, 1.0f}), p, m, 16.0f, 0x331de2ff, GfxTexture::find("arrow"_rghash));
+            pushTexturedLine(&testQuads, SpriteLayer_1, repeatQuadUV({repeatU, 1.0f}), p, m, 16.0f, 0x331de2ff, arrow);
         }
 
         for(rgInt x = -8; x < 8; ++x)
         {
-            pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, { (rgFloat)x, 0, 1.0f, 1.0f }, 0x00FF00FF, { 0, 0, 0, 0 }, GfxTexture::find("flower"_rghash));
+            pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, { (rgFloat)x, 0, 1.0f, 1.0f }, 0x00FF00FF, { 0, 0, 0, 0 }, flower);
         }
 
         //
@@ -153,7 +158,7 @@ struct Smygel : TheApp
         simple2dRenderPass.clearDepth = 0.0f;
         
         GfxRenderCmdEncoder* simple2dRenderEncoder = gfxSetRenderPass("Simple2D Pass", &simple2dRenderPass);
-        simple2dRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("texturedQuad"_rghash));
+        simple2dRenderEncoder->setGraphicsPSO(texturedQuadPSO);
         simple2dRenderEncoder->drawTexturedQuads(&testQuads, nullptr, nullptr);
         simple2dRenderEncoder->drawTexturedQuads(&worldTexturedQuads, &worldViewMatrix, &worldProjMatrix);
         simple2dRenderEncoder->end();

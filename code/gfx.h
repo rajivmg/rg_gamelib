@@ -76,89 +76,30 @@ void    gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr);
 // TODO: Add a destroyAllObjectsNow() function to be
 // called at the last frame of the application, because 
 // there will not be more frames to free and destroy objects.
-template<typename Type>
+template<typename Type, typename... Args>
 struct GfxObjectRegistry
 {
-    typedef eastl::hash_map<rgHash, Type*> ObjectMapType;
-    
-    static ObjectMapType objects;
+    rgChar  tag[RG_GFX_OBJECT_TAG_LENGTH];
+
     static eastl::vector<Type*> objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT];
     
-    static Type* find(rgHash hash)
+    static Type* create(const char* name, Args... args)
     {
-        typename ObjectMapType::iterator itr = objects.find(hash);
-        return (itr != objects.end()) ? itr->second : nullptr;
-    }
-
-    template<typename... Args>
-    static Type* create(const char* tag, Args... args)
-    {
-        rgAssert(tag != nullptr);
-
         Type* obj = rgNew(Type);
-        strncpy(obj->tag, tag, rgArrayCount(Type::tag));
+        if(name != nullptr)
+        {
+            strncpy(obj->tag, name, rgArrayCount(tag));
+        }
+        
         Type::fillStruct(args..., obj);
-        Type::createGfxObject(tag, args..., obj);
-        insert(rgCRC32(tag), obj);
-        return obj;
-    }
+        Type::createGfxObject(name, args..., obj);
 
-    template <typename... Args>
-    static Type* findOrCreate(const char* tag, Args... args)
-    {
-        rgAssert(tag != nullptr);
-        Type* obj = find(rgCRC32(tag));
-        obj = (obj == nullptr) ? create(tag, args...) : obj;
         return obj;
-    }
-    
-    static void destroy(rgHash hash)
-    {
-        typename ObjectMapType::iterator itr = objects.find(hash);
-        // CANNOT find the object, MAKE SURE the hash is valid, AND
-        // the object is not a global variable causing it's destructor
-        // to be called after 'objects' hash_map is destructed.
-        rgAssert(itr != objects.end());
-        objectsToDestroy[gfxGetFrameIndex()].push_back(itr->second);
     }
     
     static void destroy(Type* obj)
     {
-        typename ObjectMapType::iterator itr = eastl::find_if(objects.begin(), objects.end(), [&](const eastl::pair<rgHash, Type*>& objectPair)
-        {
-            if(objectPair.second == obj)
-            {
-                return true;
-            }
-            return false;
-        });
-
-        // CANNOT find the object, MAKE SURE the pointer is valid, AND
-        // the object is not a global variable causing it's destructor
-        // to be called after 'objects' hash_map is destructed.
-        rgAssert(itr != objects.end()); // TODO: replace with rgCriticalCheck()
-        
         objectsToDestroy[gfxGetFrameIndex()].push_back(obj);
-    }
-    
-    static typename ObjectMapType::iterator begin() EA_NOEXCEPT
-    {
-        return objects.begin();
-    }
-
-    static typename ObjectMapType::iterator end() EA_NOEXCEPT
-    {
-        return objects.end();
-    }
-    
-//protected:
-    static void insert(rgHash hash, Type* ptr)
-    {
-#if defined(ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT)
-        typename ObjectMapType::iterator itr = objects.find(hash);
-        rgAssert(itr == objects.end());
-#endif
-        objects.insert_or_assign(hash, ptr);
     }
 
     static void destroyMarkedObjects()
@@ -166,20 +107,15 @@ struct GfxObjectRegistry
         rgInt frameIndex = gfxGetFrameIndex();
         for(auto itr : objectsToDestroy[frameIndex])
         {
-            // TODO: Which one is better here
             Type::destroyGfxObject(itr);
-            //Type::destroy(&(*itr));
             rgDelete(&(*itr));
         }
         objectsToDestroy[frameIndex].clear();
     }
 };
 
-template<typename Type>
-typename GfxObjectRegistry<Type>::ObjectMapType GfxObjectRegistry<Type>::objects;
-
-template<typename Type>
-eastl::vector<Type*> GfxObjectRegistry<Type>::objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT];
+template<typename Type, typename... Args>
+eastl::vector<Type*> GfxObjectRegistry<Type, Args...>::objectsToDestroy[RG_MAX_FRAMES_IN_FLIGHT];
 
 
 //-----------------------------------------------------------------------------
@@ -232,9 +168,8 @@ enum GfxMemoryType
 // Note:
 // GfxBuffer will always be for static data or shader writable data,
 // cpu updatable dynamic data can be stored in FrameAllocator
-struct GfxBuffer : GfxObjectRegistry<GfxBuffer>
+struct GfxBuffer : GfxObjectRegistry<GfxBuffer, GfxMemoryType, void*, rgSize, GfxBufferUsage>
 {
-    rgChar          tag[RG_GFX_OBJECT_TAG_LENGTH];
     rgSize          size;
     GfxBufferUsage  usage; // TODO: This doesn't seem to be required in Metal & D3D12 backends.. remove?
     GfxMemoryType   memoryType;
@@ -312,9 +247,8 @@ enum GfxTextureMipFlag
     GfxTextureMipFlag_GenMips,
 };
 
-struct GfxTexture : GfxObjectRegistry<GfxTexture>
+struct GfxTexture : GfxObjectRegistry<GfxTexture, GfxTextureDim, rgUInt, rgUInt, TinyImageFormat, GfxTextureMipFlag, GfxTextureUsage, ImageSlice*>
 {
-    rgChar          tag[RG_GFX_OBJECT_TAG_LENGTH];
     GfxTextureDim   dim;
     rgUInt          width;
     rgUInt          height;
@@ -392,9 +326,8 @@ enum GfxSamplerMipFilter
     GfxSamplerMipFilter_Linear,
 };
 
-struct GfxSamplerState : GfxObjectRegistry<GfxSamplerState>
+struct GfxSamplerState : GfxObjectRegistry<GfxSamplerState, GfxSamplerAddressMode, GfxSamplerMinMagFilter, GfxSamplerMinMagFilter, GfxSamplerMipFilter, rgBool>
 {
-    rgChar                  tag[RG_GFX_OBJECT_TAG_LENGTH];
     GfxSamplerAddressMode   rstAddressMode;
     GfxSamplerMinMagFilter  minFilter;
     GfxSamplerMinMagFilter  magFilter;
@@ -577,10 +510,8 @@ struct GfxPipelineArgument
 #endif
 };
 
-struct GfxGraphicsPSO : GfxObjectRegistry<GfxGraphicsPSO>
+struct GfxGraphicsPSO : GfxObjectRegistry<GfxGraphicsPSO, GfxVertexInputDesc*, GfxShaderDesc*, GfxRenderStateDesc*>
 {
-    rgChar              tag[RG_GFX_OBJECT_TAG_LENGTH];
-    
     // State info
     GfxCullMode         cullMode;
     GfxWinding          winding;
@@ -614,10 +545,8 @@ struct GfxGraphicsPSO : GfxObjectRegistry<GfxGraphicsPSO>
     static void destroyGfxObject(GfxGraphicsPSO* obj);
 };
 
-struct GfxComputePSO : GfxObjectRegistry<GfxComputePSO>
+struct GfxComputePSO : GfxObjectRegistry<GfxComputePSO, GfxShaderDesc*>
 {
-    rgChar tag[32];
-    
     // TODO: This info might only be needed for metal
     rgU32 threadsPerThreadgroupX;
     rgU32 threadsPerThreadgroupY;

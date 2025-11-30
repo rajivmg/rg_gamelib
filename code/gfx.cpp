@@ -362,7 +362,9 @@ static DefaultMaterialRef loadMaterial(eastl::string basePath, pugi::xml_node* m
     eastl::string rootWd = getCurrentWorkingDir();
     changeWorkingDir(basePath);
     
-    loadImage(matNode->child("difalpha").attribute("path").as_string());
+    ImageRef difalphaImg = loadImage(matNode->child("difalpha").attribute("path").as_string());
+    ImageRef normImg = loadImage(matNode->child("norm").attribute("path").as_string());
+    ImageRef propImg = loadImage(matNode->child("prop").attribute("path").as_string());
     
     changeWorkingDir(rootWd);
 }

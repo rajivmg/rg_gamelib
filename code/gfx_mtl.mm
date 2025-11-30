@@ -1415,6 +1415,8 @@ GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialD
 //***********************************************************************
 // TEST ATOMIC ---------
 id<MTLComputePipelineState> histogramComputePipeline;
+GfxTexture* histogramTest;
+GfxBuffer* histogramBuffer;
 
 void testComputeAtomicsSetup()
 {
@@ -1437,17 +1439,17 @@ void testComputeAtomicsSetup()
     [histogramLibrary release];
     
     ImageRef histoTex = loadImage("histogram_test.png");
-    GfxTexture::create("histogramTest", GfxTextureDim_2D, histoTex->width, histoTex->height, histoTex->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, histoTex->slices);
-    GfxBuffer::create("histogramBuffer", GfxMemoryType_Default, nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
+    histogramTest = GfxTexture::create("histogramTest", GfxTextureDim_2D, histoTex->width, histoTex->height, histoTex->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, histoTex->slices);
+    histogramBuffer = GfxBuffer::create("histogramBuffer", GfxMemoryType_Default, nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
 }
 
 void testComputeAtomicsRun()
 {
     id<MTLComputeCommandEncoder> computeEncoder = [getMTLCommandBuffer() computeCommandEncoder];
     [computeEncoder setComputePipelineState:histogramComputePipeline];
-    [computeEncoder setTexture:getMTLTexture(GfxTexture::find(rgCRC32("histogramTest"))) atIndex:0];
-    [computeEncoder setBuffer:getMTLBuffer(GfxBuffer::find(rgCRC32("histogramBuffer"))) offset:0 atIndex:0];
-    [computeEncoder setBuffer:getMTLBuffer(GfxBuffer::find(rgCRC32("histogramBuffer"))) offset:0 atIndex:1];
+    [computeEncoder setTexture:getMTLTexture(histogramTest) atIndex:0];
+    [computeEncoder setBuffer:getMTLBuffer(histogramBuffer) offset:0 atIndex:0];
+    [computeEncoder setBuffer:getMTLBuffer(histogramBuffer) offset:0 atIndex:1];
     [computeEncoder dispatchThreads:MTLSizeMake(4, 4, 1) threadsPerThreadgroup:MTLSizeMake(4, 4, 1)];
     [computeEncoder endEncoding];
 }

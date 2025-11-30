@@ -1,3 +1,4 @@
+#if 0
 #include "core.h"
 
 #include "gfx.h"
@@ -23,7 +24,6 @@
 
 GameState* g_GameState;
 PhysicSystem* g_PhysicSystem;
-WindowInfo g_WindowInfo;
 Viewport* g_Viewport;
 
 eastl::vector<GfxTexture*> debugTextureHandles;
@@ -620,3 +620,4 @@ class Demo3DApp : public TheApp
 };
 
 //THE_APP_MAIN(Demo3DApp)
+#endif
