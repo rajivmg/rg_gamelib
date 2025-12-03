@@ -1,4 +1,3 @@
-#if 0
 #include "core.h"
 
 #include "gfx.h"
@@ -29,6 +28,23 @@ Viewport* g_Viewport;
 eastl::vector<GfxTexture*> debugTextureHandles;
 
 FontRef inconFont;
+
+GfxGraphicsPSO* simple2DPSO;
+GfxGraphicsPSO* skyboxPSO;
+GfxComputePSO*  tonemapGenerateHistogramPSO;
+GfxComputePSO*  tonemapClearOutputLuminanceHistogramPSO;
+GfxComputePSO*  tonemapComputeAvgLuminancePSO;
+GfxComputePSO*  tonemapReinhardPSO;
+GfxComputePSO*  compositePSO;
+GfxGraphicsPSO* principledBrdfPSO;
+GfxGraphicsPSO* gridPSO;
+
+GfxTexture* sangiuseppeBridgeCubeTex;
+GfxTexture* sangiuseppeBridgeCubeIrradianceTex;
+GfxTexture* japaneseStoneWallDiff1kTex;
+
+GfxBuffer* skyboxVertexBuffer;
+GfxBuffer* outputLuminanceHistogramBuffer;
 
 rgInt setup()
 {
@@ -89,7 +105,7 @@ rgInt setup()
     simple2dRenderStateDesc.depthStencilAttachmentFormat = TinyImageFormat_D32_SFLOAT;
     //simple2dRenderStateDesc.triangleFillMode = GfxTriangleFillMode_Lines;
     
-    GfxGraphicsPSO::create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
+    simple2DPSO = GfxGraphicsPSO::create("simple2d", &vertexDesc, &simple2dShaderDesc, &simple2dRenderStateDesc);
     
     //
     GfxVertexInputDesc vertexPosTexCoordNormal = {};
@@ -130,7 +146,7 @@ rgInt setup()
     world3dRenderState.winding = GfxWinding_CCW;
     world3dRenderState.cullMode = GfxCullMode_None;
 
-    GfxGraphicsPSO::create("principledBrdf", &vertexPosTexCoordNormal, &principledBrdfShaderDesc, &world3dRenderState);
+    principledBrdfPSO = GfxGraphicsPSO::create("principledBrdf", &vertexPosTexCoordNormal, &principledBrdfShaderDesc, &world3dRenderState);
     //
     GfxShaderDesc gridShaderDesc = {};
     gridShaderDesc.shaderSrc = "grid.hlsl";
@@ -146,7 +162,7 @@ rgInt setup()
     gridRenderState.winding = GfxWinding_CCW;
     gridRenderState.cullMode = GfxCullMode_None;
     
-    GfxGraphicsPSO::create("gridPSO", nullptr, &gridShaderDesc, &gridRenderState);
+    gridPSO = GfxGraphicsPSO::create("gridPSO", nullptr, &gridShaderDesc, &gridRenderState);
     //
     GfxVertexInputDesc vertexPos = {};
     vertexPos.elementCount = 1;
@@ -172,27 +188,27 @@ rgInt setup()
     skyboxRenderState.winding = GfxWinding_CCW;
     skyboxRenderState.cullMode = GfxCullMode_None;
 
-    GfxGraphicsPSO::create("skybox", &vertexPos, &skyboxShaderDesc, &skyboxRenderState);
+    skyboxPSO = GfxGraphicsPSO::create("skybox", &vertexPos, &skyboxShaderDesc, &skyboxRenderState);
     
     //
     GfxShaderDesc tonemapShaderDesc = {};
     tonemapShaderDesc.shaderSrc = "tonemap.hlsl";
     tonemapShaderDesc.csEntrypoint = "csGenerateHistogram";
-    GfxComputePSO::create("tonemapGenerateHistogram", &tonemapShaderDesc);
+    tonemapGenerateHistogramPSO = GfxComputePSO::create("tonemapGenerateHistogram", &tonemapShaderDesc);
     
     tonemapShaderDesc.csEntrypoint = "csClearOutputLuminanceHistogram";
-    GfxComputePSO::create("tonemapClearOutputLuminanceHistogram", &tonemapShaderDesc);
+    tonemapClearOutputLuminanceHistogramPSO = GfxComputePSO::create("tonemapClearOutputLuminanceHistogram", &tonemapShaderDesc);
     
     tonemapShaderDesc.csEntrypoint = "csComputeAvgLuminance";
-    GfxComputePSO::create("tonemapComputeAvgLuminance", &tonemapShaderDesc);
+    tonemapComputeAvgLuminancePSO = GfxComputePSO::create("tonemapComputeAvgLuminance", &tonemapShaderDesc);
     
     tonemapShaderDesc.csEntrypoint = "csReinhard";
-    GfxComputePSO::create("tonemapReinhard", &tonemapShaderDesc);
+    tonemapReinhardPSO = GfxComputePSO::create("tonemapReinhard", &tonemapShaderDesc);
     //
     GfxShaderDesc compositeShaderDesc = {};
     compositeShaderDesc.shaderSrc = "composite.hlsl";
     compositeShaderDesc.csEntrypoint = "csComposite";
-    GfxComputePSO::create("composite", &compositeShaderDesc);
+    compositePSO = GfxComputePSO::create("composite", &compositeShaderDesc);
     
     //
     g_Viewport = rgNew(Viewport);
@@ -214,16 +230,19 @@ rgInt setup()
     g_GameState->depthStencilRT = GfxTexture::create("depthStencilRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height, TinyImageFormat_D32_SFLOAT, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
     
     ImageRef sanGiuseppeBridgeCube = loadImage("small_empty_room_1_alb.dds"); // je_gray_02.dds
-    GfxTexture::create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
+    sangiuseppeBridgeCubeTex = GfxTexture::create("sangiuseppeBridgeCube", GfxTextureDim_Cube, sanGiuseppeBridgeCube->width, sanGiuseppeBridgeCube->height, sanGiuseppeBridgeCube->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCube->slices);
     
     ImageRef sanGiuseppeBridgeCubeIrradiance = loadImage("small_empty_room_1_irr.dds"); // je_gray_02_irradiance.dds
-    GfxTexture::create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
+    sangiuseppeBridgeCubeIrradianceTex = GfxTexture::create("sangiuseppeBridgeCubeIrradiance", GfxTextureDim_Cube, sanGiuseppeBridgeCubeIrradiance->width, sanGiuseppeBridgeCubeIrradiance->height, sanGiuseppeBridgeCubeIrradiance->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, sanGiuseppeBridgeCubeIrradiance->slices);
     
     
     ///
     ImageRef japaneseStoneWall1k = loadImage("japanese_stone_wall_1k/japanese_stone_wall_diff_1k.png");
-    GfxTexture::create("japanese_stone_wall_diff_1k", GfxTextureDim_2D, japaneseStoneWall1k->width, japaneseStoneWall1k->height, japaneseStoneWall1k->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, japaneseStoneWall1k->slices);
+    japaneseStoneWallDiff1kTex = GfxTexture::create("japanese_stone_wall_diff_1k", GfxTextureDim_2D, japaneseStoneWall1k->width, japaneseStoneWall1k->height, japaneseStoneWall1k->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, japaneseStoneWall1k->slices);
     ///
+
+    skyboxVertexBuffer = GfxBuffer::create("skyboxVertexBuffer", GfxMemoryType_Default, g_SkyboxVertices, sizeof(g_SkyboxVertices), GfxBufferUsage_VertexBuffer);
+    outputLuminanceHistogramBuffer = GfxBuffer::create("luminanceHistogramAndAvg", GfxMemoryType_Default, nullptr, (sizeof(uint32_t) * LUMINANCE_HISTOGRAM_BINS_COUNT) + (sizeof(float) * (1 + 1)), GfxBufferUsage_ShaderRW);
 
 #if 0
     b2Vec2 gravity(0.0f, -9.8f);
@@ -397,7 +416,7 @@ rgInt updateAndDraw(rgDouble dt)
         simple2dRenderPass.clearDepth = 1.0f;
         
         GfxRenderCmdEncoder* simple2dRenderEncoder = gfxSetRenderPass("Simple2D Pass", &simple2dRenderPass);
-        simple2dRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("simple2d"_rghash));
+        simple2dRenderEncoder->setGraphicsPSO(simple2DPSO);
         simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits, nullptr, nullptr);
         simple2dRenderEncoder->end();
     }
@@ -414,7 +433,7 @@ rgInt updateAndDraw(rgDouble dt)
         sceneForwardPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
         GfxRenderCmdEncoder* sceneFowardRenderEncoder = gfxSetRenderPass("Scene Forward", &sceneForwardPass);
-        sceneFowardRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("principledBrdf"_rghash));
+        sceneFowardRenderEncoder->setGraphicsPSO(principledBrdfPSO);
         
         // instance
         struct
@@ -432,8 +451,8 @@ rgInt updateAndDraw(rgDouble dt)
         
         sceneFowardRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
         sceneFowardRenderEncoder->bindBuffer("instanceParams", &demoSceneMeshInstanceParams);
-        sceneFowardRenderEncoder->bindTexture("diffuseTexMap", GfxTexture::find("japanese_stone_wall_diff_1k"_rghash));
-        sceneFowardRenderEncoder->bindTexture("irradianceMap", GfxTexture::find("sangiuseppeBridgeCubeIrradiance"_rghash));
+        sceneFowardRenderEncoder->bindTexture("diffuseTexMap", japaneseStoneWallDiff1kTex);
+        sceneFowardRenderEncoder->bindTexture("irradianceMap", sangiuseppeBridgeCubeIrradianceTex);
         sceneFowardRenderEncoder->bindSamplerState("irradianceSampler", GfxState::samplerBilinearClampEdge);
         
         for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
@@ -456,7 +475,6 @@ rgInt updateAndDraw(rgDouble dt)
     
     // RENDER GRID AND EDITOR STUFF
     {
-        GfxBuffer::findOrCreate("skyboxVertexBuffer", GfxMemoryType_Default, g_SkyboxVertices, sizeof(g_SkyboxVertices), GfxBufferUsage_VertexBuffer);
         GfxRenderPass skyboxRenderPass = {};
         skyboxRenderPass.colorAttachments[0].texture = g_GameState->baseColorRT;
         skyboxRenderPass.colorAttachments[0].loadAction = GfxLoadAction_Load;
@@ -467,11 +485,11 @@ rgInt updateAndDraw(rgDouble dt)
         skyboxRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
         
         GfxRenderCmdEncoder* skyboxRenderEncoder = gfxSetRenderPass("Skybox Pass", &skyboxRenderPass);
-        skyboxRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("skybox"_rghash));
+        skyboxRenderEncoder->setGraphicsPSO(skyboxPSO);
         skyboxRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
-        skyboxRenderEncoder->bindTexture("diffuseCubeMap", GfxTexture::find("sangiuseppeBridgeCube"_rghash));
+        skyboxRenderEncoder->bindTexture("diffuseCubeMap", sangiuseppeBridgeCubeTex);
         skyboxRenderEncoder->bindSamplerState("skyboxSampler", GfxState::samplerBilinearClampEdge);
-        skyboxRenderEncoder->setVertexBuffer(GfxBuffer::find("skyboxVertexBuffer"_rghash), 0, 0);
+        skyboxRenderEncoder->setVertexBuffer(skyboxVertexBuffer, 0, 0);
         skyboxRenderEncoder->drawTriangles(0, 36, 1);
         skyboxRenderEncoder->end();
         
@@ -486,15 +504,13 @@ rgInt updateAndDraw(rgDouble dt)
             gridRenderPass.depthStencilAttachmentStoreAction = GfxStoreAction_Store;
             
             GfxRenderCmdEncoder* gridRenderEncoder = gfxSetRenderPass("DemoScene Pass", &gridRenderPass);
-            gridRenderEncoder->setGraphicsPSO(GfxGraphicsPSO::find("gridPSO"_rghash));
+            gridRenderEncoder->setGraphicsPSO(gridPSO);
             gridRenderEncoder->bindBuffer("commonParams", &commonParamsBuffer);
             gridRenderEncoder->drawTriangles(0, 6, 1);
             gridRenderEncoder->end();
         }
         
         {
-            GfxBuffer* outputLuminanceHistogramBuffer = GfxBuffer::findOrCreate("luminanceHistogramAndAvg", GfxMemoryType_Default, nullptr, (sizeof(uint32_t) * LUMINANCE_HISTOGRAM_BINS_COUNT) + (sizeof(float) * (1 + 1)), GfxBufferUsage_ShaderRW);
-            
             if(showPostFXEditor)
             {
                 ImGui::SetNextWindowBgAlpha(0.0f); // Transparent background
@@ -548,24 +564,24 @@ rgInt updateAndDraw(rgDouble dt)
             
             GfxComputeCmdEncoder* postfxCmdEncoder = gfxSetComputePass("PostFx Pass");
                         
-            postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapClearOutputLuminanceHistogram"_rghash));
+            postfxCmdEncoder->setComputePSO(tonemapClearOutputLuminanceHistogramPSO);
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(LUMINANCE_BLOCK_SIZE, LUMINANCE_BLOCK_SIZE, 1);
             
-            postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapGenerateHistogram"_rghash));
+            postfxCmdEncoder->setComputePSO(tonemapGenerateHistogramPSO);
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
             //postfxCmdEncoder->bindTexture("outputImage", gfx::getCurrentRenderTargetColorBuffer());
             postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(g_WindowInfo.width, g_WindowInfo.height, 1);
 
-            postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapComputeAvgLuminance"_rghash));
+            postfxCmdEncoder->setComputePSO(tonemapComputeAvgLuminancePSO);
             postfxCmdEncoder->bindBuffer("commonParams", &commonParamsBuffer);
             postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
             postfxCmdEncoder->bindBuffer("outputBuffer", outputLuminanceHistogramBuffer, 0);
             postfxCmdEncoder->dispatch(LUMINANCE_BLOCK_SIZE, LUMINANCE_BLOCK_SIZE, 1);
             
-            postfxCmdEncoder->setComputePSO(GfxComputePSO::find("tonemapReinhard"_rghash));
+            postfxCmdEncoder->setComputePSO(tonemapReinhardPSO);
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColorRT);
             postfxCmdEncoder->bindTexture("outputImage", gfxGetBackbufferTexture());
             //postfxCmdEncoder->bindBufferFromData("TonemapParams", sizeof(tonemapParams), &tonemapParams);
@@ -580,7 +596,7 @@ rgInt updateAndDraw(rgDouble dt)
             
             compositeParams.inputImageDim[0] = g_WindowInfo.width;
             compositeParams.inputImageDim[1] = g_WindowInfo.height;
-            postfxCmdEncoder->setComputePSO(GfxComputePSO::find("composite"_rghash));
+            postfxCmdEncoder->setComputePSO(compositePSO);
             postfxCmdEncoder->bindTexture("inputImage", g_GameState->baseColor2DRT);
             postfxCmdEncoder->bindTexture("outputImage", gfxGetBackbufferTexture());
             postfxCmdEncoder->bindBufferFromData("CompositeParams", sizeof(compositeParams), &compositeParams);
@@ -620,4 +636,3 @@ class Demo3DApp : public TheApp
 };
 
 //THE_APP_MAIN(Demo3DApp)
-#endif
