@@ -199,6 +199,8 @@ int TheApp::beginApp()
     
     oldAppInput = &inputs[0];
     newAppInput = &inputs[1];
+
+    return 1;
 }
 
 void TheApp::beforeUpdateAndDraw()
