@@ -1,4 +1,3 @@
-#if 0
 #include "gfx.h"
 #include "textdraw.h"
 #include "viewport.h"
@@ -59,37 +58,30 @@ struct Bee : TheApp
         texturedQuadRenderStateDesc.depthStencilAttachmentFormat = depthStencilAttachmentFormat;
         
         texturedQuadPSO = GfxGraphicsPSO::create("texturedQuad", &vertexDesc, &textureQuadShaderDesc, &texturedQuadRenderStateDesc);
-        
-        // setup test texture
-        ImageRef flowerTex = loadImage("flower.png");
-        flower = GfxTexture::create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
-        
-        ImageRef oceanTex = loadImage("compiled/spaceship_Material.001_difalp.dds");
-        ocean = GfxTexture::create("ocean", GfxTextureDim_2D, oceanTex->width, oceanTex->height, oceanTex->format, oceanTex->mipFlag, GfxTextureUsage_ShaderRead, oceanTex->slices);
-        
-        ImageRef arrowTex = loadImage("test_arrow.png");
-        arrow = GfxTexture::create("arrow", GfxTextureDim_2D, arrowTex->width, arrowTex->height, arrowTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, arrowTex->slices);
     }
     
     void loadTextures()
     {
-        
+		ImageRef flowerTex = loadImage("flower.png");
+		flower = GfxTexture::create("flower", GfxTextureDim_2D, flowerTex->width, flowerTex->height, flowerTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, flowerTex->slices);
+
+		ImageRef oceanTex = loadImage("ocean_tile.png");
+		ocean = GfxTexture::create("ocean", GfxTextureDim_2D, oceanTex->width, oceanTex->height, oceanTex->format, oceanTex->mipFlag, GfxTextureUsage_ShaderRead, oceanTex->slices);
+         
+		ImageRef arrowTex = loadImage("test_arrow.png");
+		arrow = GfxTexture::create("arrow", GfxTextureDim_2D, arrowTex->width, arrowTex->height, arrowTex->format, GfxTextureMipFlag_GenMips, GfxTextureUsage_ShaderRead, arrowTex->slices);
     }
     
     void setup() override
     {
-        char const* splashIntroText = "It is not our part to master all the tides of the world,\nbut to do what is in us for the succour of those years wherein we are set,\nuprooting the evil in the fields that we know,\nso that those who live after may have clean earth to till.\nWhat weather they shall have is not ours to rule.";
-        
         colorRT = GfxTexture::create("colorRT", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height,
-                                     colorRTFormat, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
+            colorAttachmentFormat, GfxTextureMipFlag_1Mip, GfxTextureUsage_RenderTarget, nullptr);
         depthStencil = GfxTexture::create("depthStencil", GfxTextureDim_2D, g_WindowInfo.width, g_WindowInfo.height,
-                                          depthStencilFormat, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
+            depthStencilAttachmentFormat, GfxTextureMipFlag_1Mip, GfxTextureUsage_DepthStencil, nullptr);
         
-        createPipelineStateObjects();
-        //pushText(&theGameState->tempTextQuads, FontRef, 50, 100, 32.0f, splashIntroText);
+        initializeShaders();
+        loadTextures();
         testFont = loadFont("fonts/inconsolata_26.fnt");
-        
-        viewport = rgNew(Viewport);
     }
     
     void updateAndDraw() override
@@ -113,9 +105,6 @@ struct Bee : TheApp
          ========================================
          
          */
-        
-        CameraParamsGPU* cameraParams = viewport->getCameraParamsGPU();
-        GfxFrameResource cameraParamsBuffer = gfxGetFrameAllocator()->newBuffer("cameraParams", sizeof(CameraParamsGPU), cameraParams);
 
         TexturedQuads testQuads;
         pushTexturedQuad(&testQuads, SpriteLayer_1, defaultQuadUV, {100.0f, 75.0f, 200.f, 200.f}, 0xFFFFFFFF, {0, 0, 0, 0}, flower);
@@ -183,4 +172,3 @@ struct Bee : TheApp
 };
 
 THE_APP_MAIN(Bee)
-#endif
