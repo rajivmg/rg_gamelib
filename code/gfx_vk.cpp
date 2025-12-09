@@ -24,10 +24,10 @@ struct VkGfxCtx
 
     VkInstance inst;
     VkPhysicalDevice physicalDevice;
-    rgUInt graphicsQueueIndex;
+    u32 graphicsQueueIndex;
 
     VkDevice device;
-    rgUInt deviceExtCount;
+    u32 deviceExtCount;
     char const** deviceExtNames;
     VkQueue graphicsQueue;
 
@@ -164,7 +164,7 @@ static void createPipeline(GfxCtx::VkGfxCtx* vk)
     rgAssert(vsFile.isValid);
 }
 
-rgInt gfxInit()
+i32 gfxInit()
 {
     GfxCtx::VkGfxCtx* vk = &gfxCtx()->vk;
 
@@ -254,7 +254,7 @@ rgInt gfxInit()
     
     vk->framebuffers.resize(vk->swapchainImageViews.size());
 
-    for(rgInt i = 0; i < vk->swapchainImageViews.size(); ++i)
+    for(i32 i = 0; i < vk->swapchainImageViews.size(); ++i)
     {
         VkImageView attachements[] = { vk->swapchainImageViews[i] };
 
@@ -295,7 +295,7 @@ void destroy()
     // Destroy SDL Window
 }
 
-rgInt gfxDraw()
+i32 gfxDraw()
 {
     gfxGetRenderCmdList()->draw();
     gfxGetRenderCmdList()->afterDraw();
@@ -330,7 +330,7 @@ GfxBuffer* creatorGfxBuffer(void* data, rgSize size, GfxResourceUsage usage)
     return nullptr;
 }
 
-void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, rgU32 offset)
+void updaterGfxBuffer(GfxBuffer* buffer, void* data, rgSize size, u32 offset)
 {
 
 }
@@ -340,7 +340,7 @@ void deleterGfxBuffer(GfxBuffer* buffer)
 
 }
 
-GfxTexture2D* creatorGfxTexture2D(void* buf, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
+GfxTexture2D* creatorGfxTexture2D(void* buf, u32 width, u32 height, TinyImageFormat format, GfxTextureUsage usage, char const* name)
 {
     return rgNew(GfxTexture2D);
 }

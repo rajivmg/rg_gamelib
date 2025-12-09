@@ -46,7 +46,7 @@ GfxTexture* japaneseStoneWallDiff1kTex;
 GfxBuffer* skyboxVertexBuffer;
 GfxBuffer* outputLuminanceHistogramBuffer;
 
-rgInt setup()
+i32 setup()
 {
     g_GameState = rgNew(GameState);
 
@@ -55,7 +55,7 @@ rgInt setup()
     //gfx::texture->destroy(rgCRC32("tiny"));
     // TODO: don't call destoy on first frame  gfx::onFrameBegin
     
-    for(rgInt i = 1; i <= 16; ++i)
+    for(i32 i = 1; i <= 16; ++i)
     {
         char path[256];
         snprintf(path, 256, "debugTextures/textureSlice%d.png", i);
@@ -300,12 +300,12 @@ static void showDebugInterface(bool* open)
     ImGui::SetNextWindowBgAlpha(0.2f); // Transparent background
     if(ImGui::Begin("RG DebugInterface", open, windowFlags))
     {
-        //static rgDouble lastFewDeltaTs[60] = { 0 };
-        //static rgInt deltaTBufferIndex = 0;
+        //static f64 lastFewDeltaTs[60] = { 0 };
+        //static i32 deltaTBufferIndex = 0;
         //lastFewDeltaTs[deltaTBufferIndex] = g_DeltaTime;
         //deltaTBufferIndex = (deltaTBufferIndex + 1) % rgARRAY_COUNT(lastFewDeltaTs);
-        //rgDouble lastFewDeltaTSum = 0;
-        //for(rgInt i = 0; i < rgARRAY_COUNT(lastFewDeltaTs); ++i)
+        //f64 lastFewDeltaTSum = 0;
+        //for(i32 i = 0; i < rgARRAY_COUNT(lastFewDeltaTs); ++i)
         //{
         //    lastFewDeltaTSum += lastFewDeltaTs[i];
         //}
@@ -349,7 +349,7 @@ static void showDebugInterface(bool* open)
     ImGui::End();
 }
 
-rgInt updateAndDraw(rgDouble dt)
+i32 updateAndDraw(f64 dt)
 {
     //rgLog("DeltaTime:%f FPS:%.1f\n", dt, 1.0/dt);
     if(showImGuiDemo) { ImGui::ShowDemoWindow(&showImGuiDemo); }
@@ -360,18 +360,18 @@ rgInt updateAndDraw(rgDouble dt)
     // PREPARE COMMON RESOURCES & DATA
     struct CommonParams
     {
-        rgFloat cameraBasisMatrix[9];
-        rgFloat _padding1[3];
-        rgFloat cameraViewMatrix[16];
-        rgFloat cameraProjMatrix[16];
-        rgFloat cameraViewProjMatrix[16];
-        rgFloat cameraInvViewMatrix[16];
-        rgFloat cameraInvProjMatrix[16];
-        rgFloat cameraViewRotOnlyMatrix[16];
-        rgFloat cameraNear;
-        rgFloat cameraFar;
-        rgFloat timeDelta;
-        rgFloat timeGame;
+        f32 cameraBasisMatrix[9];
+        f32 _padding1[3];
+        f32 cameraViewMatrix[16];
+        f32 cameraProjMatrix[16];
+        f32 cameraViewProjMatrix[16];
+        f32 cameraInvViewMatrix[16];
+        f32 cameraInvProjMatrix[16];
+        f32 cameraViewRotOnlyMatrix[16];
+        f32 cameraNear;
+        f32 cameraFar;
+        f32 timeDelta;
+        f32 timeGame;
     } commonParams;
     
     copyMatrix3ToFloatArray(commonParams.cameraBasisMatrix, g_Viewport->cameraBasis);
@@ -383,20 +383,20 @@ rgInt updateAndDraw(rgDouble dt)
     copyMatrix4ToFloatArray(commonParams.cameraViewRotOnlyMatrix, g_Viewport->cameraViewRotOnly);
     commonParams.cameraNear = g_Viewport->cameraNear;
     commonParams.cameraFar  = g_Viewport->cameraFar;
-    commonParams.timeDelta = (rgFloat)theAppInput->deltaTime;
-    commonParams.timeGame  = (rgFloat)theAppInput->time;
+    commonParams.timeDelta = (f32)theAppInput->deltaTime;
+    commonParams.timeGame  = (f32)theAppInput->time;
 
     GfxFrameResource commonParamsBuffer = gfxGetFrameAllocator()->newBuffer("commonParams", sizeof(commonParams), &commonParams);
     
     // RENDER SIMPLE 2D STUFF
     {
         g_GameState->characterPortraits.erase(g_GameState->characterPortraits.begin(), g_GameState->characterPortraits.end());
-        for(rgInt i = 0; i < 4; ++i)
+        for(i32 i = 0; i < 4; ++i)
         {
-            for(rgInt j = 0; j < 4; ++j)
+            for(i32 j = 0; j < 4; ++j)
             {
-                rgFloat px = (rgFloat)(j * (100) + 10 * (j + 1) + sin(theAppInput->time) * 30);
-                rgFloat py = (rgFloat)(i * (100) + 10 * (i + 1) + cos(theAppInput->time) * 30);
+                f32 px = (f32)(j * (100) + 10 * (j + 1) + sin(theAppInput->time) * 30);
+                f32 py = (f32)(i * (100) + 10 * (i + 1) + cos(theAppInput->time) * 30);
                 
                 pushTexturedQuad(&g_GameState->characterPortraits, SpriteLayer_0, defaultQuadUV, {px, py, 100.0f, 100.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, debugTextureHandles[j + i * 4]);
             }
@@ -438,8 +438,8 @@ rgInt updateAndDraw(rgDouble dt)
         // instance
         struct
         {
-            rgFloat worldXform[256][16];
-            rgFloat invTposeWorldXform[256][16];
+            f32 worldXform[256][16];
+            f32 invTposeWorldXform[256][16];
         } instanceParams;
         
         Matrix4 xform = Matrix4::identity();
@@ -455,7 +455,7 @@ rgInt updateAndDraw(rgDouble dt)
         sceneFowardRenderEncoder->bindTexture("irradianceMap", sangiuseppeBridgeCubeIrradianceTex);
         sceneFowardRenderEncoder->bindSamplerState("irradianceSampler", GfxState::samplerBilinearClampEdge);
         
-        for(rgInt i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
+        for(i32 i = 0; i < g_GameState->shaderballModel->meshes.size(); ++i)
         {
             Mesh* m = &g_GameState->shaderballModel->meshes[i];
             
@@ -521,9 +521,9 @@ rgInt updateAndDraw(rgDouble dt)
                     ImGui::InputFloat("AdaptationRate", &g_GameState->tonemapperAdaptationRate, 0.1f);
                     ImGui::SeparatorText("Histogram");
 #ifndef RG_D3D12_RNDR
-                    rgU8* luminanceOutputBuffer = (rgU8*)outputLuminanceHistogramBuffer->map(0, 0);
+                    u8* luminanceOutputBuffer = (u8*)outputLuminanceHistogramBuffer->map(0, 0);
                     
-                    rgU32* histogramData = (rgU32*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_HISTOGRAM);
+                    u32* histogramData = (u32*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_HISTOGRAM);
                     float histogram[LUMINANCE_HISTOGRAM_BINS_COUNT];
                     for(int i = 0; i < rgArrayCount(histogram); ++i)
                     {
@@ -531,8 +531,8 @@ rgInt updateAndDraw(rgDouble dt)
                     }
                     
                     ImGui::PlotHistogram("##luminanceHistogram", histogram, rgArrayCount(histogram), 0, "luminanceHistogram", FLT_MAX, FLT_MAX, ImVec2(LUMINANCE_HISTOGRAM_BINS_COUNT * (LUMINANCE_BLOCK_SIZE < 32 ? 2 : 1), 100));
-                    rgFloat adaptedLuminance = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_LUMINANCE);
-                    rgFloat exposure = *(rgFloat*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_EXPOSURE);
+                    f32 adaptedLuminance = *(f32*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_LUMINANCE);
+                    f32 exposure = *(f32*)(luminanceOutputBuffer + LUMINANCE_BUFFER_OFFSET_EXPOSURE);
                     ImGui::Text("Adapted Luminance is %0.2f, and exposure is %0.2f", adaptedLuminance, exposure);
                     
                     outputLuminanceHistogramBuffer->unmap();
@@ -543,9 +543,9 @@ rgInt updateAndDraw(rgDouble dt)
      
             struct TonemapParams
             {
-                rgU32   inputImageWidth;
-                rgU32   inputImageHeight;
-                rgU32   inputImagePixelCount;
+                u32   inputImageWidth;
+                u32   inputImageHeight;
+                u32   inputImagePixelCount;
                 float   minLogLuminance;
                 float   logLuminanceRange;
                 float   oneOverLogLuminanceRange;
@@ -611,7 +611,7 @@ rgInt updateAndDraw(rgDouble dt)
     rgHash a = rgCRC32("hello world");
 
 #if 0
-    rgFloat timeStep = 1.0f / 60.0f;
+    f32 timeStep = 1.0f / 60.0f;
     int32 velocityIterations = 6;
     int32 positionIterations = 2;
 

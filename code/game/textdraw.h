@@ -33,6 +33,6 @@ typedef eastl::shared_ptr<Font> FontRef;
 FontRef loadFont(char const* fontFilename);
 void    unloadFont(Font* font);
 
-void pushText(TexturedQuads* quadList, uint32 x, uint32 y, FontRef font, float fontSize, const char* text);
+void pushText(TexturedQuads* quadList, u32 x, u32 y, FontRef font, float fontSize, const char* text);
 
 #endif

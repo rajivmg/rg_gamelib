@@ -16,12 +16,12 @@ using namespace DirectX;
 
 #include "shaders/shaderinterop_common.h"
 
-static rgUInt const MAX_RTV_DESCRIPTOR = 1024;
-static rgUInt const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
-static rgUInt const MAX_SAMPLER_DESCRIPTOR = 1024;
-static rgUInt const CBVSRVUAV_ROOT_PARAMETER_INDEX = 0;
-static rgUInt const SAMPLER_ROOT_PARAMETER_INDEX = 1;
-static rgUInt const BINDLESS_CBVSRVUAV_ROOT_PARAMETER_INDEX = 2;
+static u32 const MAX_RTV_DESCRIPTOR = 1024;
+static u32 const MAX_CBVSRVUAV_DESCRIPTOR = 400000;
+static u32 const MAX_SAMPLER_DESCRIPTOR = 1024;
+static u32 const CBVSRVUAV_ROOT_PARAMETER_INDEX = 0;
+static u32 const SAMPLER_ROOT_PARAMETER_INDEX = 1;
+static u32 const BINDLESS_CBVSRVUAV_ROOT_PARAMETER_INDEX = 2;
 
 ComPtr<ID3D12Device2> device;
 ComPtr<ID3D12CommandQueue> commandQueue;
@@ -32,9 +32,9 @@ ComPtr<ID3D12Fence> frameFence;
 UINT64 frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 HANDLE frameFenceEvent;
 
-rgU32  pipelineCbvSrvUavDescriptorRangeOffset;
-rgU32  pipelineSamplerDescriptorRangeOffset;
-rgU32  descriptorRangeOffsetBindlessTexture2D;
+u32  pipelineCbvSrvUavDescriptorRangeOffset;
+u32  pipelineSamplerDescriptorRangeOffset;
+u32  descriptorRangeOffsetBindlessTexture2D;
 
 ComPtr<ID3D12CommandAllocator> commandAllocator[RG_MAX_FRAMES_IN_FLIGHT];
 ComPtr<ID3D12GraphicsCommandList> currentCommandList;
@@ -212,7 +212,7 @@ static ComPtr<ID3D12CommandAllocator> getCommandAllocator()
     return commandAllocator[g_FrameIndex];
 }
 
-static ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, rgUInt descriptorsCount, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
+static ComPtr<ID3D12DescriptorHeap> createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, u32 descriptorsCount, D3D12_DESCRIPTOR_HEAP_FLAGS flags)
 {
     ComPtr<ID3D12DescriptorHeap> descriptorHeap;
     D3D12_DESCRIPTOR_HEAP_DESC desc = {};
@@ -241,14 +241,14 @@ static ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(ComPtr<ID3D12
     return commandList;
 }
 
-static GfxD3DView makeD3DView(D3D12_CPU_DESCRIPTOR_HANDLE desc, rgU32 descIndex)
+static GfxD3DView makeD3DView(D3D12_CPU_DESCRIPTOR_HANDLE desc, u32 descIndex)
 {
     return { desc, descIndex, true };
 }
 
 static void clearD3DViewsArray(GfxD3DView views[GfxD3DViewType_COUNT] /*--  equivalent to GfxD3DView *views  --*/)
 {
-    for (rgInt i = 0; i < GfxD3DViewType_COUNT; ++i)
+    for (i32 i = 0; i < GfxD3DViewType_COUNT; ++i)
     {
         views[i].isValid = false;
     }
@@ -267,7 +267,7 @@ static bool validD3DView(GfxTexture* obj, GfxD3DViewType type)
 
 static void setDebugName(ComPtr<ID3D12Object> d3dObject, char const* name)
 {
-    const rgUInt maxWCharLength = 1024;
+    const u32 maxWCharLength = 1024;
     wchar_t wc[maxWCharLength];
 
     size_t size = eastl::CharStrlen(name) + 1;
@@ -292,7 +292,7 @@ static void waitForGpu()
 class DescriptorAllocator
 {
 public:
-    DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, rgU32 count, rgU32 persistentCount)
+    DescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, u32 count, u32 persistentCount)
         : descriptorCount(count)
         , persistentDescriptorCount(persistentCount)
         , persistentHead(0)
@@ -318,7 +318,7 @@ public:
         // Free and release unused indices back to allocation pool
         frameUsedDescriptorCount[g_FrameIndex] = 0;
 
-        for(rgInt i = 0, l = (rgInt)persistentIndicesToFree[g_FrameIndex].size(); i < l; ++i)
+        for(i32 i = 0, l = (i32)persistentIndicesToFree[g_FrameIndex].size(); i < l; ++i)
         {
             releasePersistentDescriptorIndex(persistentIndicesToFree[g_FrameIndex][i]);
         }
@@ -329,15 +329,15 @@ public:
         headOffset = tailOffset;
     }
 
-    rgU32 allocatePersistentDescriptor()
+    u32 allocatePersistentDescriptor()
     {
-        rgU32 index = allocatePersistentDescriptorIndex();
+        u32 index = allocatePersistentDescriptorIndex();
         return index;
     }
 
-    rgU32 allocatePersistentDescriptorRange(rgU32 count)
+    u32 allocatePersistentDescriptorRange(u32 count)
     {
-        rgU32 descriptorStartOffset;
+        u32 descriptorStartOffset;
 
         // TODO: We can't free range when count > 1
         // Create a Range(startoffset, count) based allocation system
@@ -358,25 +358,25 @@ public:
         return descriptorStartOffset;
     }
 
-    rgU32 allocateDescriptorRange(rgU32 count)
+    u32 allocateDescriptorRange(u32 count)
     {
         // TODO: verify these checks don't allow descriptor overwrite
         rgAssert(frameUsedDescriptorCount[g_FrameIndex] + count <= maxPerFrameDescriptorCount);
         rgAssert(headOffset + count <= (persistentDescriptorCount + (maxPerFrameDescriptorCount * (g_FrameIndex + 1))));
 
-        rgU32 descriptorStartOffset = headOffset;
+        u32 descriptorStartOffset = headOffset;
         headOffset += count;
         frameUsedDescriptorCount[g_FrameIndex] += count;
 
         return descriptorStartOffset;
     }
 
-    void releasePersistentDescriptor(rgU32 index)
+    void releasePersistentDescriptor(u32 index)
     {
         releasePersistentDescriptorIndex(index);
     }
 
-    D3D12_GPU_DESCRIPTOR_HANDLE getGpuHandle(rgU32 index)
+    D3D12_GPU_DESCRIPTOR_HANDLE getGpuHandle(u32 index)
     {
         if(index >= totalDescriptorCount)
         {
@@ -388,7 +388,7 @@ public:
         return handle;
     }
 
-    D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(rgU32 index)
+    D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(u32 index)
     {
         if(index >= totalDescriptorCount)
         {
@@ -407,9 +407,9 @@ public:
 
 protected:
     
-    rgU32 allocatePersistentDescriptorIndex()
+    u32 allocatePersistentDescriptorIndex()
     {
-        rgU32 descriptorOffset;
+        u32 descriptorOffset;
         if(freePersistentIndices.empty())
         {
             // check if the persistent range is full
@@ -426,7 +426,7 @@ protected:
         return descriptorOffset;
     }
 
-    void releasePersistentDescriptorIndex(rgU32 index)
+    void releasePersistentDescriptorIndex(u32 index)
     {
         freePersistentIndices.push_back(index);
     }
@@ -436,19 +436,19 @@ protected:
     D3D12_GPU_DESCRIPTOR_HANDLE     gpuDescriptorHandle;
     uint32_t                        descriptorIncrementSize;
 
-    rgU32                   descriptorCount;
-    rgU32                   persistentDescriptorCount;
+    u32                   descriptorCount;
+    u32                   persistentDescriptorCount;
     
-    rgU32                   headOffset;
-    rgU32                   tailOffset;
-    rgU32                   persistentHead;
+    u32                   headOffset;
+    u32                   tailOffset;
+    u32                   persistentHead;
 
-    eastl::vector<rgU32>    freePersistentIndices;
-    eastl::vector<rgU32>    persistentIndicesToFree[RG_MAX_FRAMES_IN_FLIGHT];
+    eastl::vector<u32>    freePersistentIndices;
+    eastl::vector<u32>    persistentIndicesToFree[RG_MAX_FRAMES_IN_FLIGHT];
 
-    rgU32                   totalDescriptorCount;
-    rgU32                   maxPerFrameDescriptorCount;
-    rgU32                   frameUsedDescriptorCount[RG_MAX_FRAMES_IN_FLIGHT];
+    u32                   totalDescriptorCount;
+    u32                   maxPerFrameDescriptorCount;
+    u32                   frameUsedDescriptorCount[RG_MAX_FRAMES_IN_FLIGHT];
 };
 
 DescriptorAllocator* cbvSrvUavDescriptorAllocator;
@@ -536,7 +536,7 @@ void GfxBuffer::destroyGfxObject(GfxBuffer* obj)
 #endif
 }
 
-void* GfxBuffer::map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes)
+void* GfxBuffer::map(u32 rangeBeginOffset, u32 rangeSizeInBytes)
 {
     void* mappedPtr = nullptr;
     mappedRange = CD3DX12_RANGE(rangeBeginOffset, rangeBeginOffset + rangeSizeInBytes);
@@ -644,7 +644,7 @@ void GfxSamplerState::createGfxObject(char const* tag, GfxSamplerAddressMode rst
     samplerDesc.AddressW = addressMode;
     samplerDesc.MaxAnisotropy = anisotropy ? 16 : 1;
 
-    rgU32 descriptorIndex = stagedSamplerDescriptorAllocator->allocatePersistentDescriptor();
+    u32 descriptorIndex = stagedSamplerDescriptorAllocator->allocatePersistentDescriptor();
     getDevice()->CreateSampler(&samplerDesc, stagedSamplerDescriptorAllocator->getCpuHandle(descriptorIndex));
     obj->d3dStagedDescriptorIndex = descriptorIndex;
 }
@@ -659,10 +659,10 @@ void GfxSamplerState::destroyGfxObject(GfxSamplerState* obj)
 // GfxTexture Implementation
 //*****************************************************************************
 
-static ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices)
+static ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureDim dim, u32 width, u32 height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices)
 {
     DXGI_FORMAT textureFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(format);
-    rgUInt mipmapLevelCount = GfxTexture::calcMipmapCount(mipFlag, width, height);
+    u32 mipmapLevelCount = GfxTexture::calcMipmapCount(mipFlag, width, height);
 
     D3D12_CLEAR_VALUE* clearValue = nullptr;
     D3D12_CLEAR_VALUE initialClearValue = {};
@@ -711,7 +711,7 @@ static ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureD
     case GfxTextureDim_2D:
     case GfxTextureDim_Cube:
     {
-        rgU16 arraySize = (dim == GfxTextureDim_Cube) ? 6 : 1;
+        u16 arraySize = (dim == GfxTextureDim_Cube) ? 6 : 1;
         resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(textureFormat, width, height, arraySize, mipmapLevelCount, 1, 0, resourceFlags);
     } break;
 
@@ -743,10 +743,10 @@ static ComPtr<ID3D12Resource> createTextureResource(char const* tag, GfxTextureD
         {
             rgAssert(mipFlag == GfxTextureMipFlag_GenMips);
         }
-        rgUInt sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
+        u32 sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
 
         D3D12_SUBRESOURCE_DATA subResourceData[6] = {};
-        for(rgUInt s = 0; s < sliceCount; ++s)
+        for(u32 s = 0; s < sliceCount; ++s)
         {
             subResourceData[s].pData = slices[s].pixels;
             subResourceData[s].RowPitch = slices[s].rowPitch;
@@ -778,7 +778,7 @@ static GfxD3DView createRenderTargetView(ComPtr<ID3D12Resource> resource, TinyIm
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
     rtvDesc.Texture2D.MipSlice = 0;
 
-    rgU32 descriptorIndex = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
+    u32 descriptorIndex = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
     D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = stagedRtvDescriptorAllocator->getCpuHandle(descriptorIndex);
     getDevice()->CreateRenderTargetView(resource.Get(), &rtvDesc, descriptorHandle);
 
@@ -793,7 +793,7 @@ static GfxD3DView createDepthStencilView(ComPtr<ID3D12Resource> resource, TinyIm
     dsvDesc.Texture2D.MipSlice = 0;
     dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
     
-    rgU32 descriptorIndex = stagedDsvDescriptorAllocator->allocatePersistentDescriptor();
+    u32 descriptorIndex = stagedDsvDescriptorAllocator->allocatePersistentDescriptor();
     D3D12_CPU_DESCRIPTOR_HANDLE descriptorHandle = stagedDsvDescriptorAllocator->getCpuHandle(descriptorIndex);
     
     getDevice()->CreateDepthStencilView(resource.Get(), &dsvDesc, descriptorHandle);
@@ -828,14 +828,14 @@ static GfxD3DView createTextureShaderResourceView(ComPtr<ID3D12Resource> resourc
         }
     }
 
-    rgU32 index = stagedCbvSrvUavDescriptorAllocator->allocatePersistentDescriptor();
+    u32 index = stagedCbvSrvUavDescriptorAllocator->allocatePersistentDescriptor();
     D3D12_CPU_DESCRIPTOR_HANDLE handle= stagedCbvSrvUavDescriptorAllocator->getCpuHandle(index);
     getDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, handle);
 
     return makeD3DView(handle, index);
 }
 
-void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
+void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, u32 width, u32 height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
     clearD3DViewsArray(obj->d3dViews);
     
@@ -951,7 +951,7 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
     // https://rtarun9.github.io/blogs/shader_reflection/
     // https://microsoft.github.io/DirectX-Specs/d3d/ResourceBinding.html
 
-    for(rgU32 i = 0; i < shaderDesc.BoundResources; ++i)
+    for(u32 i = 0; i < shaderDesc.BoundResources; ++i)
     {
         D3D12_SHADER_INPUT_BIND_DESC shaderInputBindDesc = { 0 };
         BreakIfFail(shaderReflection->GetResourceBindingDesc(i, &shaderInputBindDesc));
@@ -983,7 +983,7 @@ void reflectShader(ID3D12ShaderReflection* shaderReflection, eastl::vector<CD3DX
         arg.type = toGfxPipelineArgumentType(shaderInputBindDesc);
         arg.registerIndex = shaderInputBindDesc.BindPoint;
         arg.spaceIndex = shaderInputBindDesc.Space;
-        arg.d3dOffsetInDescriptorTable = (descRangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER) ? (rgU32)samplerDescTableRanges.size() : (rgU32)cbvSrvUavDescTableRanges.size();
+        arg.d3dOffsetInDescriptorTable = (descRangeType == D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER) ? (u32)samplerDescTableRanges.size() : (u32)cbvSrvUavDescTableRanges.size();
 
         (*outArguments)[shaderInputBindDesc.Name] = arg;
 
@@ -1117,8 +1117,8 @@ void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertex
     {
         inputElementDesc.reserve(vertexInputDesc->elementCount);
         {
-            rgU32 vertexStrideInBytes = 0;
-            for(rgInt i = 0; i < vertexInputDesc->elementCount; ++i)
+            u32 vertexStrideInBytes = 0;
+            for(i32 i = 0; i < vertexInputDesc->elementCount; ++i)
             {
                 auto& elementDesc = vertexInputDesc->elements[i];
                 vertexStrideInBytes += TinyImageFormat_BitSizeOfBlock(elementDesc.format) / 8;
@@ -1158,7 +1158,7 @@ void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertex
     psoDesc.pRootSignature = rootSig.Get();
     if(inputElementDesc.size() > 0)
     {
-        psoDesc.InputLayout = { &inputElementDesc.front(), (rgUInt)inputElementDesc.size() };
+        psoDesc.InputLayout = { &inputElementDesc.front(), (u32)inputElementDesc.size() };
     }
 
     // shaders
@@ -1178,7 +1178,7 @@ void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertex
     renderTargetBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
     renderTargetBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
     D3D12_BLEND_DESC blendDesc = {};
-    for(rgInt i = 0; i < RG_MAX_COLOR_ATTACHMENTS; ++i)
+    for(i32 i = 0; i < RG_MAX_COLOR_ATTACHMENTS; ++i)
     {
         blendDesc.RenderTarget[i] = renderTargetBlendDesc;
     }
@@ -1197,7 +1197,7 @@ void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertex
 
     // pso rendertarget
     psoDesc.NumRenderTargets = 0;
-    for(rgInt i = 0; i < rgArrayCount(GfxRenderStateDesc::colorAttachments); ++i)
+    for(i32 i = 0; i < rgArrayCount(GfxRenderStateDesc::colorAttachments); ++i)
     {
         if(renderStateDesc->colorAttachments[i].pixelFormat != TinyImageFormat_UNDEFINED)
         {
@@ -1245,7 +1245,7 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
     UINT rtvCount = 0;
     D3D12_CPU_DESCRIPTOR_HANDLE dsv = {};
 
-    for (rgInt c = 0; c < RG_MAX_COLOR_ATTACHMENTS; ++c)
+    for (i32 c = 0; c < RG_MAX_COLOR_ATTACHMENTS; ++c)
     {
         if (renderPass->colorAttachments[c].texture == NULL)
         {
@@ -1295,7 +1295,7 @@ void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
     setViewport(viewport.x, viewport.y, viewport.z, viewport.w);
 }
 
-void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height)
+void GfxRenderCmdEncoder::setViewport(f32 originX, f32 originY, f32 width, f32 height)
 {
     D3D12_VIEWPORT viewport = {};
     viewport.TopLeftX = originX;
@@ -1307,7 +1307,7 @@ void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat 
     currentCommandList->RSSetViewports(1, &viewport);
 }
 
-void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels)
+void GfxRenderCmdEncoder::setScissorRect(u32 xPixels, u32 yPixels, u32 widthPixels, u32 heightPixels)
 {
 }
 
@@ -1361,7 +1361,7 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 }
 
 //-----------------------------------------------------------------------------
-void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset, rgU32 slot)
+void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, u32 offset, u32 slot)
 {
     // We might be able to directly add offset to gpu address
     // https://www.milty.nl/grad_guide/basic_implementation/d3d12/buffers.html
@@ -1373,7 +1373,7 @@ void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset,
     currentCommandList->IASetVertexBuffers(slot, 1, &vertexBufferView);
 }
 
-void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU32 slot)
+void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, u32 slot)
 {
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
     vertexBufferView.BufferLocation = resource->d3dResource->GetGPUVirtualAddress();
@@ -1406,7 +1406,7 @@ GfxPipelineArgument* GfxRenderCmdEncoder::getPipelineArgument(char const* bindin
     return info;
 }
 
-void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset)
+void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, u32 offset)
 {
 }
 
@@ -1474,15 +1474,15 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads, Matrix4 const*
 
     genTexturedQuadVertices(quads, &vertices, &instanceParams);
 
-    GfxFrameResource vertexBufAllocation = gfxGetFrameAllocator()->newBuffer("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(SimpleVertexFormat), vertices.data());
+    GfxFrameResource vertexBufAllocation = gfxGetFrameAllocator()->newBuffer("drawTexturedQuadsVertexBuf", (u32)vertices.size() * sizeof(SimpleVertexFormat), vertices.data());
     GfxFrameResource instanceParamsBuffer = gfxGetFrameAllocator()->newBuffer("instanceParamsCBuffer", sizeof(SimpleInstanceParams), &instanceParams);
 
     //-
     // camera
     struct
     {
-        rgFloat projection2d[16];
-        rgFloat view2d[16];
+        f32 projection2d[16];
+        f32 view2d[16];
     } cameraParams;
 
     if(projectionMatrix != nullptr)
@@ -1491,7 +1491,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads, Matrix4 const*
     }
     else
     {
-        copyMatrix4ToFloatArray(cameraParams.projection2d, makeOrthographicProjectionMatrix(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
+        copyMatrix4ToFloatArray(cameraParams.projection2d, makeOrthographicProjectionMatrix(0.0f, (f32)g_WindowInfo.width, (f32)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
     }
 
     if(viewMatrix != nullptr)
@@ -1513,11 +1513,11 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads, Matrix4 const*
 
     setVertexBuffer(&vertexBufAllocation, 0);
 
-    drawTriangles(0, (rgU32)vertices.size(), 1);
+    drawTriangles(0, (u32)vertices.size(), 1);
 }
 
 //-----------------------------------------------------------------------------
-void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount)
+void GfxRenderCmdEncoder::drawTriangles(u32 vertexStart, u32 vertexCount, u32 instanceCount)
 {
     currentCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     currentCommandList->DrawInstanced(vertexCount, instanceCount, vertexStart, 0);
@@ -1525,7 +1525,7 @@ void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rg
     needDescriptorTableBump(true);
 }
 
-void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount)
+void GfxRenderCmdEncoder::drawIndexedTriangles(u32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, u32 bufferOffset, u32 instanceCount)
 {
     D3D12_INDEX_BUFFER_VIEW indexBufferView;
     indexBufferView.BufferLocation = indexBuffer->d3dResource->GetGPUVirtualAddress() + bufferOffset;
@@ -1539,7 +1539,7 @@ void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitI
     needDescriptorTableBump(true);
 }
 
-void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount)
+void GfxRenderCmdEncoder::drawIndexedTriangles(u32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, u32 instanceCount)
 {
 }
 
@@ -1589,7 +1589,7 @@ GfxPipelineArgument* GfxComputeCmdEncoder::getPipelineArgument(char const* bindi
 }
 
 //-----------------------------------------------------------------------------
-void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset)
+void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, u32 offset)
 {
 }
 
@@ -1597,7 +1597,7 @@ void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource c
 {
 }
 
-void GfxComputeCmdEncoder::bindBufferFromData(char const* bindingTag, rgU32 sizeInBytes, void* data)
+void GfxComputeCmdEncoder::bindBufferFromData(char const* bindingTag, u32 sizeInBytes, void* data)
 {
 }
 
@@ -1609,7 +1609,7 @@ void GfxComputeCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSt
 {
 }
 
-void GfxComputeCmdEncoder::dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ)
+void GfxComputeCmdEncoder::dispatch(u32 threadgroupsGridX, u32 threadgroupsGridY, u32 threadgroupsGridZ)
 {
 }
 
@@ -1633,7 +1633,7 @@ void GfxBlitCmdEncoder::genMips(GfxTexture* srcTexture)
 {
 }
 
-void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount)
+void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, u32 srcMipLevel, u32 dstMipLevel, u32 mipLevelCount)
 {
 }
 
@@ -1641,7 +1641,7 @@ void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTextu
 // Frame Resource Allocator
 //*****************************************************************************
 
-void GfxFrameAllocator::create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
+void GfxFrameAllocator::create(u32 bufferHeapSize, u32 nonRTDSTextureHeapSize, u32 rtDSTextureHeapSize)
 {
     D3D12_HEAP_DESC bufferHeapDesc = {};
     bufferHeapDesc.SizeInBytes = bufferHeapSize;
@@ -1681,12 +1681,12 @@ void GfxFrameAllocator::releaseResources()
     d3dResources.clear();
 }
 
-GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void* initialData)
+GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, u32 size, void* initialData)
 {
     rgAssert(size > 0);
 
-    rgU32 alignedSize = roundUp(size, 256); // CBVs size needs to be 256 bytes multiple
-    rgU32 alignedStartOffset = bumpStorageAligned(alignedSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+    u32 alignedSize = roundUp(size, 256); // CBVs size needs to be 256 bytes multiple
+    u32 alignedStartOffset = bumpStorageAligned(alignedSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
 
     CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(alignedSize, D3D12_RESOURCE_FLAG_NONE);
     ComPtr<ID3D12Resource> bufferResource;
@@ -1719,7 +1719,7 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
     return output;
 }
 
-GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
+GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialData, u32 width, u32 height, TinyImageFormat format, GfxTextureUsage usage)
 {
     ComPtr<ID3D12Resource> texRes = createTextureResource(tag, GfxTextureDim_2D, width, height, format, GfxTextureMipFlag_1Mip, usage, nullptr);
     d3dResources.push_back(texRes);
@@ -1797,7 +1797,7 @@ void getHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** ppAdapter, bool
     *ppAdapter = adapter.Detach();
 }
 
-rgInt gfxInit()
+i32 gfxInit()
 {
     // TODO: correctly initialize d3d12 device https://walbourn.github.io/anatomy-of-direct3d-12-create-device/
 
@@ -1878,17 +1878,17 @@ rgInt gfxInit()
     descriptorRangeOffsetBindlessTexture2D = cbvSrvUavDescriptorAllocator->allocatePersistentDescriptorRange(RG_MAX_BINDLESS_TEXTURE_RESOURCES);
     
     // create swapchain RTV
-    for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    for(u32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         ComPtr<ID3D12Resource> renderTargetLinear;
         BreakIfFail(dxgiSwapchain->GetBuffer(i, IID_PPV_ARGS(&renderTargetLinear)));
         D3D12_RESOURCE_DESC rtLinearDescription = renderTargetLinear->GetDesc();
 
-        rgU32 rtLinearDescIdx = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
+        u32 rtLinearDescIdx = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
         D3D12_CPU_DESCRIPTOR_HANDLE rtLinearDescriptor = stagedRtvDescriptorAllocator->getCpuHandle(rtLinearDescIdx);
         getDevice()->CreateRenderTargetView(renderTargetLinear.Get(), nullptr, rtLinearDescriptor);
 
-        rgU32 rtSrgbDescIdx = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
+        u32 rtSrgbDescIdx = stagedRtvDescriptorAllocator->allocatePersistentDescriptor();
         D3D12_CPU_DESCRIPTOR_HANDLE rtSrgbDescriptor = stagedRtvDescriptorAllocator->getCpuHandle(rtSrgbDescIdx);
         D3D12_RENDER_TARGET_VIEW_DESC rtSrgbView = {};
         rtSrgbView.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -1899,8 +1899,8 @@ rgInt gfxInit()
         GfxTexture* rtLinearTexture = rgNew(GfxTexture);
         strncpy(rtLinearTexture->tag, "RenderTargetLinear", 32);
         rtLinearTexture->dim = GfxTextureDim_2D;
-        rtLinearTexture->width = (rgUInt)rtLinearDescription.Width;
-        rtLinearTexture->height = (rgUInt)rtLinearDescription.Height;
+        rtLinearTexture->width = (u32)rtLinearDescription.Width;
+        rtLinearTexture->height = (u32)rtLinearDescription.Height;
         rtLinearTexture->usage = GfxTextureUsage_RenderTarget;
         rtLinearTexture->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)rtLinearDescription.Format);
         rtLinearTexture->d3dResource = renderTargetLinear;
@@ -1910,8 +1910,8 @@ rgInt gfxInit()
         GfxTexture* rtSrgbTexture = rgNew(GfxTexture);
         strncpy(rtSrgbTexture->tag, "RenderTargetSRGB", 32);
         rtSrgbTexture->dim = GfxTextureDim_2D;
-        rtSrgbTexture->width = (rgUInt)rtLinearDescription.Width;
-        rtSrgbTexture->height = (rgUInt)rtLinearDescription.Height;
+        rtSrgbTexture->width = (u32)rtLinearDescription.Width;
+        rtSrgbTexture->height = (u32)rtLinearDescription.Height;
         rtSrgbTexture->usage = GfxTextureUsage_RenderTarget;
         rtSrgbTexture->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)rtSrgbView.Format);
         rtSrgbTexture->d3dResource = renderTargetLinear;
@@ -1920,7 +1920,7 @@ rgInt gfxInit()
     }
 
     // create command allocators
-    for(rgUInt i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    for(u32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         commandAllocator[i] = createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT);
     }
@@ -1953,9 +1953,9 @@ void gfxDestroy()
     ::CloseHandle(frameFenceEvent);
 }
 
-rgInt draw()
+i32 draw()
 {
-    CD3DX12_VIEWPORT vp(0.0f, 0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height);
+    CD3DX12_VIEWPORT vp(0.0f, 0.0f, (f32)g_WindowInfo.width, (f32)g_WindowInfo.height);
     currentCommandList->RSSetViewports(1, &vp);
     CD3DX12_RECT scissorRect(0, 0, g_WindowInfo.width, g_WindowInfo.height);
     currentCommandList->RSSetScissorRects(1, &scissorRect);
@@ -1966,7 +1966,7 @@ rgInt draw()
     return 0;
 }
 
-void checkerWaitTillFrameCompleted(rgInt frameIndex)
+void checkerWaitTillFrameCompleted(i32 frameIndex)
 {
     rgAssert(frameIndex >= 0 && frameIndex < RG_MAX_FRAMES_IN_FLIGHT);
     UINT64 valueToWaitFor = frameFenceValues[frameIndex];
@@ -2042,7 +2042,7 @@ void gfxRunOnFrameBeginJob()
 {
 }
 
-void gfxSetBindlessResource(rgU32 slot, GfxTexture* resource)
+void gfxSetBindlessResource(u32 slot, GfxTexture* resource)
 {
     // Only 2D bindless textures are supported
     rgAssert(resource->dim == GfxTextureDim_2D);
@@ -2061,7 +2061,7 @@ void gfxSetBindlessResource(rgU32 slot, GfxTexture* resource)
 
 void gfxRendererImGuiInit()
 {
-    rgU32 fontSrvDescriptorindex = cbvSrvUavDescriptorAllocator->allocatePersistentDescriptor();
+    u32 fontSrvDescriptorindex = cbvSrvUavDescriptorAllocator->allocatePersistentDescriptor();
     ImGui_ImplDX12_Init(getDevice().Get(), RG_MAX_FRAMES_IN_FLIGHT, DXGI_FORMAT_B8G8R8A8_UNORM, cbvSrvUavDescriptorAllocator->getHeap(), cbvSrvUavDescriptorAllocator->getCpuHandle(fontSrvDescriptorindex), cbvSrvUavDescriptorAllocator->getGpuHandle(fontSrvDescriptorindex));
     ImGui_ImplSDL2_InitForD3D(g_AppMainWindow);
 }

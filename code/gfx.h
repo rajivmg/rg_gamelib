@@ -54,21 +54,21 @@
 #define ENABLE_GFX_OBJECT_INVALID_TAG_OP_ASSERT
 #define ENABLE_SLOW_GFX_RESOURCE_VALIDATIONS
 
-static const rgU32 kInvalidValue = ~(0x0);
-static const rgU32 kUninitializedValue = 0;
+static const u32 kInvalidValue = ~(0x0);
+static const u32 kUninitializedValue = 0;
 
 // FORWARD DECLARATIONS
 struct  GfxTexture;
 struct  GfxFrameResource;
 class   GfxFrameAllocator;
 struct  TexturedQuad;
-enum    SpriteLayer : rgU8;
+enum    SpriteLayer : u8;
 
 // PERF: check performance with normal multimap
 typedef eastl::vector_multimap<SpriteLayer, TexturedQuad> TexturedQuads;
 
-rgInt   gfxGetFrameIndex();
-void    gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr);
+i32   gfxGetFrameIndex();
+void    gfxSetBindlessResource(u32 slot, GfxTexture* ptr);
 
 // Gfx Object Registry
 // -------------------
@@ -104,7 +104,7 @@ struct GfxObjectRegistry
 
     static void destroyMarkedObjects()
     {
-        rgInt frameIndex = gfxGetFrameIndex();
+        i32 frameIndex = gfxGetFrameIndex();
         for(auto itr : objectsToDestroy[frameIndex])
         {
             Type::destroyGfxObject(itr);
@@ -137,7 +137,7 @@ enum GfxD3DViewType
 struct GfxD3DView
 {
     D3D12_CPU_DESCRIPTOR_HANDLE descriptor;
-    rgU32 descriptorIndex;
+    u32 descriptorIndex;
     rgBool isValid;
 };
 #endif
@@ -197,7 +197,7 @@ struct GfxBuffer : GfxObjectRegistry<GfxBuffer, GfxMemoryType, void*, rgSize, Gf
     static void destroyGfxObject(GfxBuffer* obj);
     
     void*   mappedMemory;
-    void*   map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes); // TODO: MTL D3D12 - handle ranges
+    void*   map(u32 rangeBeginOffset, u32 rangeSizeInBytes); // TODO: MTL D3D12 - handle ranges
     void    unmap();
 };
 
@@ -247,15 +247,15 @@ enum GfxTextureMipFlag
     GfxTextureMipFlag_GenMips,
 };
 
-struct GfxTexture : GfxObjectRegistry<GfxTexture, GfxTextureDim, rgUInt, rgUInt, TinyImageFormat, GfxTextureMipFlag, GfxTextureUsage, ImageSlice*>
+struct GfxTexture : GfxObjectRegistry<GfxTexture, GfxTextureDim, u32, u32, TinyImageFormat, GfxTextureMipFlag, GfxTextureUsage, ImageSlice*>
 {
     GfxTextureDim   dim;
-    rgUInt          width;
-    rgUInt          height;
+    u32          width;
+    u32          height;
     TinyImageFormat format;
-    rgUInt          mipmapCount;
+    u32          mipmapCount;
     GfxTextureUsage usage;
-    rgU32           texID;
+    u32           texID;
 
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource>          d3dResource;
@@ -267,22 +267,22 @@ struct GfxTexture : GfxObjectRegistry<GfxTexture, GfxTextureDim, rgUInt, rgUInt,
     VmaAllocation vmaAlloc;
 #endif
     
-    static rgUInt calcMipmapCount(GfxTextureMipFlag mipFlag, rgUInt width, rgUInt height)
+    static u32 calcMipmapCount(GfxTextureMipFlag mipFlag, u32 width, u32 height)
     {
-        rgUInt mip = 1;
+        u32 mip = 1;
         if(mipFlag == GfxTextureMipFlag_GenMips)
         {
-            mip = ((rgUInt)floor(log2(eastl::max(width, height)))) + 1;
+            mip = ((u32)floor(log2(eastl::max(width, height)))) + 1;
         }
         else
         {
             rgAssert(mipFlag > GfxTextureMipFlag_BEGIN_MIPS && mipFlag < GfxTextureMipFlag_END_MIPS);
-            mip = (rgUInt)mipFlag;
+            mip = (u32)mipFlag;
         }
         return mip;
     }
 
-    static void fillStruct(GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
+    static void fillStruct(GfxTextureDim dim, u32 width, u32 height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
     {
         obj->dim = dim;
         obj->width = width;
@@ -298,7 +298,7 @@ struct GfxTexture : GfxObjectRegistry<GfxTexture, GfxTextureDim, rgUInt, rgUInt,
         }
     }
 
-    static void createGfxObject(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj);
+    static void createGfxObject(char const* tag, GfxTextureDim dim, u32 width, u32 height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj);
     static void destroyGfxObject(GfxTexture* obj);
 };
 
@@ -337,7 +337,7 @@ struct GfxSamplerState : GfxObjectRegistry<GfxSamplerState, GfxSamplerAddressMod
 #if defined(RG_METAL_RNDR)
     void*                   mtlSampler;
 #elif defined(RG_D3D12_RNDR)
-    rgU32                   d3dStagedDescriptorIndex;
+    u32                   d3dStagedDescriptorIndex;
 #endif
 
     static void fillStruct(GfxSamplerAddressMode rstAddressMode, GfxSamplerMinMagFilter minFilter, GfxSamplerMinMagFilter magFilter, GfxSamplerMipFilter mipFilter, rgBool anisotropy, GfxSamplerState* obj)
@@ -384,8 +384,8 @@ struct GfxRenderPass
     GfxTexture*             depthStencilAttachmentTexture;
     GfxLoadAction           depthStencilAttachmentLoadAction;
     GfxStoreAction          depthStencilAttachmentStoreAction;
-    rgFloat                 clearDepth;
-    rgU8                    clearStencil;
+    f32                 clearDepth;
+    u8                    clearStencil;
 };
 
 // PSO and State types
@@ -440,13 +440,13 @@ struct GfxVertexInputDesc
     struct 
     {
         const char*         semanticName;
-        rgUInt              semanticIndex;
+        u32              semanticIndex;
         TinyImageFormat     format;
-        rgUInt              bufferIndex;
-        rgUInt              offset;
+        u32              bufferIndex;
+        u32              offset;
         GfxVertexStepFunc   stepFunc;
     } elements[8];
-    rgInt elementCount;
+    i32 elementCount;
 };
 
 struct GfxColorAttachementStateDesc
@@ -502,11 +502,11 @@ struct GfxPipelineArgument
     };
     Type type;
     
-    rgU16 registerIndex;
-    rgU16 spaceIndex;
+    u16 registerIndex;
+    u16 spaceIndex;
 
 #if defined(RG_D3D12_RNDR)
-    rgU32 d3dOffsetInDescriptorTable;
+    u32 d3dOffsetInDescriptorTable;
 #endif
 };
 
@@ -523,9 +523,9 @@ struct GfxGraphicsPSO : GfxObjectRegistry<GfxGraphicsPSO, GfxVertexInputDesc*, G
     rgBool                      d3dHasCBVSRVUAVs;
     rgBool                      d3dHasSamplers;
     rgBool                      d3dHasBindlessResources;
-    rgU32                       d3dVertexStrideInBytes;
-    rgU32                       d3dCbvSrvUavDescriptorCount;
-    rgU32                       d3dSamplerDescriptorCount;
+    u32                       d3dVertexStrideInBytes;
+    u32                       d3dCbvSrvUavDescriptorCount;
+    u32                       d3dSamplerDescriptorCount;
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
@@ -548,9 +548,9 @@ struct GfxGraphicsPSO : GfxObjectRegistry<GfxGraphicsPSO, GfxVertexInputDesc*, G
 struct GfxComputePSO : GfxObjectRegistry<GfxComputePSO, GfxShaderDesc*>
 {
     // TODO: This info might only be needed for metal
-    rgU32 threadsPerThreadgroupX;
-    rgU32 threadsPerThreadgroupY;
-    rgU32 threadsPerThreadgroupZ;
+    u32 threadsPerThreadgroupX;
+    u32 threadsPerThreadgroupY;
+    u32 threadsPerThreadgroupZ;
 
     eastl::hash_map<eastl::string, GfxPipelineArgument> arguments;
         
@@ -583,23 +583,23 @@ struct GfxRenderCmdEncoder
     void popDebugTag();
     
     void setViewport(rgFloat4 viewport);
-    void setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height);
-    void setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels);
+    void setViewport(f32 originX, f32 originY, f32 width, f32 height);
+    void setScissorRect(u32 xPixels, u32 yPixels, u32 widthPixels, u32 heightPixels);
     
     void setGraphicsPSO(GfxGraphicsPSO* pso);
 
-    void setVertexBuffer(GfxBuffer const* buffer, rgU32 offset, rgU32 slot);
-    void setVertexBuffer(GfxFrameResource const* resource, rgU32 slot);
+    void setVertexBuffer(GfxBuffer const* buffer, u32 offset, u32 slot);
+    void setVertexBuffer(GfxFrameResource const* resource, u32 slot);
 
-    void bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset);
+    void bindBuffer(char const* bindingTag, GfxBuffer* buffer, u32 offset);
     void bindBuffer(char const* bindingTag, GfxFrameResource const* resource);
     void bindTexture(char const* bindingTag, GfxTexture* texture);
     void bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
     
     void drawTexturedQuads(TexturedQuads* quads, Matrix4 const* viewMatrix, Matrix4 const* projectionMatrix);
-    void drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount);
-    void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount);
-    void drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount);
+    void drawTriangles(u32 vertexStart, u32 vertexCount, u32 instanceCount);
+    void drawIndexedTriangles(u32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, u32 bufferOffset, u32 instanceCount);
+    void drawIndexedTriangles(u32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, u32 instanceCount);
 
     GfxPipelineArgument* getPipelineArgument(char const* bindingTag);
     
@@ -621,13 +621,13 @@ struct GfxComputeCmdEncoder
     
     void setComputePSO(GfxComputePSO* pso);
     
-    void bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset);
+    void bindBuffer(char const* bindingTag, GfxBuffer* buffer, u32 offset);
     void bindBuffer(char const* bindingTag, GfxFrameResource const* resource);
-    void bindBufferFromData(char const* bindingTag, rgU32 sizeInBytes, void* data);
+    void bindBufferFromData(char const* bindingTag, u32 sizeInBytes, void* data);
     void bindTexture(char const* bindingTag, GfxTexture* texture);
     void bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
     
-    void dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ);
+    void dispatch(u32 threadgroupsGridX, u32 threadgroupsGridY, u32 threadgroupsGridZ);
     
     GfxPipelineArgument* getPipelineArgument(char const* bindingTag);
     
@@ -654,7 +654,7 @@ struct GfxBlitCmdEncoder
             struct
             {
                 GfxTexture* tex;
-                rgU32 uploadBufferOffset;
+                u32 uploadBufferOffset;
             } uploadTexture;
             struct
             {
@@ -668,7 +668,7 @@ struct GfxBlitCmdEncoder
     void pushDebugTag(const char* tag);
     void genMips(GfxTexture* srcTexture); // TODO: Handle non 2D types
     // TODO: Handle non 2D types
-    void copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount);
+    void copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, u32 srcMipLevel, u32 dstMipLevel, u32 mipLevelCount);
 
     rgBool hasEnded;
     eastl::vector<Cmd> cmds;
@@ -688,11 +688,11 @@ struct GfxBlitCmdEncoder
 // Common functions
 // ----------------
 
-rgInt                   gfxPreInit();
-rgInt                   gfxPostInit();
+i32                   gfxPreInit();
+i32                   gfxPostInit();
 void                    gfxAtFrameStart();
-rgInt                   gfxGetFrameIndex(); // Returns 0 if g_FrameIndex is -1
-rgInt                   gfxGetPrevFrameIndex();
+i32                   gfxGetFrameIndex(); // Returns 0 if g_FrameIndex is -1
+i32                   gfxGetPrevFrameIndex();
 GfxFrameAllocator*      gfxGetFrameAllocator();
 
 GfxRenderCmdEncoder*    gfxSetRenderPass(char const* tag, GfxRenderPass* renderPass);
@@ -703,7 +703,7 @@ GfxBlitCmdEncoder*      gfxSetBlitPass(char const* tag);
 // API specific implementation functions
 // -------------------------------------
 
-rgInt           gfxInit();
+i32           gfxInit();
 void            gfxDestroy();
 void            gfxStartNextFrame();
 void            gfxEndFrame();
@@ -735,15 +735,15 @@ class GfxBindlessResourceManager
     typedef eastl::vector<Type*> ResourceList;
     ResourceList resources; // Hold reference to the resources until no longer needed
 
-    typedef eastl::vector<rgU32> SlotList;
+    typedef eastl::vector<u32> SlotList;
     SlotList freeSlots; // Indexes in referenceList which are unused
     
-    typedef eastl::hash_map<Type*, rgU32> ResourcePtrSlotMapType;
+    typedef eastl::hash_map<Type*, u32> ResourcePtrSlotMapType;
     ResourcePtrSlotMapType resourcePtrSlotMap;
 
-    rgU32 getFreeSlot()
+    u32 getFreeSlot()
     {
-        rgU32 result = kInvalidValue;
+        u32 result = kInvalidValue;
 
         if(!freeSlots.empty())
         {
@@ -753,7 +753,7 @@ class GfxBindlessResourceManager
         else
         {
             rgAssert(resources.size() < UINT32_MAX);
-            result = (rgU32)resources.size();
+            result = (u32)resources.size();
             resources.resize(result + 1); // push_back(nullptr) ?
         }
 
@@ -761,7 +761,7 @@ class GfxBindlessResourceManager
         return result;
     }
 
-    void releaseSlot(rgU32 slot)
+    void releaseSlot(u32 slot)
     {
         rgAssert(slot < resources.size());
 
@@ -772,7 +772,7 @@ class GfxBindlessResourceManager
         resourcePtrSlotMap.erase(itr);
     }
 
-    void setResourcePtrInSlot(rgU32 slot, Type* ptr)
+    void setResourcePtrInSlot(u32 slot, Type* ptr)
     {
         rgAssert(ptr);
         rgAssert(slot != UINT32_MAX);
@@ -783,7 +783,7 @@ class GfxBindlessResourceManager
         // this should be implictly handled from _releaseSlot
     }
 
-    rgU32 getSlotOfResourcePtr(Type* ptr)
+    u32 getSlotOfResourcePtr(Type* ptr)
     {
         typename ResourcePtrSlotMapType::iterator itr = resourcePtrSlotMap.find(ptr);
         if(itr != resourcePtrSlotMap.end())
@@ -805,17 +805,17 @@ public:
     }
     
     // When it is known that the resource is not already stored
-    rgU32 store(Type* ptr)
+    u32 store(Type* ptr)
     {
-        rgU32 slot = getFreeSlot();
+        u32 slot = getFreeSlot();
         setResourcePtrInSlot(slot, ptr);
         return slot;
     }
     
     // When it is not known whether the resource is already stored or not
-    rgU32 storeIfNotPresent(Type* ptr)
+    u32 storeIfNotPresent(Type* ptr)
     {
-        rgU32 slot = getSlotOfResourcePtr(ptr);
+        u32 slot = getSlotOfResourcePtr(ptr);
         if(slot == kInvalidValue)
         {
             slot = getFreeSlot();
@@ -824,7 +824,7 @@ public:
         return slot;
     }
 
-    Type* getPtr(rgU32 slot)
+    Type* getPtr(u32 slot)
     {
         rgAssert(slot < resources.size());
 
@@ -832,7 +832,7 @@ public:
         return ptr;
     }
 
-    // TODO: rgU32 getContiguousFreeSlots(int count);
+    // TODO: u32 getContiguousFreeSlots(int count);
 };
 
 
@@ -849,7 +849,7 @@ struct GfxFrameResource
     };
     
     Type    type;
-    rgU32   sizeInBytes;
+    u32   sizeInBytes;
 
 #if defined(RG_METAL_RNDR)
     void* mtlBuffer; //type: id<MTLBuffer>
@@ -862,8 +862,8 @@ struct GfxFrameResource
 class GfxFrameAllocator
 {
 protected:
-    rgU32 offset;
-    rgU32 capacity;
+    u32 offset;
+    u32 capacity;
 #if defined(RG_METAL_RNDR)
     void* heap; //type: id<MTLHeap>
     eastl::vector<void*> mtlResources;
@@ -876,11 +876,11 @@ protected:
     void* heap;
 #endif
     
-    void create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize);
+    void create(u32 bufferHeapSize, u32 nonRTDSTextureHeapSize, u32 rtDSTextureHeapSize);
     void destroy();
     void releaseResources();
 public:
-    GfxFrameAllocator(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
+    GfxFrameAllocator(u32 bufferHeapSize, u32 nonRTDSTextureHeapSize, u32 rtDSTextureHeapSize)
     : offset(0)
     , capacity(0) // TODO: Use this to prevent overflow.. // TODO: Use this to prevent overflow
     {
@@ -892,10 +892,10 @@ public:
         destroy();
     }
     
-    rgU32 bumpStorageAligned(rgU32 s, rgU32 a)
+    u32 bumpStorageAligned(u32 s, u32 a)
     {
-        rgU32 unalignedStartOffset = offset;
-        rgU32 alignedStartOffset = (unalignedStartOffset + a - 1) & ~(a - 1);
+        u32 unalignedStartOffset = offset;
+        u32 alignedStartOffset = (unalignedStartOffset + a - 1) & ~(a - 1);
         
         // bump 'offset'
         offset = alignedStartOffset + s;
@@ -903,8 +903,8 @@ public:
         return alignedStartOffset;
     }
     
-    GfxFrameResource newBuffer(const char* tag, rgU32 size, void* initialData);
-    GfxFrameResource newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage);
+    GfxFrameResource newBuffer(const char* tag, u32 size, void* initialData);
+    GfxFrameResource newTexture2D(const char* tag, void* initialData, u32 width, u32 height, TinyImageFormat format, GfxTextureUsage usage);
 
     void reset()
     {
@@ -945,7 +945,7 @@ extern GfxBindlessResourceManager<GfxTexture>* g_BindlessTextureManager;
 
 // TODO: move to GfxState?
 // TODO: gfxFrameIndex() instead of gfxGetFrameIndex() ?
-extern rgInt g_FrameIndex; // Frame index in swapchain, i.e. 0, 1, 2, 0, 1, 2
+extern i32 g_FrameIndex; // Frame index in swapchain, i.e. 0, 1, 2, 0, 1, 2
 
 
 //-----------------------------------------------------------------------------
@@ -956,24 +956,24 @@ extern rgInt g_FrameIndex; // Frame index in swapchain, i.e. 0, 1, 2, 0, 1, 2
 // -------------
 struct ImageSlice
 {
-    rgU16  width;
-    rgU16  height;
-    rgU32  rowPitch;
-    rgU32  slicePitch;
-    rgU8*  pixels;
+    u16  width;
+    u16  height;
+    u32  rowPitch;
+    u32  slicePitch;
+    u8*  pixels;
 };
 
 struct Image
 {
     rgChar          tag[32];
-    rgU16           width;
-    rgU16           height;
+    u16           width;
+    u16           height;
     TinyImageFormat format;
     rgBool          isDDS;
     GfxTextureMipFlag mipFlag;
-    rgU8            sliceCount;
+    u8            sliceCount;
     ImageSlice      slices[15];
-    rgU8*           memory;
+    u8*           memory;
 
     void*           dxTexScratchImage;
 };
@@ -1018,10 +1018,10 @@ struct Mesh
     char tag[32];
     Matrix4 transform;
     MeshProperties properties;
-    rgU32 vertexCount;
-    rgU32 vertexDataOffset;
-    rgU32 indexCount;
-    rgU32 indexDataOffset;
+    u32 vertexCount;
+    u32 vertexDataOffset;
+    u32 indexCount;
+    u32 indexDataOffset;
     DefaultMaterialRef material;
 };
 
@@ -1029,9 +1029,9 @@ struct Model
 {
     char tag[32];
     eastl::vector<Mesh> meshes;
-    rgU32 vertexBufferOffset;
-    rgU32 index32BufferOffset;
-    rgU32 index16BufferOffset;
+    u32 vertexBufferOffset;
+    u32 index32BufferOffset;
+    u32 index16BufferOffset;
     GfxBuffer* vertexIndexBuffer;
 };
 
@@ -1055,15 +1055,15 @@ struct QuadUV
 };
 extern QuadUV defaultQuadUV;
 
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx);
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRef image);
+QuadUV createQuadUV(u32 xPx, u32 yPx, u32 widthPx, u32 heightPx, u32 refWidthPx, u32 refHeightPx);
+QuadUV createQuadUV(u32 xPx, u32 yPx, u32 widthPx, u32 heightPx, ImageRef image);
 QuadUV repeatQuadUV(rgFloat2 repeatXY);
 
 
 // Textured Quad
 // -------------
 
-enum SpriteLayer : rgU8
+enum SpriteLayer : u8
 {
     SpriteLayer_0,
     SpriteLayer_1,
@@ -1080,26 +1080,26 @@ enum SpriteLayer : rgU8
 struct TexturedQuad
 {
     QuadUV uv;
-    rgU32 texID;
+    u32 texID;
     rgFloat3 pos;
-    rgU32 color;
+    u32 color;
     rgFloat4 offsetOrientation;
     rgFloat2 size;
 };
 
-void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat4 posSize, rgU32 color, rgFloat4 offsetOrientation, GfxTexture* tex);
-void pushTexturedLine(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat2 pointA, rgFloat2 pointB, rgFloat thickness, rgU32 color, GfxTexture* tex);
+void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat4 posSize, u32 color, rgFloat4 offsetOrientation, GfxTexture* tex);
+void pushTexturedLine(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat2 pointA, rgFloat2 pointB, f32 thickness, u32 color, GfxTexture* tex);
 
 struct SimpleVertexFormat
 {
-    rgFloat pos[3];
-    rgFloat texcoord[2];
+    f32 pos[3];
+    f32 texcoord[2];
     unsigned char color[4];
 };
 
 struct SimpleInstanceParams
 {
-    rgU32 texParam[1024][4];
+    u32 texParam[1024][4];
 };
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams);
@@ -1109,11 +1109,11 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 // HELPER FUNCTIONS
 //-----------------------------------------------------------------------------
 
-void    copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix);
-void    copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix);
+void    copyMatrix4ToFloatArray(f32* dstArray, Matrix4 const& srcMatrix);
+void    copyMatrix3ToFloatArray(f32* dstArray, Matrix3 const& srcMatrix);
 
-Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearValue, rgFloat farValue);
-Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane);
+Matrix4 makeOrthographicProjectionMatrix(f32 left, f32 right, f32 bottom, f32 top, f32 nearValue, f32 farValue);
+Matrix4 makePerspectiveProjectionMatrix(f32 focalLength, f32 aspectRatio, f32 nearPlane, f32 farPlane);
 
 TinyImageFormat convertSRGBToLinearFormat(TinyImageFormat srgbFormat);
 TinyImageFormat convertLinearToSRGBFormat(TinyImageFormat linearFormat);

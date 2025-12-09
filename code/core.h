@@ -9,28 +9,26 @@
 #include <compile_time_crc.h>
 
 // Primitive data types
-typedef int64_t     rgS64;
-typedef int32_t     rgS32;
-typedef int16_t     rgS16;
-typedef int8_t      rgS8;
+typedef int64_t     i64;
+typedef int32_t     i32;
+typedef int16_t     i16;
+typedef int8_t      i8;
 
-typedef uint64_t    rgU64;
-typedef uint32_t    rgU32;
-typedef uint16_t    rgU16;
-typedef uint8_t     rgU8;
+typedef uint64_t    u64;
+typedef uint32_t    u32;
+typedef uint16_t    u16;
+typedef uint8_t     u8 ;
 
-typedef float       rgR32;
-typedef double      rgR64;
+typedef float       f32;
+typedef double      f64;
 
 typedef intptr_t    rgIPtr;
 typedef uintptr_t   rgUPtr;
 
 typedef size_t      rgSize;
 
-typedef uint32_t    rgUInt;
-typedef int32_t     rgInt;
-typedef float       rgFloat;
-typedef double      rgDouble;
+typedef float       f32;
+typedef double      f64;
 typedef bool        rgBool;
 
 typedef char        rgChar;
@@ -38,10 +36,7 @@ typedef uint8_t     rgByte;
 
 typedef uint32_t    rgHash;
 
-typedef uint32_t    uint32;
-typedef int32_t     int32;
-
-static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(rgU32) != sizeof(uint32_t)");
+static_assert(sizeof(rgHash) == sizeof(uint32_t), "sizeof(u32) != sizeof(uint32_t)");
 
 void  engineLogfImpl(char const* fmt, ...);
 
@@ -56,7 +51,7 @@ void  engineLogfImpl(char const* fmt, ...);
 
 #define rgArrayCount(a) (sizeof(a)/sizeof((a)[0]))
 #define rgOffsetOf(type, member) ((uintptr_t)&(((type *)0)->member))
-#define rgSizeOfU32(x) ((rgU32)sizeof(x))
+#define rgSizeOfU32(x) ((u32)sizeof(x))
 
 #define rgAssert(exp) SDL_assert(exp)
 #define rgCriticalCheck(exp)
@@ -86,30 +81,30 @@ inline T& operator^= (T& a, T b) { return reinterpret_cast<T&>( reinterpret_cast
 
 union rgFloat2
 {
-    rgFloat v[2];
+    f32 v[2];
     struct
     {
-        rgFloat x;
-        rgFloat y;
+        f32 x;
+        f32 y;
     };
 };
 
-RG_INLINE rgFloat2 operator+(rgFloat2 const& a, rgFloat b)
+RG_INLINE rgFloat2 operator+(rgFloat2 const& a, f32 b)
 {
     return rgFloat2{a.x + b, a.y + b};
 }
 
-RG_INLINE rgFloat2 operator-(rgFloat2 const& a, rgFloat b)
+RG_INLINE rgFloat2 operator-(rgFloat2 const& a, f32 b)
 {
     return rgFloat2{a.x - b, a.y - b};
 }
 
-RG_INLINE rgFloat2 operator*(rgFloat2 const& a, rgFloat b)
+RG_INLINE rgFloat2 operator*(rgFloat2 const& a, f32 b)
 {
     return rgFloat2{a.x * b, a.y * b};
 }
 
-RG_INLINE rgFloat2 operator/(rgFloat2 const& a, rgFloat b)
+RG_INLINE rgFloat2 operator/(rgFloat2 const& a, f32 b)
 {
     return rgFloat2{a.x / b, a.y / b};
 }
@@ -163,27 +158,27 @@ RG_INLINE rgFloat2 operator-(rgFloat2 const& a)
     return rgFloat2{-a.x, -a.y};
 }
 
-RG_INLINE rgFloat length(rgFloat2 const& a)
+RG_INLINE f32 length(rgFloat2 const& a)
 {
     return sqrtf(a.x * a.x + a.y * a.y);
 }
 
 union rgFloat4
 {
-    rgFloat v[4];
+    f32 v[4];
     struct
     {
-        rgFloat x;
-        rgFloat y;
-        rgFloat z;
-        rgFloat w;
+        f32 x;
+        f32 y;
+        f32 z;
+        f32 w;
     };
     struct
     {
-        rgFloat r;
-        rgFloat g;
-        rgFloat b;
-        rgFloat a;
+        f32 r;
+        f32 g;
+        f32 b;
+        f32 a;
     };
     struct
     {
@@ -194,18 +189,18 @@ union rgFloat4
 
 union rgFloat3
 {
-    rgFloat v[3];
+    f32 v[3];
     struct
     {
-        rgFloat x;
-        rgFloat y;
-        rgFloat z;
+        f32 x;
+        f32 y;
+        f32 z;
     };
     struct
     {
-        rgFloat r;
-        rgFloat g;
-        rgFloat b;
+        f32 r;
+        f32 g;
+        f32 b;
     };
 };
 
@@ -225,7 +220,7 @@ RG_INLINE rgFloat3& operator+=(rgFloat3& a, const rgFloat3& b)
     return a;
 }
 
-RG_INLINE rgFloat3 operator*(rgFloat3 const& a, rgFloat b)
+RG_INLINE rgFloat3 operator*(rgFloat3 const& a, f32 b)
 {
     return rgFloat3{a.x * b, a.y * b, a.z * b};
 }
@@ -245,12 +240,12 @@ RG_INLINE void rgPrintImplementation(const char* varName, rgFloat3& a)
 struct GameButtonState
 {
     rgBool endedDown;
-    rgUInt halfTransitionCount;
+    u32 halfTransitionCount;
 };
 
 struct GameMouseState
 {
-    rgS32 x, y, relX, relY;
+    i32 x, y, relX, relY;
     
     union
     {
@@ -304,7 +299,7 @@ extern AppInput* theAppInput;
 struct FileData
 {
     rgBool  isValid;
-    rgU8*   data;
+    u8*   data;
     rgSize  dataSize;
 };
 
@@ -323,13 +318,13 @@ char*       getSaveDataPath();
 
 struct WindowInfo
 {
-    rgUInt width;
-    rgUInt height;
+    u32 width;
+    u32 height;
 };
 
 extern WindowInfo g_WindowInfo;
 
-extern rgUInt g_FrameNumber; // Frame number since app started
+extern u32 g_FrameNumber; // Frame number since app started
 
 struct PhysicSystem;
 extern PhysicSystem* g_PhysicSystem;

@@ -5,17 +5,17 @@
 
 struct CameraParamsGPU
 {
-    rgFloat basisMatrix[9];
-    rgFloat _padding1[3];
-    rgFloat viewMatrix[16];
-    rgFloat projMatrix[16];
-    rgFloat viewProjMatrix[16];
-    rgFloat invViewMatrix[16];
-    rgFloat invProjMatrix[16];
-    rgFloat viewRotOnlyMatrix[16];
-    rgFloat nearPlane;
-    rgFloat farPlane;
-    rgFloat _padding2[2];
+    f32 basisMatrix[9];
+    f32 _padding1[3];
+    f32 viewMatrix[16];
+    f32 projMatrix[16];
+    f32 viewProjMatrix[16];
+    f32 invViewMatrix[16];
+    f32 invProjMatrix[16];
+    f32 viewRotOnlyMatrix[16];
+    f32 nearPlane;
+    f32 farPlane;
+    f32 _padding2[2];
 };
 
 class Viewport
@@ -27,12 +27,12 @@ public:
     Vector3    cameraForward;
 
     Vector3    cameraPosition;
-    rgFloat    cameraPitch;
-    rgFloat    cameraYaw;
+    f32    cameraPitch;
+    f32    cameraYaw;
 
     Matrix3    cameraBasis;
-    rgFloat    cameraNear;
-    rgFloat    cameraFar;
+    f32    cameraNear;
+    f32    cameraFar;
     Matrix4    cameraView;
     Matrix4    cameraProjection;
     Matrix4    cameraViewProjection;

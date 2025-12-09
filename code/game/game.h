@@ -14,10 +14,10 @@ struct GameState
     GfxGraphicsPSO* simple2dPSO;
     
     
-    rgFloat tonemapperMinLogLuminance;
-    rgFloat tonemapperMaxLogLuminance;
-    rgFloat tonemapperAdaptationRate;
-    rgFloat tonemapperExposureKey;
+    f32 tonemapperMinLogLuminance;
+    f32 tonemapperMaxLogLuminance;
+    f32 tonemapperAdaptationRate;
+    f32 tonemapperExposureKey;
     
     rgBool  debugShowGrid;
     

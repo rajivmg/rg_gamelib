@@ -13,7 +13,7 @@
 #include "pugixml.hpp"
 #include "DirectXTex.h"
 
-rgInt   g_FrameIndex;
+i32   g_FrameIndex;
 GfxBindlessResourceManager<GfxTexture>* g_BindlessTextureManager;
 QuadUV  defaultQuadUV = { 0.0f, 0.0f, 1.0f, 1.0f };
 
@@ -107,16 +107,16 @@ static void styleImGui()
     style.TabRounding = 0.0f;
 }
 
-rgInt gfxPreInit()
+i32 gfxPreInit()
 {
     g_BindlessTextureManager = rgNew(GfxBindlessResourceManager<GfxTexture>);
     return 0;
 }
 
-rgInt gfxPostInit()
+i32 gfxPostInit()
 {
     // Initialize frame buffer allocators
-    for(rgS32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
+    for(i32 i = 0; i < RG_MAX_FRAMES_IN_FLIGHT; ++i)
     {
         frameAllocators[i] = rgNew(GfxFrameAllocator)(rgMegabyte(8), rgMegabyte(64), rgMegabyte(64));
     }
@@ -163,14 +163,14 @@ void gfxAtFrameStart()
     frameAllocators[g_FrameIndex]->reset();
 }
 
-rgInt gfxGetFrameIndex()
+i32 gfxGetFrameIndex()
 {
     return (g_FrameIndex != -1) ? g_FrameIndex : 0;
 }
 
-rgInt gfxGetPrevFrameIndex()
+i32 gfxGetPrevFrameIndex()
 {
-    rgInt prevFrameIndex = 0;
+    i32 prevFrameIndex = 0;
     if(g_FrameIndex != -1)
     {
         prevFrameIndex = g_FrameIndex - 1;
@@ -263,7 +263,7 @@ ImageRef loadImage(char const* filename, bool srgbFormat/* = true*/)
     rgSize nullTerminatedPathLength = strlen(filename) + 1;
     char const* extStr = filename + nullTerminatedPathLength - 4;
     
-    rgInt width, height, texChnl;
+    i32 width, height, texChnl;
     ImageRef output = eastl::shared_ptr<Image>(rgNew(Image), unloadImage);
     
     if(strcmp(extStr, "dds") == 0 || strcmp(extStr, "DDS") == 0)
@@ -284,18 +284,18 @@ ImageRef loadImage(char const* filename, bool srgbFormat/* = true*/)
         
         strncpy(output->tag, filename, rgArrayCount(Image::tag));
         output->tag[rgArrayCount(Image::tag) - 1] = '\0';
-        output->width = (rgUInt)metadata.width;
-        output->height = (rgUInt)metadata.height;
+        output->width = (u32)metadata.width;
+        output->height = (u32)metadata.height;
         output->format = TinyImageFormat_FromDXGI_FORMAT((TinyImageFormat_DXGI_FORMAT)metadata.format);
         output->mipFlag = (GfxTextureMipFlag)metadata.mipLevels;
-        output->sliceCount = (rgUInt)metadata.arraySize;
+        output->sliceCount = (u32)metadata.arraySize;
         output->isDDS = true;
-        output->memory = (rgU8*)rgMalloc(scratchImage.GetPixelsSize());
+        output->memory = (u8*)rgMalloc(scratchImage.GetPixelsSize());
         
-        rgU8* basememory = output->memory;
-        rgU32 offset = 0;
+        u8* basememory = output->memory;
+        u32 offset = 0;
         rgAssert(scratchImage.GetImageCount() <= rgArrayCount(Image::slices));
-        for(rgInt i = 0; i < scratchImage.GetImageCount(); ++i)
+        for(i32 i = 0; i < scratchImage.GetImageCount(); ++i)
         {
             const DirectX::Image* img = scratchImage.GetImages() + i;
             memcpy(basememory + offset, img->pixels, img->slicePitch);
@@ -306,7 +306,7 @@ ImageRef loadImage(char const* filename, bool srgbFormat/* = true*/)
             output->slices[i].slicePitch = img->slicePitch;
             output->slices[i].pixels = basememory + offset;
         
-            offset += (rgU32)img->slicePitch;
+            offset += (u32)img->slicePitch;
         }
         rgAssert(offset == scratchImage.GetPixelsSize());
     }
@@ -329,7 +329,7 @@ ImageRef loadImage(char const* filename, bool srgbFormat/* = true*/)
         output->isDDS = false;
         output->memory = texData;
 
-        rgU16 bytesPerPixel = TinyImageFormat_BitSizeOfBlock(output->format) / 8;
+        u16 bytesPerPixel = TinyImageFormat_BitSizeOfBlock(output->format) / 8;
 
         output->slices[0].width = width;
         output->slices[0].height = height;
@@ -412,7 +412,7 @@ ModelRef loadModel(char const* filename)
     outModel->index32BufferOffset = modelNode.attribute("index32BufferOffset").as_uint();
     outModel->index16BufferOffset = modelNode.attribute("index16BufferOffset").as_uint();
     
-    rgU32 meshCount = modelNode.attribute("meshCount").as_uint();
+    u32 meshCount = modelNode.attribute("meshCount").as_uint();
     
     for(auto meshNode : modelNode.children("mesh"))
     {
@@ -460,20 +460,20 @@ void unloadModel(Model* ptr)
 // 2D RENDERING HELPERS
 //-----------------------------------------------------------------------------
 
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, rgU32 refWidthPx, rgU32 refHeightPx)
+QuadUV createQuadUV(u32 xPx, u32 yPx, u32 widthPx, u32 heightPx, u32 refWidthPx, u32 refHeightPx)
 {
     QuadUV r;
 
-    r.uvTopLeft.x = (rgFloat)xPx / refWidthPx;
-    r.uvTopLeft.y = (rgFloat)yPx / refHeightPx;
+    r.uvTopLeft.x = (f32)xPx / refWidthPx;
+    r.uvTopLeft.y = (f32)yPx / refHeightPx;
 
-    r.uvBottomRight.x = (xPx + widthPx) / (rgFloat)refWidthPx;
-    r.uvBottomRight.y = (yPx + heightPx) / (rgFloat)refHeightPx;
+    r.uvBottomRight.x = (xPx + widthPx) / (f32)refWidthPx;
+    r.uvBottomRight.y = (yPx + heightPx) / (f32)refHeightPx;
 
     return r;
 }
 
-QuadUV createQuadUV(rgU32 xPx, rgU32 yPx, rgU32 widthPx, rgU32 heightPx, ImageRef image)
+QuadUV createQuadUV(u32 xPx, u32 yPx, u32 widthPx, u32 heightPx, ImageRef image)
 {
     return createQuadUV(xPx, yPx, widthPx, heightPx, image->width, image->height);
 }
@@ -486,7 +486,7 @@ QuadUV repeatQuadUV(rgFloat2 repeatXY)
     return r;
 }
 
-void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat4 posSize, rgU32 color, rgFloat4 offsetOrientation, GfxTexture* tex)
+void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat4 posSize, u32 color, rgFloat4 offsetOrientation, GfxTexture* tex)
 {
     TexturedQuad q;
     q.uv = uv;
@@ -498,7 +498,7 @@ void pushTexturedQuad(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgF
     quadList->insert(eastl::pair<SpriteLayer, TexturedQuad>(layer, q));
 }
 
-void pushTexturedLine(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat2 pointA, rgFloat2 pointB, rgFloat thickness, rgU32 color, GfxTexture* tex)
+void pushTexturedLine(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgFloat2 pointA, rgFloat2 pointB, f32 thickness, u32 color, GfxTexture* tex)
 {
     rgFloat2 a = pointA;
     rgFloat2 b = pointB;
@@ -517,14 +517,14 @@ void pushTexturedLine(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgF
     }
     
     rgFloat2 ab = b - a;
-    rgFloat l = length(ab);
-    rgFloat tHalf = thickness / 2.0f;
+    f32 l = length(ab);
+    f32 tHalf = thickness / 2.0f;
 
     // adjust the y, so that middle of the thickness it at pointA
     a.y = a.y - tHalf;
     b.y = b.y - tHalf;
 
-    rgFloat ang;
+    f32 ang;
     ang = atan((b.y - a.y) / (b.x - a.x));
     //ImGui::Text("ang %f", ang);
     pushTexturedQuad(quadList, layer, uv, {a.x, a.y, l, thickness}, color, {0, tHalf, ang, 1 }, tex);
@@ -532,7 +532,7 @@ void pushTexturedLine(TexturedQuads* quadList, SpriteLayer layer, QuadUV uv, rgF
 
 void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertexFormat>* vertices, SimpleInstanceParams* instanceParams)
 {
-    auto setColor = [](unsigned char* colorArr, rgU32 c)
+    auto setColor = [](unsigned char* colorArr, u32 c)
     {
         colorArr[0] = (unsigned char)(c >> 24 & 0x000000FF);
         colorArr[1] = (unsigned char)(c >> 16 & 0x000000FF);
@@ -540,7 +540,7 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         colorArr[3] = (unsigned char)(c >> 0 & 0x000000FF);
     };
 
-    rgU32 i = 0;
+    u32 i = 0;
     for(TexturedQuads::const_iterator iter = quadList->begin(); iter != quadList->end(); ++iter)
     {
         TexturedQuad const& t = iter->second;
@@ -549,7 +549,7 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
         // 0 - 1
         // 3 - 2
 #if 1
-        rgFloat s, c;
+        f32 s, c;
         s = sinf(t.offsetOrientation.z);
         c = cosf(t.offsetOrientation.z);
 
@@ -640,29 +640,29 @@ void genTexturedQuadVertices(TexturedQuads* quadList, eastl::vector<SimpleVertex
 // HELPER FUNCTIONS
 //-----------------------------------------------------------------------------
 
-void copyMatrix4ToFloatArray(rgFloat* dstArray, Matrix4 const& srcMatrix)
+void copyMatrix4ToFloatArray(f32* dstArray, Matrix4 const& srcMatrix)
 {
-    rgFloat const* ptr = toFloatPtr(srcMatrix);
-    for(rgInt i = 0; i < 16; ++i)
+    f32 const* ptr = toFloatPtr(srcMatrix);
+    for(i32 i = 0; i < 16; ++i)
     {
         dstArray[i] = ptr[i];
     }
 }
 
-void copyMatrix3ToFloatArray(rgFloat* dstArray, Matrix3 const& srcMatrix)
+void copyMatrix3ToFloatArray(f32* dstArray, Matrix3 const& srcMatrix)
 {
-    rgFloat const* ptr = toFloatPtr(srcMatrix);
-    for(rgInt i = 0; i < 9; ++i)
+    f32 const* ptr = toFloatPtr(srcMatrix);
+    for(i32 i = 0; i < 9; ++i)
     {
         dstArray[i] = ptr[i];
     }
 }
 
-Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bottom, rgFloat top, rgFloat nearPlane, rgFloat farPlane)
+Matrix4 makeOrthographicProjectionMatrix(f32 left, f32 right, f32 bottom, f32 top, f32 nearPlane, f32 farPlane)
 {
-    rgFloat length = 1.0f / (right - left);
-    rgFloat height = 1.0f / (top - bottom);
-    rgFloat depth  = 1.0f / (farPlane - nearPlane);
+    f32 length = 1.0f / (right - left);
+    f32 height = 1.0f / (top - bottom);
+    f32 depth  = 1.0f / (farPlane - nearPlane);
     
     // LH 0 to 1
     return Matrix4(Vector4(2.0f * length, 0, 0, 0),
@@ -671,7 +671,7 @@ Matrix4 makeOrthographicProjectionMatrix(rgFloat left, rgFloat right, rgFloat bo
                    Vector4(-((right + left) * length), -((top +bottom) * height), -nearPlane * depth, 1.0f));
 }
 
-Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio, rgFloat nearPlane, rgFloat farPlane)
+Matrix4 makePerspectiveProjectionMatrix(f32 focalLength, f32 aspectRatio, f32 nearPlane, f32 farPlane)
 {
     // focal length = 1 / tan(fov/2)
 
@@ -688,11 +688,11 @@ Matrix4 makePerspectiveProjectionMatrix(rgFloat focalLength, rgFloat aspectRatio
     // 0 0 C D
     // 0 0 E 0
     
-    rgFloat a = focalLength;
-    rgFloat b = aspectRatio * focalLength;
-    rgFloat c = farPlane / (farPlane - nearPlane);
-    rgFloat d = 1;
-    rgFloat e = -nearPlane * c;
+    f32 a = focalLength;
+    f32 b = aspectRatio * focalLength;
+    f32 c = farPlane / (farPlane - nearPlane);
+    f32 d = 1;
+    f32 e = -nearPlane * c;
     
     return Matrix4(Vector4(a, 0, 0, 0),
                    Vector4(0, b, 0, 0),

@@ -2,7 +2,7 @@
 
 static void Verlet(PhysicSystem* sys)
 {
-    for(rgUInt i = 0; i < kMaxParticles; ++i)
+    for(u32 i = 0; i < kMaxParticles; ++i)
     {
         rgFloat3& curPos = sys->particlePos[i];
         rgFloat3& prevPos = sys->particlePrevPos[i];
@@ -22,7 +22,7 @@ static void SatisfyConstraints(PhysicSystem* system)
 
 static void AccumulateForces(PhysicSystem* system)
 {
-    for(rgUInt i = 0; i < kMaxParticles; ++i)
+    for(u32 i = 0; i < kMaxParticles; ++i)
     {
         system->particleForceAccumulators[i] = system->gravity;
     }

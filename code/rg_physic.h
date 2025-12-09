@@ -2,7 +2,7 @@
 
 #include "core.h"
 
-static constexpr rgInt kMaxParticles = 2048;
+static constexpr i32 kMaxParticles = 2048;
 
 struct PhysicSystem
 {
@@ -12,7 +12,7 @@ struct PhysicSystem
     rgFloat3 particleForceAccumulators[kMaxParticles];
 
     rgFloat3 gravity;
-    rgFloat  timestep;
+    f32  timestep;
 };
 
 void TickPhysicSystem(PhysicSystem* system);

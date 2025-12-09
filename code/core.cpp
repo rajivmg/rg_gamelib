@@ -5,7 +5,7 @@
 
 SDL_Window* g_AppMainWindow;
 rgBool      g_ShouldAppQuit;
-rgUInt      g_FrameNumber;
+u32      g_FrameNumber;
 WindowInfo  g_WindowInfo;
 
 // EASTL MEMORY OVERLOADS
@@ -136,7 +136,7 @@ static rgBool processGameInputs(SDL_Event* event, AppInput* appInput)
     return true;
 }
 
-static rgInt createSDLWindow()
+static i32 createSDLWindow()
 {
 #if 0
     g_WindowInfo.width = 1056;
@@ -181,9 +181,9 @@ int TheApp::beginApp()
         return -1; // error;
     }
 
-    rgInt gfxPreInitResult = gfxPreInit();
-    rgInt gfxInitResult = gfxInit();
-    rgInt gfxCommonInitResult = gfxPostInit();
+    i32 gfxPreInitResult = gfxPreInit();
+    i32 gfxInitResult = gfxInit();
+    i32 gfxCommonInitResult = gfxPostInit();
 
     if(gfxInitResult || gfxCommonInitResult)
     {
@@ -211,7 +211,7 @@ void TheApp::beforeUpdateAndDraw()
     *newAppInput = {};
     GameControllerInput* oldController1 = &oldAppInput->controllers[0];
     GameControllerInput* newController1 = &newAppInput->controllers[0];
-    for(rgInt buttonIdx = 0; buttonIdx < rgArrayCount(GameControllerInput::buttons); ++buttonIdx)
+    for(i32 buttonIdx = 0; buttonIdx < rgArrayCount(GameControllerInput::buttons); ++buttonIdx)
     {
         newController1->buttons[buttonIdx].endedDown = oldController1->buttons[buttonIdx].endedDown;
     }
@@ -219,7 +219,7 @@ void TheApp::beforeUpdateAndDraw()
     // Copy old mouse input state to new mouse input state
     newAppInput->mouse.x = oldAppInput->mouse.x;
     newAppInput->mouse.y = oldAppInput->mouse.y;
-    for(rgInt buttonIdx = 0; buttonIdx < rgArrayCount(GameControllerInput::buttons); ++buttonIdx)
+    for(i32 buttonIdx = 0; buttonIdx < rgArrayCount(GameControllerInput::buttons); ++buttonIdx)
     {
         newAppInput->mouse.buttons[buttonIdx].endedDown = oldAppInput->mouse.buttons[buttonIdx].endedDown;
     }
@@ -309,7 +309,7 @@ FileData fileRead(const char* filepath)
 
 		SDL_RWseek(fp, 0, RW_SEEK_SET);
 
-		result.data = (rgU8*)rgMalloc(sizeof(rgU8) * size);
+		result.data = (u8*)rgMalloc(sizeof(u8) * size);
 		if (result.data == NULL)
 		{
 			rgLog("Cannot allocate memory(%dbytes) for reading file %s", size, filepath);
@@ -318,7 +318,7 @@ FileData fileRead(const char* filepath)
 			return result;
 		}
 
-		rgSize sizeRead = SDL_RWread(fp, result.data, sizeof(rgU8), size);
+		rgSize sizeRead = SDL_RWread(fp, result.data, sizeof(u8), size);
 		if (sizeRead != size)
 		{
 			result.isValid = false;
@@ -346,7 +346,7 @@ rgBool fileWrite(char const* filepath, void* bufferPtr, rgSize bufferSizeInBytes
 	// If file is opened
 	if (fp != 0)
 	{
-		size_t bytesWritten = SDL_RWwrite(fp, bufferPtr, sizeof(rgU8), bufferSizeInBytes);
+		size_t bytesWritten = SDL_RWwrite(fp, bufferPtr, sizeof(u8), bufferSizeInBytes);
 		if (bytesWritten != (size_t)bufferSizeInBytes)
 		{
 			rgLogError("Can't write file %s completely\n", filepath);

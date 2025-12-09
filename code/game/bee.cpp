@@ -121,7 +121,7 @@ struct Bee : TheApp
         ImGui::DragFloat2("worldCamP", worldCamP.v, 0.1f);
         Matrix4 worldViewMatrix = Matrix4::lookAt(Point3(worldCamP.x, worldCamP.y, 0), Point3(worldCamP.x, worldCamP.y, -1000.0f), Vector3(0, 1.0f, 0));
         TexturedQuads worldTexturedQuads;
-        static rgFloat ang;
+        static f32 ang;
         ang += (float)theAppInput->deltaTime;
         pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {5.0f, 5.0f, 1.0f, 1.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, ocean);
         pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {5.0f, 5.0f, -1.0f, 1.0f}, 0xFFFFFFFF, {0, 0, 0, 0}, ocean);
@@ -132,23 +132,23 @@ struct Bee : TheApp
         pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {9.0f, 5.0f, 1.0f, 1.0f}, 0xFF0000FF, {-0.5f, -0.5f, ang, 0}, ocean);
         
         {
-            rgFloat s = sinf(ang);
-            rgFloat c = cosf(ang);
+            f32 s = sinf(ang);
+            f32 c = cosf(ang);
             rgFloat2 b = {7.0f + s * 2.0f, 5.0f + c * 2.0f};
             pushTexturedLine(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, {7.0f, 5.0f}, b, 0.1f, 0xFF000FF, ocean);
         }
 
         {
             rgFloat2 p = { 600.0f, 300.0f };
-            rgFloat2 m = {(rgFloat)theAppInput->mouse.x, (rgFloat)theAppInput->mouse.y};
-            rgFloat l = length(m - p);
-            rgFloat repeatU = l / 16.0f;
+            rgFloat2 m = {(f32)theAppInput->mouse.x, (f32)theAppInput->mouse.y};
+            f32 l = length(m - p);
+            f32 repeatU = l / 16.0f;
             pushTexturedLine(&testQuads, SpriteLayer_1, repeatQuadUV({repeatU, 1.0f}), p, m, 16.0f, 0x331de2ff, arrow);
         }
 
-        for(rgInt x = -8; x < 8; ++x)
+        for(i32 x = -8; x < 8; ++x)
         {
-            pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, { (rgFloat)x, 0, 1.0f, 1.0f }, 0x00FF00FF, { 0, 0, 0, 0 }, flower);
+            pushTexturedQuad(&worldTexturedQuads, SpriteLayer_0, defaultQuadUV, { (f32)x, 0, 1.0f, 1.0f }, 0x00FF00FF, { 0, 0, 0, 0 }, flower);
         }
 
         //

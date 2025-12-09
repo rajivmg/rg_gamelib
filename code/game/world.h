@@ -3,7 +3,7 @@
 
 struct Chunk
 {
-    rgU32 tiles[32][32];
+    u32 tiles[32][32];
 };
 
 struct World

@@ -79,10 +79,10 @@ ShaderBlobRef createShaderBlob(char const* filename, GfxStage stage, char const*
     // construct hash from shader info
     rgHash hash = rgCRC32(filename);
     hash = rgCRC32(getGfxStageString(stage), 2, hash);
-    hash = rgCRC32(entrypoint, (rgU32)strlen(entrypoint), hash);
+    hash = rgCRC32(entrypoint, (u32)strlen(entrypoint), hash);
     if(defines != nullptr)
     {
-        hash = rgCRC32(defines, (rgU32)strlen(defines), hash);
+        hash = rgCRC32(defines, (u32)strlen(defines), hash);
     }
 
     eastl::vector<LPCWSTR> dxcArgs; // raname to dxcOpt
