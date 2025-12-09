@@ -34,9 +34,9 @@
 // Constants
 // ---------
 
-static const rgU32 kBindlessTextureSetBinding = 7; // TODO: change this to some thing higher like 26
-static const rgU32 kFrameParamsSetBinding = 6;
-static const rgU32 kMaxMTLArgumentTableBufferSlot = 30;
+static const u32 kBindlessTextureSetBinding = 7; // TODO: change this to some thing higher like 26
+static const u32 kFrameParamsSetBinding = 6;
+static const u32 kMaxMTLArgumentTableBufferSlot = 30;
 
 // State
 // -----
@@ -57,7 +57,7 @@ static id<MTLCommandQueue>  mtlCommandQueue;
 static id<MTLCommandBuffer> mtlCommandBuffer;
 
 static id<MTLSharedEvent>       frameFenceEvent;
-static rgU64                    frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
+static u64                    frameFenceValues[RG_MAX_FRAMES_IN_FLIGHT];
 static MTLSharedEventListener*  frameFenceEventListener; // Currently unused
 static dispatch_queue_t         frameFenceDispatchQueue; // Currently unused TODO: Needed at all/here?
     
@@ -376,8 +376,8 @@ GfxTexture createGfxTextureFromMTLTexture(id<MTLTexture> mtlTexture)
 {
     GfxTexture texture;
     texture.dim = GfxTextureDim_2D;
-    texture.width = (rgUInt)[mtlTexture width];
-    texture.height = (rgUInt)[mtlTexture height];
+    texture.width = (u32)[mtlTexture width];
+    texture.height = (u32)[mtlTexture height];
     texture.mipmapCount = (unsigned)[mtlTexture mipmapLevelCount];
     texture.usage = GfxTextureUsage_RenderTarget; // TODO: set this
     texture.format = TinyImageFormat_FromMTLPixelFormat((TinyImageFormat_MTLPixelFormat)[mtlTexture pixelFormat]);
@@ -424,7 +424,7 @@ void GfxBuffer::destroyGfxObject(GfxBuffer* obj)
     [asMTLBuffer(obj->mtlBuffer) release];
 }
 
-void* GfxBuffer::map(rgU32 rangeBeginOffset, rgU32 rangeSizeInBytes) // TODO: MTL D3D12 - handle ranges
+void* GfxBuffer::map(u32 rangeBeginOffset, u32 rangeSizeInBytes) // TODO: MTL D3D12 - handle ranges
 {
     return mappedMemory != nullptr ? mappedMemory : [asMTLBuffer(mtlBuffer) contents];
 }
@@ -464,9 +464,9 @@ void GfxSamplerState::destroyGfxObject(GfxSamplerState* obj)
 // Texture type
 // ------------
 
-void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
+void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, u32 width, u32 height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices, GfxTexture* obj)
 {
-    rgUInt mipmapLevelCount = calcMipmapCount(mipFlag, width, height);
+    u32 mipmapLevelCount = calcMipmapCount(mipFlag, width, height);
     MTLTextureDescriptor* texDesc = [[MTLTextureDescriptor alloc] init];
     texDesc.width = width;
     texDesc.height = height;
@@ -489,16 +489,16 @@ void GfxTexture::createGfxObject(char const* tag, GfxTextureDim dim, rgUInt widt
     // copy the texture data
     if(slices && slices[0].pixels != NULL)
     {
-        rgUInt sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
-        rgUInt mipsToCopy = (mipFlag == GfxTextureMipFlag_GenMips) ? 1 : mipmapLevelCount;
+        u32 sliceCount = dim == GfxTextureDim_Cube ? 6 : 1;
+        u32 mipsToCopy = (mipFlag == GfxTextureMipFlag_GenMips) ? 1 : mipmapLevelCount;
         if(dim == GfxTextureDim_Cube)
         {
             rgAssert(mipsToCopy == 1);
         }
         
-        for(rgUInt m = 0; m < mipsToCopy; ++m)
+        for(u32 m = 0; m < mipsToCopy; ++m)
         {
-            for(rgUInt s = 0; s < sliceCount; ++s)
+            for(u32 s = 0; s < sliceCount; ++s)
             {
                 ImageSlice* slc = &slices[s + m];
                 MTLRegion region = MTLRegionMake2D(0, 0, slc->width, slc->height);
@@ -525,7 +525,7 @@ void GfxTexture::destroyGfxObject(GfxTexture* obj)
 
 id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char const* entrypoint, char const* defines,
                                       eastl::hash_map<eastl::string, GfxPipelineArgument>* outArguments,
-                                      rgU32* outThreadsPerThreadgroupX = nullptr, rgU32* outThreadsPerThreadgroupY = nullptr, rgU32* outThreadsPerThreadgroupZ = nullptr)
+                                      u32* outThreadsPerThreadgroupX = nullptr, u32* outThreadsPerThreadgroupY = nullptr, u32* outThreadsPerThreadgroupZ = nullptr)
 {
     // first we generate spirv from hlsl
     ShaderBlobRef shaderBlob = createShaderBlob(filename, stage, entrypoint, defines, true);
@@ -615,7 +615,7 @@ id<MTLFunction> compileShaderForMetal(char const* filename, GfxStage stage, char
                 rgAssert(existingInfo.type == type);
                 rgAssert(existingInfo.registerIndex == mslBinding);
                 
-                existingInfo.stages = (GfxStage)((rgU32)existingInfo.stages | (rgU32)stage);
+                existingInfo.stages = (GfxStage)((u32)existingInfo.stages | (u32)stage);
                 return;
             }
             
@@ -688,7 +688,7 @@ void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertex
         [psoDesc setFragmentFunction:fs];
         
         rgAssert(renderStateDesc != nullptr);
-        for(rgInt i = 0; i < RG_MAX_COLOR_ATTACHMENTS; ++i)
+        for(i32 i = 0; i < RG_MAX_COLOR_ATTACHMENTS; ++i)
         {
             TinyImageFormat colorAttFormat = renderStateDesc->colorAttachments[i].pixelFormat;
             if(colorAttFormat != TinyImageFormat_UNDEFINED)
@@ -725,13 +725,13 @@ void GfxGraphicsPSO::createGfxObject(char const* tag, GfxVertexInputDesc* vertex
         if(vertexInputDesc && vertexInputDesc->elementCount > 0)
         {
             MTLVertexDescriptor* vertexDescriptor = [MTLVertexDescriptor vertexDescriptor];
-            eastl::hash_map<rgUInt, eastl::pair<rgUInt, GfxVertexStepFunc>> layoutSet;
-            for(rgInt a = 0; a < vertexInputDesc->elementCount; ++a)
+            eastl::hash_map<u32, eastl::pair<u32, GfxVertexStepFunc>> layoutSet;
+            for(i32 a = 0; a < vertexInputDesc->elementCount; ++a)
             {
                 vertexDescriptor.attributes[a].format = toMTLVertexFormat(vertexInputDesc->elements[a].format);
                 vertexDescriptor.attributes[a].offset = vertexInputDesc->elements[a].offset;
                 
-                rgUInt bufferIndex = kMaxMTLArgumentTableBufferSlot - vertexInputDesc->elements[a].bufferIndex;
+                u32 bufferIndex = kMaxMTLArgumentTableBufferSlot - vertexInputDesc->elements[a].bufferIndex;
                 rgAssert(bufferIndex > 0 && bufferIndex <= kMaxMTLArgumentTableBufferSlot);
                 if(layoutSet.count(bufferIndex) == 0)
                 {
@@ -822,7 +822,7 @@ void GfxRenderCmdEncoder::begin(char const* tag, GfxRenderPass* renderPass)
     // create RenderCommandEncoder
     MTLRenderPassDescriptor* renderPassDesc = [[MTLRenderPassDescriptor alloc] init];
 
-    for(rgInt c = 0; c < RG_MAX_COLOR_ATTACHMENTS; ++c)
+    for(i32 c = 0; c < RG_MAX_COLOR_ATTACHMENTS; ++c)
     {
         if(renderPass->colorAttachments[c].texture == NULL)
         {
@@ -886,7 +886,7 @@ void GfxRenderCmdEncoder::setViewport(rgFloat4 viewport)
     setViewport(viewport.x, viewport.y, viewport.z, viewport.w);
 }
 
-void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat width, rgFloat height)
+void GfxRenderCmdEncoder::setViewport(f32 originX, f32 originY, f32 width, f32 height)
 {
     MTLViewport vp;
     vp.originX = originX;
@@ -899,7 +899,7 @@ void GfxRenderCmdEncoder::setViewport(rgFloat originX, rgFloat originY, rgFloat 
     [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) setViewport:vp];
 }
 
-void GfxRenderCmdEncoder::setScissorRect(rgU32 xPixels, rgU32 yPixels, rgU32 widthPixels, rgU32 heightPixels)
+void GfxRenderCmdEncoder::setScissorRect(u32 xPixels, u32 yPixels, u32 widthPixels, u32 heightPixels)
 {
     MTLScissorRect rect;
     rect.x = xPixels;
@@ -925,20 +925,20 @@ void GfxRenderCmdEncoder::setGraphicsPSO(GfxGraphicsPSO* pso)
 }
 
 //-----------------------------------------------------------------------------
-rgU32 slotToVertexBinding(rgU32 slot)
+u32 slotToVertexBinding(u32 slot)
 {
-    rgU32 const maxBufferBindIndex = 30;
-    rgU32 bindpoint = maxBufferBindIndex - slot;
+    u32 const maxBufferBindIndex = 30;
+    u32 bindpoint = maxBufferBindIndex - slot;
     rgAssert(bindpoint > 0 && bindpoint < 31);
     return bindpoint;
 }
 
-void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, rgU32 offset, rgU32 slot)
+void GfxRenderCmdEncoder::setVertexBuffer(const GfxBuffer* buffer, u32 offset, u32 slot)
 {
     [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) setVertexBuffer:getMTLBuffer(buffer) offset:offset atIndex:slotToVertexBinding(slot)];
 }
 
-void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, rgU32 slot)
+void GfxRenderCmdEncoder::setVertexBuffer(GfxFrameResource const* resource, u32 slot)
 {
     rgAssert(resource && resource->type == GfxFrameResource::Type_Buffer);
     [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) setVertexBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:slotToVertexBinding(slot)];
@@ -968,7 +968,7 @@ GfxPipelineArgument* GfxRenderCmdEncoder::getPipelineArgument(char const* bindin
     return info;
 }
 
-void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset)
+void GfxRenderCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, u32 offset)
 {
     rgAssert(buffer != nullptr);
 
@@ -1065,15 +1065,15 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads, Matrix4 const*
     
     genTexturedQuadVertices(quads, &vertices, &instanceParams);
     
-    GfxFrameResource vertexBufAllocation = gfxGetFrameAllocator()->newBuffer("drawTexturedQuadsVertexBuf", (rgU32)vertices.size() * sizeof(SimpleVertexFormat), vertices.data());
+    GfxFrameResource vertexBufAllocation = gfxGetFrameAllocator()->newBuffer("drawTexturedQuadsVertexBuf", (u32)vertices.size() * sizeof(SimpleVertexFormat), vertices.data());
     GfxFrameResource instanceParamsBuffer = gfxGetFrameAllocator()->newBuffer("instanceParamsCBuffer", sizeof(SimpleInstanceParams), &instanceParams);
 
     //-
     // camera
     struct
     {
-        rgFloat projection2d[16];
-        rgFloat view2d[16];
+        f32 projection2d[16];
+        f32 view2d[16];
     } cameraParams;
     
     if(projectionMatrix != nullptr)
@@ -1082,7 +1082,7 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads, Matrix4 const*
     }
     else
     {
-        copyMatrix4ToFloatArray(cameraParams.projection2d, makeOrthographicProjectionMatrix(0.0f, (rgFloat)g_WindowInfo.width, (rgFloat)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
+        copyMatrix4ToFloatArray(cameraParams.projection2d, makeOrthographicProjectionMatrix(0.0f, (f32)g_WindowInfo.width, (f32)g_WindowInfo.height, 0.0f, 0.1f, 1000.0f));
     }
 
     if(viewMatrix != nullptr)
@@ -1104,23 +1104,23 @@ void GfxRenderCmdEncoder::drawTexturedQuads(TexturedQuads* quads, Matrix4 const*
     
     setVertexBuffer(&vertexBufAllocation, 0);
 
-    drawTriangles(0, (rgU32)vertices.size(), 1);
+    drawTriangles(0, (u32)vertices.size(), 1);
 }
 
 //-----------------------------------------------------------------------------
-void GfxRenderCmdEncoder::drawTriangles(rgU32 vertexStart, rgU32 vertexCount, rgU32 instanceCount)
+void GfxRenderCmdEncoder::drawTriangles(u32 vertexStart, u32 vertexCount, u32 instanceCount)
 {
     [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:vertexCount instanceCount:instanceCount];
 }
 
-void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, rgU32 bufferOffset, rgU32 instanceCount)
+void GfxRenderCmdEncoder::drawIndexedTriangles(u32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, u32 bufferOffset, u32 instanceCount)
 {
     rgAssert(mtlRenderCommandEncoder);
     MTLIndexType indexElementType = is32bitIndex ? MTLIndexTypeUInt32 : MTLIndexTypeUInt16;
     [asMTLRenderCommandEncoder(mtlRenderCommandEncoder) drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:indexCount indexType:indexElementType indexBuffer:getMTLBuffer(indexBuffer) indexBufferOffset:bufferOffset instanceCount:instanceCount];
 }
 
-void GfxRenderCmdEncoder::drawIndexedTriangles(rgU32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, rgU32 instanceCount)
+void GfxRenderCmdEncoder::drawIndexedTriangles(u32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, u32 instanceCount)
 {
     rgAssert(mtlRenderCommandEncoder);
     rgAssert(indexBufferResource && indexBufferResource->type == GfxFrameResource::Type_Buffer);
@@ -1188,7 +1188,7 @@ GfxPipelineArgument* GfxComputeCmdEncoder::getPipelineArgument(char const* bindi
 }
 
 //-----------------------------------------------------------------------------
-void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, rgU32 offset)
+void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxBuffer* buffer, u32 offset)
 {
     rgAssert(buffer != nullptr);
 
@@ -1218,7 +1218,7 @@ void GfxComputeCmdEncoder::bindBuffer(char const* bindingTag, GfxFrameResource c
     [encoder setBuffer:asMTLBuffer(resource->mtlBuffer) offset:0 atIndex:info->registerIndex];
 }
 
-void GfxComputeCmdEncoder::bindBufferFromData(char const* bindingTag, rgU32 sizeInBytes, void* data)
+void GfxComputeCmdEncoder::bindBufferFromData(char const* bindingTag, u32 sizeInBytes, void* data)
 {
     rgAssert(data != nullptr);
     rgAssert(sizeInBytes > 0 && sizeInBytes <= SDL_MAX_UINT32);
@@ -1257,7 +1257,7 @@ void GfxComputeCmdEncoder::bindSamplerState(char const* bindingTag, GfxSamplerSt
     [encoder setSamplerState:getMTLSamplerState(sampler) atIndex:info->registerIndex];
 }
 
-void GfxComputeCmdEncoder::dispatch(rgU32 threadgroupsGridX, rgU32 threadgroupsGridY, rgU32 threadgroupsGridZ)
+void GfxComputeCmdEncoder::dispatch(u32 threadgroupsGridX, u32 threadgroupsGridY, u32 threadgroupsGridZ)
 {
     id<MTLComputeCommandEncoder> encoder = asMTLComputeCommandEncoder(mtlComputeCommandEncoder);
     [encoder dispatchThreads:MTLSizeMake(threadgroupsGridX, threadgroupsGridY, threadgroupsGridZ)
@@ -1295,7 +1295,7 @@ void GfxBlitCmdEncoder::genMips(GfxTexture* srcTexture)
     [asMTLBlitCommandEncoder(mtlBlitCommandEncoder) generateMipmapsForTexture:getMTLTexture(srcTexture)];
 }
 
-void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, rgU32 srcMipLevel, rgU32 dstMipLevel, rgU32 mipLevelCount)
+void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTexture, u32 srcMipLevel, u32 dstMipLevel, u32 mipLevelCount)
 {
     id<MTLTexture> src = getMTLTexture(srcTexture);
     id<MTLTexture> dst = getMTLTexture(dstTexture);
@@ -1307,9 +1307,9 @@ void GfxBlitCmdEncoder::copyTexture(GfxTexture* srcTexture, GfxTexture* dstTextu
 // GFX FRAME RESOURCE ALLOCATOR
 // ----------------------------------------
 
-void GfxFrameAllocator::create(rgU32 bufferHeapSize, rgU32 nonRTDSTextureHeapSize, rgU32 rtDSTextureHeapSize)
+void GfxFrameAllocator::create(u32 bufferHeapSize, u32 nonRTDSTextureHeapSize, u32 rtDSTextureHeapSize)
 {
-    rgU32 totalSizeInBytes = bufferHeapSize + nonRTDSTextureHeapSize + rtDSTextureHeapSize;
+    u32 totalSizeInBytes = bufferHeapSize + nonRTDSTextureHeapSize + rtDSTextureHeapSize;
 
     MTLHeapDescriptor* heapDesc = [MTLHeapDescriptor new];
     heapDesc.type = MTLHeapTypePlacement;
@@ -1334,8 +1334,8 @@ void GfxFrameAllocator::destroy()
 
 void GfxFrameAllocator::releaseResources()
 {
-    rgInt l = mtlResources.size();
-    for(rgInt i = 0; i < l; ++i)
+    i32 l = mtlResources.size();
+    for(i32 i = 0; i < l; ++i)
     {
         id<MTLResource> re = (__bridge id<MTLResource>)mtlResources[i];
         [re release];
@@ -1343,12 +1343,12 @@ void GfxFrameAllocator::releaseResources()
     mtlResources.clear();
 }
 
-GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void* initialData)
+GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, u32 size, void* initialData)
 {
     MTLResourceOptions options = MTLResourceStorageModeShared | MTLResourceHazardTrackingModeTracked | MTLResourceCPUCacheModeWriteCombined;
     MTLSizeAndAlign sizeAndAlign = [getMTLDevice() heapBufferSizeAndAlignWithLength:size options:options];
     
-    rgU32 alignedStartOffset = bumpStorageAligned(sizeAndAlign.size, sizeAndAlign.align);
+    u32 alignedStartOffset = bumpStorageAligned(sizeAndAlign.size, sizeAndAlign.align);
     
     id<MTLBuffer> br = [asMTLHeap(heap) newBufferWithLength:size options:options offset:alignedStartOffset];
     rgAssert(br != nil);
@@ -1370,7 +1370,7 @@ GfxFrameResource GfxFrameAllocator::newBuffer(const char* tag, rgU32 size, void*
     return output;
 }
 
-GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialData, rgUInt width, rgUInt height, TinyImageFormat format, GfxTextureUsage usage)
+GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialData, u32 width, u32 height, TinyImageFormat format, GfxTextureUsage usage)
 {
     if(initialData != nullptr && (usage & GfxTextureUsage_MemorylessRenderTarget))
     {
@@ -1387,7 +1387,7 @@ GfxFrameResource GfxFrameAllocator::newTexture2D(const char* tag, void* initialD
     texDesc.usage = toMTLTextureUsage(usage);
     
     MTLSizeAndAlign sizeAndAlign = [getMTLDevice() heapTextureSizeAndAlignWithDescriptor:texDesc];
-    rgU32 alignedStartOffset = bumpStorageAligned(sizeAndAlign.size, sizeAndAlign.align);
+    u32 alignedStartOffset = bumpStorageAligned(sizeAndAlign.size, sizeAndAlign.align);
     
     id<MTLTexture> te = [asMTLHeap(heap) newTextureWithDescriptor:texDesc offset:alignedStartOffset];
     te.label = [NSString stringWithUTF8String:tag];
@@ -1440,7 +1440,7 @@ void testComputeAtomicsSetup()
     
     ImageRef histoTex = loadImage("histogram_test.png");
     histogramTest = GfxTexture::create("histogramTest", GfxTextureDim_2D, histoTex->width, histoTex->height, histoTex->format, GfxTextureMipFlag_1Mip, GfxTextureUsage_ShaderRead, histoTex->slices);
-    histogramBuffer = GfxBuffer::create("histogramBuffer", GfxMemoryType_Default, nullptr, sizeof(rgUInt)*255*3, GfxBufferUsage_ShaderRW);
+    histogramBuffer = GfxBuffer::create("histogramBuffer", GfxMemoryType_Default, nullptr, sizeof(u32)*255*3, GfxBufferUsage_ShaderRW);
 }
 
 void testComputeAtomicsRun()
@@ -1470,7 +1470,7 @@ struct Camera
 // GFX FUNCTIONS
 // ----------------------------------------
 
-rgInt gfxInit()
+i32 gfxInit()
 {
     rgAssert(g_AppMainWindow);
     appView = (NSView*)SDL_Metal_CreateView(g_AppMainWindow);
@@ -1530,12 +1530,12 @@ void gfxDestroy()
 
 void gfxStartNextFrame()
 {
-    rgU64 prevFrameFenceValue = (g_FrameIndex != -1) ? frameFenceValues[g_FrameIndex] : 0;
+    u64 prevFrameFenceValue = (g_FrameIndex != -1) ? frameFenceValues[g_FrameIndex] : 0;
     
     g_FrameIndex = (g_FrameIndex + 1) % RG_MAX_FRAMES_IN_FLIGHT;
     
     // check if this next frame is finised on the GPU
-    rgU64 nextFrameFenceValueToWaitFor = frameFenceValues[g_FrameIndex];
+    u64 nextFrameFenceValueToWaitFor = frameFenceValues[g_FrameIndex];
     while(frameFenceEvent.signaledValue < nextFrameFenceValueToWaitFor)
     {
         // This means we have no free backbuffers. we must wait
@@ -1579,7 +1579,7 @@ void gfxEndFrame()
     
     [getMTLCommandBuffer() presentDrawable:(caMetalDrawable)];
     
-    rgU64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
+    u64 fenceValueToSignal = frameFenceValues[g_FrameIndex];
     [getMTLCommandBuffer() encodeSignalEvent:frameFenceEvent value:fenceValueToSignal];
     
     [getMTLCommandBuffer() commit];
@@ -1664,16 +1664,16 @@ TinyImageFormat gfxGetBackbufferFormat()
     return TinyImageFormat_B8G8R8A8_SRGB;
 }
 
-void gfxSetBindlessResource(rgU32 slot, GfxTexture* ptr)
+void gfxSetBindlessResource(u32 slot, GfxTexture* ptr)
 {
     [bindlessTextureArgEncoder setTexture:getMTLTexture(ptr) atIndex:slot];
 }
 
 /*
-void checkerWaitTillFrameCompleted(rgInt frameIndex)
+void checkerWaitTillFrameCompleted(i32 frameIndex)
 {
     rgAssert(frameIndex >= 0);
-    rgU64 valueToWaitFor = frameFenceValues[frameIndex];
+    u64 valueToWaitFor = frameFenceValues[frameIndex];
     while(frameFenceEvent.signaledValue < valueToWaitFor)
     {
         // TODO: cpu friendly way to wait
