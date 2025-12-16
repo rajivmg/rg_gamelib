@@ -1,6 +1,8 @@
 #ifndef __WORLD_H__
 #define __WORLD_H__
 
+#include <core.h>
+
 struct Chunk
 {
     u32 tiles[32][32];
@@ -8,7 +10,6 @@ struct Chunk
 
 struct World
 {
-    
     Chunk* loadedChunks[5][5];
 };
 
