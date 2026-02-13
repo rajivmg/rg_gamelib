@@ -416,7 +416,10 @@ i32 updateAndDraw(f64 dt)
         simple2dRenderPass.clearDepth = 1.0f;
         
         GfxRenderCmdEncoder* simple2dRenderEncoder = gfxSetRenderPass("Simple2D Pass", &simple2dRenderPass);
-        simple2dRenderEncoder->setGraphicsPSO(simple2DPSO);
+        beginRenderPass();
+        setComputePSO(xyz);
+        drawTexturedQuad()
+        endRenderPass();
         simple2dRenderEncoder->drawTexturedQuads(&g_GameState->characterPortraits, nullptr, nullptr);
         simple2dRenderEncoder->end();
     }

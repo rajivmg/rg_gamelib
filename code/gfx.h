@@ -67,7 +67,7 @@ enum    SpriteLayer : u8;
 // PERF: check performance with normal multimap
 typedef eastl::vector_multimap<SpriteLayer, TexturedQuad> TexturedQuads;
 
-i32   gfxGetFrameIndex();
+i32     gfxGetFrameIndex();
 void    gfxSetBindlessResource(u32 slot, GfxTexture* ptr);
 
 // Gfx Object Registry
@@ -384,8 +384,8 @@ struct GfxRenderPass
     GfxTexture*             depthStencilAttachmentTexture;
     GfxLoadAction           depthStencilAttachmentLoadAction;
     GfxStoreAction          depthStencilAttachmentStoreAction;
-    f32                 clearDepth;
-    u8                    clearStencil;
+    f32                     clearDepth;
+    u8                      clearStencil;
 };
 
 // PSO and State types
@@ -440,10 +440,10 @@ struct GfxVertexInputDesc
     struct 
     {
         const char*         semanticName;
-        u32              semanticIndex;
+        u32                 semanticIndex;
         TinyImageFormat     format;
-        u32              bufferIndex;
-        u32              offset;
+        u32                 bufferIndex;
+        u32                 offset;
         GfxVertexStepFunc   stepFunc;
     } elements[8];
     i32 elementCount;
@@ -523,9 +523,9 @@ struct GfxGraphicsPSO : GfxObjectRegistry<GfxGraphicsPSO, GfxVertexInputDesc*, G
     rgBool                      d3dHasCBVSRVUAVs;
     rgBool                      d3dHasSamplers;
     rgBool                      d3dHasBindlessResources;
-    u32                       d3dVertexStrideInBytes;
-    u32                       d3dCbvSrvUavDescriptorCount;
-    u32                       d3dSamplerDescriptorCount;
+    u32                         d3dVertexStrideInBytes;
+    u32                         d3dCbvSrvUavDescriptorCount;
+    u32                         d3dSamplerDescriptorCount;
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
@@ -688,22 +688,44 @@ struct GfxBlitCmdEncoder
 // Common functions
 // ----------------
 
-i32                   gfxPreInit();
-i32                   gfxPostInit();
+i32                     gfxPreInit();
+i32                     gfxPostInit();
 void                    gfxAtFrameStart();
-i32                   gfxGetFrameIndex(); // Returns 0 if g_FrameIndex is -1
-i32                   gfxGetPrevFrameIndex();
+i32                     gfxGetFrameIndex(); // Returns 0 if g_FrameIndex is -1
+i32                     gfxGetPrevFrameIndex();
 GfxFrameAllocator*      gfxGetFrameAllocator();
 
 GfxRenderCmdEncoder*    gfxSetRenderPass(char const* tag, GfxRenderPass* renderPass);
 GfxComputeCmdEncoder*   gfxSetComputePass(char const* tag);
 GfxBlitCmdEncoder*      gfxSetBlitPass(char const* tag);
 
+void                    setRenderPass(char const* tag, GfxRenderPass* renderPass);
+
+void                    setViewport(rgFloat4 viewport);
+void                    setViewport(f32 originX, f32 originY, f32 width, f32 height);
+void                    setScissorRect(u32 xPixels, u32 yPixels, u32 widthPixels, u32 heightPixels);
+void                    setGraphicsPSO(GfxGraphicsPSO* pso);
+
+void                    setVertexBuffer(GfxBuffer const* buffer, u32 offset, u32 slot);
+void                    setVertexBuffer(GfxFrameResource const* resource, u32 slot);
+void                    bindBuffer(char const* bindingTag, GfxBuffer* buffer, u32 offset);
+void                    bindBuffer(char const* bindingTag, GfxFrameResource const* resource);
+void                    bindTexture(char const* bindingTag, GfxTexture* texture);
+void                    bindSamplerState(char const* bindingTag, GfxSamplerState* sampler);
+
+void                    drawTexturedQuads(TexturedQuads* quads, Matrix4 const* viewMatrix, Matrix4 const* projectionMatrix);
+void                    drawTriangles(u32 vertexStart, u32 vertexCount, u32 instanceCount);
+void                    drawIndexedTriangles(u32 indexCount, rgBool is32bitIndex, GfxBuffer const* indexBuffer, u32 bufferOffset, u32 instanceCount);
+void                    drawIndexedTriangles(u32 indexCount, rgBool is32bitIndex, GfxFrameResource const* indexBufferResource, u32 instanceCount);
+
+void                    setComputePSO(GfxComputePSO* pso);
+
+void                    dispatch(u32 threadgroupsGridX, u32 threadgroupsGridY, u32 threadgroupsGridZ);
 
 // API specific implementation functions
 // -------------------------------------
 
-i32           gfxInit();
+i32             gfxInit();
 void            gfxDestroy();
 void            gfxStartNextFrame();
 void            gfxEndFrame();
