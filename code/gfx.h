@@ -67,7 +67,7 @@ enum    SpriteLayer : u8;
 // PERF: check performance with normal multimap
 typedef eastl::vector_multimap<SpriteLayer, TexturedQuad> TexturedQuads;
 
-i32   gfxGetFrameIndex();
+i32     gfxGetFrameIndex();
 void    gfxSetBindlessResource(u32 slot, GfxTexture* ptr);
 
 // Gfx Object Registry
@@ -250,12 +250,12 @@ enum GfxTextureMipFlag
 struct GfxTexture : GfxObjectRegistry<GfxTexture, GfxTextureDim, u32, u32, TinyImageFormat, GfxTextureMipFlag, GfxTextureUsage, ImageSlice*>
 {
     GfxTextureDim   dim;
-    u32          width;
-    u32          height;
+    u32             width;
+    u32             height;
     TinyImageFormat format;
-    u32          mipmapCount;
+    u32             mipmapCount;
     GfxTextureUsage usage;
-    u32           texID;
+    u32             texID;
 
 #if defined(RG_D3D12_RNDR)
     ComPtr<ID3D12Resource>          d3dResource;
@@ -384,8 +384,8 @@ struct GfxRenderPass
     GfxTexture*             depthStencilAttachmentTexture;
     GfxLoadAction           depthStencilAttachmentLoadAction;
     GfxStoreAction          depthStencilAttachmentStoreAction;
-    f32                 clearDepth;
-    u8                    clearStencil;
+    f32                     clearDepth;
+    u8                      clearStencil;
 };
 
 // PSO and State types
@@ -440,10 +440,10 @@ struct GfxVertexInputDesc
     struct 
     {
         const char*         semanticName;
-        u32              semanticIndex;
+        u32                 semanticIndex;
         TinyImageFormat     format;
-        u32              bufferIndex;
-        u32              offset;
+        u32                 bufferIndex;
+        u32                 offset;
         GfxVertexStepFunc   stepFunc;
     } elements[8];
     i32 elementCount;
@@ -523,9 +523,9 @@ struct GfxGraphicsPSO : GfxObjectRegistry<GfxGraphicsPSO, GfxVertexInputDesc*, G
     rgBool                      d3dHasCBVSRVUAVs;
     rgBool                      d3dHasSamplers;
     rgBool                      d3dHasBindlessResources;
-    u32                       d3dVertexStrideInBytes;
-    u32                       d3dCbvSrvUavDescriptorCount;
-    u32                       d3dSamplerDescriptorCount;
+    u32                         d3dVertexStrideInBytes;
+    u32                         d3dCbvSrvUavDescriptorCount;
+    u32                         d3dSamplerDescriptorCount;
     ComPtr<ID3D12RootSignature> d3dRootSignature;
     ComPtr<ID3D12PipelineState> d3dPSO;
 #elif defined(RG_METAL_RNDR)
@@ -688,11 +688,11 @@ struct GfxBlitCmdEncoder
 // Common functions
 // ----------------
 
-i32                   gfxPreInit();
-i32                   gfxPostInit();
+i32                     gfxPreInit();
+i32                     gfxPostInit();
 void                    gfxAtFrameStart();
-i32                   gfxGetFrameIndex(); // Returns 0 if g_FrameIndex is -1
-i32                   gfxGetPrevFrameIndex();
+i32                     gfxGetFrameIndex(); // Returns 0 if g_FrameIndex is -1
+i32                     gfxGetPrevFrameIndex();
 GfxFrameAllocator*      gfxGetFrameAllocator();
 
 GfxRenderCmdEncoder*    gfxSetRenderPass(char const* tag, GfxRenderPass* renderPass);
@@ -703,7 +703,7 @@ GfxBlitCmdEncoder*      gfxSetBlitPass(char const* tag);
 // API specific implementation functions
 // -------------------------------------
 
-i32           gfxInit();
+i32             gfxInit();
 void            gfxDestroy();
 void            gfxStartNextFrame();
 void            gfxEndFrame();
@@ -849,7 +849,7 @@ struct GfxFrameResource
     };
     
     Type    type;
-    u32   sizeInBytes;
+    u32     sizeInBytes;
 
 #if defined(RG_METAL_RNDR)
     void* mtlBuffer; //type: id<MTLBuffer>
@@ -965,17 +965,17 @@ struct ImageSlice
 
 struct Image
 {
-    rgChar          tag[32];
-    u16           width;
-    u16           height;
-    TinyImageFormat format;
-    rgBool          isDDS;
-    GfxTextureMipFlag mipFlag;
-    u8            sliceCount;
-    ImageSlice      slices[15];
-    u8*           memory;
+    rgChar              tag[32];
+    u16                 width;
+    u16                 height;
+    TinyImageFormat     format;
+    rgBool              isDDS;
+    GfxTextureMipFlag   mipFlag;
+    u8                  sliceCount;
+    ImageSlice          slices[15];
+    u8*                 memory;
 
-    void*           dxTexScratchImage;
+    void*               dxTexScratchImage;
 };
 typedef eastl::shared_ptr<Image> ImageRef;
 
@@ -988,7 +988,7 @@ void        unloadImage(Image* ptr);
 
 struct DefaultMaterial
 {
-    rgChar tag[32];
+    rgChar      tag[32];
     GfxTexture* diffuseAlpha;
     GfxTexture* normal;
     GfxTexture* properties;

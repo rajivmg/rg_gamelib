@@ -367,6 +367,12 @@ static DefaultMaterialRef loadMaterial(eastl::string basePath, pugi::xml_node* m
     ImageRef propImg = loadImage(matNode->child("prop").attribute("path").as_string());
     
     changeWorkingDir(rootWd);
+    
+    material->diffuseAlpha = GfxTexture::create(nullptr, GfxTextureDim_2D, difalphaImg->width, difalphaImg->height, difalphaImg->format, difalphaImg->mipFlag, GfxTextureUsage_ShaderRead, difalphaImg->slices);
+    material->normal = GfxTexture::create(nullptr, GfxTextureDim_2D, normImg->width, normImg->height, normImg->format, normImg->mipFlag, GfxTextureUsage_ShaderRead, normImg->slices);
+    material->properties = GfxTexture::create(nullptr, GfxTextureDim_2D, propImg->width, propImg->height, propImg->format, propImg->mipFlag, GfxTextureUsage_ShaderRead, propImg->slices);
+    
+    
 }
 
 ModelRef loadModel(char const* filename)
