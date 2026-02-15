@@ -171,4 +171,4 @@ struct Bee : TheApp
     }
 };
 
-THE_APP_MAIN(Bee)
+//THE_APP_MAIN(Bee)
