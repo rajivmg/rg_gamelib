@@ -393,6 +393,10 @@ ModelRef loadModel(char const* filename)
         return nullptr;
     }
     
+    eastl::string wd = getCurrentWorkingDir();
+    eastl::string basePath = extractBasePath(filename);
+    changeWorkingDir(basePath);
+    
     pugi::xml_document modelDoc;
     pugi::xml_parse_result parseResult = modelDoc.load_buffer(xmlFileData.data, xmlFileData.dataSize);
     
@@ -402,7 +406,7 @@ ModelRef loadModel(char const* filename)
     
     ModelRef outModel = eastl::shared_ptr<Model>(rgNew(Model), unloadModel);
     
-    pugi::xml_node modelNode = modelDoc.first_child();
+    pugi::xml_node modelNode = modelDoc.first_element_by_path("model");
     
     strncpy(outModel->tag, modelNode.attribute("name").as_string(), sizeof(Model::tag));
     
@@ -453,6 +457,8 @@ ModelRef loadModel(char const* filename)
         outModel->meshes.push_back(m);
     }
     
+    changeWorkingDir(wd);
+
     return outModel;
 }
 

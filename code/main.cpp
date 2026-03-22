@@ -466,7 +466,7 @@ i32 updateAndDraw(f64 dt)
             }
             else
             {
-                sceneFowardRenderEncoder->drawIndexedTriangles(m->indexCount, false, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index32BufferOffset + m->indexDataOffset, 1);
+                sceneFowardRenderEncoder->drawIndexedTriangles(m->indexCount, false, g_GameState->shaderballModel->vertexIndexBuffer, g_GameState->shaderballModel->index16BufferOffset + m->indexDataOffset, 1);
             }
         }
 
