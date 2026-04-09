@@ -1,0 +1,29 @@
+
+[GfxCreateArguments("GfxTextureDim dim, u32 width, u32 height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices")]
+struct GfxTexture2 : GfxObjectRegistry<GfxTexture2>
+{
+    GfxTextureDim   dim;
+    u32             width;
+    u32             height;
+    TinyImageFormat format;
+    u32             mipmapCount;
+    GfxTextureUsage usage;
+    u32             texID;
+
+	static void createGfxObject(char const* tag, [GfxCreateArgumentHolder] int holder, GfxTexture2* obj);
+	static void destroyGfxObject(GfxTexture2* obj);
+
+    static Type* create(const char* name, [GfxCreateArgumentsHolder] int holder)
+    {
+        Type* obj = rgNew(Type);
+        if(name != nullptr)
+        {
+            strncpy(obj->tag, name, rgArrayCount(tag));
+        }
+        
+        Type::fillStruct(holder, obj);
+        Type::createGfxObject(name, holder, obj);
+
+        return obj;
+    }
+}
