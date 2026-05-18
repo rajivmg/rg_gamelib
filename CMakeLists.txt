@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 4.0)
 
 # name of project
 project(rg_gamelib)
@@ -74,6 +74,8 @@ set(SPIRVCROSS_ROOT_DIR ${CMAKE_SOURCE_DIR}/3rdparty/SPIRV-Cross)
 file(GLOB_RECURSE SPIRVCROSS_SRC_FILES "${SPIRVCROSS_ROOT_DIR}/*.cpp" "${SPIRVCROSS_ROOT_DIR}/*.hpp" "${SPIRVCROSS_ROOT_DIR}/*.h")
 source_group("SPIRV-Cross" FILES ${SPIRVCROSS_SRC_FILES})
 
+file(GLOB_RECURSE AKIRO_TARGETS "code/*.akiro")
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 file(GLOB SHADER_FILES "${CMAKE_SOURCE_DIR}/code/shaders/*.hlsl" "${CMAKE_SOURCE_DIR}/code/shaders/*.h")
@@ -127,6 +129,15 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Release NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/Debug NO_SOURCE_PERMISSIONS)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
+
+    add_custom_command(DEPENDS "${CMAKE_SOURCE_DIR}/code/akiro/main.l" COMMAND ${CMAKE_SOURCE_DIR}/3rdparty/flex/win64/win_flex.exe -olex.yy.cpp main.l WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/code/akiro/" OUTPUT "${CMAKE_SOURCE_DIR}/code/akiro/lex.yy.cpp")
+    add_executable(akiro "code/akiro/lex.yy.cpp" "code/akiro/main.l")
+
+    #set(AKIRO_TARGETS ${SRC_FILES} ${GAME_SRC_FILES})
+    foreach(F ${AKIRO_TARGETS})
+        string(REGEX REPLACE "[.]akiro$" ".h" F_H ${F})
+        add_custom_command(DEPENDS akiro ${F} OUTPUT ${F_H} COMMAND akiro ${F} ${F_H})
+    endforeach()
 
     add_executable(rg_gamelib ${SRC_FILES} ${GAME_SRC_FILES} ${IMGUI_SRC_FILES} ${IMGUI_BACKEND_SRC_FILES} ${BOX2D_SRC_FILES} ${DIRECTXTEX_SRC_FILES} ${DIRECTXTK12_SRC_FILES} ${PUGIXML_SRC_FILES} ${GRAPHICS_SRC} ${SHADER_FILES})
     target_link_libraries(rg_gamelib SDL2main SDL2 ${EASTL_LIBRARY} ${GRAPHICS_LIBS})
