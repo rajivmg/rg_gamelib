@@ -1,29 +1,31 @@
 
 [GfxCreateArguments("GfxTextureDim dim, u32 width, u32 height, TinyImageFormat format, GfxTextureMipFlag mipFlag, GfxTextureUsage usage, ImageSlice* slices")]
-struct GfxTexture2 : GfxObjectRegistry<GfxTexture2>
+struct GfxTexture2 : GfxObjectRegistry<GfxTexture2>, BaseObject     
 {
     GfxTextureDim   dim;
     u32             width;
     u32             height;
-    TinyImageFormat format;
-    u32             mipmapCount;
+    TinyImageFormat 
+    format; u32             mipmapCount;
     GfxTextureUsage usage;
+
+
     u32             texID;
-
-	static void createGfxObject(char const* tag, [GfxCreateArgumentHolder] int holder, GfxTexture2* obj);
-	static void destroyGfxObject(GfxTexture2* obj);
-
-    static Type* create(const char* name, [GfxCreateArgumentsHolder] int holder)
-    {
-        Type* obj = rgNew(Type);
-        if(name != nullptr)
-        {
-            strncpy(obj->tag, name, rgArrayCount(tag));
-        }
-        
-        Type::fillStruct(holder, obj);
-        Type::createGfxObject(name, holder, obj);
-
-        return obj;
     }
+
+    struct GfxComputePSO : Dish, GfxObjectRegistry<GfxComputePSO, Mango<Fruit>, GfxShaderDesc*>
+{
+    // TODO: This info might only be needed for metal
+    u32 threadsPerThreadgroupX;
+    u32 threadsPerThreadgroupY;
+    u32 threadsPerThreadgroupZ;
+}
+
+struct      GfxSamplerState
+{
+    GfxSamplerAddressMode   rstAddressMode;
+    GfxSamplerMinMagFilter  minFilter;
+    GfxSamplerMinMagFilter  magFilter;
+    GfxSamplerMipFilter     mipFilter;
+    rgBool                  anisotropy;
 }
