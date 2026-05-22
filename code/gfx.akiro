@@ -25,7 +25,13 @@ struct      GfxSamplerState
 {
     GfxSamplerAddressMode   rstAddressMode;
     GfxSamplerMinMagFilter  minFilter;
+    Tree<Mango,GraftBase> [5]             trees;
+    Tree<Mango,GraftBase>[5]*          trees2;
+    GfxComputePSO*          pso1;
+    GfxComputePSO           *pso2;
     GfxSamplerMinMagFilter  magFilter;
+    float[MAX_RACE_COUNT]   races;
     GfxSamplerMipFilter     mipFilter;
+    int                     targets[5];
     rgBool                  anisotropy;
 }
