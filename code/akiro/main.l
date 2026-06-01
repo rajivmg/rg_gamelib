@@ -9,32 +9,37 @@
 
 %}
 
-%x EXPECT_STRUCT_NAME EXPECT_STRUCT_BASE_TYPES EXPECT_STRUCT_DATA_MEMBER_TYPE EXPECT_STRUCT_DATA_MEMBER_NAME
+%x EXPECT_STRUCT_NAME EXPECT_STRUCT_BASE_TYPES EXPECT_STRUCT_DATA_MEMBER_TYPE EXPECT_STRUCT_DATA_MEMBER_NAME EXPECT_STRUCT_DATA_MEMBER_ARRAY_DECL
 
 TEMPLATE_DECL "<"[[:alnum:],*<> ]+">"
 POINTER_DECL [[:space:]*]
-ARRAY_DECL "["[[:alnum:]*+, ]+"]"
+ARRAY_DECL "["[[:alnum:]_*+, ]+"]"
 
 %%
 
 <INITIAL>struct[[:space:]]+                 { BEGIN(EXPECT_STRUCT_NAME); }
 <INITIAL>[[:space:]]                        /*THIS REMOVES THE SPACES IN WRONG PLACES eat up the whitespaces*/
 
-<EXPECT_STRUCT_NAME>[[:alnum:]]+                    { printf("\nBEGIN_STRUCT_NAME:%s\n", yytext); BEGIN(EXPECT_STRUCT_BASE_TYPES); }
-<EXPECT_STRUCT_BASE_TYPES>[[:space:]]*:*            /*eat up the :*/
-<EXPECT_STRUCT_BASE_TYPES>[[:alnum:]]+{TEMPLATE_DECL}*            { printf("STRUCT_INHERITANCE_DECL:%s\n", yytext); }
+<EXPECT_STRUCT_NAME>[[:alnum:]]+                        { printf("\nBEGIN_STRUCT_NAME:%s\n", yytext); BEGIN(EXPECT_STRUCT_BASE_TYPES); }
+<EXPECT_STRUCT_BASE_TYPES>[[:space:]]*:*                /*eat up the :*/
+<EXPECT_STRUCT_BASE_TYPES>[[:alnum:]]+{TEMPLATE_DECL}*  { printf("STRUCT_INHERITANCE_DECL:%s\n", yytext); }
 
 <EXPECT_STRUCT_BASE_TYPES>,+                        /*eat up the ,*/
 <EXPECT_STRUCT_BASE_TYPES>[\r\n\t\f\v ]+\{          { BEGIN(EXPECT_STRUCT_DATA_MEMBER_TYPE); }
 
 <EXPECT_STRUCT_DATA_MEMBER_TYPE>[[:space:]]         /*eat up the whitespace*/
-<EXPECT_STRUCT_DATA_MEMBER_TYPE>[[:alnum:]]+{TEMPLATE_DECL}*{POINTER_DECL}*{ARRAY_DECL}*{POINTER_DECL}* { printf("EXPECT_STRUCT_DATA_MEMBER_TYPE:%s\n", yytext); BEGIN(EXPECT_STRUCT_DATA_MEMBER_NAME); }
+<EXPECT_STRUCT_DATA_MEMBER_TYPE>[[:alnum:]]+{TEMPLATE_DECL}*{POINTER_DECL}* { printf("EXPECT_STRUCT_DATA_MEMBER_TYPE:|%s| %d\n", yytext, yyleng); BEGIN(EXPECT_STRUCT_DATA_MEMBER_NAME); }
 <EXPECT_STRUCT_DATA_MEMBER_TYPE>\}                  { BEGIN(INITIAL); }
 <EXPECT_STRUCT_DATA_MEMBER_TYPE>"//"[^\r\n]*        /*eat up the single line comments*/
 
 <EXPECT_STRUCT_DATA_MEMBER_NAME>[[:space:]]         /*eat up the whitespace*/
-<EXPECT_STRUCT_DATA_MEMBER_NAME>[[:alnum:]]+        { printf("EXPECT_STRUCT_DATA_MEMBER_NAME:%s\n\n", yytext); BEGIN(EXPECT_STRUCT_DATA_MEMBER_NAME); }
-<EXPECT_STRUCT_DATA_MEMBER_NAME>[[:space:]*;]       { BEGIN(EXPECT_STRUCT_DATA_MEMBER_TYPE); }
+<EXPECT_STRUCT_DATA_MEMBER_NAME>[[:alnum:]]+        { printf("EXPECT_STRUCT_DATA_MEMBER_NAME:%s\n", yytext); BEGIN(EXPECT_STRUCT_DATA_MEMBER_ARRAY_DECL); }
+<EXPECT_STRUCT_DATA_MEMBER_NAME>[[:space:]*;]       { printf("\n"); BEGIN(EXPECT_STRUCT_DATA_MEMBER_TYPE); }
+
+<EXPECT_STRUCT_DATA_MEMBER_ARRAY_DECL>[[:space:]]       /*eat up the whitespace*/
+<EXPECT_STRUCT_DATA_MEMBER_ARRAY_DECL>[[:space:]*;]     { printf("\n"); BEGIN(EXPECT_STRUCT_DATA_MEMBER_TYPE); }
+<EXPECT_STRUCT_DATA_MEMBER_ARRAY_DECL>{ARRAY_DECL}*     { printf("EXPECT_STRUCT_DATA_MEMBER_ARRAY_DECL:%s\n", yytext); }
+
 %%
 
 int main(int argc, char **argv)
