@@ -34,4 +34,5 @@ struct      GfxSamplerState
     GfxSamplerMipFilter     mipFilter;
     int                     targets[5];
     rgBool                  anisotropy;
+    BasePointer *  *         myPtr;
 }

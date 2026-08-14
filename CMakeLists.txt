@@ -75,6 +75,7 @@ file(GLOB_RECURSE SPIRVCROSS_SRC_FILES "${SPIRVCROSS_ROOT_DIR}/*.cpp" "${SPIRVCR
 source_group("SPIRV-Cross" FILES ${SPIRVCROSS_SRC_FILES})
 
 file(GLOB_RECURSE AKIRO_TARGETS "code/*.akiro")
+file(GLOB_RECURSE AKIRO_SOURCES "code/akiro/*.h" "code/akiro/*.cpp")
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -131,7 +132,7 @@ if(WIN32)
     file(COPY ${DLL_FILES} DESTINATION ${CMAKE_BINARY_DIR}/RelWithDebInfo NO_SOURCE_PERMISSIONS)
 
     add_custom_command(DEPENDS "${CMAKE_SOURCE_DIR}/code/akiro/main.l" COMMAND ${CMAKE_SOURCE_DIR}/3rdparty/flex/win64/win_flex.exe -olex.yy.cpp main.l WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/code/akiro/" OUTPUT "${CMAKE_SOURCE_DIR}/code/akiro/lex.yy.cpp")
-    add_executable(akiro "code/akiro/lex.yy.cpp" "code/akiro/main.l")
+    add_executable(akiro ${AKIRO_SOURCES} "code/akiro/main.l")
 
     #set(AKIRO_TARGETS ${SRC_FILES} ${GAME_SRC_FILES})
     foreach(F ${AKIRO_TARGETS})
