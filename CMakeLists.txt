@@ -133,6 +133,7 @@ if(WIN32)
 
     add_custom_command(DEPENDS "${CMAKE_SOURCE_DIR}/code/akiro/main.l" COMMAND ${CMAKE_SOURCE_DIR}/3rdparty/flex/win64/win_flex.exe -olex.yy.cpp main.l WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/code/akiro/" OUTPUT "${CMAKE_SOURCE_DIR}/code/akiro/lex.yy.cpp")
     add_executable(akiro ${AKIRO_SOURCES} "code/akiro/main.l")
+    target_link_libraries(akiro ${EASTL_LIBRARY})
 
     #set(AKIRO_TARGETS ${SRC_FILES} ${GAME_SRC_FILES})
     foreach(F ${AKIRO_TARGETS})
